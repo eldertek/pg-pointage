@@ -1,0 +1,463 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Planète Gardiens Pointage - Development Rules
+
+## Color Palette
+- Primary: #00346E (Dark Blue)
+- Accent: #F78C48 (Orange)
+- Background: #FFFFFF (White)
+
+## Key Files
+@core/admin.py - Admin interface configurations
+@core/models.py - Core models definitions
+@core/views.py - Main view controllers
+@core/urls.py - URL routing
+@Makefile - Build and development commands
+
+## Database Schema
+
+### Models Overview
+@core/models/user.py - User model with roles (gardien, agent_de_nettoyage, manager)
+@core/models/site.py - Site configuration with QR codes
+@core/models/planning.py - Planning schedules (FIXE/FREQUENCE)
+@core/models/pointage.py - Time tracking records
+@core/models/anomalie.py - Anomaly tracking
+@core/models/statistiques.py - Time statistics
+
+### Key Relationships
+- User -> Organisation (Many-to-One)
+- Site -> Organisation (Many-to-One)
+- Planning -> Site (Many-to-One)
+- Planning -> User (Many-to-One)
+- Pointage -> User (Many-to-One)
+- Pointage -> Site (Many-to-One)
+- Anomalie -> User (Many-to-One)
+- Anomalie -> Site (Many-to-One)
+
+## Project Structure
+```
+core/
+├── admin.py           # Admin interface
+├── models/           # Database models
+├── views/            # View controllers
+├── migrations/       # Database migrations
+├── logging/         # Logging utilities
+├── utils/           # Helper functions
+├── tests/           # Test cases
+├── templates/       # HTML templates
+└── static/          # Static assets
+```
+
+## Development Guidelines
+
+### Model Updates
+1. Always create migrations after model changes
+2. Update corresponding admin.py views
+3. Add appropriate tests in tests/
+
+### View Controllers
+1. Keep business logic in services.py
+2. Use proper authentication decorators
+3. Handle offline scenarios for PWA
+
+### Admin Interface
+1. Customize list_display for better UX
+2. Add proper filters and search fields
+3. Implement export actions for reports
+
+## Build Commands
+@Makefile provides essential commands:
+- `make install` - Setup development environment
+- `make migrate` - Run database migrations
+- `make frontend` - Build frontend assets
+- `make serve` - Run development server
+- `make test` - Run test suite
+
+## Testing Requirements
+1. Cover all model operations
+2. Test offline scenarios
+3. Validate time calculations
+4. Check permission controls
+
+Cahier des charges:
+Cahier des Charges – Planète Gardiens Pointage (Version Finale)
+________________________________________
+1. Contexte et objectifs
+•	Nom du projet : Planète Gardiens Pointage
+•	Objectif : Développer un outil complet (application web/pwa + back-office web) permettant de gérer le pointage des salariés sur site (gardiennage et nettoyage), avec des preuves de présence via badges NFC/QR Code et un suivi précis des anomalies, retards, et départs anticipés.
+•	Enjeux :
+1.	Fiabiliser la preuve de présence sur site.
+2.	Automatiser la gestion des retards, départs anticipés, et anomalies avec envoi d’alertes aux équipes encadrantes.
+3.	Fournir des rapports précis (CSV, PDF) pour le suivi des heures travaillées et la paie.
+4.	Offrir une transparence aux salariés avec un tableau de bord personnel affichant leurs retards et anomalies.
+5.	Permettre à chaque franchisé de gérer ses propres sites et salariés, sous supervision d’un Super Admin.
+________________________________________
+2. Fonctionnalités attendues
+2.1. Gestion des rôles et des accès
+1.	Super Admin :
+o	Crée et gère les franchises (organisations).
+o	Supervise les données globales (sites, salariés, alertes).
+o	Accède à tout pour support et assistance.
+2.	Manager (Franchise) :
+o	Gère ses propres sites : création, paramétrage des plannings et alertes.
+o	Administre les salariés : création, affectation à un site, désactivation.
+o	Consulte les rapports et corrige les anomalies.
+o	Reçoit les alertes en temps réel pour les retards et départs anticipés.
+3.	Salarié :
+o	Pointe ses heures via l’application mobile.
+o	Accède à un historique de pointage avec mention des retards ou départs anticipés.
+o	Peut signaler un oubli ou une anomalie via un bouton dédié.
+________________________________________
+2.2. Gestion des plannings et des sites
+1.	Sites :
+o	Création par le manager : nom, adresse, ID du badge NFC, horaires, destinataires des alertes (e-mails).
+o	Plannings personnalisés par site, avec distinction :
+	Plannings fixes pour gardiens :
+	Horaires journaliers avec coupure (ex. Lundi 8h-12h / 14h-18h).
+	Alertes immédiates en cas de retard ou départ anticipé (avec une marge de permission paramétrable par site).
+	Fréquences pour agents de nettoyage :
+	Objectif basé sur une durée minimale par jour/semaine (ex. 6h/jour).
+	Rapport d’anomalies généré en fin de journée.
+2.	Paramétrages spécifiques :
+o	Marges configurables par site pour le retard ou départ anticipé (ex. 15 min).
+o	Configuration des alertes envoyées par e-mail.
+________________________________________
+2.3. Application mobile
+1.	Pointage via NFC/QR code :
+o	Lecture de l’ID du site lors du scan.
+o	Enregistrement de l’heure, ID du salarié, ID du site, et géolocalisation (si activée).
+o	Gestion hors-ligne avec synchronisation automatique dès reconnexion.
+2.	Tableau de bord salarié :
+o	Historique des derniers pointages avec détails sur les retards et départs anticipés.
+o	Compteur de cumul des retards et départ anticipé en nombre et en temps pour avoir des statistiques sur le salarié.
+o	Messages pédagogiques (ex. “Félicitations, aucun retard cette semaine” / “Vous avez accumulé 2 retards”).
+3.	Signalement d’anomalies :
+o	Bouton “Signaler une anomalie” permettant au salarié de déclarer un oubli.
+o	Notification instantanée au manager via e-mail.
+4.	Gestion des cas ambigus :
+o	Si un pointage est hors plage horaire (ex. 12h30 entre deux plages), un popup demande au salarié de préciser si c’est un départ tardif ou une arrivée après oubli avec déclaration automatique de l’anomalie d’oubli.
+________________________________________
+2.4. Back-office web
+1.	Gestion des utilisateurs :
+o	Création, modification et suppression des managers et salariés.
+o	Affectation des salariés à un ou plusieurs sites.
+2.	Alertes automatiques :
+o	Retard : si aucun pointage après l’heure prévue + marge.
+o	Départ anticipé : si pointage avant l’heure théorique de fin - marge.
+o	Notifications par e-mail envoyées aux destinataires paramétrés pour le site.
+3.	Correction manuelle des anomalies :
+o	Modification des horaires en cas d’oubli ou d’erreur, avec conservation d’une trace (ex. “Modifié par le manager le jj/mm/aaaa”).
+o	Les anomalies automatiques (ex. retard) sont mises à jour si un pointage est enregistré après.
+4.	Rapports et exports :
+o	Tableau de bord avec indicateurs : heures cumulées, retards, anomalies.
+o	Exports CSV ou PDF.
+o	Génération automatique de rapports mensuels pour chaque site.
+5.	Gestion des cas hors scope :
+o	Pointages effectués en dehors des jours configurés apparaissent dans une section dédiée.
+o	Les heures hors scope sont enregistrées pour consultation, mais ne génèrent pas d’alertes.
+________________________________________
+3. Gestion des cas spécifiques
+1.	Retards et départs anticipés :
+o	Exemple : Arrivée prévue à 8h avec marge de 15 min → Alerte mail générée et envoyé à 8h16 si non pointé et création d’une anomalie pour retard.
+o	Si le salarié pointe à 8h30, l’anomalie est mise à jour pour refléter l’heure réelle d’arrivée.
+2.	Pointages hors scope :
+o	Exemple : Pointage un dimanche sans planning → Consigné comme hors scope, sans alertes.
+3.	Cas ambigus :
+o	Exemple : Pointage à 12h30 → Popup demandant clarification avec vérification du dernier pointage réalisé (départ tardif ou arrivée après oubli).
+________________________________________
+4. Architecture technique
+1.	Backend / API :
+o	Stack : Django (Python), base de données PostgreSQL.
+2.	Application web semi mobile PWA:
+o	Typescript, vue
+o	Doit pouvoir gérer le cas où l’appareil est hors ligne et doit envoyé les données après
+3.	Envoi d’alertes :
+o	On verra
+4.	Sécurité :
+o	Authentification via token.
+o	Traces des modifications (date, motif, utilisateur).
+________________________________________
+6. Points particuliers et évolutions futures
+1.	Notifications push :
+o	À terme, possibilité de configurer des rappels ou alertes via push mobile.
+2.	Signature électronique :
+o	Hors scope pour cette version.
+3.	Rapports automatisés :
+o	Génération mensuelle automatique à ajouter en priorité future.
+4.	Structure API :
+o	Prévoir endpoints pour intégration avec outils comme PayFit.
+________________________________________
+7. Workflow global
+1.	Création des franchises par le Super Admin.
+2.	Les managers configurent les sites, les plannings et affectent les salariés.
+3.	Les salariés pointent via l’application mobile (NFC/QR code).
+4.	Alertes générées pour retards ou départs anticipés.
+5.	Anomalies signalées automatiquement ou manuellement.
+6.	Rapports exportables pour suivi et paie.
+________________________________________
+8. Cas de tests et scénarios
+1. Cas standard (pointages classiques)
+1.1. Arrivée à l'heure prévue
+•	Condition : Le salarié pointe dans la plage horaire définie par le planning (avant l’heure d’arrivé paramétré).
+•	Résultat attendu : Pointage enregistré comme “arrivée” sans alerte ni anomalie.
+1.2. Départ à l'heure prévue
+•	Condition : Le salarié pointe son départ dans la plage horaire définie par le planning (après l’heure de départ paramétré).
+•	Résultat attendu : Pointage enregistré comme “départ” sans alerte ni anomalie.
+________________________________________
+2. Cas de retards
+2.1. Arrivée en retard dans la marge autorisée
+•	Condition : Le salarié pointe après l’heure de début mais avant la fin de la marge configurée (ex. 15 min).
+•	Résultat attendu : Pointage enregistré comme “arrivée” sans alerte, mais mentionné comme “Retard” avec le nombre de minutes de retard enregistré pour les statistiques salarié.
+2.2. Arrivée en retard hors de la marge autorisée
+•	Condition : Le salarié pointe après la fin de la marge autorisée.
+•	Résultat attendu :
+o	Une alerte est envoyée aux destinataires paramétrés.
+o	Une anomalie est créée pour le site.
+o	L'anomalie est mise à jour avec l’heure réelle si le salarié pointe.
+o	Le temps de retard est enregistré pour les statistiques salarié.
+________________________________________
+3. Cas de départs anticipés
+3.1. Départ anticipé dans la marge autorisée
+•	Condition : Le salarié pointe son départ avant la fin de la plage horaire mais dans la marge configurée (ex. 15 min).
+•	Résultat attendu : Pointage enregistré comme “départ” sans alerte, mais mentionné comme “Départ anticipé”, le temps de départ anticipé est enregistré pour les statistiques salarié.
+3.2. Départ anticipé hors de la marge autorisée
+•	Condition : Le salarié pointe son départ bien avant la fin de la plage horaire et hors marge configurée.
+•	Résultat attendu :
+o	Une alerte est envoyée aux destinataires paramétrés.
+o	Une anomalie est créée pour le site.
+o	Le temps de départ anticipé est enregistré pour les statistiques salarié
+________________________________________
+4. Cas de non-pointage (absence)
+4.1. Aucun pointage à l’heure d’arrivée
+•	Condition : Le salarié ne pointe pas à l’heure prévue (ni avant la fin de la marge).
+•	Résultat attendu :
+o	Une alerte est envoyée pour signaler l’absence après la marge de permission.
+o	Une anomalie est automatiquement créée.
+
+4.2. Aucun pointage à l’heure de départ
+•	Condition : Le salarié ne pointe pas son départ avant la fin de la plage horaire.
+•	Résultat attendu :
+o	Une alerte est envoyée pour signaler l’absence de départ.
+o	Une anomalie est automatiquement créée.
+________________________________________
+5. Cas hors scope (jours non planifiés)
+5.1. Pointage un jour non planifié
+•	Condition : Le salarié effectue un pointage alors que le jour n’est pas configuré dans le planning.
+•	Résultat attendu :
+o	Le pointage est classé comme “Hors scope”.
+o	Aucune alerte n’est envoyée.
+________________________________________
+6. Cas ambigus
+6.1. Pointage entre deux plages horaires (ex. 12h30)
+•	Condition : Le salarié pointe entre deux plages horaires (ex. matin et après-midi).
+•	Résultat attendu :
+o	Une popup s’affiche pour demander s’il s’agit d’un “départ hors horaire” ou d’une “arrivée”.
+6.2. Pointage tardif après anomalie
+•	Condition : Une anomalie est créée pour absence à l’arrivée, mais le salarié pointe après.
+•	Résultat attendu :
+o	L'anomalie est mise à jour avec l’heure réelle du pointage.
+o	Une notification informe le salarié que ce pointage fait l’objet d’une anomalie.
+________________________________________
+7. Cas spécifiques liés aux gardiens
+7.1. Gardiens – Retard à l’arrivée avec marge
+•	Condition : Le gardien pointe après l’heure prévue mais dans la marge autorisée.
+•	Résultat attendu :
+o	Mention “Retard” dans l’historique salarié.
+7.2. Gardiens – Départ anticipé avec marge
+•	Condition : Le gardien pointe son départ avant la fin de la plage horaire mais dans la marge.
+•	Résultat attendu :
+o	Mention “Départ anticipé” dans l’historique salarié.
+________________________________________
+8. Cas spécifiques liés aux agents de nettoyage
+8.1. Agents de nettoyage – Non-respect de la durée minimale
+•	Condition : L’agent a pointé, mais la durée totale est inférieure à la durée prévue (ex. 6h/jour).
+•	Résultat attendu :
+o	Une alerte est générée en fin de journée.
+8.2. Agents de nettoyage – Absence totale
+•	Condition : Aucun pointage n’est enregistré pour la journée.
+•	Résultat attendu :
+o	Une anomalie est créée et incluse dans le rapport de fin de journée.
+________________________________________
+9. Cas de géolocalisation
+9.1. Pointage valide avec géolocalisation active
+•	Condition : Le salarié pointe avec la géolocalisation activée.
+•	Résultat attendu :
+o	La position GPS est enregistrée avec le pointage.
+9.2. Pointage valide avec géolocalisation désactivée
+•	Condition : Le salarié pointe mais désactive la géolocalisation.
+•	Résultat attendu :
+o	Le pointage est accepté, mais une alerte est envoyée au manager.
+________________________________________
+10. Cas d’erreurs ou de signalement d’anomalies
+10.1. Erreur de pointage signalée par le salarié
+•	Condition : Le salarié utilise le bouton “Signaler une anomalie” pour une erreur ou un oubli.
+•	Résultat attendu :
+o	Une alerte est envoyée au manager.
+o	Le pointage est corrigé manuellement, avec traçabilité (date et motif).
+________________________________________
+11. Cas de synchronisation hors-ligne
+11.1. Pointage en mode hors-ligne
+•	Condition : Le salarié pointe sans connexion réseau.
+•	Résultat attendu :
+o	Le pointage est enregistré localement et synchronisé dès que la connexion revient.
+________________________________________
+12. Cas de plannings modifiés
+12.1. Changement de planning en cours de période
+•	Condition : Le planning est modifié par le manager après un pointage.
+•	Résultat attendu :
+o	Les futurs calculs s’appuient sur le nouveau planning.
+o	L’historique reste basé sur l’ancien planning.
+________________________________________
+13. Cas hors heure planifiée (plage horaire étendue)
+13.1. Pointage avant l’heure de début
+•	Condition : Le salarié pointe avant l’heure prévue.
+•	Résultat attendu :
+o	Pointage enregistré, mais mentionné comme “Pointage anticipé”.
+13.2. Pointage après la fin de la plage horaire
+•	Condition : Le salarié pointe après l’heure théorique de fin.
+•	Résultat attendu :
+o	Pointage enregistré, mais mentionné comme “Pointage tardif”.
+________________________________________
+9. Workflow détaillés
+Workflow 1 : Pointage normal, dans les horaires configurés
+1.	Préconditions :
+o	Le planning est configuré (ex. 08h00 – 12h00).
+o	La marge de retard est définie (ex. 15 minutes).
+o	Le salarié possède un identifiant valide et peut pointer via l'application mobile.
+2.	Étapes du test :
+o	Étape 1 : Le salarié pointe à 08h05.
+	Action : Approcher le smartphone du badge NFC.
+	Résultat attendu : Le pointage est enregistré comme "à l’heure".
+	Données enregistrées :
+	arrivee_ou_depart = "arrivee".
+	retard = 5 minutes.
+o	Étape 2 : Vérifier les rapports.
+	Action : Accéder au rapport de pointage dans le back-office.
+	Résultat attendu : Le pointage figure dans le rapport comme "à l’heure".
+________________________________________
+Workflow 2 : Retard dans la marge autorisée
+1.	Préconditions :
+o	Le planning est configuré (ex. 08h00 – 12h00).
+o	La marge de retard est définie (ex. 15 minutes).
+2.	Étapes du test :
+o	Étape 1 : Le salarié pointe à 08h10.
+	Action : Approcher le smartphone du badge NFC.
+	Résultat attendu : Le pointage est enregistré avec un retard inférieur ou égal à la marge autorisée.
+	Données enregistrées :
+	arrivee_ou_depart = "arrivee".
+	retard = 10 minutes.
+	Notifications : Aucune alerte envoyée.
+o	Étape 2 : Vérifier le tableau de bord salarié.
+	Action : Le salarié consulte son tableau de bord.
+	Résultat attendu : Le retard est affiché, mais sans alerte.
+________________________________________
+Workflow 3 : Retard hors marge autorisée
+1.	Préconditions :
+o	Le planning est configuré (ex. 08h00 – 12h00).
+o	La marge de retard est définie (ex. 15 minutes).
+2.	Étapes du test :
+o	Étape 1 : Le salarié pointe à 08h20.
+	Action : Approcher le smartphone du badge NFC.
+	Résultat attendu :
+	Le pointage est enregistré avec un retard supérieur à la marge autorisée.
+	Une alerte est envoyée.
+	Données enregistrées :
+	arrivee_ou_depart = "arrivee".
+	retard = 20 minutes.
+	Notifications : Une alerte est envoyée aux destinataires configurés.
+o	Étape 2 : Création automatique d’une anomalie.
+	Action : Vérifier la section anomalies dans le back-office.
+	Résultat attendu : Une anomalie est créée.
+o	Étape 3 : Pointage ultérieur (ex. 08h30).
+	Action : Le salarié pointe à nouveau à 08h30.
+	Résultat attendu :
+	L'anomalie est mise à jour pour refléter l'heure réelle d'arrivée (08h30).
+	Une notification est envoyée au salarié pour l'informer de l'anomalie.
+________________________________________
+Workflow 4 : Départ anticipé hors marge autorisée
+1.	Préconditions :
+o	Le planning est configuré (ex. 08h00 – 12h00).
+o	La marge de départ anticipé est définie (ex. 10 minutes).
+2.	Étapes du test :
+o	Étape 1 : Le salarié pointe à 11h45.
+	Action : Approcher le smartphone du badge NFC.
+	Résultat attendu :
+	Le pointage est enregistré avec un départ anticipé de 15 minutes (hors marge autorisée).
+	Une alerte est envoyée.
+	Données enregistrées :
+	arrivee_ou_depart = "depart".
+	depart_anticip = 15 minutes.
+	Notifications : Une alerte est envoyée aux destinataires.
+o	Étape 2 : Création d’une anomalie.
+	Action : Vérifier la section anomalies.
+	Résultat attendu : Une anomalie est créée.
+________________________________________
+Workflow 5 : Cas ambigu (pointage à mi-journée)
+1.	Préconditions :
+o	Le planning matin est configuré (ex. 08h00 – 12h00).
+o	Le planning après-midi est configuré (ex. 14h00 – 18h00).
+o	Une marge de 20 minutes est définie pour les cas ambigus.
+2.	Étapes du test :
+o	Étape 1 : Le salarié pointe à 12h30.
+	Action : Approcher le smartphone du badge NFC.
+	Résultat attendu :
+	Le système détecte un cas ambigu (ni dans le créneau du matin ni dans celui de l’après-midi).
+	Une fenêtre pop-up s’affiche pour demander une clarification.
+	Options proposées :
+	C'est un départ du matin.
+	C'est une arrivée pour l'après-midi.
+o	Étape 2 : Clarification manuelle.
+	Action : Le salarié ou manager sélectionne "arrivée pour l’après-midi".
+	Résultat attendu : Le pointage est enregistré comme une arrivée à 12h30 pour l’après-midi.
+________________________________________
+Workflow 6 : Pointage hors planning (jour non configuré)
+1.	Préconditions :
+o	Aucun planning n’est configuré pour le jour concerné (ex. dimanche).
+2.	Étapes du test :
+o	Étape 1 : Le salarié pointe à 08h00 un dimanche.
+	Action : Approcher le smartphone du badge NFC.
+	Résultat attendu :
+	Le pointage est enregistré comme hors planning.
+	Une alerte est envoyée aux destinataires.
+	Données enregistrées :
+	hors_scope = True.
+o	Étape 2 : Vérifier le back-office.
+	Action : Consulter la section des pointages hors scope.
+	Résultat attendu : Le pointage figure dans une liste dédiée.
+________________________________________
+Workflow 7 : Oubli de pointage
+1.	Préconditions :
+o	Le planning est configuré (ex. 08h00 – 12h00).
+o	Une marge de retard est définie (ex. 15 minutes).
+2.	Étapes du test :
+o	Étape 1 : Le salarié ne pointe pas à 08h00.
+	Action : Aucune action de pointage.
+	Résultat attendu :
+	À 08h15, une alerte est envoyée pour signaler l’absence de pointage.
+	Une anomalie est créée automatiquement.
+o	Étape 2 : Pointage tardif (ex. 08h30).
+	Action : Le salarié pointe à 08h30.
+	Résultat attendu :
+	L'anomalie est mise à jour pour inclure l'heure réelle d’arrivée.
+	Une notification est envoyée au salarié.
+________________________________________
+Workflow 8 : Pointage en mode hors-ligne
+1.	Préconditions :
+o	Le réseau mobile est désactivé.
+o	Le salarié possède un smartphone avec l’application mobile installée.
+2.	Étapes du test :
+o	Étape 1 : Le salarié pointe à 08h00 sans réseau.
+	Action : Approcher le smartphone du badge NFC.
+	Résultat attendu :
+	Le pointage est stocké localement.
+	Données enregistrées : Date/heure, ID salarié, ID site.
+o	Étape 2 : Rétablissement de la connexion.
+	Action : Le réseau est rétabli.
+	Résultat attendu :
+	Les pointages stockés localement sont synchronisés avec le serveur.
+
+
