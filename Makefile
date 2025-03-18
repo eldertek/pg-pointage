@@ -58,7 +58,7 @@ dev-frontend:
 # Lancement des deux serveurs en développement (nécessite tmux)
 dev: clean-static frontend collectstatic
 	tmux kill-session -t pointage 2>/dev/null || true
-	tmux new-session -d -s pointage '$(MAKE) run' \; \
+	tmux new-session -d -s pointage '$(MAKE) run' \; \ini
 	split-window -h '$(MAKE) dev-frontend' \; \
 	attach
 
