@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +24,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-dkr*xx&c4enqud0(&9r9scu8g*d(#@d4c*1*9y7am*@8c&7kdi'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dkr*xx&c4enqud0(&9r9scu8g*d(#@d4c*1*9y7am*@8c&7kdi')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') or []
 
 # Application definition
 INSTALLED_APPS = [
@@ -72,13 +76,15 @@ WSGI_APPLICATION = 'planete_pointage.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-import dj_database_url
-
 DATABASES = {
-    'default': dj_database_url.parse(
-        "postgresql://n8ndb_s3qk_user:uo21MQaWnChEcmRDiDxpWYo50edk66cv@dpg-ctvvk8qj1k6c73dtd8bg-a.frankfurt-postgres.render.com/n8ndb_s3qk",
-        conn_max_age=600
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'planete_pointage'),
+        'USER': os.getenv('DB_USER', 'user_pgpointage'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'pgpointage'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+    }
 }
 
 # Password validation
