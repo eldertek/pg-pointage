@@ -31,7 +31,9 @@ install-frontend:
 
 # Migrations de la base de données
 migrate:
-	$(ACTIVATE) && $(MANAGE) makemigrations
+	@echo "Création des migrations..."
+	$(ACTIVATE) && $(MANAGE) makemigrations core
+	@echo "Application des migrations..."
 	$(ACTIVATE) && $(MANAGE) migrate
 
 # Compilation du frontend

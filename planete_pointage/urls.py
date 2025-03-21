@@ -15,12 +15,43 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.shortcuts import redirect
+from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+
+# API documentation
+from rest_framework import permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
 
 # Vue pour rediriger vers la page d'accueil
 def redirect_to_home(request):
     return redirect('home')
+
+# CSRF-exempt views for API authentication
+csrf_exempt_auth = [
+    path('api/token/', csrf_exempt(TokenObtainPairView.as_view()), name='token_obtain_pair'),
+    path('api/token/refresh/', csrf_exempt(TokenRefreshView.as_view()), name='token_refresh'),
+]
+
+# Schema view for API documentation
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Planète Gardiens Pointage API",
+        default_version='v1',
+        description="API pour l'application Planète Gardiens Pointage",
+        terms_of_service="https://www.example.com/terms/",
+        contact=openapi.Contact(email="contact@example.com"),
+        license=openapi.License(name="Proprietary"),
+    ),
+    public=True,
+    permission_classes=(permissions.AllowAny,),
+)
 
 urlpatterns = [
     # Redirection de la racine vers la page d'accueil
@@ -32,11 +63,15 @@ urlpatterns = [
     # Inclure toutes les URLs de l'application core
     path('', include('core.urls')),
     
-    # Remarque : les routes suivantes sont commentées car elles sont désormais
-    # définies dans core/urls.py et incluses via la ligne ci-dessus
-    # path('login/', login_view, name='login'),
-    # path('api/pointages', create_pointage, name='api-pointages'),
-    # path('api/anomalies', create_anomalie, name='api-anomalies'),
-    # path('api/pointages/scan', create_pointage_via_qr, name='api-pointages-scan'),
-    # path('scan_qr/', scan_qr_view, name='scan_qr'),
+    # JWT authentication endpoints
+    path('', include(csrf_exempt_auth)),
+    
+    # API documentation
+    re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]
+
+# Add drf-yasg to INSTALLED_APPS
+if 'drf_yasg' not in settings.INSTALLED_APPS:
+    settings.INSTALLED_APPS += ['drf_yasg']
