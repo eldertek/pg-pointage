@@ -123,9 +123,6 @@ class Anomaly(models.Model):
     minutes = models.PositiveIntegerField(_('minutes'), default=0)
     
     # Pour les corrections manuelles
-    corrected_by  default=0)
-    
-    # Pour les corrections manuelles
     corrected_by = models.ForeignKey(
         'users.User',
         on_delete=models.SET_NULL,
