@@ -4,9 +4,12 @@ import { employeesService } from '@/services/employees'
 export const useEmployeesStore = defineStore('employees', {
   state: () => ({
     employees: [],
+    totalEmployees: 0,
     loading: false,
     error: null,
-    selectedEmployee: null
+    selectedEmployee: null,
+    currentPage: 1,
+    itemsPerPage: 10
   }),
 
   getters: {
@@ -20,8 +23,9 @@ export const useEmployeesStore = defineStore('employees', {
       this.loading = true
       this.error = null
       try {
-        const employees = await employeesService.getEmployees()
-        this.employees = employees
+        const response = await employeesService.getEmployees(this.currentPage, this.itemsPerPage)
+        this.employees = response.results
+        this.totalEmployees = response.total
       } catch (error) {
         this.error = error.message || 'Erreur lors de la récupération des employés'
         throw error

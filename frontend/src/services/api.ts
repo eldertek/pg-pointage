@@ -89,5 +89,123 @@ api.interceptors.response.use(
   }
 )
 
+// Fonction utilitaire pour convertir camelCase en snake_case
+const toSnakeCase = (str: string): string => {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+// Fonction pour convertir les clés d'un objet de camelCase à snake_case
+const convertKeysToSnakeCase = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(v => convertKeysToSnakeCase(v));
+  } else if (obj !== null && obj.constructor === Object) {
+    return Object.keys(obj).reduce((result: any, key) => {
+      const snakeKey = toSnakeCase(key);
+      result[snakeKey] = convertKeysToSnakeCase(obj[key]);
+      return result;
+    }, {});
+  }
+  return obj;
+}
+
+// Sites API methods
+const sitesApi = {
+  // Get all sites with pagination
+  getAllSites: (page = 1, perPage = 10) => 
+    api.get('/sites/', { 
+      params: { 
+        page,
+        page_size: perPage 
+      }
+    }),
+  
+  // Get a single site by ID
+  getSite: (id: number) => api.get(`/sites/${id}/`),
+  
+  // Create a new site
+  createSite: (data: any) => api.post('/sites/', convertKeysToSnakeCase(data)),
+  
+  // Update a site
+  updateSite: (id: number, data: any) => api.put(`/sites/${id}/`, convertKeysToSnakeCase(data)),
+  
+  // Delete a site
+  deleteSite: (id: number) => api.delete(`/sites/${id}/`),
+  
+  // Schedule methods
+  createSchedule: (siteId: number, data: any) => 
+    api.post(`/sites/${siteId}/schedules/`, convertKeysToSnakeCase(data)),
+  
+  updateSchedule: (siteId: number, scheduleId: number, data: any) => 
+    api.put(`/sites/${siteId}/schedules/${scheduleId}/`, convertKeysToSnakeCase(data)),
+  
+  deleteSchedule: (siteId: number, scheduleId: number) => 
+    api.delete(`/sites/${siteId}/schedules/${scheduleId}/`),
+  
+  // Schedule details methods
+  createScheduleDetails: (siteId: number, scheduleId: number, data: any) => 
+    api.post(`/sites/${siteId}/schedules/${scheduleId}/details/`, convertKeysToSnakeCase(data)),
+  
+  // Employee assignment methods
+  assignEmployee: (siteId: number, data: any) => 
+    api.post(`/sites/${siteId}/employees/`, convertKeysToSnakeCase(data)),
+  
+  unassignEmployee: (siteId: number, employeeId: number) => 
+    api.delete(`/sites/${siteId}/employees/${employeeId}/`),
+  
+  updateEmployeeAssignment: (siteId: number, employeeId: number, data: any) => 
+    api.put(`/sites/${siteId}/employees/${employeeId}/`, convertKeysToSnakeCase(data))
+}
+
+// Schedules API methods
+const schedulesApi = {
+  // Get all schedules with pagination
+  getAllSchedules: (page = 1, perPage = 10) => 
+    api.get('/schedules/', { 
+      params: { 
+        page,
+        page_size: perPage 
+      }
+    }),
+  
+  // Get a single schedule by ID
+  getSchedule: (id: number) => api.get(`/schedules/${id}/`),
+  
+  // Create a new schedule
+  createSchedule: (data: any) => api.post('/schedules/', convertKeysToSnakeCase(data)),
+  
+  // Update a schedule
+  updateSchedule: (id: number, data: any) => api.put(`/schedules/${id}/`, convertKeysToSnakeCase(data)),
+  
+  // Delete a schedule
+  deleteSchedule: (id: number) => api.delete(`/schedules/${id}/`),
+  
+  // Get schedule details
+  getScheduleDetails: (scheduleId: number) => api.get(`/schedules/${scheduleId}/details/`),
+  
+  // Create schedule detail
+  createScheduleDetail: (scheduleId: number, data: any) => 
+    api.post(`/schedules/${scheduleId}/details/`, convertKeysToSnakeCase(data)),
+  
+  // Update schedule detail
+  updateScheduleDetail: (scheduleId: number, detailId: number, data: any) => 
+    api.put(`/schedules/${scheduleId}/details/${detailId}/`, convertKeysToSnakeCase(data)),
+  
+  // Delete schedule detail
+  deleteScheduleDetail: (scheduleId: number, detailId: number) => 
+    api.delete(`/schedules/${scheduleId}/details/${detailId}/`),
+  
+  // Get employees assigned to a schedule
+  getScheduleEmployees: (scheduleId: number) => api.get(`/schedules/${scheduleId}/employees/`),
+  
+  // Assign employee to schedule
+  assignEmployee: (scheduleId: number, data: any) => 
+    api.post(`/schedules/${scheduleId}/employees/`, convertKeysToSnakeCase(data)),
+  
+  // Unassign employee from schedule
+  unassignEmployee: (scheduleId: number, employeeId: number) => 
+    api.delete(`/schedules/${scheduleId}/employees/${employeeId}/`)
+}
+
+export { sitesApi, schedulesApi }
 export default api
 

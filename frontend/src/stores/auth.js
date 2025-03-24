@@ -1,6 +1,7 @@
 import { defineStore } from "pinia"
 import api from "@/services/api"
 import router from "@/router"
+import { nextTick } from "vue"
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
@@ -53,13 +54,21 @@ export const useAuthStore = defineStore("auth", {
         this.setTokens(response.data.access, response.data.refresh)
         await this.fetchUserProfile()
         
+        console.log("Profil chargé, rôle:", this.user?.role)
+        
+        // Attendre un tick pour s'assurer que le state est à jour
+        await nextTick()
+        
         // Redirection basée sur le rôle
-        if (this.isEmployee) {
+        if (this.user?.role === "EMPLOYEE") {
           console.log("Redirection vers le tableau de bord mobile")
-          router.push("/mobile")
-        } else {
+          await router.push("/mobile")
+        } else if (this.user?.role) {
           console.log("Redirection vers le tableau de bord")
-          router.push("/dashboard")
+          await router.push("/dashboard")
+        } else {
+          console.error("Rôle non défini après connexion")
+          throw new Error("Rôle non défini après connexion")
         }
       } catch (error) {
         console.error("Erreur de connexion:", error)

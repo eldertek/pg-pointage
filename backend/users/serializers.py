@@ -31,12 +31,16 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class UserSerializer(serializers.ModelSerializer):
     """Serializer pour les utilisateurs (admin)"""
     password = serializers.CharField(write_only=True, required=False)
+    organization_name = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 
-                'organization', 'phone_number', 'is_active', 'employee_id', 'date_joined', 'password']
+                'organization', 'phone_number', 'is_active', 'employee_id', 'date_joined', 'password', 'organization_name']
         read_only_fields = ['date_joined']
+
+    def get_organization_name(self, obj):
+        return obj.organization.name if obj.organization else '-'
 
     def create(self, validated_data):
         print(f"[DEBUG] UserSerializer.create - validated_data: {validated_data}")

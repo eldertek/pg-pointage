@@ -2,9 +2,6 @@
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
       <h1 class="text-h4">Employés</h1>
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="showCreateDialog = true">
-        Ajouter un employé
-      </v-btn>
     </div>
 
     <!-- Message d'erreur -->
@@ -22,7 +19,9 @@
         :headers="headers"
         :items="employeesStore.employees"
         :loading="employeesStore.loading"
-        :items-per-page="10"
+        :items-per-page="employeesStore.itemsPerPage"
+        :page="employeesStore.currentPage"
+        :total-items="employeesStore.totalEmployees"
         :no-data-text="'Aucun employé trouvé'"
         :loading-text="'Chargement des employés...'"
         :items-per-page-text="'Lignes par page'"
@@ -34,12 +33,13 @@
           { title: 'Tout', value: -1 }
         ]"
         class="elevation-1"
+        @update:options="handleTableUpdate"
       >
         <!-- Status column -->
         <template #item.is_active="{ item }">
           <v-chip
-            :color="item.raw.is_active ? 'success' : 'error'"
-            :text="item.raw.is_active ? 'Actif' : 'Inactif'"
+            :color="item.is_active ? 'success' : 'error'"
+            :text="item.is_active ? 'Actif' : 'Inactif'"
             size="small"
           />
         </template>
@@ -50,7 +50,7 @@
             icon
             variant="text"
             size="small"
-            :to="`/dashboard/employees/${item.raw.id}`"
+            :to="`/dashboard/employees/${item.id}`"
             color="info"
           >
             <v-icon>mdi-eye</v-icon>
@@ -60,7 +60,7 @@
             variant="text"
             size="small"
             color="primary"
-            @click="editEmployee(item.raw)"
+            @click="editEmployee(item)"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
@@ -69,7 +69,7 @@
             variant="text"
             size="small"
             color="error"
-            @click="confirmDelete(item.raw)"
+            @click="confirmDelete(item)"
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
@@ -228,6 +228,12 @@ export default {
       is_active: true
     })
 
+    const handleTableUpdate = async (options) => {
+      employeesStore.currentPage = options.page
+      employeesStore.itemsPerPage = options.itemsPerPage
+      await employeesStore.fetchEmployees()
+    }
+
     // Charger les employés au montage du composant
     onMounted(async () => {
       try {
@@ -306,7 +312,8 @@ export default {
       confirmDelete,
       saveEmployee,
       deleteEmployee,
-      closeDialog
+      closeDialog,
+      handleTableUpdate
     }
   }
 }

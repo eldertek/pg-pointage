@@ -1,4 +1,5 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, viewsets
+from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
 from .models import Site, Schedule, ScheduleDetail, SiteEmployee
 from .serializers import (
     SiteSerializer, ScheduleSerializer, ScheduleDetailSerializer, 
@@ -6,14 +7,26 @@ from .serializers import (
 )
 from .permissions import IsSiteOrganizationManager
 
+class IsAdminOrManager(BasePermission):
+    """Permission composée pour autoriser les admin ou les managers d'organisation"""
+    def has_permission(self, request, view):
+        is_admin = IsAdminUser().has_permission(request, view)
+        is_manager = IsSiteOrganizationManager().has_permission(request, view)
+        return is_admin or is_manager
+
+    def has_object_permission(self, request, view, obj):
+        is_admin = IsAdminUser().has_object_permission(request, view, obj)
+        is_manager = IsSiteOrganizationManager().has_object_permission(request, view, obj)
+        return is_admin or is_manager
+
 class SiteListView(generics.ListCreateAPIView):
     """Vue pour lister tous les sites et en créer de nouveaux"""
     serializer_class = SiteSerializer
     
     def get_permissions(self):
-        if self.request.method == 'GET':
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser() | IsSiteOrganizationManager()]
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
     
     def get_queryset(self):
         user = self.request.user
@@ -40,9 +53,9 @@ class SiteDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SiteSerializer
     
     def get_permissions(self):
-        if self.request.method == 'GET':
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser() | IsSiteOrganizationManager()]
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
     
     def get_queryset(self):
         user = self.request.user
@@ -59,9 +72,9 @@ class ScheduleListView(generics.ListCreateAPIView):
     serializer_class = ScheduleSerializer
     
     def get_permissions(self):
-        if self.request.method == 'GET':
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser() | IsSiteOrganizationManager()]
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
     
     def get_queryset(self):
         site_pk = self.kwargs.get('site_pk')
@@ -76,9 +89,9 @@ class ScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ScheduleSerializer
     
     def get_permissions(self):
-        if self.request.method == 'GET':
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser() | IsSiteOrganizationManager()]
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
     
     def get_queryset(self):
         site_pk = self.kwargs.get('site_pk')
@@ -89,9 +102,9 @@ class ScheduleDetailListView(generics.ListCreateAPIView):
     serializer_class = ScheduleDetailSerializer
     
     def get_permissions(self):
-        if self.request.method == 'GET':
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser() | IsSiteOrganizationManager()]
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
     
     def get_queryset(self):
         schedule_pk = self.kwargs.get('schedule_pk')
@@ -106,9 +119,9 @@ class SiteEmployeeListView(generics.ListCreateAPIView):
     serializer_class = SiteEmployeeSerializer
     
     def get_permissions(self):
-        if self.request.method == 'GET':
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser() | IsSiteOrganizationManager()]
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
     
     def get_queryset(self):
         site_pk = self.kwargs.get('site_pk')
@@ -123,11 +136,20 @@ class SiteEmployeeDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SiteEmployeeSerializer
     
     def get_permissions(self):
-        if self.request.method == 'GET':
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser() | IsSiteOrganizationManager()]
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
     
     def get_queryset(self):
         site_pk = self.kwargs.get('site_pk')
         return SiteEmployee.objects.filter(site_id=site_pk)
+
+class SiteViewSet(viewsets.ModelViewSet):
+    queryset = Site.objects.all()
+    serializer_class = SiteSerializer
+
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
 

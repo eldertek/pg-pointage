@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router"
+import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router"
 import { useAuthStore } from "@/stores/auth"
 
 // Layouts
@@ -37,7 +37,12 @@ import AdminUsers from "@/views/dashboard/admin/Users.vue"
 import AdminLogs from "@/views/dashboard/admin/Logs.vue"
 import AdminSettings from "@/views/dashboard/admin/Settings.vue"
 
-const routes = [
+interface RouteMeta {
+  requiresAuth?: boolean;
+  roles?: string[];
+}
+
+const routes: RouteRecordRaw[] = [
   {
     path: "/",
     redirect: "/login",

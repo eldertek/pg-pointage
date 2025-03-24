@@ -173,7 +173,7 @@
                 icon
                 variant="text"
                 size="small"
-                :to="`/dashboard/sites/${item.raw.id}`"
+                :to="`/dashboard/sites/${item.id}`"
               >
                 <v-icon>mdi-eye</v-icon>
               </v-btn>
@@ -285,10 +285,10 @@ export default {
     ])
     
     const employeesHeaders = ref([
-      { title: 'Nom', align: 'start', key: 'name' },
+      { title: 'Nom', align: 'start', key: 'full_name' },
       { title: 'Email', align: 'start', key: 'email' },
       { title: 'Rôle', align: 'center', key: 'role' },
-      { title: 'Site', align: 'center', key: 'site' },
+      { title: 'Site', align: 'center', key: 'site_name' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }
     ])
     

@@ -2,13 +2,18 @@ import api from './api'
 
 export const employeesService = {
   // Récupérer la liste des employés
-  async getEmployees() {
+  async getEmployees(page = 1, perPage = 10) {
     const response = await api.get('/users/', {
       params: {
-        role: 'EMPLOYEE'
+        role: 'EMPLOYEE',
+        page,
+        page_size: perPage
       }
     })
-    return response.data
+    return {
+      results: response.data.results,
+      total: response.data.count
+    }
   },
 
   // Récupérer un employé spécifique
