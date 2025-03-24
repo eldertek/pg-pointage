@@ -50,23 +50,9 @@
         
         <v-list-item to="/dashboard/sites" active-class="primary--text">
           <template v-slot:prepend>
-            <v-icon>mdi-map-marker</v-icon>
+            <v-icon>mdi-domain</v-icon>
           </template>
-          <v-list-item-title>Sites</v-list-item-title>
-        </v-list-item>
-        
-        <v-list-item to="/dashboard/employees" active-class="primary--text">
-          <template v-slot:prepend>
-            <v-icon>mdi-account-group</v-icon>
-          </template>
-          <v-list-item-title>Employés</v-list-item-title>
-        </v-list-item>
-        
-        <v-list-item to="/dashboard/schedules" active-class="primary--text">
-          <template v-slot:prepend>
-            <v-icon>mdi-calendar</v-icon>
-          </template>
-          <v-list-item-title>Plannings</v-list-item-title>
+          <v-list-item-title>Sites & Plannings</v-list-item-title>
         </v-list-item>
 
         <!-- Section Suivi -->

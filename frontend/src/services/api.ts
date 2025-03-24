@@ -111,13 +111,15 @@ const convertKeysToSnakeCase = (obj: any): any => {
 // Sites API methods
 const sitesApi = {
   // Get all sites with pagination
-  getAllSites: (page = 1, perPage = 10) => 
-    api.get('/sites/', { 
-      params: { 
+  getAllSites: (page = 1, perPage = 10) => {
+    return api.get('/sites/', {
+      params: {
         page,
-        page_size: perPage 
+        page_size: perPage,
+        expand: 'schedules'
       }
-    }),
+    })
+  },
   
   // Get a single site by ID
   getSite: (id: number) => api.get(`/sites/${id}/`),
@@ -130,6 +132,25 @@ const sitesApi = {
   
   // Delete a site
   deleteSite: (id: number) => api.delete(`/sites/${id}/`),
+
+  // Get site employees
+  getSiteEmployees: (siteId: number) => api.get(`/sites/${siteId}/employees/`),
+
+  // Get available employees
+  getAvailableEmployees: () => api.get('/users/', {
+    params: {
+      role: 'EMPLOYEE',
+      is_active: true
+    }
+  }),
+
+  // Assign employee to site
+  assignEmployee: (siteId: number, employeeId: number) => 
+    api.post(`/sites/${siteId}/employees/`, { employee_id: employeeId }),
+
+  // Unassign employee from site
+  unassignEmployee: (siteId: number, employeeId: number) => 
+    api.delete(`/sites/${siteId}/employees/${employeeId}/`),
   
   // Schedule methods
   createSchedule: (siteId: number, data: any) => 
@@ -142,18 +163,30 @@ const sitesApi = {
     api.delete(`/sites/${siteId}/schedules/${scheduleId}/`),
   
   // Schedule details methods
-  createScheduleDetails: (siteId: number, scheduleId: number, data: any) => 
+  getScheduleDetails: (siteId: number, scheduleId: number) =>
+    api.get(`/sites/${siteId}/schedules/${scheduleId}/`),
+
+  createScheduleDetail: (siteId: number, scheduleId: number, data: any) => 
     api.post(`/sites/${siteId}/schedules/${scheduleId}/details/`, convertKeysToSnakeCase(data)),
+
+  updateScheduleDetail: (siteId: number, scheduleId: number, detailId: number, data: any) =>
+    api.put(`/sites/${siteId}/schedules/${scheduleId}/details/${detailId}/`, convertKeysToSnakeCase(data)),
+
+  deleteScheduleDetail: (siteId: number, scheduleId: number, detailId: number) =>
+    api.delete(`/sites/${siteId}/schedules/${scheduleId}/details/${detailId}/`),
   
   // Employee assignment methods
-  assignEmployee: (siteId: number, data: any) => 
-    api.post(`/sites/${siteId}/employees/`, convertKeysToSnakeCase(data)),
+  getScheduleEmployees: (siteId: number, scheduleId: number) =>
+    api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`),
+
+  assignEmployeeToSchedule: (siteId: number, scheduleId: number, employeeId: number) => 
+    api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/`, convertKeysToSnakeCase({ employeeId })),
   
-  unassignEmployee: (siteId: number, employeeId: number) => 
-    api.delete(`/sites/${siteId}/employees/${employeeId}/`),
+  unassignEmployeeFromSchedule: (siteId: number, scheduleId: number, employeeId: number) => 
+    api.delete(`/sites/${siteId}/schedules/${scheduleId}/employees/${employeeId}/`),
   
-  updateEmployeeAssignment: (siteId: number, employeeId: number, data: any) => 
-    api.put(`/sites/${siteId}/employees/${employeeId}/`, convertKeysToSnakeCase(data))
+  updateEmployeeAssignment: (siteId: number, scheduleId: number, employeeId: number, data: any) => 
+    api.put(`/sites/${siteId}/schedules/${scheduleId}/employees/${employeeId}/`, convertKeysToSnakeCase(data))
 }
 
 // Schedules API methods

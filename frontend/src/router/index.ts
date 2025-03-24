@@ -15,11 +15,6 @@ import ResetPassword from "@/views/auth/ResetPassword.vue"
 import Dashboard from "@/views/dashboard/Dashboard.vue"
 import OrganizationDetail from "@/views/dashboard/OrganizationDetail.vue"
 import Sites from "@/views/dashboard/Sites.vue"
-import SiteDetail from "@/views/dashboard/SiteDetail.vue"
-import Employees from "@/views/dashboard/Employees.vue"
-import EmployeeDetail from "@/views/dashboard/EmployeeDetail.vue"
-import Schedules from "@/views/dashboard/Schedules.vue"
-import ScheduleDetail from "@/views/dashboard/ScheduleDetail.vue"
 import Timesheets from "@/views/dashboard/Timesheets.vue"
 import Anomalies from "@/views/dashboard/Anomalies.vue"
 import Reports from "@/views/dashboard/Reports.vue"
@@ -102,31 +97,6 @@ const routes: RouteRecordRaw[] = [
         path: "sites",
         name: "Sites",
         component: Sites,
-      },
-      {
-        path: "sites/:id",
-        name: "SiteDetail",
-        component: SiteDetail,
-      },
-      {
-        path: "employees",
-        name: "Employees",
-        component: Employees,
-      },
-      {
-        path: "employees/:id",
-        name: "EmployeeDetail",
-        component: EmployeeDetail,
-      },
-      {
-        path: "schedules",
-        name: "Schedules",
-        component: Schedules,
-      },
-      {
-        path: "schedules/:id",
-        name: "ScheduleDetail",
-        component: ScheduleDetail,
       },
       {
         path: "timesheets",

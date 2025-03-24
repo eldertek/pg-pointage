@@ -25,34 +25,53 @@
         ]"
         class="elevation-1"
         @update:options="loadSchedules"
+        fixed-header
+        height="calc(100vh - 250px)"
       >
-        <template #actions="{ item }">
-          <v-btn
-            icon
-            variant="text"
+        <template #item.type="{ item }">
+          <v-chip
+            :color="item?.raw?.schedule_type === 'FIXED' ? 'primary' : 'secondary'"
             size="small"
-            :to="`/dashboard/schedules/${item.raw.id}`"
           >
-            <v-icon>mdi-eye</v-icon>
-          </v-btn>
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            color="#00346E"
-            @click="editSchedule(item.raw)"
-          >
-            <v-icon>mdi-pencil</v-icon>
-          </v-btn>
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            color="#F78C48"
-            @click="confirmDelete(item.raw)"
-          >
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
+            {{ item?.raw?.schedule_type === 'FIXED' ? 'Fixe (gardien)' : 'Fréquence (nettoyage)' }}
+          </v-chip>
+        </template>
+
+        <template #item.minDailyHours="{ item }">
+          {{ item.raw.minDailyHours }}
+        </template>
+
+        <template #item.minWeeklyHours="{ item }">
+          {{ item.raw.minWeeklyHours }}
+        </template>
+
+        <template #item.actions="{ item }">
+          <div class="d-flex justify-end gap-2">
+            <v-btn
+              icon="mdi-eye"
+              variant="text"
+              size="small"
+              color="primary"
+              :to="`/dashboard/schedules/${item.raw.id}`"
+              :title="'Voir les détails'"
+            />
+            <v-btn
+              icon="mdi-pencil"
+              variant="text"
+              size="small"
+              color="warning"
+              @click="editSchedule(item.raw)"
+              :title="'Modifier'"
+            />
+            <v-btn
+              icon="mdi-delete"
+              variant="text"
+              size="small"
+              color="error"
+              @click="confirmDelete(item.raw)"
+              :title="'Supprimer'"
+            />
+          </div>
         </template>
       </v-data-table>
     </v-card>
@@ -319,13 +338,13 @@ export default {
     const sites = ref([])
     
     const headers = ref([
-      { title: 'Nom', align: 'start', key: 'name' },
-      { title: 'Site', align: 'start', key: 'site' },
-      { title: 'Type', align: 'start', key: 'type' },
-      { title: 'Heures min. quotidiennes', align: 'center', key: 'minDailyHours' },
-      { title: 'Heures min. hebdomadaires', align: 'center', key: 'minWeeklyHours' },
-      { title: 'Employés assignés', align: 'center', key: 'employeesCount' },
-      { title: 'Actions', align: 'end', key: 'actions', sortable: false }
+      { title: 'Nom', align: 'start', key: 'name', width: '20%' },
+      { title: 'Site', align: 'start', key: 'site', width: '20%' },
+      { title: 'Type', align: 'center', key: 'type', width: '15%' },
+      { title: 'Heures min. quotidiennes', align: 'center', key: 'minDailyHours', width: '15%' },
+      { title: 'Heures min. hebdomadaires', align: 'center', key: 'minWeeklyHours', width: '15%' },
+      { title: 'Employés assignés', align: 'center', key: 'employeesCount', width: '10%' },
+      { title: 'Actions', align: 'end', key: 'actions', sortable: false, width: '150px' }
     ])
     
     const schedules = ref([])
@@ -368,30 +387,41 @@ export default {
         const page = options?.page || 1
         const perPage = options?.itemsPerPage || 10
 
-        // Récupérer tous les sites pour avoir accès à leurs plannings
+        // Récupérer tous les sites avec leurs plannings
         const response = await sitesApi.getAllSites(page, perPage)
-        const sites = response.data.results
+        const sites = response.data.results || []
         
         console.log('Sites reçus:', sites)
 
         // Extraire et formater tous les plannings de tous les sites
         const allSchedules = []
         sites.forEach(site => {
-          console.log('Traitement du site:', site.name, 'Plannings:', site.schedules)
-          if (Array.isArray(site.schedules)) {
-            site.schedules.forEach(schedule => {
+          const schedules = site.schedules || []
+          schedules.forEach(schedule => {
+            if (schedule) {  // Vérifier que le planning existe
               allSchedules.push({
                 id: schedule.id,
-                name: schedule.name,
-                site: site.name,
+                name: schedule.name || '',
+                site: site.name || '',
                 siteId: site.id,
-                type: schedule.type === 'FIXED' ? 'Fixe (gardien)' : 'Fréquence (nettoyage)',
+                schedule_type: schedule.schedule_type || 'FIXED',
+                type: schedule.schedule_type === 'FIXED' ? 'Fixe (gardien)' : 'Fréquence (nettoyage)',
                 minDailyHours: schedule.min_daily_hours ? `${schedule.min_daily_hours}h` : '-',
                 minWeeklyHours: schedule.min_weekly_hours ? `${schedule.min_weekly_hours}h` : '-',
-                employeesCount: schedule.employees_count || 0
+                employeesCount: schedule.employees_count || 0,
+                working_days: schedule.working_days || [],
+                schedules: schedule.schedules || {},
+                allow_early_arrival: schedule.allow_early_arrival || false,
+                allow_late_departure: schedule.allow_late_departure || false,
+                early_arrival_limit: schedule.early_arrival_limit || 30,
+                late_departure_limit: schedule.late_departure_limit || 30,
+                break_duration: schedule.break_duration || 60,
+                min_break_start: schedule.min_break_start || null,
+                max_break_end: schedule.max_break_end || null,
+                raw: schedule  // Ajouter l'objet brut pour accès direct
               })
-            })
-          }
+            }
+          })
         })
 
         console.log('Plannings extraits:', allSchedules)

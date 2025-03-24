@@ -144,6 +144,83 @@ class SiteEmployeeDetailView(generics.RetrieveUpdateDestroyAPIView):
         site_pk = self.kwargs.get('site_pk')
         return SiteEmployee.objects.filter(site_id=site_pk)
 
+class ScheduleEmployeeListView(generics.ListCreateAPIView):
+    """Vue pour lister et assigner des employés à un planning"""
+    serializer_class = SiteEmployeeSerializer
+    
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
+    
+    def get_queryset(self):
+        site_pk = self.kwargs.get('site_pk')
+        schedule_pk = self.kwargs.get('schedule_pk')
+        return SiteEmployee.objects.filter(
+            site_id=site_pk,
+            schedule_id=schedule_pk
+        )
+    
+    def perform_create(self, serializer):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        site_pk = self.kwargs.get('site_pk')
+        schedule_pk = self.kwargs.get('schedule_pk')
+        employee_id = self.request.data.get('employee_id')
+        
+        logger.info(f"Tentative d'assignation - Données reçues: site_pk={site_pk}, schedule_pk={schedule_pk}, employee_id={employee_id}")
+        logger.info(f"Request data complète: {self.request.data}")
+        logger.info(f"Serializer initial data: {serializer.initial_data}")
+        logger.info(f"Serializer validated data: {serializer.validated_data}")
+        
+        try:
+            # Vérifier si l'employé est déjà assigné au site
+            site_employee = SiteEmployee.objects.filter(
+                site_id=site_pk,
+                employee_id=employee_id
+            ).first()
+            
+            logger.info(f"Employé existant trouvé: {site_employee}")
+            
+            if site_employee:
+                # Mettre à jour le planning de l'employé existant
+                logger.info(f"Mise à jour du planning pour l'employé existant {employee_id}")
+                site_employee.schedule_id = schedule_pk
+                site_employee.is_active = True
+                site_employee.save()
+                serializer = self.get_serializer(site_employee)
+                logger.info("Mise à jour réussie")
+            else:
+                # Créer une nouvelle assignation
+                logger.info(f"Création d'une nouvelle assignation pour l'employé {employee_id}")
+                instance = serializer.save(
+                    site_id=site_pk,
+                    schedule_id=schedule_pk
+                )
+                logger.info(f"Nouvelle assignation créée avec succès: {instance}")
+                
+        except Exception as e:
+            logger.error(f"Erreur lors de l'assignation: {str(e)}")
+            raise
+
+class ScheduleEmployeeDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Vue pour gérer un employé spécifique d'un planning"""
+    serializer_class = SiteEmployeeSerializer
+    
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
+    
+    def get_queryset(self):
+        site_pk = self.kwargs.get('site_pk')
+        schedule_pk = self.kwargs.get('schedule_pk')
+        return SiteEmployee.objects.filter(
+            site_id=site_pk,
+            schedule_id=schedule_pk
+        )
+
 class SiteViewSet(viewsets.ModelViewSet):
     queryset = Site.objects.all()
     serializer_class = SiteSerializer
