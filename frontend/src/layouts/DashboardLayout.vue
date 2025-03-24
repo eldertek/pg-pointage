@@ -36,32 +36,18 @@
           <v-divider class="my-2"></v-divider>
           <v-list-subheader>Administration Globale</v-list-subheader>
           
-          <v-list-item to="/dashboard/organizations" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-domain</v-icon>
-            </template>
-            <v-list-item-title>Franchises</v-list-item-title>
-          </v-list-item>
-
-          <v-list-item to="/dashboard/organizations/new" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-domain-plus</v-icon>
-            </template>
-            <v-list-item-title>Nouvelle Franchise</v-list-item-title>
-          </v-list-item>
-
           <v-list-item to="/dashboard/admin/users" active-class="primary--text">
             <template v-slot:prepend>
-              <v-icon>mdi-account-multiple-check</v-icon>
+              <v-icon>mdi-account-cog</v-icon>
             </template>
-            <v-list-item-title>Gestion Utilisateurs</v-list-item-title>
+            <v-list-item-title>Gestion des accès</v-list-item-title>
           </v-list-item>
 
           <v-list-item to="/dashboard/admin/logs" active-class="primary--text">
             <template v-slot:prepend>
               <v-icon>mdi-text-box-search</v-icon>
             </template>
-            <v-list-item-title>Logs Système</v-list-item-title>
+            <v-list-item-title>Logs système</v-list-item-title>
           </v-list-item>
         </template>
 

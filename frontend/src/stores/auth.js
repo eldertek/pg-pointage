@@ -83,7 +83,7 @@ export const useAuthStore = defineStore("auth", {
       console.log("Déconnexion en cours...")
       try {
         if (this.refreshToken) {
-          await api.post("/users/logout/", { refresh_token: this.refreshToken })
+          await api.post("/users/logout/", { refresh: this.refreshToken })
           console.log("Déconnexion réussie côté serveur")
         }
       } catch (error) {

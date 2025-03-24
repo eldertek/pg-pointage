@@ -22,6 +22,16 @@ api.interceptors.request.use(
         fullURL: config.baseURL + config.url,
         token: authStore.token.substring(0, 10) + '...'
       })
+
+      // Ajouter des logs pour les données envoyées
+      if (config.data) {
+        console.log("Données envoyées dans la requête:", {
+          url: config.url,
+          method: config.method,
+          data: config.data
+        })
+      }
+
       config.headers.Authorization = `Bearer ${authStore.token}`
     }
     return config
@@ -35,6 +45,13 @@ api.interceptors.request.use(
 // Intercepteur pour gérer les réponses et les erreurs
 api.interceptors.response.use(
   (response) => {
+    // Ajouter des logs pour la réponse
+    console.log("Réponse reçue:", {
+      url: response.config.url,
+      method: response.config.method,
+      status: response.status,
+      data: response.data
+    })
     return response
   },
   async (error) => {

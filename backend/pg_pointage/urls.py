@@ -20,11 +20,12 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/users/', include('users.urls')),
-    path('api/v1/organizations/', include('organizations.urls')),
-    path('api/v1/sites/', include('sites.urls')),
-    path('api/v1/timesheets/', include('timesheets.urls')),
-    path('api/v1/alerts/', include('alerts.urls')),
+    path('api/dashboard/', include('dashboard.urls')),
+    path('api/sites/', include('sites.urls')),
+    path('api/users/', include('users.urls')),
+    path('api/timesheets/', include('timesheets.urls')),
+    path('api/alerts/', include('alerts.urls')),
+    path('api/organizations/', include('organizations.urls')),
     path('api/v1/reports/', include('reports.urls')),
     
     # Documentation

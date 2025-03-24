@@ -79,12 +79,6 @@
               ></v-switch>
               
               <v-switch
-                v-model="notifications.sms"
-                label="Recevoir des notifications par SMS"
-                color="primary"
-              ></v-switch>
-              
-              <v-switch
                 v-model="notifications.app"
                 label="Recevoir des notifications dans l'application"
                 color="primary"

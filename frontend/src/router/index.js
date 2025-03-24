@@ -13,7 +13,6 @@ import ResetPassword from "@/views/auth/ResetPassword.vue"
 
 // Views - Dashboard (Admin/Manager)
 import Dashboard from "@/views/dashboard/Dashboard.vue"
-import Organizations from "@/views/dashboard/Organizations.vue"
 import OrganizationDetail from "@/views/dashboard/OrganizationDetail.vue"
 import Sites from "@/views/dashboard/Sites.vue"
 import SiteDetail from "@/views/dashboard/SiteDetail.vue"
@@ -37,7 +36,6 @@ import ReportAnomaly from "@/views/mobile/ReportAnomaly.vue"
 import AdminUsers from "@/views/dashboard/admin/Users.vue"
 import AdminLogs from "@/views/dashboard/admin/Logs.vue"
 import AdminSettings from "@/views/dashboard/admin/Settings.vue"
-import OrganizationNew from "@/views/dashboard/organizations/New.vue"
 
 const routes = [
   {
@@ -77,27 +75,15 @@ const routes = [
       },
       // Routes Super Admin
       {
-        path: "organizations",
-        name: "Organizations",
-        component: Organizations,
-        meta: { roles: ["SUPER_ADMIN"] },
-      },
-      {
-        path: "organizations/new",
-        name: "OrganizationNew",
-        component: OrganizationNew,
+        path: "admin/users",
+        name: "AdminUsers",
+        component: AdminUsers,
         meta: { roles: ["SUPER_ADMIN"] },
       },
       {
         path: "organizations/:id",
         name: "OrganizationDetail",
         component: OrganizationDetail,
-        meta: { roles: ["SUPER_ADMIN"] },
-      },
-      {
-        path: "admin/users",
-        name: "AdminUsers",
-        component: AdminUsers,
         meta: { roles: ["SUPER_ADMIN"] },
       },
       {
