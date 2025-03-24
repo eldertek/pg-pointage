@@ -67,15 +67,22 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { useTimesheetStore } from '@/stores/timesheet'
 import { useGeolocation } from '@/composables/useGeolocation'
+
+// Polyfill pour NDEFReader si non disponible
+const NDEFReader = window.NDEFReader || class NDEFReader {
+  async scan() {
+    throw new Error('NFC non supporté sur cet appareil')
+  }
+}
 
 export default {
   name: 'ScanView',
   setup() {
     const timesheetStore = useTimesheetStore()
-    const { getCurrentPosition, position, error: geoError } = useGeolocation()
+    const { getCurrentPosition, position } = useGeolocation()
     
     const scanning = ref(false)
     const loading = ref(false)
@@ -118,7 +125,7 @@ export default {
         const ndef = new NDEFReader()
         await ndef.scan()
         
-        ndef.addEventListener('reading', ({ message, serialNumber }) => {
+        ndef.addEventListener('reading', ({ serialNumber }) => {
           // Traiter les données du badge NFC
           const siteId = serialNumber
           handleScanResult(siteId)
