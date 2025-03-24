@@ -37,7 +37,7 @@ run-backend:
 
 run-frontend:
 	@echo "Lancement du serveur de développement Vue.js..."
-	cd frontend && $(NPM) run serve
+	cd frontend && $(NPM) run dev
 
 migrate:
 	@echo "Application des migrations..."

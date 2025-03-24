@@ -232,7 +232,8 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import api from '@/services/api'
 
 export default {
   name: 'SettingsView',
@@ -292,6 +293,22 @@ export default {
       return v => v === security.value.newPassword || 'Les mots de passe ne correspondent pas'
     })
     
+    const loadProfileData = async () => {
+      try {
+        console.log('Chargement des données du profil...')
+        const response = await api.get('/users/profile')
+        console.log('Données du profil reçues:', response.data)
+        profile.value = response.data
+      } catch (error) {
+        console.error('Erreur lors du chargement du profil:', error)
+        showError('Erreur lors du chargement des données du profil')
+      }
+    }
+
+    onMounted(() => {
+      loadProfileData()
+    })
+    
     const saveProfile = async () => {
       const isValid = await profileForm.value.validate()
       
@@ -299,10 +316,12 @@ export default {
         saving.value.profile = true
         
         try {
-          // Simulation d'API call
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          console.log('Envoi des données du profil:', profile.value)
+          const response = await api.put('/users/profile', profile.value)
+          console.log('Réponse de mise à jour du profil:', response.data)
           showSuccess('Profil mis à jour avec succès')
         } catch (error) {
+          console.error('Erreur lors de la mise à jour du profil:', error)
           showError('Erreur lors de la mise à jour du profil')
         } finally {
           saving.value.profile = false
@@ -314,10 +333,12 @@ export default {
       saving.value.notifications = true
       
       try {
-        // Simulation d'API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        console.log('Envoi des paramètres de notifications:', notifications.value)
+        const response = await api.put('/users/notifications', notifications.value)
+        console.log('Réponse de mise à jour des notifications:', response.data)
         showSuccess('Paramètres de notifications mis à jour avec succès')
       } catch (error) {
+        console.error('Erreur lors de la mise à jour des notifications:', error)
         showError('Erreur lors de la mise à jour des paramètres de notifications')
       } finally {
         saving.value.notifications = false
@@ -331,10 +352,13 @@ export default {
         saving.value.security = true
         
         try {
-          // Simulation d'API call
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          console.log('Envoi de la demande de changement de mot de passe')
+          const response = await api.put('/users/password', {
+            currentPassword: security.value.currentPassword,
+            newPassword: security.value.newPassword
+          })
+          console.log('Réponse du changement de mot de passe:', response.data)
           
-          // Réinitialiser les champs
           security.value = {
             currentPassword: '',
             newPassword: '',
@@ -343,6 +367,7 @@ export default {
           
           showSuccess('Mot de passe changé avec succès')
         } catch (error) {
+          console.error('Erreur lors du changement de mot de passe:', error)
           showError('Erreur lors du changement de mot de passe')
         } finally {
           saving.value.security = false
@@ -354,10 +379,12 @@ export default {
       saving.value.appearance = true
       
       try {
-        // Simulation d'API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        console.log('Envoi des paramètres d\'apparence:', appearance.value)
+        const response = await api.put('/users/appearance', appearance.value)
+        console.log('Réponse de mise à jour de l\'apparence:', response.data)
         showSuccess('Paramètres d\'apparence mis à jour avec succès')
       } catch (error) {
+        console.error('Erreur lors de la mise à jour de l\'apparence:', error)
         showError('Erreur lors de la mise à jour des paramètres d\'apparence')
       } finally {
         saving.value.appearance = false
@@ -394,6 +421,7 @@ export default {
       snackbar,
       rules,
       passwordMatchRule,
+      loadProfileData,
       saveProfile,
       saveNotifications,
       changePassword,

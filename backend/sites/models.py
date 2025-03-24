@@ -14,16 +14,26 @@ class Site(models.Model):
     )
     nfc_id = models.CharField(_('ID NFC'), max_length=100, unique=True)
     qr_code = models.ImageField(_('QR Code'), upload_to='sites/qrcodes/', blank=True, null=True)
-    created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
-    updated_at = models.DateTimeField(_('mis à jour le'), auto_now=True)
-    is_active = models.BooleanField(_('actif'), default=True)
     
     # Paramètres de retard et départ anticipé
     late_margin = models.PositiveIntegerField(_('marge de retard (minutes)'), default=15)
     early_departure_margin = models.PositiveIntegerField(_('marge de départ anticipé (minutes)'), default=15)
+    ambiguous_margin = models.PositiveIntegerField(_('marge pour cas ambigus (minutes)'), default=20)
     
     # Destinataires des alertes
     alert_emails = models.TextField(_('emails pour alertes'), blank=True, help_text=_('Séparez les emails par des virgules'))
+    
+    # Paramètres de géolocalisation
+    require_geolocation = models.BooleanField(_('géolocalisation requise'), default=True)
+    geolocation_radius = models.PositiveIntegerField(_('rayon de géolocalisation (mètres)'), default=100)
+    
+    # Paramètres de synchronisation
+    allow_offline_mode = models.BooleanField(_('autoriser le mode hors ligne'), default=True)
+    max_offline_duration = models.PositiveIntegerField(_('durée maximale hors ligne (heures)'), default=24)
+    
+    created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('mis à jour le'), auto_now=True)
+    is_active = models.BooleanField(_('actif'), default=True)
     
     class Meta:
         verbose_name = _('site')
@@ -77,6 +87,17 @@ class Schedule(models.Model):
         null=True,
         blank=True
     )
+    
+    # Paramètres de flexibilité
+    allow_early_arrival = models.BooleanField(_('autoriser arrivée en avance'), default=True)
+    allow_late_departure = models.BooleanField(_('autoriser départ tardif'), default=True)
+    early_arrival_limit = models.PositiveIntegerField(_('limite arrivée en avance (minutes)'), default=30)
+    late_departure_limit = models.PositiveIntegerField(_('limite départ tardif (minutes)'), default=30)
+    
+    # Paramètres de pause
+    break_duration = models.PositiveIntegerField(_('durée de pause (minutes)'), default=60)
+    min_break_start = models.TimeField(_('début pause au plus tôt'), null=True, blank=True)
+    max_break_end = models.TimeField(_('fin pause au plus tard'), null=True, blank=True)
     
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
     updated_at = models.DateTimeField(_('mis à jour le'), auto_now=True)

@@ -52,10 +52,26 @@ class Timesheet(models.Model):
     
     # Informations sur le pointage hors planning
     is_out_of_schedule = models.BooleanField(_('hors planning'), default=False)
+    is_ambiguous = models.BooleanField(_('pointage ambigu'), default=False)
     
     # Informations sur la synchronisation
     created_offline = models.BooleanField(_('créé hors ligne'), default=False)
     synced_at = models.DateTimeField(_('synchronisé le'), null=True, blank=True)
+    
+    # Informations sur la géolocalisation
+    geolocation_enabled = models.BooleanField(_('géolocalisation activée'), default=True)
+    
+    # Informations sur la correction manuelle
+    corrected_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='corrected_timesheets',
+        verbose_name=_('corrigé par')
+    )
+    correction_note = models.TextField(_('note de correction'), blank=True)
+    correction_date = models.DateTimeField(_('date de correction'), null=True, blank=True)
     
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
     updated_at = models.DateTimeField(_('mis à jour le'), auto_now=True)

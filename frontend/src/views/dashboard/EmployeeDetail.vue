@@ -3,10 +3,10 @@
     <div class="d-flex justify-space-between align-center mb-4">
       <h1 class="text-h4">Détails de l'employé</h1>
       <div>
-        <v-btn color="primary" class="mr-2" prepend-icon="mdi-pencil">
+        <v-btn color="#00346E" class="mr-2" prepend-icon="mdi-pencil">
           Modifier
         </v-btn>
-        <v-btn color="error" prepend-icon="mdi-delete">
+        <v-btn color="#F78C48" prepend-icon="mdi-delete">
           Supprimer
         </v-btn>
       </div>
@@ -14,7 +14,7 @@
     
     <v-row v-if="loading">
       <v-col cols="12" class="text-center">
-        <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+        <v-progress-circular indeterminate color="#00346E" size="64"></v-progress-circular>
       </v-col>
     </v-row>
     
@@ -111,7 +111,7 @@
             :items="sites"
             :items-per-page="5"
           >
-            <template #item.actions="{ item }">
+            <template #actions="{ item }">
               <v-btn
                 icon
                 variant="text"
@@ -133,21 +133,33 @@
             :items="timesheets"
             :items-per-page="5"
           >
-            <template #item.type="{ item }">
+            <template #type="{ item }">
               <v-chip
-                :color="item.raw.type === 'Arrivée' ? 'success' : 'info'"
+                :color="item.raw.type === 'Arrivée' ? '#F78C48' : '#00346E'"
                 size="small"
+                class="white--text"
               >
                 {{ item.raw.type }}
               </v-chip>
             </template>
-            <template #item.status="{ item }">
+            <template #status="{ item }">
               <v-chip
                 :color="getStatusColor(item.raw.status)"
                 size="small"
+                class="white--text"
               >
                 {{ item.raw.status }}
               </v-chip>
+            </template>
+            <template #actions="{ item }">
+              <v-btn
+                icon
+                variant="text"
+                size="small"
+                :to="`/dashboard/sites/${item.raw.id}`"
+              >
+                <v-icon>mdi-eye</v-icon>
+              </v-btn>
             </template>
           </v-data-table>
         </v-card-text>
@@ -188,9 +200,9 @@ export default {
     const timesheets = ref([])
     
     const getStatusColor = (status) => {
-      if (status === 'Normal') return 'success'
-      if (status === 'Retard') return 'warning'
-      if (status === 'Départ anticipé') return 'error'
+      if (status === 'Normal') return '#F78C48'
+      if (status === 'Retard') return '#00346E'
+      if (status === 'Départ anticipé') return '#F78C48'
       return 'grey'
     }
     

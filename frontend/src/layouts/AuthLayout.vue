@@ -1,9 +1,6 @@
 <template>
   <div class="auth-layout">
     <div class="auth-container">
-      <div class="auth-logo text-center mb-6">
-        <h1 class="text-h4 text-primary">Planète Gardiens</h1>
-      </div>
       <router-view />
     </div>
   </div>

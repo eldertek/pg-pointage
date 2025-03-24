@@ -33,6 +33,12 @@ import History from "@/views/mobile/History.vue"
 import Profile from "@/views/mobile/Profile.vue"
 import ReportAnomaly from "@/views/mobile/ReportAnomaly.vue"
 
+// Vues Admin
+import AdminUsers from "@/views/dashboard/admin/Users.vue"
+import AdminLogs from "@/views/dashboard/admin/Logs.vue"
+import AdminSettings from "@/views/dashboard/admin/Settings.vue"
+import OrganizationNew from "@/views/dashboard/organizations/New.vue"
+
 const routes = [
   {
     path: "/",
@@ -69,10 +75,17 @@ const routes = [
         name: "Dashboard",
         component: Dashboard,
       },
+      // Routes Super Admin
       {
         path: "organizations",
         name: "Organizations",
         component: Organizations,
+        meta: { roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "organizations/new",
+        name: "OrganizationNew",
+        component: OrganizationNew,
         meta: { roles: ["SUPER_ADMIN"] },
       },
       {
@@ -81,6 +94,25 @@ const routes = [
         component: OrganizationDetail,
         meta: { roles: ["SUPER_ADMIN"] },
       },
+      {
+        path: "admin/users",
+        name: "AdminUsers",
+        component: AdminUsers,
+        meta: { roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "admin/logs",
+        name: "AdminLogs",
+        component: AdminLogs,
+        meta: { roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "admin/settings",
+        name: "AdminSettings",
+        component: AdminSettings,
+        meta: { roles: ["SUPER_ADMIN"] },
+      },
+      // Routes communes
       {
         path: "sites",
         name: "Sites",
@@ -172,27 +204,61 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
   const requiredRoles = to.matched.find((record) => record.meta.roles)?.meta.roles || []
 
-  if (requiresAuth && !authStore.isAuthenticated) {
-    next("/login")
-  } else if (requiresAuth && requiredRoles.length > 0 && !requiredRoles.includes(authStore.userRole)) {
-    // Rediriger vers le dashboard approprié en fonction du rôle
-    if (authStore.userRole === "EMPLOYEE") {
+  // Si la route nécessite une authentification
+  if (requiresAuth) {
+    // Vérifier si l'utilisateur est déjà authentifié
+    if (!authStore.isAuthenticated) {
+      console.log("Route protégée, redirection vers login")
+      next("/login")
+      return
+    }
+
+    // Si l'utilisateur est authentifié mais qu'on n'a pas son profil
+    if (!authStore.user) {
+      console.log("Token présent mais pas de profil, tentative de récupération")
+      try {
+        await authStore.initAuth()
+      } catch (error) {
+        console.error("Échec de l'initialisation de l'auth:", error)
+        next("/login")
+        return
+      }
+    }
+
+    // Vérifier les rôles requis
+    if (requiredRoles.length > 0 && !requiredRoles.includes(authStore.userRole)) {
+      console.log("Accès refusé - rôle incorrect:", authStore.userRole)
+      // Rediriger vers le dashboard approprié en fonction du rôle
+      if (authStore.userRole === "EMPLOYEE") {
+        next("/mobile")
+      } else {
+        next("/dashboard")
+      }
+      return
+    }
+  }
+
+  // Si l'utilisateur est déjà authentifié et essaie d'accéder à login
+  if (to.path === "/login" && authStore.isAuthenticated) {
+    console.log("Utilisateur déjà connecté, redirection vers le dashboard")
+    if (authStore.isEmployee) {
       next("/mobile")
     } else {
       next("/dashboard")
     }
-  } else {
-    next()
+    return
   }
+
+  next()
 })
 
 export default router

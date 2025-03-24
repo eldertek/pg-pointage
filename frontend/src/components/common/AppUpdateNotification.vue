@@ -1,28 +1,50 @@
 <template>
-  <div class="update-notification">
-    <v-alert
-      type="info"
-      variant="tonal"
-      icon="mdi-update"
-      prominent
-    >
-      Une nouvelle version est disponible.
+  <v-snackbar
+    v-model="show"
+    :timeout="-1"
+    color="info"
+    location="bottom"
+  >
+    Une nouvelle version est disponible.
+    
+    <template v-slot:actions>
       <v-btn
-        color="primary"
+        color="white"
         variant="text"
-        @click="$emit('update')"
-        class="ml-2"
+        @click="update"
       >
         Mettre à jour
       </v-btn>
-    </v-alert>
-  </div>
+      <v-btn
+        color="white"
+        variant="text"
+        @click="show = false"
+      >
+        Plus tard
+      </v-btn>
+    </template>
+  </v-snackbar>
 </template>
 
 <script>
+import { ref } from 'vue'
+
 export default {
   name: 'AppUpdateNotification',
-  emits: ['update']
+  emits: ['update'],
+  setup(props, { emit }) {
+    const show = ref(true)
+
+    const update = () => {
+      show.value = false
+      emit('update')
+    }
+
+    return {
+      show,
+      update
+    }
+  }
 }
 </script>
 
