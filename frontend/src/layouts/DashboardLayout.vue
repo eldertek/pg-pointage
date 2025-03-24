@@ -1,7 +1,10 @@
 <template>
   <v-app>
     <v-app-bar color="primary">
-      <v-app-bar-nav-icon @click="drawer = !drawer"></v-app-bar-nav-icon>
+      <v-app-bar-nav-icon 
+        @click="$vuetify.display.lgAndUp ? (rail = !rail) : (drawer = !drawer)"
+        :icon="rail ? 'mdi-menu' : 'mdi-menu-open'"
+      ></v-app-bar-nav-icon>
       <v-app-bar-title>Planète Gardiens - Administration</v-app-bar-title>
       <v-spacer></v-spacer>
       <v-btn icon @click="showLogoutDialog = true">
@@ -9,7 +12,16 @@
       </v-btn>
     </v-app-bar>
 
-    <v-navigation-drawer v-model="drawer" temporary>
+    <v-navigation-drawer 
+      v-model="drawer" 
+      :permanent="$vuetify.display.lgAndUp"
+      :temporary="$vuetify.display.mdAndDown"
+      :rail="rail"
+      :rail-width="56"
+      width="256"
+      color="primary"
+      class="text-white"
+    >
       <v-list>
         <!-- Tableau de bord -->
         <v-list-item to="/dashboard" active-class="primary--text">
@@ -151,7 +163,8 @@ export default {
   name: 'DashboardLayout',
   setup() {
     const authStore = useAuthStore()
-    const drawer = ref(false)
+    const drawer = ref(true)
+    const rail = ref(false)
     const showLogoutDialog = ref(false)
     
     const isSuperAdmin = computed(() => authStore.isSuperAdmin)
@@ -163,6 +176,7 @@ export default {
     
     return {
       drawer,
+      rail,
       showLogoutDialog,
       isSuperAdmin,
       isManager,
@@ -171,4 +185,40 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.v-navigation-drawer {
+  transition: width 0.3s ease;
+}
+
+.v-list-item {
+  margin: 4px 8px;
+  border-radius: 8px;
+}
+
+.v-list-item--active {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.v-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.v-list-subheader {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.v-divider {
+  border-color: rgba(255, 255, 255, 0.1);
+  margin: 8px 0;
+}
+
+.v-icon {
+  color: inherit;
+}
+</style>
 
