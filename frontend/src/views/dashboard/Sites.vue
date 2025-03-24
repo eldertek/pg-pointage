@@ -56,7 +56,7 @@ export default {
     const headers = ref([
       { title: 'Nom', align: 'start', key: 'name' },
       { title: 'Adresse', align: 'start', key: 'address' },
-      { title: 'Organisation', align: 'start', key: 'organization' },
+      { title: 'Franchise', align: 'start', key: 'organization' },
       { title: 'Employés', align: 'center', key: 'employeesCount' },
       { title: 'Statut', align: 'center', key: 'status' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }

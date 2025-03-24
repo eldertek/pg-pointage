@@ -1,18 +1,18 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">Paramètres Système</h1>
+      <h1 class="text-h4">Paramètres système</h1>
     </div>
 
     <v-card>
-      <v-card-title>Configuration Générale</v-card-title>
+      <v-card-title>Configuration générale</v-card-title>
       <v-card-text>
         <v-form>
           <v-row>
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="settings.appName"
-                label="Nom de l'Application"
+                label="Nom de l'application"
                 variant="outlined"
                 density="comfortable"
               ></v-text-field>
@@ -21,7 +21,7 @@
               <v-select
                 v-model="settings.defaultLanguage"
                 :items="languages"
-                label="Langue par Défaut"
+                label="Langue par défaut"
                 variant="outlined"
                 density="comfortable"
               ></v-select>
@@ -29,7 +29,7 @@
             <v-col cols="12">
               <v-textarea
                 v-model="settings.maintenanceMessage"
-                label="Message de Maintenance"
+                label="Message de maintenance"
                 variant="outlined"
                 density="comfortable"
                 rows="3"

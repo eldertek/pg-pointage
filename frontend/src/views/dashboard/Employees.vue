@@ -203,9 +203,16 @@ export default {
       { title: 'Prénom', align: 'start', key: 'first_name' },
       { title: 'Nom', align: 'start', key: 'last_name' },
       { title: 'Email', align: 'start', key: 'email' },
+<<<<<<< HEAD
       { title: 'Téléphone', align: 'start', key: 'phone_number' },
       { title: 'ID Employé', align: 'start', key: 'employee_id' },
       { title: 'Statut', align: 'center', key: 'is_active' },
+=======
+      { title: 'Téléphone', align: 'start', key: 'phone' },
+      { title: 'Rôle', align: 'center', key: 'role' },
+      { title: 'Franchise', align: 'start', key: 'organization' },
+      { title: 'Statut', align: 'center', key: 'status' },
+>>>>>>> c428db7b2297cd863d61b58d609607168d30704f
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }
     ])
 

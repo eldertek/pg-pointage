@@ -45,7 +45,7 @@
                   <template v-slot:prepend>
                     <v-icon icon="mdi-domain"></v-icon>
                   </template>
-                  <v-list-item-title>Organisation</v-list-item-title>
+                  <v-list-item-title>Franchise</v-list-item-title>
                   <v-list-item-subtitle>{{ site.organization }}</v-list-item-subtitle>
                 </v-list-item>
                 
