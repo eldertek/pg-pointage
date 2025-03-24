@@ -110,6 +110,16 @@
             :headers="sitesHeaders"
             :items="sites"
             :items-per-page="5"
+            :no-data-text="'Aucun site trouvé'"
+            :loading-text="'Chargement des sites...'"
+            :items-per-page-text="'Lignes par page'"
+            :page-text="'{0}-{1} sur {2}'"
+            :items-per-page-options="[
+              { title: '5', value: 5 },
+              { title: '10', value: 10 },
+              { title: '15', value: 15 },
+              { title: 'Tout', value: -1 }
+            ]"
           >
             <template #actions="{ item }">
               <v-btn
@@ -132,6 +142,16 @@
             :headers="timesheetsHeaders"
             :items="timesheets"
             :items-per-page="5"
+            :no-data-text="'Aucun pointage trouvé'"
+            :loading-text="'Chargement des pointages...'"
+            :items-per-page-text="'Lignes par page'"
+            :page-text="'{0}-{1} sur {2}'"
+            :items-per-page-options="[
+              { title: '5', value: 5 },
+              { title: '10', value: 10 },
+              { title: '15', value: 15 },
+              { title: 'Tout', value: -1 }
+            ]"
           >
             <template #type="{ item }">
               <v-chip

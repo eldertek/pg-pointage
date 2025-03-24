@@ -1,5 +1,4 @@
 import axios from "axios"
-import { useAuthStore } from "@/stores/auth"
 
 const api = axios.create({
   baseURL: "/api/v1",
@@ -32,8 +31,6 @@ api.interceptors.request.use(
           data: config.data
         })
       }
-
-      config.headers.Authorization = `Bearer ${authStore.token}`
     }
     return config
   },
@@ -55,13 +52,38 @@ api.interceptors.response.use(
     })
     return response
   },
-  (error) => {
+  async (error) => {
     if (error.response) {
       console.error("Erreur de réponse:", {
         status: error.response.status,
         data: error.response.data,
         headers: error.response.headers
       })
+
+      // If the error is due to an expired token (401), try to refresh it
+      if (error.response.status === 401 && error.config && !error.config.__isRetryRequest) {
+        try {
+          const refreshToken = localStorage.getItem("refreshToken")
+          if (refreshToken) {
+            const response = await api.post("/users/token/refresh/", {
+              refresh: refreshToken
+            })
+            const newToken = response.data.access
+            localStorage.setItem("token", newToken)
+            
+            // Retry the original request with the new token
+            error.config.headers.Authorization = `Bearer ${newToken}`
+            error.config.__isRetryRequest = true
+            return api(error.config)
+          }
+        } catch (refreshError) {
+          // If refresh token fails, clear tokens and redirect to login
+          localStorage.removeItem("token")
+          localStorage.removeItem("refreshToken")
+          window.location.href = "/login"
+          return Promise.reject(refreshError)
+        }
+      }
     }
     return Promise.reject(error)
   }

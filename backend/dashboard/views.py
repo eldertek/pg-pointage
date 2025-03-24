@@ -27,8 +27,8 @@ def get_dashboard_stats(request):
         
         # Get today's date range
         today = timezone.now().date()
-        today_start = datetime.combine(today, time.min)
-        today_end = datetime.combine(today, time.max)
+        today_start = timezone.make_aware(datetime.combine(today, time.min))
+        today_end = timezone.make_aware(datetime.combine(today, time.max))
         
         # Get stats based on user's organization
         organization = request.user.organization
@@ -70,7 +70,7 @@ def get_recent_anomalies(request):
             site__organization=organization
         ).order_by('-created_at')[:10].values(
             'id',
-            'type',
+            'alert_type',
             'employee__first_name',
             'employee__last_name',
             'site__name',
@@ -81,7 +81,7 @@ def get_recent_anomalies(request):
         # Format the response
         formatted_anomalies = [{
             'id': anomaly['id'],
-            'type': anomaly['type'],
+            'type': anomaly['alert_type'],
             'employee': f"{anomaly['employee__first_name']} {anomaly['employee__last_name']}",
             'site': anomaly['site__name'],
             'created_at': anomaly['created_at'].isoformat(),

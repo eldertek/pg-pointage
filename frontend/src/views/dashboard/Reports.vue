@@ -83,6 +83,16 @@
               :items="reports"
               :loading="loading"
               :items-per-page="10"
+              :no-data-text="'Aucun rapport trouvé'"
+              :loading-text="'Chargement des rapports...'"
+              :items-per-page-text="'Lignes par page'"
+              :page-text="'{0}-{1} sur {2}'"
+              :items-per-page-options="[
+                { title: '5', value: 5 },
+                { title: '10', value: 10 },
+                { title: '15', value: 15 },
+                { title: 'Tout', value: -1 }
+              ]"
               class="elevation-1"
             >
               <template #actions="{ item }">

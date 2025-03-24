@@ -692,12 +692,13 @@ export default {
       showPasswordFields,
       passwordRules,
       confirmPasswordRules,
-      editedItem,
-      saveUser,
-      rules,
-      editedUser,
-      isCurrentUser,
-      showCreateNewUserDialog,
+      editedItem
+    }
+  }
+}
+</script>
+
+<style scoped>
 .v-btn-toggle {
   background-color: rgba(var(--v-theme-surface-variant), 0.08);
   border-radius: 8px;

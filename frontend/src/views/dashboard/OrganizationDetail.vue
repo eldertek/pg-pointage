@@ -1,12 +1,12 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">Détails de l'organisation</h1>
+      <h1 class="text-h4">{{ organization.name }}</h1>
       <div>
-        <v-btn color="#00346E" class="mr-2" prepend-icon="mdi-pencil">
+        <v-btn color="#00346E" class="mr-2" prepend-icon="mdi-pencil" @click="editOrganization">
           Modifier
         </v-btn>
-        <v-btn color="#F78C48" prepend-icon="mdi-delete">
+        <v-btn color="#F78C48" prepend-icon="mdi-delete" @click="confirmDelete">
           Supprimer
         </v-btn>
       </div>
@@ -38,7 +38,11 @@
                     <v-icon icon="mdi-map-marker"></v-icon>
                   </template>
                   <v-list-item-title>Adresse</v-list-item-title>
-                  <v-list-item-subtitle>{{ organization.address }}</v-list-item-subtitle>
+                  <v-list-item-subtitle>
+                    {{ organization.address }}<br>
+                    {{ organization.postal_code }} {{ organization.city }}<br>
+                    {{ organization.country }}
+                  </v-list-item-subtitle>
                 </v-list-item>
                 
                 <v-list-item>
@@ -48,6 +52,14 @@
                   <v-list-item-title>Email</v-list-item-title>
                   <v-list-item-subtitle>{{ organization.email }}</v-list-item-subtitle>
                 </v-list-item>
+
+                <v-list-item>
+                  <template #prepend>
+                    <v-icon icon="mdi-email-outline"></v-icon>
+                  </template>
+                  <v-list-item-title>Email de contact</v-list-item-title>
+                  <v-list-item-subtitle>{{ organization.contact_email }}</v-list-item-subtitle>
+                </v-list-item>
                 
                 <v-list-item>
                   <template #prepend>
@@ -55,6 +67,34 @@
                   </template>
                   <v-list-item-title>Téléphone</v-list-item-title>
                   <v-list-item-subtitle>{{ organization.phone }}</v-list-item-subtitle>
+                </v-list-item>
+
+                <v-list-item>
+                  <template #prepend>
+                    <v-icon icon="mdi-card-account-details"></v-icon>
+                  </template>
+                  <v-list-item-title>SIRET</v-list-item-title>
+                  <v-list-item-subtitle>{{ organization.siret }}</v-list-item-subtitle>
+                </v-list-item>
+
+                <v-list-item v-if="organization.notes">
+                  <template #prepend>
+                    <v-icon icon="mdi-note-text"></v-icon>
+                  </template>
+                  <v-list-item-title>Notes</v-list-item-title>
+                  <v-list-item-subtitle>{{ organization.notes }}</v-list-item-subtitle>
+                </v-list-item>
+
+                <v-list-item>
+                  <template #prepend>
+                    <v-icon :color="organization.is_active ? 'success' : 'error'">
+                      {{ organization.is_active ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                    </v-icon>
+                  </template>
+                  <v-list-item-title>Statut</v-list-item-title>
+                  <v-list-item-subtitle>
+                    {{ organization.is_active ? 'Active' : 'Inactive' }}
+                  </v-list-item-subtitle>
                 </v-list-item>
               </v-list>
             </v-card-text>
@@ -81,13 +121,25 @@
               </div>
             </v-card-text>
           </v-card>
+
+          <v-card v-if="organization.logo" class="mb-4">
+            <v-card-title>Logo</v-card-title>
+            <v-card-text class="text-center">
+              <v-img
+                :src="organization.logo"
+                :alt="organization.name"
+                max-width="200"
+                class="mx-auto"
+              ></v-img>
+            </v-card-text>
+          </v-card>
         </v-col>
       </v-row>
       
       <v-card class="mb-4">
         <v-card-title class="d-flex justify-space-between align-center">
           <span>Sites ({{ sites.length }})</span>
-          <v-btn color="#00346E" size="small" prepend-icon="mdi-plus-circle">
+          <v-btn color="#00346E" size="small" prepend-icon="mdi-plus-circle" to="/dashboard/sites/new">
             Ajouter un site
           </v-btn>
         </v-card-title>
@@ -96,8 +148,27 @@
             :headers="sitesHeaders"
             :items="sites"
             :items-per-page="5"
+            :no-data-text="'Aucun site trouvé'"
+            :loading-text="'Chargement des sites...'"
+            :items-per-page-text="'Lignes par page'"
+            :page-text="'{0}-{1} sur {2}'"
+            :items-per-page-options="[
+              { title: '5', value: 5 },
+              { title: '10', value: 10 },
+              { title: '15', value: 15 },
+              { title: 'Tout', value: -1 }
+            ]"
           >
-            <template #actions="{ item }">
+            <template #[`item.status`]="{ item }">
+              <v-chip
+                :color="item.is_active ? 'success' : 'error'"
+                size="small"
+              >
+                {{ item.is_active ? 'Actif' : 'Inactif' }}
+              </v-chip>
+            </template>
+
+            <template #[`item.actions`]="{ item }">
               <v-btn
                 icon
                 variant="text"
@@ -114,7 +185,7 @@
       <v-card>
         <v-card-title class="d-flex justify-space-between align-center">
           <span>Employés ({{ employees.length }})</span>
-          <v-btn color="#00346E" size="small" prepend-icon="mdi-plus-circle">
+          <v-btn color="#00346E" size="small" prepend-icon="mdi-plus-circle" to="/dashboard/employees/new">
             Ajouter un employé
           </v-btn>
         </v-card-title>
@@ -123,13 +194,32 @@
             :headers="employeesHeaders"
             :items="employees"
             :items-per-page="5"
+            :no-data-text="'Aucun employé trouvé'"
+            :loading-text="'Chargement des employés...'"
+            :items-per-page-text="'Lignes par page'"
+            :page-text="'{0}-{1} sur {2}'"
+            :items-per-page-options="[
+              { title: '5', value: 5 },
+              { title: '10', value: 10 },
+              { title: '15', value: 15 },
+              { title: 'Tout', value: -1 }
+            ]"
           >
-            <template #actions="{ item }">
+            <template #[`item.role`]="{ item }">
+              <v-chip
+                :color="item.role === 'MANAGER' ? 'primary' : 'success'"
+                size="small"
+              >
+                {{ item.role === 'MANAGER' ? 'Manager' : 'Employé' }}
+              </v-chip>
+            </template>
+
+            <template #[`item.actions`]="{ item }">
               <v-btn
                 icon
                 variant="text"
                 size="small"
-                :to="`/dashboard/employees/${item.raw.id}`"
+                :to="`/dashboard/employees/${item.id}`"
               >
                 <v-icon>mdi-eye</v-icon>
               </v-btn>
@@ -137,21 +227,48 @@
           </v-data-table>
         </v-card-text>
       </v-card>
+
+      <!-- Dialog de confirmation de suppression -->
+      <v-dialog v-model="showDeleteDialog" max-width="400">
+        <v-card>
+          <v-card-title>Confirmer la suppression</v-card-title>
+          <v-card-text>
+            Êtes-vous sûr de vouloir supprimer l'organisation "{{ organization.name }}" ?
+            Cette action est irréversible.
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="grey" variant="text" @click="showDeleteDialog = false">Annuler</v-btn>
+            <v-btn 
+              color="error" 
+              variant="text" 
+              @click="deleteOrganization"
+              :loading="deleting"
+            >
+              Supprimer
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </template>
   </div>
 </template>
 
 <script>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import api from '@/services/api'
 
 export default {
   name: 'OrganizationDetailView',
   setup() {
     const route = useRoute()
+    const router = useRouter()
     const organizationId = route.params.id
     
     const loading = ref(true)
+    const deleting = ref(false)
+    const showDeleteDialog = ref(false)
     const organization = ref({})
     const statistics = ref({
       sites: 0,
@@ -182,43 +299,47 @@ export default {
       loading.value = true
       
       try {
-        // Simulation de chargement des données
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        organization.value = {
-          id: organizationId,
-          name: 'Planète Gardiens Paris',
-          address: '123 rue de Paris, 75001 Paris',
-          email: 'paris@planetegardiens.com',
-          phone: '01 23 45 67 89',
-          status: 'Actif'
-        }
-        
-        statistics.value = {
-          sites: 5,
-          employees: 25,
-          managers: 3
-        }
-        
-        sites.value = [
-          { id: 1, name: 'Centre Commercial', address: '1 Place du Commerce, Paris', employeesCount: 8, status: 'Actif' },
-          { id: 2, name: 'Hôpital Nord', address: '2 rue de la Santé, Paris', employeesCount: 6, status: 'Actif' },
-          { id: 3, name: 'Résidence Les Pins', address: '3 avenue des Pins, Paris', employeesCount: 4, status: 'Actif' },
-          { id: 4, name: 'Banque Centrale', address: '4 boulevard des Finances, Paris', employeesCount: 5, status: 'Actif' },
-          { id: 5, name: 'École Primaire', address: '5 rue de l\'Éducation, Paris', employeesCount: 2, status: 'Actif' }
-        ]
-        
-        employees.value = [
-          { id: 1, name: 'Jean Dupont', email: 'jean.dupont@example.com', role: 'Manager', site: 'Multiple' },
-          { id: 2, name: 'Marie Martin', email: 'marie.martin@example.com', role: 'Manager', site: 'Multiple' },
-          { id: 3, name: 'Pierre Lambert', email: 'pierre.lambert@example.com', role: 'Employé', site: 'Centre Commercial' },
-          { id: 4, name: 'Sophie Petit', email: 'sophie.petit@example.com', role: 'Employé', site: 'Hôpital Nord' },
-          { id: 5, name: 'Luc Bernard', email: 'luc.bernard@example.com', role: 'Employé', site: 'Résidence Les Pins' }
-        ]
+        // Charger les données de l'organisation
+        const orgResponse = await api.get(`/organizations/${organizationId}/`)
+        organization.value = orgResponse.data
+
+        // Charger les statistiques
+        const statsResponse = await api.get(`/organizations/${organizationId}/statistics/`)
+        statistics.value = statsResponse.data
+
+        // Charger les sites
+        const sitesResponse = await api.get(`/sites/?organization=${organizationId}`)
+        sites.value = sitesResponse.data.results || []
+
+        // Charger les employés
+        const employeesResponse = await api.get(`/organizations/${organizationId}/users/`)
+        employees.value = employeesResponse.data.results || []
+
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error)
       } finally {
         loading.value = false
+      }
+    }
+
+    const editOrganization = () => {
+      router.push(`/dashboard/organizations/${organizationId}/edit`)
+    }
+
+    const confirmDelete = () => {
+      showDeleteDialog.value = true
+    }
+
+    const deleteOrganization = async () => {
+      deleting.value = true
+      try {
+        await api.delete(`/organizations/${organizationId}/`)
+        router.push('/dashboard/organizations')
+      } catch (error) {
+        console.error('Erreur lors de la suppression:', error)
+      } finally {
+        deleting.value = false
+        showDeleteDialog.value = false
       }
     }
     
@@ -226,12 +347,17 @@ export default {
     
     return {
       loading,
+      deleting,
+      showDeleteDialog,
       organization,
       statistics,
       sitesHeaders,
       employeesHeaders,
       sites,
-      employees
+      employees,
+      editOrganization,
+      confirmDelete,
+      deleteOrganization
     }
   }
 }

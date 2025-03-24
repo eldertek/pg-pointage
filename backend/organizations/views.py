@@ -1,4 +1,7 @@
 from rest_framework import generics, permissions
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
+from django.db.models import Count, Q
 from .models import Organization
 from .serializers import OrganizationSerializer
 from users.serializers import UserSerializer
@@ -37,4 +40,22 @@ class OrganizationUsersView(generics.ListAPIView):
             return user.__class__.objects.filter(organization_id=organization_id)
         
         return user.__class__.objects.none()
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def organization_statistics(request, pk):
+    """Vue pour obtenir les statistiques d'une organisation"""
+    try:
+        organization = Organization.objects.get(pk=pk)
+        users = organization.users.all()
+        
+        stats = {
+            'sites': organization.sites.count(),
+            'employees': users.filter(role='EMPLOYEE').count(),
+            'managers': users.filter(role='MANAGER').count()
+        }
+        
+        return Response(stats)
+    except Organization.DoesNotExist:
+        return Response({'error': 'Organisation non trouvée'}, status=404)
 

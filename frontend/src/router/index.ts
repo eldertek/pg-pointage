@@ -87,12 +87,6 @@ const routes = [
         meta: { roles: ["SUPER_ADMIN"] },
       },
       {
-        path: "admin/logs",
-        name: "AdminLogs",
-        component: AdminLogs,
-        meta: { roles: ["SUPER_ADMIN"] },
-      },
-      {
         path: "admin/settings",
         name: "AdminSettings",
         component: AdminSettings,

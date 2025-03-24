@@ -54,12 +54,9 @@ export const useAuthStore = defineStore("auth", {
         await this.fetchUserProfile()
         
         // Redirection basée sur le rôle
-        if (this.isSuperAdmin) {
-          console.log("Redirection vers le tableau de bord des organisations")
-          router.push("/dashboard/organizations")
-        } else if (this.isManager) {
-          console.log("Redirection vers le tableau de bord des sites")
-          router.push("/dashboard/sites")
+        if (this.isEmployee) {
+          console.log("Redirection vers le tableau de bord mobile")
+          router.push("/mobile")
         } else {
           console.log("Redirection vers le tableau de bord")
           router.push("/dashboard")

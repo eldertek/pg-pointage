@@ -20,8 +20,7 @@ export default defineConfig({
       '/api/v1': {
         target: process.env.VITE_API_URL || 'http://localhost:8000',
         changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/api\/v1/, '/api/v1')
+        secure: false
       }
     }
   },

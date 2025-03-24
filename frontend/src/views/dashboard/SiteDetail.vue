@@ -98,6 +98,16 @@
             :headers="schedulesHeaders"
             :items="schedules"
             :items-per-page="5"
+            :no-data-text="'Aucun planning trouvé'"
+            :loading-text="'Chargement des plannings...'"
+            :items-per-page-text="'Lignes par page'"
+            :page-text="'{0}-{1} sur {2}'"
+            :items-per-page-options="[
+              { title: '5', value: 5 },
+              { title: '10', value: 10 },
+              { title: '15', value: 15 },
+              { title: 'Tout', value: -1 }
+            ]"
           >
             <template #actions="{ item }">
               <v-btn
@@ -125,6 +135,16 @@
             :headers="employeesHeaders"
             :items="employees"
             :items-per-page="5"
+            :no-data-text="'Aucun employé trouvé'"
+            :loading-text="'Chargement des employés...'"
+            :items-per-page-text="'Lignes par page'"
+            :page-text="'{0}-{1} sur {2}'"
+            :items-per-page-options="[
+              { title: '5', value: 5 },
+              { title: '10', value: 10 },
+              { title: '15', value: 15 },
+              { title: 'Tout', value: -1 }
+            ]"
           >
             <template #actions="{ item }">
               <v-btn

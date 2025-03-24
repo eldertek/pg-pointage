@@ -104,9 +104,9 @@
     </v-row>
 
     <v-snackbar
-      v-model="!!error.stats"
+      v-model="showStatsError"
       color="error"
-      timeout="3000"
+      :timeout="3000"
     >
       {{ error.stats }}
     </v-snackbar>
@@ -114,7 +114,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import api from '@/services/api'
 
 interface Stats {
@@ -152,12 +152,21 @@ export default {
       stats: null as string | null,
       anomalies: null as string | null
     })
+    
+    const showStatsError = computed({
+      get: () => !!error.value.stats,
+      set: (value) => {
+        if (!value) {
+          error.value.stats = null
+        }
+      }
+    })
 
     const fetchDashboardStats = async () => {
       try {
         loading.value.stats = true
         console.log('Fetching dashboard stats...')
-        const response = await api.get('/api/dashboard/stats')
+        const response = await api.get('/dashboard/stats')
         console.log('Dashboard stats received:', response.data)
         stats.value = response.data
       } catch (err) {
@@ -172,7 +181,7 @@ export default {
       try {
         loading.value.anomalies = true
         console.log('Fetching recent anomalies...')
-        const response = await api.get('/api/dashboard/anomalies/recent')
+        const response = await api.get('/dashboard/anomalies/recent')
         console.log('Recent anomalies received:', response.data)
         recentAnomalies.value = response.data
       } catch (err) {
@@ -203,7 +212,9 @@ export default {
       stats,
       recentAnomalies,
       loading,
-      error
+      error,
+      showStatsError,
+      fetchRecentAnomalies
     }
   }
 }

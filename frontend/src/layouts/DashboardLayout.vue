@@ -42,13 +42,6 @@
             </template>
             <v-list-item-title>Gestion des accès</v-list-item-title>
           </v-list-item>
-
-          <v-list-item to="/dashboard/admin/logs" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-text-box-search</v-icon>
-            </template>
-            <v-list-item-title>Logs système</v-list-item-title>
-          </v-list-item>
         </template>
 
         <!-- Section Gestion -->
