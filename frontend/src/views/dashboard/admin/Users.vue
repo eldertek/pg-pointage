@@ -1,7 +1,6 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-<<<<<<< HEAD
       <div>
         <h1 class="text-h4">{{ currentView === 'users' ? 'Gestion des Utilisateurs' : 'Gestion des Franchises' }}</h1>
         <v-btn-toggle
@@ -26,11 +25,6 @@
         @click="showCreateDialog = true"
       >
         {{ currentView === 'users' ? 'Nouvel Utilisateur' : 'Nouvelle Franchise' }}
-=======
-      <h1 class="text-h4">Gestion des utilisateurs</h1>
-      <v-btn color="primary" prepend-icon="mdi-account-plus" @click="showCreateNewUserDialog">
-        Nouvel utilisateur
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
       </v-btn>
     </div>
 
@@ -54,7 +48,6 @@
         :items="users"
         :search="search"
         :loading="loading"
-<<<<<<< HEAD
         :items-per-page-options="[5, 10, 20, 50, 100]"
         :items-per-page="10"
         :no-data-text="'Aucun utilisateur trouvé'"
@@ -67,11 +60,6 @@
           'page-text': '{0}-{1} sur {2}',
           'items-per-page-options': [5, 10, 20, 50, 100]
         }"
-=======
-        :no-data-text="'Aucun utilisateur trouvé'"
-        :loading-text="'Chargement des utilisateurs...'"
-        :items-per-page-text="'Lignes par page'"
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
       >
         <template v-slot:item.fullName="{ item }">
           {{ item.first_name }} {{ item.last_name }}
@@ -82,11 +70,7 @@
             :color="getRoleColor(item.role)"
             size="small"
           >
-<<<<<<< HEAD
             {{ item.role }}
-=======
-            {{ roleLabels[item.role] || item.role }}
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
           </v-chip>
         </template>
 
@@ -99,7 +83,6 @@
           </v-chip>
         </template>
 
-<<<<<<< HEAD
         <template v-slot:item.actions="{ item }">
           <v-tooltip text="Modifier">
             <template v-slot:activator="{ props }">
@@ -117,16 +100,6 @@
           </v-tooltip>
           <v-tooltip
             :text="isCurrentUser(item) ? 'Vous ne pouvez pas désactiver votre propre compte' : item.is_active ? 'Désactiver' : 'Activer'"
-=======
-        <template #[`item.actions`]="{ item }">
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            color="primary"
-            @click="editUser(item)"
-            :title="'Modifier ' + item.full_name"
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
           >
             <template v-slot:activator="{ props }">
               <v-btn
@@ -169,7 +142,6 @@
           <v-chip
             :color="item.is_active ? 'success' : 'error'"
             size="small"
-<<<<<<< HEAD
           >
             {{ item.is_active ? 'Active' : 'Inactive' }}
           </v-chip>
@@ -217,17 +189,6 @@
               </v-btn>
             </template>
           </v-tooltip>
-=======
-            :color="item.is_active ? 'error' : 'success'"
-            @click="toggleUserStatus(item)"
-            :disabled="isCurrentUser(item.id)"
-            :title="isCurrentUser(item.id) 
-              ? 'Vous ne pouvez pas modifier votre propre statut'
-              : (item.is_active ? 'Désactiver ' : 'Activer ') + item.full_name"
-          >
-            <v-icon>{{ item.is_active ? 'mdi-account-off' : 'mdi-account-check' }}</v-icon>
-          </v-btn>
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
         </template>
       </v-data-table>
     </v-card>
@@ -239,7 +200,6 @@
           {{ getDialogTitle() }}
         </v-card-title>
         <v-card-text>
-<<<<<<< HEAD
           <v-form ref="form" @submit.prevent="saveItem">
             <!-- Formulaire utilisateur -->
             <template v-if="currentView === 'users'">
@@ -351,97 +311,10 @@
                       v => !!v || 'L\'email est requis',
                       v => /.+@.+\..+/.test(v) || 'L\'email doit être valide'
                     ]"
-=======
-          <v-form ref="form">
-            <v-row>
-              <v-col cols="12" sm="6">
-                <v-text-field
-                  v-model="userForm.first_name"
-                  label="Prénom"
-                  required
-                  :rules="[rules.required]"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <v-text-field
-                  v-model="userForm.last_name"
-                  label="Nom"
-                  required
-                  :rules="[rules.required]"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12">
-                <v-text-field
-                  v-model="userForm.email"
-                  label="Courriel"
-                  type="email"
-                  required
-                  :rules="[rules.required, rules.email]"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12">
-                <v-text-field
-                  v-model="userForm.username"
-                  label="Nom d'utilisateur"
-                  :hint="!userForm.username ? 'Si non renseigné, sera généré à partir de l\'email' : ''"
-                  persistent-hint
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <v-select
-                  v-model="userForm.role"
-                  :items="roles"
-                  label="Rôle"
-                  required
-                  :rules="[rules.required]"
-                  :item-title="role => roleLabels[role] || role"
-                  item-value="role"
-                  @update:model-value="handleRoleChange"
-                ></v-select>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <template v-if="userForm.role === 'SUPER_ADMIN'">
-                  <v-text-field
-                    label="Franchise"
-                    value="Non applicable"
-                    disabled
-                    readonly
-                    hint="Un Super Administrateur n'a pas besoin d'organisation"
-                    persistent-hint
-                  ></v-text-field>
-                </template>
-                <template v-else>
-                  <v-select
-                    v-model="userForm.organization"
-                    :items="organizations"
-                    label="Franchise"
-                    item-title="name"
-                    item-value="id"
-                    :rules="[rules.required]"
-                    hint="Sélectionnez une organisation"
-                    persistent-hint
-                    clearable
-                    @click:clear="userForm.organization = null"
-                  ></v-select>
-                </template>
-              </v-col>
-              <template v-if="!editedUser">
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="userForm.password"
-                    label="Mot de passe"
-                    type="password"
-                    required
-                    autocomplete="new-password"
-                    :rules="[rules.required, rules.password]"
-                    hint="Minimum 8 caractères, incluant majuscules, minuscules et chiffres"
-                    persistent-hint
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12" sm="6">
                   <v-text-field
-<<<<<<< HEAD
                     v-model="organizationForm.phone"
                     label="Téléphone"
                     required
@@ -497,18 +370,6 @@
                 </v-col>
               </v-row>
             </template>
-=======
-                    v-model="userForm.password_confirmation"
-                    label="Confirmer le mot de passe"
-                    type="password"
-                    required
-                    autocomplete="new-password"
-                    :rules="[rules.required, rules.passwordMatch]"
-                  ></v-text-field>
-                </v-col>
-              </template>
-            </v-row>
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
           </v-form>
         </v-card-text>
         <v-card-actions>
@@ -522,11 +383,7 @@
 </template>
 
 <script>
-<<<<<<< HEAD
 import { ref, onMounted, watch } from 'vue'
-=======
-import { ref, onMounted, computed, watch } from 'vue'
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -544,27 +401,8 @@ export default {
     const currentUser = ref(null)
     const showPasswordFields = ref(false)
     
-<<<<<<< HEAD
     const userHeaders = ref([
       { title: 'Nom', align: 'start', key: 'fullName' },
-=======
-    const rules = {
-      required: v => !!v || 'Ce champ est requis',
-      email: v => /.+@.+\..+/.test(v) || 'Veuillez entrer une adresse courriel valide',
-      password: v => {
-        const hasMinLength = v && v.length >= 8
-        const hasUpperCase = /[A-Z]/.test(v)
-        const hasLowerCase = /[a-z]/.test(v)
-        const hasNumber = /[0-9]/.test(v)
-        return (hasMinLength && hasUpperCase && hasLowerCase && hasNumber) || 
-          'Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre'
-      },
-      passwordMatch: v => v === userForm.value.password || 'Les mots de passe ne correspondent pas'
-    }
-
-    const headers = ref([
-      { title: 'Nom', align: 'start', key: 'full_name' },
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
       { title: 'Courriel', key: 'email' },
       { title: 'Rôle', key: 'role', align: 'center' },
       { title: 'Franchise', key: 'organization_name' },
@@ -597,15 +435,9 @@ export default {
       email: '',
       username: '',
       role: '',
-<<<<<<< HEAD
       organization: null,
       password: '',
       confirm_password: ''
-=======
-      organization: '',
-      password: '',
-      password_confirmation: ''
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
     })
 
     const organizationForm = ref({
@@ -648,24 +480,7 @@ export default {
       try {
         const response = await api.get('/users/')
         console.log('Données utilisateurs reçues:', response.data)
-<<<<<<< HEAD
         users.value = response.data.results || []
-=======
-        // Transformer les données pour l'affichage
-        users.value = (response.data.results || []).map(user => ({
-          id: user.id,
-          full_name: `${user.first_name} ${user.last_name}`.trim() || user.email,
-          email: user.email,
-          role: user.role || 'EMPLOYEE',
-          organization_name: user.organization?.name || '-',
-          is_active: user.is_active ?? true,
-          // Garder les données originales pour l'édition
-          first_name: user.first_name,
-          last_name: user.last_name,
-          organization: user.organization?.id,
-          username: user.username
-        }))
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
       } catch (error) {
         console.error('Erreur lors du chargement des utilisateurs:', error)
       } finally {
@@ -686,7 +501,6 @@ export default {
       }
     }
 
-<<<<<<< HEAD
     const fetchCurrentUser = async () => {
       try {
         const response = await api.get('/users/profile/')
@@ -707,36 +521,13 @@ export default {
       } else {
         organizationForm.value = { ...item }
       }
-=======
-    const editUser = (user) => {
-      userForm.value = {
-        first_name: user.first_name,
-        last_name: user.last_name,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-        organization: user.role === 'SUPER_ADMIN' ? null : user.organization,
-        password: '',
-        password_confirmation: ''
-      }
-      editedUser.value = user
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
       showCreateDialog.value = true
     }
 
     const toggleUserStatus = async (user) => {
-<<<<<<< HEAD
       if (isCurrentUser(user)) {
         return // Empêcher la désactivation si c'est l'utilisateur courant
       }
-=======
-      // Empêcher la désactivation de son propre compte
-      if (user.id === authStore.user?.id) {
-        console.warn('Un utilisateur ne peut pas désactiver son propre compte')
-        return
-      }
-
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
       try {
         await api.patch(`/users/${user.id}/`, {
           is_active: !user.is_active
@@ -748,7 +539,6 @@ export default {
       }
     }
 
-<<<<<<< HEAD
     const toggleOrganizationStatus = async (organization) => {
       try {
         await api.patch(`/organizations/${organization.id}/`, {
@@ -826,23 +616,10 @@ export default {
         console.error('Erreur lors de l\'enregistrement:', error)
       } finally {
         saving.value = false
-=======
-    // Computed property pour vérifier si un utilisateur est l'utilisateur courant
-    const isCurrentUser = computed(() => {
-      return (userId) => userId === authStore.user?.id
-    })
-
-    const handleRoleChange = (newRole) => {
-      if (newRole === 'SUPER_ADMIN') {
-        userForm.value.organization = null
-      } else if (!userForm.value.organization && organizations.value.length > 0) {
-        userForm.value.organization = organizations.value[0].id
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
       }
     }
 
     const resetForm = () => {
-<<<<<<< HEAD
       if (form.value) {
         form.value.reset()
       }
@@ -881,110 +658,6 @@ export default {
         fetchOrganizations()
       }
     })
-=======
-      userForm.value = {
-        first_name: '',
-        last_name: '',
-        email: '',
-        username: '',
-        role: '',
-        organization: null,
-        password: '',
-        password_confirmation: ''
-      }
-    }
-
-    const showCreateNewUserDialog = () => {
-      editedUser.value = null
-      resetForm()
-      showCreateDialog.value = true
-    }
-
-    const saveUser = async () => {
-      try {
-        const { valid } = await form.value.validate()
-        if (!valid) {
-          console.log('Formulaire invalide')
-          alert('Veuillez remplir tous les champs requis')
-          return
-        }
-
-        const userData = {
-          first_name: userForm.value.first_name,
-          last_name: userForm.value.last_name,
-          email: userForm.value.email,
-          username: userForm.value.username || userForm.value.email.split('@')[0],
-          role: userForm.value.role,
-          organization: userForm.value.role === 'SUPER_ADMIN' ? null : userForm.value.organization,
-        }
-
-        // Ajouter le mot de passe uniquement lors de la création
-        if (!editedUser.value) {
-          userData.password = userForm.value.password
-          userData.password_confirmation = userForm.value.password_confirmation
-        }
-
-        console.log('Données à envoyer:', userData)
-
-        if (editedUser.value) {
-          // Mise à jour d'un utilisateur existant
-          const userId = editedUser.value.id
-          console.log(`Mise à jour de l'utilisateur ${userId}:`, userData)
-          try {
-            const response = await api.put(`/users/${userId}/`, userData)
-            console.log('Réponse de mise à jour:', response.data)
-            Object.assign(editedUser.value, response.data)
-          } catch (error) {
-            console.error('Erreur lors de la mise à jour:', error.response?.data || error.message)
-            let errorMessage = ''
-            if (error.response?.data) {
-              const errors = error.response.data
-              errorMessage = Object.entries(errors)
-                .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
-                .join('\n')
-            } else {
-              errorMessage = error.message
-            }
-            alert(`Erreur lors de la mise à jour: ${errorMessage}`)
-            return
-          }
-        } else {
-          // Création d'un nouvel utilisateur
-          console.log('Création d\'un nouvel utilisateur:', userData)
-          try {
-            const response = await api.post('/users/', userData)
-            console.log('Réponse de création:', response.data)
-            users.value.push(response.data)
-          } catch (error) {
-            console.error('Erreur lors de la création:', error.response?.data || error.message)
-            let errorMessage = ''
-            if (error.response?.data) {
-              const errors = error.response.data
-              errorMessage = Object.entries(errors)
-                .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
-                .join('\n')
-            } else {
-              errorMessage = error.message
-            }
-            alert(`Erreur lors de la création: ${errorMessage}`)
-            return
-          }
-        }
-
-        showCreateDialog.value = false
-        editedUser.value = null
-        resetForm()
-      } catch (error) {
-        console.error('Erreur lors de la sauvegarde:', error)
-        alert('Une erreur est survenue lors de la sauvegarde')
-      }
-    }
-
-    // Watcher pour le changement de rôle
-    watch(() => userForm.value.role, (newRole) => {
-      handleRoleChange(newRole)
-    }, { immediate: true })
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
 
     onMounted(() => {
       fetchCurrentUser()
@@ -1010,33 +683,21 @@ export default {
       getRoleColor,
       editItem,
       toggleUserStatus,
-<<<<<<< HEAD
       toggleOrganizationStatus,
       saveItem,
       getDialogTitle,
       closeDialog,
       onDialogClose,
-      currentUser,
       isCurrentUser,
       showPasswordFields,
       passwordRules,
       confirmPasswordRules,
-      editedItem
-=======
+      editedItem,
       saveUser,
       rules,
       editedUser,
       isCurrentUser,
       showCreateNewUserDialog,
-      resetForm,
-      handleRoleChange
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
-    }
-  }
-}
-</script>
-
-<style scoped>
 .v-btn-toggle {
   background-color: rgba(var(--v-theme-surface-variant), 0.08);
   border-radius: 8px;

@@ -23,7 +23,6 @@ api.interceptors.request.use(
         fullURL: config.baseURL + config.url,
         token: token.substring(0, 10) + "..."
       })
-<<<<<<< HEAD
 
       // Ajouter des logs pour les données envoyées
       if (config.data) {
@@ -35,8 +34,6 @@ api.interceptors.request.use(
       }
 
       config.headers.Authorization = `Bearer ${authStore.token}`
-=======
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
     }
     return config
   },

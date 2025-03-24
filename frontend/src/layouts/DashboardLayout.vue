@@ -1,14 +1,10 @@
 <template>
   <v-app>
     <v-app-bar color="primary">
-<<<<<<< HEAD
       <v-app-bar-nav-icon 
         @click="$vuetify.display.lgAndUp ? (rail = !rail) : (drawer = !drawer)"
         :icon="rail ? 'mdi-menu' : 'mdi-menu-open'"
       ></v-app-bar-nav-icon>
-=======
-      <v-app-bar-nav-icon @click="drawer = !drawer" class="d-md-none"></v-app-bar-nav-icon>
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
       <v-app-bar-title>Planète Gardiens - Administration</v-app-bar-title>
       <v-spacer></v-spacer>
       <v-btn icon @click="showLogoutDialog = true">
@@ -18,7 +14,6 @@
 
     <v-navigation-drawer 
       v-model="drawer" 
-<<<<<<< HEAD
       :permanent="$vuetify.display.lgAndUp"
       :temporary="$vuetify.display.mdAndDown"
       :rail="rail"
@@ -26,10 +21,6 @@
       width="256"
       color="primary"
       class="text-white"
-=======
-      :permanent="$vuetify.display.mdAndUp"
-      :temporary="$vuetify.display.smAndDown"
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
     >
       <v-list>
         <!-- Tableau de bord -->
@@ -45,25 +36,11 @@
           <v-divider class="my-2"></v-divider>
           <v-list-subheader>Administration globale</v-list-subheader>
           
-<<<<<<< HEAD
-=======
-          <v-list-item to="/dashboard/organizations" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-domain</v-icon>
-            </template>
-            <v-list-item-title>Franchises</v-list-item-title>
-          </v-list-item>
-
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
           <v-list-item to="/dashboard/admin/users" active-class="primary--text">
             <template v-slot:prepend>
               <v-icon>mdi-account-cog</v-icon>
             </template>
-<<<<<<< HEAD
             <v-list-item-title>Gestion des accès</v-list-item-title>
-=======
-            <v-list-item-title>Utilisateurs</v-list-item-title>
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
           </v-list-item>
 
           <v-list-item to="/dashboard/admin/logs" active-class="primary--text">
@@ -174,10 +151,7 @@ export default {
   setup() {
     const authStore = useAuthStore()
     const drawer = ref(true)
-<<<<<<< HEAD
     const rail = ref(false)
-=======
->>>>>>> c428db7b2297cd863d61b58d609607168d30704f
     const showLogoutDialog = ref(false)
     
     const isSuperAdmin = computed(() => authStore.isSuperAdmin)
