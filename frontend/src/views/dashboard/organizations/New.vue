@@ -4,7 +4,7 @@
       <v-btn icon class="mr-4" to="/dashboard/organizations">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <h1 class="text-h4">Nouvelle Franchise</h1>
+      <h1 class="text-h4">Nouvelle franchise</h1>
     </div>
 
     <v-card>
@@ -207,24 +207,49 @@ export default {
     const saveOrganization = async () => {
       const { valid } = await form.value.validate()
       
-      if (!valid) return
+      if (!valid) {
+        console.log('Formulaire invalide, validation échouée')
+        return
+      }
 
       saving.value = true
       try {
-        // Créer l'organisation
-        const orgResponse = await api.post('/api/v1/organizations/', organizationForm.value)
+        console.log('Données de la franchise à créer:', organizationForm.value)
+        // Créer la franchise
+        const orgResponse = await api.post('/organizations/', organizationForm.value)
+        console.log('Franchise créée avec succès:', orgResponse.data)
         const organizationId = orgResponse.data.id
 
-        // Créer le manager
-        await api.post('/api/v1/users/', {
+        // Préparer les données du manager
+        const managerData = {
           ...managerForm.value,
-          organization: organizationId
-        })
+          organization: organizationId,
+          username: managerForm.value.email.split('@')[0] // Générer un username à partir de l'email
+        }
+        console.log('Données du manager à créer:', managerData)
 
-        // Rediriger vers la liste des organisations
+        // Créer le manager
+        const userResponse = await api.post('/users/', managerData)
+        console.log('Manager créé avec succès:', userResponse.data)
+
+        // Rediriger vers la liste des franchises
         router.push('/dashboard/organizations')
       } catch (error) {
         console.error('Erreur lors de la création:', error)
+        console.error('Détails de l\'erreur:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        })
+        // Afficher un message d'erreur plus détaillé
+        let errorMessage = 'Une erreur est survenue lors de la création'
+        if (error.response?.data) {
+          const errors = Object.entries(error.response.data)
+            .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+            .join('\n')
+          errorMessage = `Erreurs de validation:\n${errors}`
+        }
+        alert(errorMessage)
       } finally {
         saving.value = false
       }

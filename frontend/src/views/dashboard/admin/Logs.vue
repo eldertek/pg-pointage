@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">Logs Système</h1>
+      <h1 class="text-h4">Logs système</h1>
       <v-btn color="primary" prepend-icon="mdi-refresh" @click="fetchLogs" :loading="loading">
         Rafraîchir
       </v-btn>

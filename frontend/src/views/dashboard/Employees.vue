@@ -58,7 +58,7 @@ export default {
       { title: 'Email', align: 'start', key: 'email' },
       { title: 'Téléphone', align: 'start', key: 'phone' },
       { title: 'Rôle', align: 'center', key: 'role' },
-      { title: 'Organisation', align: 'start', key: 'organization' },
+      { title: 'Franchise', align: 'start', key: 'organization' },
       { title: 'Statut', align: 'center', key: 'status' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }
     ])
