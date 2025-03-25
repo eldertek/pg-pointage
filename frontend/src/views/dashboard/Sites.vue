@@ -625,7 +625,14 @@
                   <!-- Paramètres de pointage pour FIXED -->
                   <v-col cols="12">
                     <v-card variant="outlined" class="pa-4">
-                      <div class="text-subtitle-1 mb-4">Paramètres de pointage</div>
+                      <div class="text-subtitle-1 mb-4">
+                        Paramètres de pointage
+                        <v-tooltip text="Pour les gardiens : configurez les marges de flexibilité pour les arrivées et départs">
+                          <template v-slot:activator="{ props }">
+                            <v-icon v-bind="props" size="small" class="ml-2">mdi-help-circle-outline</v-icon>
+                          </template>
+                        </v-tooltip>
+                      </div>
                       <v-row>
                         <v-col cols="12" md="6">
                           <v-switch
@@ -633,7 +640,15 @@
                             label="Autoriser les arrivées en avance"
                             color="#00346E"
                             hide-details
-                          ></v-switch>
+                          >
+                            <template v-slot:append>
+                              <v-tooltip text="Permet au gardien d'arriver avant l'heure prévue dans la limite configurée">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-switch>
                         </v-col>
 
                         <v-col cols="12" md="6">
@@ -642,7 +657,15 @@
                             label="Autoriser les départs en retard"
                             color="#00346E"
                             hide-details
-                          ></v-switch>
+                          >
+                            <template v-slot:append>
+                              <v-tooltip text="Permet au gardien de partir après l'heure prévue dans la limite configurée">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-switch>
                         </v-col>
 
                         <v-col cols="12" md="6" v-if="scheduleForm.allow_early_arrival">
@@ -653,7 +676,15 @@
                             min="0"
                             :rules="[v => !!v || 'La limite d\'arrivée en avance est requise']"
                             hide-details="auto"
-                          ></v-text-field>
+                          >
+                            <template v-slot:append-inner>
+                              <v-tooltip text="Nombre de minutes maximum autorisées pour une arrivée anticipée">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-text-field>
                         </v-col>
 
                         <v-col cols="12" md="6" v-if="scheduleForm.allow_late_departure">
@@ -664,7 +695,15 @@
                             min="0"
                             :rules="[v => !!v || 'La limite de départ en retard est requise']"
                             hide-details="auto"
-                          ></v-text-field>
+                          >
+                            <template v-slot:append-inner>
+                              <v-tooltip text="Nombre de minutes maximum autorisées pour un départ tardif">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-text-field>
                         </v-col>
                       </v-row>
                     </v-card>
@@ -673,7 +712,14 @@
                   <!-- Paramètres de pause pour FIXED -->
                   <v-col cols="12">
                     <v-card variant="outlined" class="pa-4">
-                      <div class="text-subtitle-1 mb-4">Paramètres de pause</div>
+                      <div class="text-subtitle-1 mb-4">
+                        Paramètres de pause
+                        <v-tooltip text="Pour les gardiens : configurez les horaires de pause autorisés">
+                          <template v-slot:activator="{ props }">
+                            <v-icon v-bind="props" size="small" class="ml-2">mdi-help-circle-outline</v-icon>
+                          </template>
+                        </v-tooltip>
+                      </div>
                       <v-row>
                         <v-col cols="12" md="4">
                           <v-text-field
@@ -683,7 +729,15 @@
                             min="0"
                             :rules="[v => !!v || 'La durée de la pause est requise']"
                             hide-details="auto"
-                          ></v-text-field>
+                          >
+                            <template v-slot:append-inner>
+                              <v-tooltip text="Durée totale de pause autorisée par jour">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-text-field>
                         </v-col>
 
                         <v-col cols="12" md="4">
@@ -693,7 +747,15 @@
                             type="time"
                             :rules="[v => !!v || 'L\'heure de début de pause est requise']"
                             hide-details="auto"
-                          ></v-text-field>
+                          >
+                            <template v-slot:append-inner>
+                              <v-tooltip text="Heure la plus tôt à laquelle la pause peut commencer">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-text-field>
                         </v-col>
 
                         <v-col cols="12" md="4">
@@ -703,7 +765,15 @@
                             type="time"
                             :rules="[v => !!v || 'L\'heure de fin de pause est requise']"
                             hide-details="auto"
-                          ></v-text-field>
+                          >
+                            <template v-slot:append-inner>
+                              <v-tooltip text="Heure la plus tard à laquelle la pause doit se terminer">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-text-field>
                         </v-col>
                       </v-row>
                     </v-card>
@@ -714,7 +784,14 @@
                 <template v-else>
                   <v-col cols="12">
                     <v-card variant="outlined" class="pa-4">
-                      <div class="text-subtitle-1 mb-4">Paramètres de fréquence</div>
+                      <div class="text-subtitle-1 mb-4">
+                        Paramètres de fréquence
+                        <v-tooltip text="Pour le nettoyage : définissez la fréquence des passages et leur durée">
+                          <template v-slot:activator="{ props }">
+                            <v-icon v-bind="props" size="small" class="ml-2">mdi-help-circle-outline</v-icon>
+                          </template>
+                        </v-tooltip>
+                      </div>
                       <v-row>
                         <v-col cols="12" md="6">
                           <v-text-field
@@ -725,20 +802,38 @@
                             step="0.5"
                             :rules="[v => !!v || 'Le nombre d\'heures par passage est requis']"
                             hide-details="auto"
-                          ></v-text-field>
+                          >
+                            <template v-slot:append-inner>
+                              <v-tooltip text="Durée prévue pour chaque intervention de nettoyage">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-text-field>
                         </v-col>
                         <v-col cols="12" md="6">
                           <v-select
                             v-model="scheduleForm.frequency_type"
                             :items="[
-                              { text: 'Par jour', value: 'DAILY' },
-                              { text: 'Par semaine', value: 'WEEKLY' },
-                              { text: 'Par mois', value: 'MONTHLY' }
+                              { title: 'Par jour', value: 'DAILY' },
+                              { title: 'Par semaine', value: 'WEEKLY' },
+                              { title: 'Par mois', value: 'MONTHLY' }
                             ]"
+                            item-title="title"
+                            item-value="value"
                             label="Type de fréquence*"
                             :rules="[v => !!v || 'Le type de fréquence est requis']"
                             hide-details="auto"
-                          ></v-select>
+                          >
+                            <template v-slot:append-inner>
+                              <v-tooltip text="Définit la période sur laquelle compter les passages">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-select>
                         </v-col>
                         <v-col cols="12" md="6">
                           <v-text-field
@@ -748,7 +843,15 @@
                             min="1"
                             :rules="[v => !!v || 'Le nombre de passages est requis']"
                             hide-details="auto"
-                          ></v-text-field>
+                          >
+                            <template v-slot:append-inner>
+                              <v-tooltip text="Nombre d'interventions sur la période choisie (ex: 3 fois par semaine)">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-text-field>
                         </v-col>
                         <v-col cols="12" md="6">
                           <v-text-field
@@ -762,7 +865,33 @@
                               v => v <= 24 || 'La plage horaire ne peut pas dépasser 24 heures'
                             ]"
                             hide-details="auto"
-                          ></v-text-field>
+                          >
+                            <template v-slot:append-inner>
+                              <v-tooltip text="Fenêtre de temps disponible pour effectuer l'intervention">
+                                <template v-slot:activator="{ props }">
+                                  <v-icon v-bind="props" size="small">mdi-help-circle-outline</v-icon>
+                                </template>
+                              </v-tooltip>
+                            </template>
+                          </v-text-field>
+                        </v-col>
+                      </v-row>
+                      <!-- Résumé pour le planning de fréquence -->
+                      <v-row>
+                        <v-col cols="12" class="pt-4">
+                          <v-card color="grey-lighten-4" class="pa-3">
+                            <div class="text-body-2">
+                              <v-icon color="#00346E" class="mr-2">mdi-information</v-icon>
+                              <span v-if="scheduleForm.frequency_type && scheduleForm.frequency_count && scheduleForm.frequency_hours && scheduleForm.time_window">
+                                {{ scheduleForm.frequency_count }} passage{{ scheduleForm.frequency_count > 1 ? 's' : '' }} 
+                                {{ scheduleForm.frequency_type === 'DAILY' ? 'par jour' : 
+                                   scheduleForm.frequency_type === 'WEEKLY' ? 'par semaine' : 'par mois' }} 
+                                de {{ scheduleForm.frequency_hours }} heure{{ scheduleForm.frequency_hours > 1 ? 's' : '' }} 
+                                sur une plage de {{ scheduleForm.time_window }} heure{{ scheduleForm.time_window > 1 ? 's' : '' }}.
+                              </span>
+                              <span v-else>Veuillez remplir tous les champs pour voir le résumé.</span>
+                            </div>
+                          </v-card>
                         </v-col>
                       </v-row>
                     </v-card>
@@ -772,7 +901,14 @@
                 <!-- Horaires par jour - uniquement pour le type FIXED -->
                 <v-col cols="12" v-if="scheduleForm.schedule_type === 'FIXED'">
                   <v-card variant="outlined" class="pa-4">
-                    <div class="text-subtitle-1 mb-4">Horaires par jour</div>
+                    <div class="text-subtitle-1 mb-4">
+                      Horaires par jour
+                      <v-tooltip text="Pour les gardiens : définissez les horaires précis pour chaque jour">
+                        <template v-slot:activator="{ props }">
+                          <v-icon v-bind="props" size="small" class="ml-2">mdi-help-circle-outline</v-icon>
+                        </template>
+                      </v-tooltip>
+                    </div>
                     <v-row v-for="(day, index) in weekDays" :key="day.value">
                       <v-col cols="12" md="3">
                         <v-switch
@@ -819,6 +955,28 @@
                             </div>
                           </v-col>
                         </v-row>
+                      </v-col>
+                    </v-row>
+                    <!-- Résumé pour le planning fixe -->
+                    <v-row>
+                      <v-col cols="12" class="pt-4">
+                        <v-card color="grey-lighten-4" class="pa-3">
+                          <div class="text-body-2">
+                            <v-icon color="#00346E" class="mr-2">mdi-information</v-icon>
+                            <template v-if="scheduleForm.days.some(day => day.enabled)">
+                              Planning actif {{ scheduleForm.days.filter(day => day.enabled).length }} jour{{ scheduleForm.days.filter(day => day.enabled).length > 1 ? 's' : '' }} 
+                              par semaine avec pause de {{ scheduleForm.break_duration }} minutes 
+                              entre {{ scheduleForm.min_break_start }} et {{ scheduleForm.max_break_end }}.
+                              <template v-if="scheduleForm.allow_early_arrival || scheduleForm.allow_late_departure">
+                                <br>Flexibilité : 
+                                <template v-if="scheduleForm.allow_early_arrival">arrivée jusqu'à {{ scheduleForm.early_arrival_limit }} minutes en avance</template>
+                                <template v-if="scheduleForm.allow_early_arrival && scheduleForm.allow_late_departure"> et </template>
+                                <template v-if="scheduleForm.allow_late_departure">départ jusqu'à {{ scheduleForm.late_departure_limit }} minutes en retard</template>
+                              </template>
+                            </template>
+                            <span v-else>Veuillez sélectionner au moins un jour pour voir le résumé.</span>
+                          </div>
+                        </v-card>
                       </v-col>
                     </v-row>
                   </v-card>

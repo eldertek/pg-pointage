@@ -32,11 +32,39 @@ class UserLogoutView(APIView):
     def post(self, request):
         try:
             refresh_token = request.data.get('refresh')
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response(status=status.HTTP_205_RESET_CONTENT)
-        except Exception:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            if not refresh_token:
+                return Response(
+                    {'error': 'Refresh token is required', 'detail': 'No refresh token provided in request'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+                print(f"[DEBUG] Token successfully blacklisted")
+                return Response(
+                    {'message': 'Successfully logged out'},
+                    status=status.HTTP_200_OK
+                )
+            except Exception as token_error:
+                print(f"[DEBUG] Token error during logout: {str(token_error)}")
+                return Response(
+                    {
+                        'error': 'Invalid refresh token',
+                        'detail': 'The provided refresh token is invalid or expired'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            print(f"[DEBUG] Unexpected error during logout: {str(e)}")
+            return Response(
+                {
+                    'error': 'Logout failed',
+                    'detail': 'An unexpected error occurred during logout'
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class UserRegistrationView(generics.CreateAPIView):
     """Vue pour l'enregistrement de nouveaux utilisateurs"""

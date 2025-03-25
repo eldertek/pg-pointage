@@ -24,6 +24,10 @@ export const useAuthStore = defineStore("auth", {
 
   actions: {
     setTokens(token, refreshToken) {
+      if (!token || !refreshToken || typeof token !== 'string' || typeof refreshToken !== 'string') {
+        console.error("Tentative de définir des tokens invalides:", { token, refreshToken })
+        return
+      }
       this.token = token
       this.refreshToken = refreshToken
       localStorage.setItem("token", token)
@@ -88,17 +92,48 @@ export const useAuthStore = defineStore("auth", {
     async logout() {
       console.log("Déconnexion en cours...")
       try {
-        if (this.refreshToken) {
-          await api.post("/users/logout/", { refresh: this.refreshToken })
-          console.log("Déconnexion réussie côté serveur")
+        const refreshToken = this.refreshToken
+        if (refreshToken && typeof refreshToken === 'string' && refreshToken.length > 0) {
+          try {
+            console.log("Envoi du refresh token pour déconnexion:", { 
+              tokenLength: refreshToken.length,
+              tokenStart: refreshToken.substring(0, 10) + '...'
+            })
+            
+            // Si le token est expiré ou invalide, on procède directement à la déconnexion locale
+            try {
+              await api.post("/users/logout/", { refresh: refreshToken })
+              console.log("Déconnexion réussie côté serveur")
+            } catch (error) {
+              if (error.response?.status === 400 && error.response?.data?.error === 'Invalid refresh token') {
+                console.warn("Token expiré ou invalide, procédant à la déconnexion locale")
+              } else {
+                console.warn(
+                  "Erreur lors de la déconnexion côté serveur:", 
+                  error.response?.data?.error || error.message,
+                  "Status:", error.response?.status,
+                  "Details:", error.response?.data?.detail
+                )
+              }
+            }
+          } catch (error) {
+            console.error("Erreur inattendue lors de la déconnexion:", error)
+          }
+        } else {
+          console.warn("Pas de refresh token valide trouvé pour la déconnexion")
         }
-      } catch (error) {
-        console.error("Erreur lors de la déconnexion:", error)
-      } finally {
+        
+        // Always perform local logout
         this.user = null
         this.clearTokens()
         console.log("Session locale nettoyée")
-        router.push("/login")
+        await router.push("/login")
+      } catch (error) {
+        console.error("Erreur lors de la déconnexion:", error)
+        // Ensure we still clear local state even if navigation fails
+        this.user = null
+        this.clearTokens()
+        throw error
       }
     },
 
