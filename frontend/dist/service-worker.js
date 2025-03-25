@@ -6,8 +6,20 @@ const assetsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/favicon.ico'
+  '/favicon.ico',
+  '/assets/'
 ];
+
+// Check if a request is for an API endpoint
+const isApiRequest = (request) => {
+  return request.url.includes('/api/');
+};
+
+// Check if a request is for a static asset
+const isStaticAsset = (request) => {
+  const url = new URL(request.url);
+  return assetsToCache.some(asset => url.pathname.startsWith(asset));
+};
 
 // Install event
 self.addEventListener('install', (event) => {
@@ -36,14 +48,19 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
+  // Skip non-GET requests
   if (event.request.method !== 'GET') {
-    return event.respondWith(fetch(event.request));
+    return;
   }
 
-  // Don't cache API requests
-  if (event.request.url.includes('/api/')) {
-    return event.respondWith(fetch(event.request));
+  // Skip API requests
+  if (isApiRequest(event.request)) {
+    return;
+  }
+
+  // Only cache static assets
+  if (!isStaticAsset(event.request)) {
+    return;
   }
 
   event.respondWith(
@@ -55,8 +72,8 @@ self.addEventListener('fetch', (event) => {
 
         return fetch(event.request)
           .then((response) => {
-            // Don't cache non-successful responses or non-basic responses
-            if (!response || response.status !== 200 || response.type !== 'basic') {
+            // Don't cache non-successful responses
+            if (!response || response.status !== 200) {
               return response;
             }
 
@@ -64,11 +81,12 @@ self.addEventListener('fetch', (event) => {
             const responseToCache = response.clone();
 
             // Cache the response
-            return caches.open(CACHE_NAME)
+            caches.open(CACHE_NAME)
               .then((cache) => {
                 cache.put(event.request, responseToCache);
-                return response;
               });
+
+            return response;
           });
       })
   );
