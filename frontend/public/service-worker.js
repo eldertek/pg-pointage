@@ -53,23 +53,23 @@ self.addEventListener('fetch', (event) => {
           return response;
         }
 
-        return fetch(event.request).then((response) => {
-          // Don't cache non-successful responses or non-basic responses
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
+        return fetch(event.request)
+          .then((response) => {
+            // Don't cache non-successful responses or non-basic responses
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
 
-          // Clone the response
-          const responseToCache = response.clone();
+            // Clone the response
+            const responseToCache = response.clone();
 
-          // Cache the response
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-
-          return response;
-        });
+            // Cache the response
+            return caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
+                return response;
+              });
+          });
       })
   );
 }); 
