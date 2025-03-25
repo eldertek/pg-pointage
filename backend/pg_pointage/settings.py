@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+import re
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -74,16 +75,34 @@ TEMPLATES = [
 WSGI_APPLICATION = 'pg_pointage.wsgi.application'
 
 # Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'pg_pointage'),
-        'USER': os.getenv('DB_USER', 'pguser'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'pguser'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+database_url = os.getenv('DATABASE_URL')
+if database_url:
+    # Parse DATABASE_URL
+    match = re.match(r'^postgres://(?P<user>.+?):(?P<password>.+?)@(?P<host>.+?):(?P<port>\d+)/(?P<name>.+?)$', database_url)
+    if match:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': match.group('name'),
+                'USER': match.group('user'),
+                'PASSWORD': match.group('password'),
+                'HOST': match.group('host'),
+                'PORT': match.group('port'),
+            }
+        }
+    else:
+        raise Exception('Invalid DATABASE_URL format')
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'pg_pointage'),
+            'USER': os.getenv('DB_USER', 'pguser'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'pguser'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
     }
-}
 
 # User model
 AUTH_USER_MODEL = 'users.User'
