@@ -1607,88 +1607,239 @@ export default {
       resetScheduleForm()
     }
 
-    // Fonctions pour la gestion des QR codes
+    // Fonction commune pour générer le QR code stylisé
+    const generateStyledQRCode = async (site, options = {}) => {
+      const {
+        width = 500,
+        height = 700,
+        qrSize = 400,
+        showFrame = true,
+        radius = 20
+      } = options;
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = width;
+      canvas.height = height;
+
+      // Fond blanc
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+
+      if (showFrame) {
+        // Cadre orange arrondi
+        ctx.strokeStyle = '#F78C48';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.roundRect(10, 10, width - 20, height - 20, 40);
+        ctx.stroke();
+      }
+
+      // Générer le QR Code de base
+      const qrData = JSON.stringify({
+        type: 'PG_SITE',
+        nfc_id: site.nfc_id,
+        site_id: site.id,
+        name: site.name
+      });
+
+      // Créer un canvas temporaire pour le QR code
+      const qrCanvas = document.createElement('canvas');
+      await QRCode.toCanvas(qrCanvas, qrData, {
+        width: qrSize,
+        margin: 1,
+        color: { dark: '#00346E', light: '#FFFFFF' }
+      });
+
+      // Créer un canvas pour le QR code modifié
+      const modifiedQrCanvas = document.createElement('canvas');
+      modifiedQrCanvas.width = qrSize;
+      modifiedQrCanvas.height = qrSize;
+      const modQrCtx = modifiedQrCanvas.getContext('2d');
+      
+      // Fond blanc
+      modQrCtx.fillStyle = '#FFFFFF';
+      modQrCtx.fillRect(0, 0, qrSize, qrSize);
+      
+      // Récupérer les données du QR code
+      const qrCtx = qrCanvas.getContext('2d');
+      const imageData = qrCtx.getImageData(0, 0, qrSize, qrSize);
+      const data = imageData.data;
+      
+      // Détecter la taille d'un module
+      // Recherche du premier pixel non blanc
+      let moduleSize = 0;
+      let startX = 0;
+      let firstDarkFound = false;
+      
+      // Parcourir la première ligne pour trouver le premier module sombre
+      for (let x = 0; x < qrSize; x++) {
+        const pos = (x) * 4;
+        // Si on trouve un pixel sombre (non blanc)
+        if (data[pos] < 200) {
+          if (!firstDarkFound) {
+            startX = x;
+            firstDarkFound = true;
+          }
+        } else if (firstDarkFound) {
+          // On a trouvé la fin du premier module sombre
+          moduleSize = x - startX;
+          break;
+        }
+      }
+      
+      // Si moduleSize n'a pas été trouvé, utiliser une approximation
+      if (moduleSize < 1) {
+        moduleSize = Math.ceil(qrSize / 25); // QR codes typiques ont ~25 modules par côté
+      }
+      
+      // Dessiner le QR code avec des losanges
+      modQrCtx.fillStyle = '#00346E';
+      
+      for (let y = 0; y < qrSize; y += moduleSize) {
+        for (let x = 0; x < qrSize; x += moduleSize) {
+          // Vérifier une zone centrale du module pour déterminer sa couleur
+          const checkX = x + Math.floor(moduleSize / 2);
+          const checkY = y + Math.floor(moduleSize / 2);
+          if (checkX < qrSize && checkY < qrSize) {
+            const pos = (checkY * qrSize + checkX) * 4;
+            // Si le pixel est sombre (bleu)
+            if (data[pos] < 200) {
+              // Dessiner un losange
+              const centerX = x + moduleSize / 2;
+              const centerY = y + moduleSize / 2;
+              const diamondSize = moduleSize * 0.8; // Légèrement plus petit pour créer des espaces
+              
+              modQrCtx.beginPath();
+              modQrCtx.moveTo(centerX, centerY - diamondSize/2); // Haut
+              modQrCtx.lineTo(centerX + diamondSize/2, centerY); // Droite
+              modQrCtx.lineTo(centerX, centerY + diamondSize/2); // Bas
+              modQrCtx.lineTo(centerX - diamondSize/2, centerY); // Gauche
+              modQrCtx.closePath();
+              modQrCtx.fill();
+            }
+          }
+        }
+      }
+
+      // Appliquer les coins modifiés
+      modQrCtx.globalCompositeOperation = 'destination-out';
+      modQrCtx.fillStyle = 'black';
+
+      // Coin supérieur gauche
+      modQrCtx.beginPath();
+      modQrCtx.arc(0, 0, radius, 0, Math.PI / 2);
+      modQrCtx.lineTo(0, 0);
+      modQrCtx.fill();
+
+      // Coin supérieur droit
+      modQrCtx.beginPath();
+      modQrCtx.arc(qrSize, 0, radius, Math.PI / 2, Math.PI);
+      modQrCtx.lineTo(qrSize, 0);
+      modQrCtx.fill();
+
+      // Coin inférieur gauche
+      modQrCtx.beginPath();
+      modQrCtx.arc(0, qrSize, radius, -Math.PI / 2, 0);
+      modQrCtx.lineTo(0, qrSize);
+      modQrCtx.fill();
+
+      // Coin inférieur droit
+      modQrCtx.beginPath();
+      modQrCtx.arc(qrSize, qrSize, radius, Math.PI, -Math.PI / 2);
+      modQrCtx.lineTo(qrSize, qrSize);
+      modQrCtx.fill();
+
+      modQrCtx.globalCompositeOperation = 'source-over';
+
+      // Dessiner le QR code modifié sur le canvas principal
+      const qrX = (width - qrSize) / 2;
+      const qrY = showFrame ? 50 : 0;
+      ctx.drawImage(modifiedQrCanvas, qrX, qrY, qrSize, qrSize);
+
+      // Charger et dessiner le logo
+      const logoImage = new Image();
+      logoImage.src = '/icons/logo.png';
+      await new Promise(resolve => logoImage.onload = resolve);
+
+      // Calculer la taille du logo en préservant le ratio d'aspect original (766:549)
+      const originalRatio = 766/549;
+      const logoMaxWidth = qrSize * 0.3;
+      const logoWidth = logoMaxWidth;
+      const logoHeight = logoWidth / originalRatio;
+      const logoX = qrX + (qrSize - logoWidth) / 2;
+      const logoY = qrY + (qrSize - logoHeight) / 2;
+
+      // Créer un cercle blanc derrière le logo
+      ctx.beginPath();
+      const circleRadius = Math.max(logoWidth, logoHeight) / 1.8;
+      ctx.arc(logoX + logoWidth/2, logoY + logoHeight/2, circleRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+
+      // Dessiner le logo
+      ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
+
+      if (showFrame) {
+        // Ligne décorative sous le QR code
+        ctx.strokeStyle = '#F78C48';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(100, 480);
+        ctx.lineTo(width - 100, 480);
+        ctx.stroke();
+
+        // Nom du site sous la ligne
+        ctx.fillStyle = '#F78C48';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(site.name, width / 2, 530);
+      }
+
+      return canvas.toDataURL('image/png');
+    };
+
+    // Fonction pour générer le QR code pour la prévisualisation
     const generateQRCode = async (site) => {
       try {
-        // Créer un objet avec les données nécessaires pour le scan
-        const qrData = {
-          type: 'PG_SITE',
-          nfc_id: site.nfc_id,
-          site_id: site.id,
-          name: site.name
-        }
+        const qrCode = await generateStyledQRCode(site, {
+          width: 500,
+          height: 500,
+          qrSize: 500,
+          showFrame: false
+        });
 
-        // Créer un canvas temporaire
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        canvas.width = 300
-        canvas.height = 300
-
-        // Générer le QR code en base64
-        const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
-          width: 300,
-          margin: 2,
-          color: {
-            dark: '#00346E',
-            light: '#FFFFFF'
-          }
-        })
-
-        // Charger le QR code dans une image
-        const qrImage = new Image()
-        await new Promise((resolve) => {
-          qrImage.onload = resolve
-          qrImage.src = qrCodeDataUrl
-        })
-
-        // Dessiner le QR code sur le canvas
-        ctx.drawImage(qrImage, 0, 0, 300, 300)
-
-        // Charger le logo
-        const logoImage = new Image()
-        await new Promise((resolve) => {
-          logoImage.onload = resolve
-          logoImage.src = '/icons/logo.png'
-        })
-
-        // Calculer la taille et la position du logo (30% de la taille du QR code)
-        const logoSize = 300 * 0.3
-        const logoX = (300 - logoSize) / 2
-        const logoY = (300 - logoSize) / 2
-
-        // Créer un cercle blanc derrière le logo
-        ctx.beginPath()
-        ctx.arc(300/2, 300/2, logoSize/1.8, 0, Math.PI * 2)
-        ctx.fillStyle = '#FFFFFF'
-        ctx.fill()
-
-        // Dessiner le logo au centre
-        ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize)
-
-        // Convertir le canvas en base64
-        const finalQrCode = canvas.toDataURL('image/png')
-
-        // Mettre à jour le QR code localement
         selectedSite.value = {
           ...selectedSite.value,
-          qr_code: finalQrCode
-        }
+          qr_code: qrCode
+        };
       } catch (error) {
-        console.error('Erreur lors de la génération du QR code:', error)
+        console.error('Erreur lors de la génération du QR code:', error);
       }
-    }
+    };
 
-    const downloadQRCode = (site) => {
-      if (!site.qr_code) return
+    // Fonction pour télécharger le QR code
+    const downloadQRCode = async (site) => {
+      if (!site.qr_code) return;
 
-      // Créer un lien temporaire pour le téléchargement
-      const link = document.createElement('a')
-      link.href = site.qr_code
-      link.download = `qr-code-${site.name.toLowerCase().replace(/\s+/g, '-')}.png`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    }
+      try {
+        const qrCode = await generateStyledQRCode(site, {
+          width: 500,
+          height: 700,
+          qrSize: 400,
+          showFrame: true
+        });
+
+        const link = document.createElement('a');
+        link.href = qrCode;
+        link.download = `qr-code-${site.name.toLowerCase().replace(/\s+/g, '-')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (error) {
+        console.error('Erreur lors du téléchargement du QR code:', error);
+      }
+    };
 
     onMounted(() => {
       fetchSites()
