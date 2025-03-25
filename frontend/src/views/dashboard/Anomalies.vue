@@ -198,6 +198,7 @@ import { useToast } from 'vue-toastification'
 export default {
   name: 'AnomaliesView',
   setup() {
+    const toast = useToast()
     const loading = ref(true)
     const scanning = ref(false)
     const error = ref(null)
@@ -379,13 +380,7 @@ export default {
             ? `${count} anomalie${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''} et créée${count > 1 ? 's' : ''}.`
             : 'Aucune nouvelle anomalie détectée.'
           
-          // Utiliser le système de notification de Vuetify
-          const { $toast } = useToast()
-          $toast.success(message, {
-            position: 'top-right',
-            duration: 5000,
-            dismissible: true
-          })
+          toast.success(message)
         }
         
         // Recharger les anomalies après le scan
@@ -394,14 +389,8 @@ export default {
         console.error('Erreur lors du scan des anomalies:', error)
         
         // Afficher une notification d'erreur
-        const { $toast } = useToast()
-        $toast.error(
-          error.response?.data?.error || 'Une erreur est survenue lors du scan des anomalies.',
-          {
-            position: 'top-right',
-            duration: 5000,
-            dismissible: true
-          }
+        toast.error(
+          error.response?.data?.error || 'Une erreur est survenue lors du scan des anomalies.'
         )
       } finally {
         scanning.value = false

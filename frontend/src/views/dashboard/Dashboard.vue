@@ -84,20 +84,54 @@
             <v-list-item
               v-for="anomaly in recentAnomalies"
               :key="anomaly.id"
-              :subtitle="new Date(anomaly.created_at).toLocaleString()"
+              class="py-2"
             >
               <template v-slot:prepend>
                 <v-icon
-                  :color="anomaly.status === 'resolved' ? 'success' : 'error'"
+                  :color="anomaly.status === 'PENDING' ? 'error' : 'success'"
                   class="me-2"
+                  :title="anomaly.status_display"
                 >
-                  {{ anomaly.status === 'resolved' ? 'mdi-check-circle' : 'mdi-alert-circle' }}
+                  {{ anomaly.status === 'PENDING' ? 'mdi-alert-circle' : 'mdi-check-circle' }}
                 </v-icon>
               </template>
               
-              <v-list-item-title>{{ anomaly.type }}</v-list-item-title>
-              <v-list-item-subtitle>{{ anomaly.employee }} - {{ anomaly.site }}</v-list-item-subtitle>
+              <v-list-item-title class="font-weight-medium">
+                {{ anomaly.anomaly_type_display }}
+                <v-chip
+                  size="x-small"
+                  :color="anomaly.status === 'PENDING' ? 'error' : 'success'"
+                  class="ml-2"
+                >
+                  {{ anomaly.status_display }}
+                </v-chip>
+              </v-list-item-title>
+              
+              <v-list-item-subtitle class="mt-1">
+                <v-icon size="small" class="me-1">mdi-account</v-icon>
+                {{ anomaly.employee_name }}
+              </v-list-item-subtitle>
+              
+              <v-list-item-subtitle>
+                <v-icon size="small" class="me-1">mdi-map-marker</v-icon>
+                {{ anomaly.site_name }}
+              </v-list-item-subtitle>
+              
+              <v-list-item-subtitle class="text-caption mt-1">
+                <v-icon size="small" class="me-1">mdi-clock-outline</v-icon>
+                {{ new Date(anomaly.created_at).toLocaleString('fr-FR', {
+                  dateStyle: 'medium',
+                  timeStyle: 'medium'
+                }) }}
+              </v-list-item-subtitle>
+
+              <v-list-item-subtitle v-if="anomaly.description" class="text-caption mt-1 text-grey">
+                <v-icon size="small" class="me-1">mdi-information</v-icon>
+                {{ anomaly.description }}
+              </v-list-item-subtitle>
             </v-list-item>
+            
+            <v-divider v-if="recentAnomalies.length > 1" class="my-2"></v-divider>
           </v-list>
         </v-card>
       </v-col>
@@ -115,7 +149,9 @@
 
 <script lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import api from '@/services/api'
+import type { ToastInterface } from 'vue-toastification'
+import { useToast } from 'vue-toastification'
+import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
 
 interface Stats {
   sitesCount: number
@@ -126,16 +162,29 @@ interface Stats {
 
 interface Anomaly {
   id: number
-  type: string
-  employee: string
-  site: string
-  created_at: string
+  employee_name: string
+  site_name: string
+  anomaly_type_display: string
+  status_display: string
+  date: string
+  anomaly_type: string
+  description: string
   status: string
+  minutes: number
+  correction_date: string | null
+  correction_note: string
+  created_at: string
+  updated_at: string
+  employee: number
+  site: number
+  timesheet: number | null
+  corrected_by: number | null
 }
 
 export default {
   name: 'DashboardView',
   setup() {
+    const toast = useToast() as ToastInterface
     const stats = ref<Stats>({
       sitesCount: 0,
       employeesCount: 0,
@@ -166,12 +215,38 @@ export default {
       try {
         loading.value.stats = true
         console.log('Fetching dashboard stats...')
-        const response = await api.get('/dashboard/stats')
-        console.log('Dashboard stats received:', response.data)
-        stats.value = response.data
+        
+        // Récupérer le nombre de sites
+        const sitesResponse = await sitesApi.getAllSites()
+        console.log('Sites response:', sitesResponse.data)
+        stats.value.sitesCount = sitesResponse.data?.count || sitesResponse.data?.results?.length || 0
+        
+        // Récupérer le nombre d'employés
+        const employeesResponse = await usersApi.searchUsers('')  // Recherche vide pour obtenir tous les utilisateurs
+        console.log('Employees response:', employeesResponse.data)
+        stats.value.employeesCount = employeesResponse.data?.count || employeesResponse.data?.results?.length || 0
+        
+        // Récupérer le nombre de pointages du jour
+        const today = new Date().toISOString().split('T')[0]
+        const timesheetsResponse = await timesheetsApi.getTimesheets({
+          start_date: today,
+          end_date: today
+        })
+        console.log('Timesheets response:', timesheetsResponse.data)
+        stats.value.timesheetsCount = timesheetsResponse.data?.count || timesheetsResponse.data?.results?.length || 0
+        
+        // Récupérer le nombre d'anomalies en attente
+        const anomaliesResponse = await timesheetsApi.getAnomalies({
+          status: 'PENDING'
+        })
+        console.log('Anomalies response:', anomaliesResponse.data)
+        stats.value.anomaliesCount = anomaliesResponse.data?.count || anomaliesResponse.data?.results?.length || 0
+        
+        console.log('Updated stats:', stats.value)
       } catch (err) {
         console.error('Error fetching dashboard stats:', err)
         error.value.stats = 'Erreur lors du chargement des statistiques'
+        toast.error('Erreur lors du chargement des statistiques')
       } finally {
         loading.value.stats = false
       }
@@ -181,12 +256,17 @@ export default {
       try {
         loading.value.anomalies = true
         console.log('Fetching recent anomalies...')
-        const response = await api.get('/dashboard/anomalies/recent')
+        const response = await timesheetsApi.getAnomalies({
+          status: 'PENDING',
+          limit: 5,
+          ordering: '-created_at'
+        })
         console.log('Recent anomalies received:', response.data)
-        recentAnomalies.value = response.data
+        recentAnomalies.value = response.data?.results || []
       } catch (err) {
         console.error('Error fetching recent anomalies:', err)
         error.value.anomalies = 'Erreur lors du chargement des anomalies'
+        toast.error('Erreur lors du chargement des anomalies récentes')
       } finally {
         loading.value.anomalies = false
       }
@@ -196,6 +276,7 @@ export default {
     const startAutoRefresh = () => {
       const refreshInterval = 5 * 60 * 1000 // 5 minutes
       setInterval(() => {
+        console.log('Auto-refreshing dashboard data...')
         fetchDashboardStats()
         fetchRecentAnomalies()
       }, refreshInterval)
