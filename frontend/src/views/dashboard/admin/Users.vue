@@ -257,7 +257,7 @@
                     :rules="[v => userForm.role === 'SUPER_ADMIN' || !!v || 'L\'organisation est requise']"
                   ></v-select>
                 </v-col>
-                <v-col cols="12" sm="6">
+                <v-col cols="12" sm="6" v-if="userForm.role === 'EMPLOYEE'">
                   <v-select
                     v-model="userForm.scan_preference"
                     :items="scanPreferences"

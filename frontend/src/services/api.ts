@@ -230,14 +230,31 @@ const usersApi = {
   getProfile: () => api.get('/users/profile/'),
   
   // Update user profile
-  updateProfile: (data: any) => api.put('/users/profile/', convertKeysToSnakeCase({
-    first_name: data.firstName,
-    last_name: data.lastName,
-    email: data.email,
-    phone_number: data.phone,
-    username: data.username,
-    scan_preference: data.scanPreference
-  })),
+  updateProfile: (data: any) => {
+    interface ProfileData {
+      first_name: string;
+      last_name: string;
+      email: string;
+      phone_number: string;
+      username: string;
+      scan_preference?: string;
+    }
+    
+    const profileData: ProfileData = {
+      first_name: data.firstName,
+      last_name: data.lastName,
+      email: data.email,
+      phone_number: data.phone,
+      username: data.username,
+    }
+    
+    // Ajouter scan_preference uniquement pour les employés
+    if (data.role === 'EMPLOYEE') {
+      profileData.scan_preference = data.scanPreference
+    }
+    
+    return api.put('/users/profile/', convertKeysToSnakeCase(profileData))
+  },
   
   // Change password
   changePassword: (data: any) => api.post('/users/change-password/', {

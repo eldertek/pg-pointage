@@ -26,7 +26,10 @@ class User(AbstractUser):
         _('préférence de scan'),
         max_length=20,
         choices=ScanPreference.choices,
-        default=ScanPreference.BOTH
+        default=ScanPreference.BOTH,
+        blank=True,
+        null=True,
+        help_text=_('Uniquement pour les employés')
     )
     organization = models.ForeignKey(
         'organizations.Organization',
