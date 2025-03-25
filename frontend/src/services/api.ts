@@ -1,4 +1,4 @@
-import axios from "axios"
+import axios, { AxiosResponse } from "axios"
 
 const api = axios.create({
   baseURL: "/api/v1",
@@ -112,10 +112,88 @@ const convertKeysToSnakeCase = (obj: any): any => {
   return obj;
 }
 
+// Types pour les réponses API
+interface ApiResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+interface Site {
+  id: number;
+  name: string;
+  address: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  nfc_id: string;
+  organization: number;
+  organization_name?: string;
+  late_margin: number;
+  early_departure_margin: number;
+  ambiguous_margin: number;
+  alert_emails: string;
+  require_geolocation: boolean;
+  geolocation_radius: number;
+  allow_offline_mode: boolean;
+  max_offline_duration: number;
+  is_active: boolean;
+  qr_code?: string;
+  created_at: string;
+  updated_at: string;
+  schedules?: Schedule[];
+}
+
+interface Schedule {
+  id: number;
+  name: string;
+  schedule_type: 'FIXED' | 'FREQUENCY';
+  min_daily_hours?: number;
+  min_weekly_hours?: number;
+  allow_early_arrival?: boolean;
+  allow_late_departure?: boolean;
+  early_arrival_limit?: number;
+  late_departure_limit?: number;
+  break_duration?: number;
+  min_break_start?: string;
+  max_break_end?: string;
+  frequency_hours?: number;
+  frequency_type?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  frequency_count?: number;
+  time_window?: number;
+  details?: ScheduleDetail[];
+  assigned_employees?: Array<{ employee: number }>;
+}
+
+interface ScheduleDetail {
+  id: number;
+  day_of_week: number;
+  start_time_1: string;
+  end_time_1: string;
+  start_time_2: string;
+  end_time_2: string;
+}
+
+interface Employee {
+  id: number;
+  employee_name: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  organization: number;
+  employee?: number;
+}
+
+interface Organization {
+  id: number;
+  name: string;
+}
+
 // Sites API methods
 const sitesApi = {
   // Get all sites with pagination
-  getAllSites: (page = 1, perPage = 10) => {
+  getAllSites: (page = 1, perPage = 10): Promise<AxiosResponse<ApiResponse<Site>>> => {
     return api.get('/sites/', {
       params: {
         page,
@@ -126,48 +204,53 @@ const sitesApi = {
   },
   
   // Get a single site by ID
-  getSite: (id: number) => api.get(`/sites/${id}/`),
+  getSite: (id: number): Promise<AxiosResponse<Site>> => api.get(`/sites/${id}/`),
   
   // Create a new site
-  createSite: (data: any) => api.post('/sites/', convertKeysToSnakeCase(data)),
+  createSite: (data: Partial<Site>): Promise<AxiosResponse<Site>> => 
+    api.post('/sites/', convertKeysToSnakeCase(data)),
   
   // Update a site
-  updateSite: (id: number, data: any) => api.put(`/sites/${id}/`, convertKeysToSnakeCase(data)),
+  updateSite: (id: number, data: Partial<Site>): Promise<AxiosResponse<Site>> => 
+    api.patch(`/sites/${id}/`, convertKeysToSnakeCase(data)),
   
   // Delete a site
-  deleteSite: (id: number) => api.delete(`/sites/${id}/`),
+  deleteSite: (id: number): Promise<AxiosResponse<void>> => api.delete(`/sites/${id}/`),
   
   // Schedule methods
-  createSchedule: (siteId: number, data: any) => 
+  createSchedule: (siteId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
     api.post(`/sites/${siteId}/schedules/`, convertKeysToSnakeCase(data)),
   
-  updateSchedule: (siteId: number, scheduleId: number, data: any) => 
+  updateSchedule: (siteId: number, scheduleId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
     api.put(`/sites/${siteId}/schedules/${scheduleId}/`, convertKeysToSnakeCase(data)),
   
-  deleteSchedule: (siteId: number, scheduleId: number) => 
+  deleteSchedule: (siteId: number, scheduleId: number): Promise<AxiosResponse<void>> => 
     api.delete(`/sites/${siteId}/schedules/${scheduleId}/`),
   
   // Schedule details methods
-  getScheduleDetails: (siteId: number, scheduleId: number) =>
+  getScheduleDetails: (siteId: number, scheduleId: number): Promise<AxiosResponse<Schedule>> =>
     api.get(`/sites/${siteId}/schedules/${scheduleId}/`),
 
-  createScheduleDetail: (siteId: number, scheduleId: number, data: any) => 
+  createScheduleDetail: (siteId: number, scheduleId: number, data: Partial<ScheduleDetail>): Promise<AxiosResponse<ScheduleDetail>> => 
     api.post(`/sites/${siteId}/schedules/${scheduleId}/details/`, convertKeysToSnakeCase(data)),
 
-  updateScheduleDetail: (siteId: number, scheduleId: number, detailId: number, data: any) =>
+  updateScheduleDetail: (siteId: number, scheduleId: number, detailId: number, data: Partial<ScheduleDetail>): Promise<AxiosResponse<ScheduleDetail>> =>
     api.put(`/sites/${siteId}/schedules/${scheduleId}/details/${detailId}/`, convertKeysToSnakeCase(data)),
 
-  deleteScheduleDetail: (siteId: number, scheduleId: number, detailId: number) =>
+  deleteScheduleDetail: (siteId: number, scheduleId: number, detailId: number): Promise<AxiosResponse<void>> =>
     api.delete(`/sites/${siteId}/schedules/${scheduleId}/details/${detailId}/`),
 
-  getScheduleEmployees: (siteId: number, scheduleId: number) =>
-    api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`)
+  getScheduleEmployees: (siteId: number, scheduleId: number): Promise<AxiosResponse<ApiResponse<Employee>>> =>
+    api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`),
+
+  getSiteEmployees: (siteId: number): Promise<AxiosResponse<ApiResponse<Employee>>> =>
+    api.get(`/sites/${siteId}/employees/`)
 }
 
 // Schedules API methods
 const schedulesApi = {
   // Get all schedules with pagination
-  getAllSchedules: (page = 1, perPage = 10) => 
+  getAllSchedules: (page = 1, perPage = 10): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
     api.get('/schedules/', { 
       params: { 
         page,
@@ -176,51 +259,54 @@ const schedulesApi = {
     }),
   
   // Get a single schedule by ID
-  getSchedule: (id: number) => api.get(`/schedules/${id}/`),
+  getSchedule: (id: number): Promise<AxiosResponse<Schedule>> => api.get(`/schedules/${id}/`),
   
   // Create a new schedule
-  createSchedule: (data: any) => api.post('/schedules/', convertKeysToSnakeCase(data)),
+  createSchedule: (data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
+    api.post('/schedules/', convertKeysToSnakeCase(data)),
   
   // Update a schedule
-  updateSchedule: (id: number, data: any) => api.put(`/schedules/${id}/`, convertKeysToSnakeCase(data)),
+  updateSchedule: (id: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
+    api.put(`/schedules/${id}/`, convertKeysToSnakeCase(data)),
   
   // Delete a schedule
-  deleteSchedule: (id: number) => api.delete(`/schedules/${id}/`),
+  deleteSchedule: (id: number): Promise<AxiosResponse<void>> => api.delete(`/schedules/${id}/`),
   
   // Get schedule details
-  getScheduleDetails: (scheduleId: number) => api.get(`/schedules/${scheduleId}/details/`),
+  getScheduleDetails: (scheduleId: number): Promise<AxiosResponse<Schedule>> => 
+    api.get(`/schedules/${scheduleId}/details/`),
   
   // Create schedule detail
-  createScheduleDetail: (scheduleId: number, data: any) => 
+  createScheduleDetail: (scheduleId: number, data: Partial<ScheduleDetail>): Promise<AxiosResponse<ScheduleDetail>> => 
     api.post(`/schedules/${scheduleId}/details/`, convertKeysToSnakeCase(data)),
   
   // Update schedule detail
-  updateScheduleDetail: (scheduleId: number, detailId: number, data: any) => 
+  updateScheduleDetail: (scheduleId: number, detailId: number, data: Partial<ScheduleDetail>): Promise<AxiosResponse<ScheduleDetail>> => 
     api.put(`/schedules/${scheduleId}/details/${detailId}/`, convertKeysToSnakeCase(data)),
   
   // Delete schedule detail
-  deleteScheduleDetail: (scheduleId: number, detailId: number) => 
+  deleteScheduleDetail: (scheduleId: number, detailId: number): Promise<AxiosResponse<void>> => 
     api.delete(`/schedules/${scheduleId}/details/${detailId}/`),
 
   // Employee management
-  getAvailableEmployees: () => api.get('/users/', {
+  getAvailableEmployees: (): Promise<AxiosResponse<ApiResponse<Employee>>> => api.get('/users/', {
     params: {
       role: 'EMPLOYEE',
       is_active: true
     }
   }),
 
-  assignEmployee: (siteId: number, scheduleId: number, employeeId: number) => 
+  assignEmployee: (siteId: number, scheduleId: number, employeeId: number): Promise<AxiosResponse<void>> => 
     api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/`, { 
       site: siteId,
       employee: employeeId,
       schedule: scheduleId
     }),
 
-  unassignEmployee: (siteId: number, scheduleId: number, employeeId: number) => 
+  unassignEmployee: (siteId: number, scheduleId: number, employeeId: number): Promise<AxiosResponse<void>> => 
     api.delete(`/sites/${siteId}/schedules/${scheduleId}/employees/${employeeId}/`),
 
-  getScheduleEmployees: (siteId: number, scheduleId: number) =>
+  getScheduleEmployees: (siteId: number, scheduleId: number): Promise<AxiosResponse<ApiResponse<Employee>>> =>
     api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`)
 }
 

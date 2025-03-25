@@ -62,6 +62,16 @@
               icon
               variant="text"
               size="small"
+              :color="item.is_active ? 'error' : 'success'"
+              @click="toggleSiteStatus(item)"
+              :loading="item.isUpdating"
+            >
+              <v-icon>{{ item.is_active ? 'mdi-close-circle' : 'mdi-check-circle' }}</v-icon>
+            </v-btn>
+            <v-btn
+              icon
+              variant="text"
+              size="small"
               color="#F78C48"
               @click="deleteSite(item.id)"
             >
@@ -396,7 +406,7 @@
                   v-model="siteForm.name"
                   label="Nom du site"
                   required
-                  :rules="[v => !!v || 'Le nom est requis']"
+                  :rules="[(v: string) => !!v || 'Le nom est requis']"
                 ></v-text-field>
               </v-col>
               <v-col cols="12" md="6">
@@ -407,8 +417,8 @@
                   :prefix="'PG'"
                   placeholder="123456"
                   :rules="[
-                    v => !!v || 'L\'ID NFC est requis',
-                    v => /^\d{6}$/.test(v) || 'L\'ID NFC doit être composé de 6 chiffres'
+                    (v: string) => !!v || 'L\'ID NFC est requis',
+                    (v: string) => /^\d{6}$/.test(v) || 'L\'ID NFC doit être composé de 6 chiffres'
                   ]"
                   hint="Entrez uniquement les 6 chiffres, PG sera ajouté automatiquement"
                   persistent-hint
@@ -421,7 +431,7 @@
                   v-model="siteForm.address"
                   label="Adresse"
                   required
-                  :rules="[v => !!v || 'L\'adresse est requise']"
+                  :rules="[(v: string) => !!v || 'L\'adresse est requise']"
                 ></v-text-field>
               </v-col>
               <v-col cols="12" md="4">
@@ -430,8 +440,8 @@
                   label="Code postal"
                   required
                   :rules="[
-                    v => !!v || 'Le code postal est requis',
-                    v => /^\d{5}$/.test(v) || 'Le code postal doit contenir 5 chiffres'
+                    (v: string) => !!v || 'Le code postal est requis',
+                    (v: string) => /^\d{5}$/.test(v) || 'Le code postal doit contenir 5 chiffres'
                   ]"
                 ></v-text-field>
               </v-col>
@@ -440,7 +450,7 @@
                   v-model="siteForm.city"
                   label="Ville"
                   required
-                  :rules="[v => !!v || 'La ville est requise']"
+                  :rules="[(v: string) => !!v || 'La ville est requise']"
                 ></v-text-field>
               </v-col>
               <v-col cols="12" md="4">
@@ -449,7 +459,7 @@
                   label="Pays"
                   required
                   value="France"
-                  :rules="[v => !!v || 'Le pays est requis']"
+                  :rules="[(v: string) => !!v || 'Le pays est requis']"
                 ></v-text-field>
               </v-col>
               <v-col cols="12" md="4">
@@ -458,7 +468,7 @@
                   label="Marge de retard (minutes)"
                   type="number"
                   required
-                  :rules="[v => !!v || 'La marge de retard est requise']"
+                  :rules="[(v: number) => !!v || 'La marge de retard est requise']"
                 ></v-text-field>
               </v-col>
               <v-col cols="12" md="4">
@@ -467,7 +477,7 @@
                   label="Marge de départ anticipé (minutes)"
                   type="number"
                   required
-                  :rules="[v => !!v || 'La marge de départ anticipé est requise']"
+                  :rules="[(v: number) => !!v || 'La marge de départ anticipé est requise']"
                 ></v-text-field>
               </v-col>
               <v-col cols="12" md="4">
@@ -476,7 +486,7 @@
                   label="Marge pour cas ambigus (minutes)"
                   type="number"
                   required
-                  :rules="[v => !!v || 'La marge pour cas ambigus est requise']"
+                  :rules="[(v: number) => !!v || 'La marge pour cas ambigus est requise']"
                 ></v-text-field>
               </v-col>
               <v-col cols="12">
@@ -485,8 +495,8 @@
                   label="Emails pour les alertes (séparés par des virgules)"
                   required
                   :rules="[
-                    v => !!v || 'Au moins un email est requis',
-                    v => v.split(',').every(email => /.+@.+\..+/.test(email.trim())) || 'Format d\'email invalide'
+                    (v: string) => !!v || 'Au moins un email est requis',
+                    (v: string) => v.split(',').every((email: string) => /.+@.+\..+/.test(email.trim())) || 'Format d\'email invalide'
                   ]"
                 ></v-text-field>
               </v-col>
@@ -498,7 +508,7 @@
                   item-title="name"
                   item-value="id"
                   required
-                  :rules="[v => !!v || 'La franchise est requise']"
+                  :rules="[(v: number) => !!v || 'La franchise est requise']"
                   :no-data-text="'Aucune franchise disponible'"
                 ></v-select>
               </v-col>
@@ -515,7 +525,7 @@
                   label="Rayon de géolocalisation (mètres)"
                   type="number"
                   required
-                  :rules="[v => !!v || 'Le rayon de géolocalisation est requis']"
+                  :rules="[(v: number) => !!v || 'Le rayon de géolocalisation est requis']"
                 ></v-text-field>
               </v-col>
               <v-col cols="12">
@@ -531,7 +541,7 @@
                   label="Durée maximale hors ligne (heures)"
                   type="number"
                   required
-                  :rules="[v => !!v || 'La durée maximale hors ligne est requise']"
+                  :rules="[(v: number) => !!v || 'La durée maximale hors ligne est requise']"
                 ></v-text-field>
               </v-col>
               <v-col cols="12">
@@ -570,7 +580,7 @@
                   <v-text-field
                     v-model="scheduleForm.name"
                     label="Nom du planning*"
-                    :rules="[v => !!v || 'Le nom est requis']"
+                    :rules="[(v: string) => !!v || 'Le nom est requis']"
                     hide-details="auto"
                   ></v-text-field>
                 </v-col>
@@ -579,7 +589,7 @@
                   <v-radio-group
                     v-model="scheduleForm.schedule_type"
                     label="Type de planning*"
-                    :rules="[v => !!v || 'Le type est requis']"
+                    :rules="[(v: string) => !!v || 'Le type est requis']"
                     hide-details="auto"
                   >
                     <v-radio
@@ -605,7 +615,7 @@
                       type="number"
                       min="0"
                       step="0.5"
-                      :rules="[v => !!v || 'Les heures minimales par jour sont requises']"
+                      :rules="[(v: number) => !!v || 'Les heures minimales par jour sont requises']"
                       hide-details="auto"
                     ></v-text-field>
                   </v-col>
@@ -617,7 +627,7 @@
                       type="number"
                       min="0"
                       step="0.5"
-                      :rules="[v => !!v || 'Les heures minimales par semaine sont requises']"
+                      :rules="[(v: number) => !!v || 'Les heures minimales par semaine sont requises']"
                       hide-details="auto"
                     ></v-text-field>
                   </v-col>
@@ -674,7 +684,7 @@
                             label="Limite d'arrivée en avance (minutes)"
                             type="number"
                             min="0"
-                            :rules="[v => !!v || 'La limite d\'arrivée en avance est requise']"
+                            :rules="[(v: number) => !!v || 'La limite d\'arrivée en avance est requise']"
                             hide-details="auto"
                           >
                             <template v-slot:append-inner>
@@ -693,7 +703,7 @@
                             label="Limite de départ en retard (minutes)"
                             type="number"
                             min="0"
-                            :rules="[v => !!v || 'La limite de départ en retard est requise']"
+                            :rules="[(v: number) => !!v || 'La limite de départ en retard est requise']"
                             hide-details="auto"
                           >
                             <template v-slot:append-inner>
@@ -727,7 +737,7 @@
                             label="Durée de la pause (minutes)*"
                             type="number"
                             min="0"
-                            :rules="[v => !!v || 'La durée de la pause est requise']"
+                            :rules="[(v: number) => !!v || 'La durée de la pause est requise']"
                             hide-details="auto"
                           >
                             <template v-slot:append-inner>
@@ -745,7 +755,7 @@
                             v-model="scheduleForm.min_break_start"
                             label="Début de pause min.*"
                             type="time"
-                            :rules="[v => !!v || 'L\'heure de début de pause est requise']"
+                            :rules="[(v: string) => !!v || 'L\'heure de début de pause est requise']"
                             hide-details="auto"
                           >
                             <template v-slot:append-inner>
@@ -763,7 +773,7 @@
                             v-model="scheduleForm.max_break_end"
                             label="Fin de pause max.*"
                             type="time"
-                            :rules="[v => !!v || 'L\'heure de fin de pause est requise']"
+                            :rules="[(v: string) => !!v || 'L\'heure de fin de pause est requise']"
                             hide-details="auto"
                           >
                             <template v-slot:append-inner>
@@ -800,7 +810,7 @@
                             type="number"
                             min="0"
                             step="0.5"
-                            :rules="[v => !!v || 'Le nombre d\'heures par passage est requis']"
+                            :rules="[(v: number) => !!v || 'Le nombre d\'heures par passage est requis']"
                             hide-details="auto"
                           >
                             <template v-slot:append-inner>
@@ -823,7 +833,7 @@
                             item-title="title"
                             item-value="value"
                             label="Type de fréquence*"
-                            :rules="[v => !!v || 'Le type de fréquence est requis']"
+                            :rules="[(v: string) => !!v || 'Le type de fréquence est requis']"
                             hide-details="auto"
                           >
                             <template v-slot:append-inner>
@@ -841,7 +851,7 @@
                             label="Nombre de passages*"
                             type="number"
                             min="1"
-                            :rules="[v => !!v || 'Le nombre de passages est requis']"
+                            :rules="[(v: number) => !!v || 'Le nombre de passages est requis']"
                             hide-details="auto"
                           >
                             <template v-slot:append-inner>
@@ -861,8 +871,8 @@
                             min="1"
                             max="24"
                             :rules="[
-                              v => !!v || 'La plage horaire est requise',
-                              v => v <= 24 || 'La plage horaire ne peut pas dépasser 24 heures'
+                              (v: number) => !!v || 'La plage horaire est requise',
+                              (v: number) => v <= 24 || 'La plage horaire ne peut pas dépasser 24 heures'
                             ]"
                             hide-details="auto"
                           >
@@ -963,8 +973,8 @@
                         <v-card color="grey-lighten-4" class="pa-3">
                           <div class="text-body-2">
                             <v-icon color="#00346E" class="mr-2">mdi-information</v-icon>
-                            <template v-if="scheduleForm.days.some(day => day.enabled)">
-                              Planning actif {{ scheduleForm.days.filter(day => day.enabled).length }} jour{{ scheduleForm.days.filter(day => day.enabled).length > 1 ? 's' : '' }} 
+                            <template v-if="scheduleForm.days.some((day: ScheduleDay) => day.enabled)">
+                              Planning actif {{ scheduleForm.days.filter((day: ScheduleDay) => day.enabled).length }} jour{{ scheduleForm.days.filter((day: ScheduleDay) => day.enabled).length > 1 ? 's' : '' }} 
                               par semaine avec pause de {{ scheduleForm.break_duration }} minutes 
                               entre {{ scheduleForm.min_break_start }} et {{ scheduleForm.max_break_end }}.
                               <template v-if="scheduleForm.allow_early_arrival || scheduleForm.allow_late_departure">
@@ -1021,7 +1031,7 @@
                 label="Employé"
                 item-title="formatted_name"
                 item-value="id"
-                :rules="[v => !!v || 'L\'employé est requis']"
+                :rules="[(v: number) => !!v || 'L\'employé est requis']"
                 :no-data-text="'Aucun employé disponible'"
               ></v-select>
             </v-col>
@@ -1060,20 +1070,146 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted, watch, computed } from 'vue'
+<script lang="ts">
+import { ref, onMounted, computed, defineComponent } from 'vue'
 import { sitesApi, schedulesApi, organizationsApi } from '@/services/api'
 import ScheduleCalendar from '@/components/ScheduleCalendar.vue'
 import QRCode from 'qrcode'
 
-export default {
+interface WeekDay {
+  text: string;
+  value: number;
+}
+
+interface Site {
+  id: number;
+  name: string;
+  address: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  nfc_id: string;
+  organization: number;
+  organization_name?: string;
+  late_margin: number;
+  early_departure_margin: number;
+  ambiguous_margin: number;
+  alert_emails: string;
+  require_geolocation: boolean;
+  geolocation_radius: number;
+  allow_offline_mode: boolean;
+  max_offline_duration: number;
+  is_active: boolean;
+  qr_code?: string;
+  created_at: string;
+  updated_at: string;
+  schedules?: Schedule[];
+  isUpdating?: boolean;
+}
+
+interface Schedule {
+  id: number;
+  name: string;
+  schedule_type: 'FIXED' | 'FREQUENCY';
+  min_daily_hours?: number;
+  min_weekly_hours?: number;
+  allow_early_arrival?: boolean;
+  allow_late_departure?: boolean;
+  early_arrival_limit?: number;
+  late_departure_limit?: number;
+  break_duration?: number;
+  min_break_start?: string;
+  max_break_end?: string;
+  frequency_hours?: number;
+  frequency_type?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  frequency_count?: number;
+  time_window?: number;
+  details?: ScheduleDetail[];
+  assigned_employees?: Array<{ employee: number }>;
+}
+
+interface ScheduleDetail {
+  day_of_week: number;
+  start_time_1: string;
+  end_time_1: string;
+  start_time_2: string;
+  end_time_2: string;
+}
+
+interface Employee {
+  id: number;
+  employee_name: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  organization: number;
+  employee?: number;
+}
+
+interface Organization {
+  id: number;
+  name: string;
+}
+
+interface SiteForm {
+  name: string;
+  address: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  nfcId: string;
+  organization: number | null;
+  late_margin: number;
+  early_departure_margin: number;
+  ambiguous_margin: number;
+  alert_emails: string;
+  require_geolocation: boolean;
+  geolocation_radius: number;
+  allow_offline_mode: boolean;
+  max_offline_duration: number;
+  is_active: boolean;
+}
+
+interface ScheduleForm {
+  name: string;
+  schedule_type: 'FIXED' | 'FREQUENCY';
+  min_daily_hours: number;
+  min_weekly_hours: number;
+  allow_early_arrival: boolean;
+  allow_late_departure: boolean;
+  early_arrival_limit: number;
+  late_departure_limit: number;
+  break_duration: number;
+  min_break_start: string;
+  max_break_end: string;
+  days: ScheduleDay[];
+  frequency_hours: number;
+  frequency_type: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  frequency_count: number;
+  time_window: number;
+}
+
+interface ScheduleDay {
+  enabled: boolean;
+  start_time_1: string;
+  end_time_1: string;
+  start_time_2: string;
+  end_time_2: string;
+}
+
+interface EmployeeForm {
+  employee: number | null;
+  schedule: number | null;
+}
+
+export default defineComponent({
   name: 'SitesView',
   components: {
     ScheduleCalendar
   },
   setup() {
     // Jours de la semaine
-    const weekDays = [
+    const weekDays: WeekDay[] = [
       { text: 'Lundi', value: 1 },
       { text: 'Mardi', value: 2 },
       { text: 'Mercredi', value: 3 },
@@ -1084,7 +1220,7 @@ export default {
     ]
 
     // Initialisation du formulaire de planning
-    const initScheduleDays = () => {
+    const initScheduleDays = (): ScheduleDay[] => {
       return weekDays.map(() => ({
         enabled: false,
         start_time_1: '08:00',
@@ -1095,28 +1231,28 @@ export default {
     }
 
     // États généraux
-    const loading = ref(true)
-    const saving = ref(false)
-    const showCreateDialog = ref(false)
-    const showScheduleDialog = ref(false)
-    const showEmployeeDialog = ref(false)
-    const showAssignDialog = ref(false)
-    const selectedSchedule = ref(null)
-    const form = ref(null)
-    const editedItem = ref(null)
-    const organizations = ref([])
-    const selectedSite = ref(null)
-    const activeTab = ref('details')
-    const loadingSchedules = ref(false)
-    const loadingEmployees = ref(false)
-    const siteEmployees = ref([])
-    const availableEmployees = ref([])
-    const employeeForm = ref({
+    const loading = ref<boolean>(true)
+    const saving = ref<boolean>(false)
+    const showCreateDialog = ref<boolean>(false)
+    const showScheduleDialog = ref<boolean>(false)
+    const showEmployeeDialog = ref<boolean>(false)
+    const showAssignDialog = ref<boolean>(false)
+    const selectedSchedule = ref<Schedule | null>(null)
+    const form = ref<any>(null)
+    const editedItem = ref<Site | null>(null)
+    const organizations = ref<Organization[]>([])
+    const selectedSite = ref<Site | null>(null)
+    const activeTab = ref<'details' | 'schedules'>('details')
+    const loadingSchedules = ref<boolean>(false)
+    const loadingEmployees = ref<boolean>(false)
+    const siteEmployees = ref<Employee[]>([])
+    const availableEmployees = ref<Employee[]>([])
+    const employeeForm = ref<EmployeeForm>({
       employee: null,
       schedule: null
     })
-    const employeeFormRef = ref(null)
-    const scheduleForm = ref({
+    const employeeFormRef = ref<any>(null)
+    const scheduleForm = ref<ScheduleForm>({
       name: '',
       schedule_type: 'FIXED',
       min_daily_hours: 0,
@@ -1134,12 +1270,12 @@ export default {
       frequency_count: 1,
       time_window: 8
     })
-    const scheduleFormRef = ref(null)
-    const showCalendarDialog = ref(false)
-    const selectedScheduleForCalendar = ref(null)
+    const scheduleFormRef = ref<any>(null)
+    const showCalendarDialog = ref<boolean>(false)
+    const selectedScheduleForCalendar = ref<Schedule | null>(null)
 
     // Formatage des données
-    const formatEmployeeName = (employee) => {
+    const formatEmployeeName = (employee: Employee): string => {
       if (!employee) return ''
       return `${employee.first_name} ${employee.last_name} (${employee.email})`
     }
@@ -1162,10 +1298,10 @@ export default {
     ])
 
     // Pagination
-    const sites = ref([])
-    const totalSites = ref(0)
-    const currentPage = ref(1)
-    const itemsPerPage = ref(10)
+    const sites = ref<Site[]>([])
+    const totalSites = ref<number>(0)
+    const currentPage = ref<number>(1)
+    const itemsPerPage = ref<number>(10)
     const itemsPerPageOptions = ref([
       { title: '5', value: 5 },
       { title: '10', value: 10 },
@@ -1174,7 +1310,7 @@ export default {
     ])
 
     // Formulaire du site
-    const siteForm = ref({
+    const siteForm = ref<SiteForm>({
       name: '',
       address: '',
       postal_code: '',
@@ -1194,7 +1330,7 @@ export default {
     })
 
     // Chargement des données
-    const fetchSites = async (page = 1, perPage = itemsPerPage.value) => {
+    const fetchSites = async (page: number = 1, perPage: number = itemsPerPage.value): Promise<void> => {
       try {
         loading.value = true
         const response = await sitesApi.getAllSites(page, perPage)
@@ -1208,46 +1344,42 @@ export default {
       }
     }
 
-    const fetchSiteEmployees = async (siteId) => {
+    const fetchSiteEmployees = async (siteId: number): Promise<void> => {
       try {
         loadingEmployees.value = true
-        // Appel API pour récupérer les employés du site
         const response = await sitesApi.getSiteEmployees(siteId)
         siteEmployees.value = response.data.results
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Erreur lors du chargement des employés:', error)
       } finally {
         loadingEmployees.value = false
       }
     }
 
-    const fetchAvailableEmployees = async () => {
+    const fetchAvailableEmployees = async (): Promise<void> => {
       try {
         loadingEmployees.value = true
-        // Appel API pour récupérer tous les employés disponibles
         const response = await schedulesApi.getAvailableEmployees()
         
-        // Filtrer les employés déjà assignés au planning sélectionné
-        const assignedEmployeeIds = selectedSchedule.value.assigned_employees?.map(emp => emp.employee) || []
+        const assignedEmployeeIds = selectedSchedule.value?.assigned_employees?.map(emp => emp.employee) || []
         
-        // Filtrer les employés par organisation et ceux déjà assignés
         availableEmployees.value = response.data.results
-          .filter(employee => {
+          .filter((employee: Employee) => {
             return !assignedEmployeeIds.includes(employee.id) && 
-                   employee.organization === selectedSite.value.organization
+                   employee.organization === selectedSite.value?.organization
           })
-          .map(employee => ({
+          .map((employee: Employee) => ({
             ...employee,
             formatted_name: formatEmployeeName(employee)
           }))
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Erreur lors du chargement des employés disponibles:', error)
       } finally {
         loadingEmployees.value = false
       }
     }
 
-    const fetchOrganizations = async () => {
+    const fetchOrganizations = async (): Promise<void> => {
       try {
         const response = await organizationsApi.getAllOrganizations()
         organizations.value = response.data.results || []
@@ -1257,17 +1389,16 @@ export default {
     }
 
     // Actions sur les sites
-    const viewSiteDetails = async (site) => {
+    const viewSiteDetails = async (site: Site): Promise<void> => {
       selectedSite.value = site
       activeTab.value = 'details'
       
-      // Générer automatiquement le QR code si non existant
       if (!site.qr_code) {
         await generateQRCode(site)
       }
     }
 
-    const editSite = (site) => {
+    const editSite = (site: Site): void => {
       editedItem.value = site
       siteForm.value = {
         name: site.name || '',
@@ -1290,7 +1421,7 @@ export default {
       showCreateDialog.value = true
     }
 
-    const saveSite = async () => {
+    const saveSite = async (): Promise<void> => {
       if (!form.value) return
       const { valid } = await form.value.validate()
       if (!valid) return
@@ -1304,15 +1435,15 @@ export default {
           city: siteForm.value.city,
           country: siteForm.value.country,
           nfc_id: 'PG' + siteForm.value.nfcId,
-          organization: siteForm.value.organization,
-          late_margin: parseInt(siteForm.value.late_margin),
-          early_departure_margin: parseInt(siteForm.value.early_departure_margin),
-          ambiguous_margin: parseInt(siteForm.value.ambiguous_margin),
+          organization: siteForm.value.organization || undefined, // Convertir null en undefined
+          late_margin: parseInt(siteForm.value.late_margin.toString()),
+          early_departure_margin: parseInt(siteForm.value.early_departure_margin.toString()),
+          ambiguous_margin: parseInt(siteForm.value.ambiguous_margin.toString()),
           alert_emails: siteForm.value.alert_emails,
           require_geolocation: siteForm.value.require_geolocation,
-          geolocation_radius: parseInt(siteForm.value.geolocation_radius),
+          geolocation_radius: parseInt(siteForm.value.geolocation_radius.toString()),
           allow_offline_mode: siteForm.value.allow_offline_mode,
-          max_offline_duration: parseInt(siteForm.value.max_offline_duration),
+          max_offline_duration: parseInt(siteForm.value.max_offline_duration.toString()),
           is_active: siteForm.value.is_active
         }
         
@@ -1330,7 +1461,7 @@ export default {
       }
     }
 
-    const deleteSite = async (siteId) => {
+    const deleteSite = async (siteId: number): Promise<void> => {
       try {
         await sitesApi.deleteSite(siteId)
         await fetchSites(currentPage.value, itemsPerPage.value)
@@ -1340,23 +1471,41 @@ export default {
     }
 
     // Actions sur les plannings
-    const showCreateScheduleDialog = () => {
+    const showCreateScheduleDialog = (): void => {
       selectedSchedule.value = null
       resetScheduleForm()
       showScheduleDialog.value = true
     }
 
-    const viewScheduleDetails = (schedule) => {
+    const viewScheduleDetails = (schedule: Schedule): void => {
       selectedScheduleForCalendar.value = schedule
       showCalendarDialog.value = true
     }
 
-    const editSchedule = (schedule) => {
+    const editSchedule = (schedule: Schedule): void => {
       selectedSchedule.value = schedule
-      scheduleForm.value = {
+      const defaultForm: ScheduleForm = {
         name: schedule.name,
         schedule_type: schedule.schedule_type,
-        ...(schedule.schedule_type === 'FIXED' ? {
+        min_daily_hours: 0,
+        min_weekly_hours: 0,
+        allow_early_arrival: false,
+        allow_late_departure: false,
+        early_arrival_limit: 30,
+        late_departure_limit: 30,
+        break_duration: 60,
+        min_break_start: '09:00',
+        max_break_end: '17:00',
+        days: initScheduleDays(),
+        frequency_hours: 0,
+        frequency_type: 'DAILY',
+        frequency_count: 1,
+        time_window: 8
+      }
+
+      if (schedule.schedule_type === 'FIXED') {
+        scheduleForm.value = {
+          ...defaultForm,
           min_daily_hours: schedule.min_daily_hours || 0,
           min_weekly_hours: schedule.min_weekly_hours || 0,
           allow_early_arrival: schedule.allow_early_arrival || false,
@@ -1373,20 +1522,23 @@ export default {
             start_time_2: detail.start_time_2 || '14:00',
             end_time_2: detail.end_time_2 || '18:00'
           })) : initScheduleDays()
-        } : {
+        }
+      } else {
+        scheduleForm.value = {
+          ...defaultForm,
           frequency_hours: schedule.frequency_hours || 0,
           frequency_type: schedule.frequency_type || 'DAILY',
           frequency_count: schedule.frequency_count || 1,
           time_window: schedule.time_window || 8
-        })
+        }
       }
       showScheduleDialog.value = true
     }
 
-    const deleteSchedule = async (schedule) => {
+    const deleteSchedule = async (schedule: Schedule): Promise<void> => {
+      if (!selectedSite.value) return
       try {
         await sitesApi.deleteSchedule(selectedSite.value.id, schedule.id)
-        // Recharger les plannings
         const response = await sitesApi.getSite(selectedSite.value.id)
         selectedSite.value = response.data
       } catch (error) {
@@ -1395,12 +1547,12 @@ export default {
     }
 
     // Utilitaires
-    const handleTableUpdate = (options) => {
+    const handleTableUpdate = (options: any): void => {
       const { page, itemsPerPage: newItemsPerPage } = options
       fetchSites(page, newItemsPerPage)
     }
 
-    const closeDialog = () => {
+    const closeDialog = (): void => {
       showCreateDialog.value = false
       showScheduleDialog.value = false
       showAssignDialog.value = false
@@ -1413,14 +1565,14 @@ export default {
       resetScheduleForm()
     }
 
-    const onDialogClose = (val) => {
+    const onDialogClose = (val: boolean): void => {
       if (!val) {
         editedItem.value = null
         resetForm()
       }
     }
 
-    const resetForm = () => {
+    const resetForm = (): void => {
       if (form.value) {
         form.value.reset()
       }
@@ -1444,7 +1596,7 @@ export default {
       }
     }
 
-    const formatNfcId = (value) => {
+    const formatNfcId = (value: string): void => {
       if (!value) {
         siteForm.value.nfcId = ''
         return
@@ -1455,18 +1607,17 @@ export default {
     }
 
     // Méthodes pour la gestion des employés
-    const showAssignEmployeeDialog = (schedule) => {
+    const showAssignEmployeeDialog = (schedule: Schedule): void => {
       selectedSchedule.value = schedule
       showAssignDialog.value = true
       fetchAvailableEmployees()
     }
 
-    const unassignEmployeeFromSchedule = async (scheduleId, employeeId) => {
+    const unassignEmployeeFromSchedule = async (scheduleId: number, employeeId: number): Promise<void> => {
       if (!selectedSite.value) return
       
       try {
         await schedulesApi.unassignEmployee(selectedSite.value.id, scheduleId, employeeId)
-        // Recharger les données du site pour mettre à jour la liste des employés
         const response = await sitesApi.getSite(selectedSite.value.id)
         selectedSite.value = response.data
       } catch (error) {
@@ -1474,13 +1625,12 @@ export default {
       }
     }
 
-    const assignEmployee = async () => {
+    const assignEmployee = async (): Promise<void> => {
       if (!employeeForm.value.employee || !selectedSchedule.value || !selectedSite.value) {
         console.log('Formulaire incomplet')
         return
       }
 
-      // Vérifier que l'employé appartient à la même organisation que le site
       const selectedEmployee = availableEmployees.value.find(emp => emp.id === employeeForm.value.employee)
       if (!selectedEmployee || selectedEmployee.organization !== selectedSite.value.organization) {
         console.error('L\'employé doit appartenir à la même organisation que le site')
@@ -1495,16 +1645,14 @@ export default {
           employeeForm.value.employee
         )
 
-        // Recharger les données du site
         const response = await sitesApi.getSite(selectedSite.value.id)
         selectedSite.value = response.data
         
-        // Fermer le dialogue et réinitialiser le formulaire
         showAssignDialog.value = false
         employeeForm.value.employee = null
       } catch (error) {
         console.error('Erreur lors de l\'assignation de l\'employé:', error)
-        if (error.response?.data) {
+        if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) {
           console.error('Détails de l\'erreur:', error.response.data)
         }
       } finally {
@@ -1512,29 +1660,41 @@ export default {
       }
     }
 
-    const saveSchedule = async () => {
-      if (!scheduleFormRef.value) return
+    const saveSchedule = async (): Promise<void> => {
+      if (!scheduleFormRef.value || !selectedSite.value) return
       const { valid } = await scheduleFormRef.value.validate()
-      if (!valid || !selectedSite.value) return
+      if (!valid) return
 
       saving.value = true
       try {
-        const scheduleData = {
-          site: selectedSite.value.id,
+        const scheduleData: ScheduleForm = {
           name: scheduleForm.value.name,
           schedule_type: scheduleForm.value.schedule_type,
+          min_daily_hours: scheduleForm.value.min_daily_hours,
+          min_weekly_hours: scheduleForm.value.min_weekly_hours,
+          allow_early_arrival: scheduleForm.value.allow_early_arrival,
+          allow_late_departure: scheduleForm.value.allow_late_departure,
+          early_arrival_limit: scheduleForm.value.early_arrival_limit,
+          late_departure_limit: scheduleForm.value.late_departure_limit,
+          break_duration: scheduleForm.value.break_duration,
+          min_break_start: scheduleForm.value.min_break_start,
+          max_break_end: scheduleForm.value.max_break_end,
+          days: scheduleForm.value.days,
+          frequency_hours: scheduleForm.value.frequency_hours,
+          frequency_type: scheduleForm.value.frequency_type,
+          frequency_count: scheduleForm.value.frequency_count,
+          time_window: scheduleForm.value.time_window
         }
 
-        // Ajouter les champs spécifiques selon le type de planning
         if (scheduleForm.value.schedule_type === 'FIXED') {
           Object.assign(scheduleData, {
-            min_daily_hours: parseFloat(scheduleForm.value.min_daily_hours) || 0,
-            min_weekly_hours: parseFloat(scheduleForm.value.min_weekly_hours) || 0,
+            min_daily_hours: parseFloat(scheduleForm.value.min_daily_hours.toString()) || 0,
+            min_weekly_hours: parseFloat(scheduleForm.value.min_weekly_hours.toString()) || 0,
             allow_early_arrival: scheduleForm.value.allow_early_arrival,
             allow_late_departure: scheduleForm.value.allow_late_departure,
-            early_arrival_limit: parseInt(scheduleForm.value.early_arrival_limit) || 30,
-            late_departure_limit: parseInt(scheduleForm.value.late_departure_limit) || 30,
-            break_duration: parseInt(scheduleForm.value.break_duration) || 60,
+            early_arrival_limit: parseInt(scheduleForm.value.early_arrival_limit.toString()) || 30,
+            late_departure_limit: parseInt(scheduleForm.value.late_departure_limit.toString()) || 30,
+            break_duration: parseInt(scheduleForm.value.break_duration.toString()) || 60,
             min_break_start: scheduleForm.value.min_break_start,
             max_break_end: scheduleForm.value.max_break_end,
             details: scheduleForm.value.days
@@ -1549,14 +1709,12 @@ export default {
           })
         } else {
           Object.assign(scheduleData, {
-            frequency_hours: parseFloat(scheduleForm.value.frequency_hours) || 0,
+            frequency_hours: parseFloat(scheduleForm.value.frequency_hours.toString()) || 0,
             frequency_type: scheduleForm.value.frequency_type,
-            frequency_count: parseInt(scheduleForm.value.frequency_count) || 1,
-            time_window: parseInt(scheduleForm.value.time_window) || 8
+            frequency_count: parseInt(scheduleForm.value.frequency_count.toString()) || 1,
+            time_window: parseInt(scheduleForm.value.time_window.toString()) || 8
           })
         }
-
-        console.log('Saving schedule with data:', scheduleData)
 
         if (selectedSchedule.value?.id) {
           await sitesApi.updateSchedule(selectedSite.value.id, selectedSchedule.value.id, scheduleData)
@@ -1564,19 +1722,18 @@ export default {
           await sitesApi.createSchedule(selectedSite.value.id, scheduleData)
         }
 
-        // Recharger les données du site
         const response = await sitesApi.getSite(selectedSite.value.id)
         selectedSite.value = response.data
         
         closeScheduleDialog()
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Erreur lors de l\'enregistrement du planning:', error)
       } finally {
         saving.value = false
       }
     }
 
-    const resetScheduleForm = () => {
+    const resetScheduleForm = (): void => {
       scheduleForm.value = {
         name: '',
         schedule_type: 'FIXED',
@@ -1597,18 +1754,24 @@ export default {
       }
     }
 
-    const isScheduleFormValid = computed(() => {
-      return scheduleForm.value.name && scheduleForm.value.schedule_type
+    const isScheduleFormValid = computed((): boolean => {
+      return Boolean(scheduleForm.value.name && scheduleForm.value.schedule_type)
     })
 
-    const closeScheduleDialog = () => {
+    const closeScheduleDialog = (): void => {
       showScheduleDialog.value = false
       selectedSchedule.value = null
       resetScheduleForm()
     }
 
     // Fonction commune pour générer le QR code stylisé
-    const generateStyledQRCode = async (site, options = {}) => {
+    const generateStyledQRCode = async (site: Site, options: {
+      width?: number;
+      height?: number;
+      qrSize?: number;
+      showFrame?: boolean;
+      radius?: number;
+    } = {}): Promise<string> => {
       const {
         width = 500,
         height = 700,
@@ -1619,6 +1782,8 @@ export default {
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not get canvas context');
+      
       canvas.width = width;
       canvas.height = height;
 
@@ -1635,7 +1800,7 @@ export default {
         ctx.stroke();
       }
 
-      // Générer le QR Code de base
+      // Générer le QR Code avec qrcode
       const qrData = JSON.stringify({
         type: 'PG_SITE',
         nfc_id: site.nfc_id,
@@ -1643,164 +1808,77 @@ export default {
         name: site.name
       });
 
-      // Créer un canvas temporaire pour le QR code
-      const qrCanvas = document.createElement('canvas');
-      await QRCode.toCanvas(qrCanvas, qrData, {
-        width: qrSize,
-        margin: 1,
-        color: { dark: '#00346E', light: '#FFFFFF' }
-      });
+      try {
+        // Charger le logo
+        const logo = new Image();
+        await new Promise<void>((resolve, reject) => {
+          logo.onload = () => resolve();
+          logo.onerror = (error) => reject(error);
+          logo.src = '/icons/logo.png';
+        });
 
-      // Créer un canvas pour le QR code modifié
-      const modifiedQrCanvas = document.createElement('canvas');
-      modifiedQrCanvas.width = qrSize;
-      modifiedQrCanvas.height = qrSize;
-      const modQrCtx = modifiedQrCanvas.getContext('2d');
-      
-      // Fond blanc
-      modQrCtx.fillStyle = '#FFFFFF';
-      modQrCtx.fillRect(0, 0, qrSize, qrSize);
-      
-      // Récupérer les données du QR code
-      const qrCtx = qrCanvas.getContext('2d');
-      const imageData = qrCtx.getImageData(0, 0, qrSize, qrSize);
-      const data = imageData.data;
-      
-      // Détecter la taille d'un module
-      // Recherche du premier pixel non blanc
-      let moduleSize = 0;
-      let startX = 0;
-      let firstDarkFound = false;
-      
-      // Parcourir la première ligne pour trouver le premier module sombre
-      for (let x = 0; x < qrSize; x++) {
-        const pos = (x) * 4;
-        // Si on trouve un pixel sombre (non blanc)
-        if (data[pos] < 200) {
-          if (!firstDarkFound) {
-            startX = x;
-            firstDarkFound = true;
+        // Calculer la taille du logo (20% de la taille du QR code)
+        const logoSize = qrSize * 0.2;
+        const logoAspectRatio = logo.width / logo.height;
+        const logoWidth = logoSize;
+        const logoHeight = logoSize / logoAspectRatio;
+
+        // Générer le QR code avec une zone centrale transparente pour le logo
+        const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+          width: qrSize,
+          margin: 1,
+          color: {
+            dark: '#00346E',
+            light: '#FFFFFF'
           }
-        } else if (firstDarkFound) {
-          // On a trouvé la fin du premier module sombre
-          moduleSize = x - startX;
-          break;
-        }
-      }
-      
-      // Si moduleSize n'a pas été trouvé, utiliser une approximation
-      if (moduleSize < 1) {
-        moduleSize = Math.ceil(qrSize / 25); // QR codes typiques ont ~25 modules par côté
-      }
-      
-      // Dessiner le QR code avec des losanges
-      modQrCtx.fillStyle = '#00346E';
-      
-      for (let y = 0; y < qrSize; y += moduleSize) {
-        for (let x = 0; x < qrSize; x += moduleSize) {
-          // Vérifier une zone centrale du module pour déterminer sa couleur
-          const checkX = x + Math.floor(moduleSize / 2);
-          const checkY = y + Math.floor(moduleSize / 2);
-          if (checkX < qrSize && checkY < qrSize) {
-            const pos = (checkY * qrSize + checkX) * 4;
-            // Si le pixel est sombre (bleu)
-            if (data[pos] < 200) {
-              // Dessiner un losange
-              const centerX = x + moduleSize / 2;
-              const centerY = y + moduleSize / 2;
-              const diamondSize = moduleSize * 0.8; // Légèrement plus petit pour créer des espaces
-              
-              modQrCtx.beginPath();
-              modQrCtx.moveTo(centerX, centerY - diamondSize/2); // Haut
-              modQrCtx.lineTo(centerX + diamondSize/2, centerY); // Droite
-              modQrCtx.lineTo(centerX, centerY + diamondSize/2); // Bas
-              modQrCtx.lineTo(centerX - diamondSize/2, centerY); // Gauche
-              modQrCtx.closePath();
-              modQrCtx.fill();
-            }
-          }
-        }
-      }
+        });
 
-      // Appliquer les coins modifiés
-      modQrCtx.globalCompositeOperation = 'destination-out';
-      modQrCtx.fillStyle = 'black';
+        const qrImage = new Image();
+        await new Promise<void>((resolve, reject) => {
+          qrImage.onload = () => resolve();
+          qrImage.onerror = (error) => reject(error);
+          qrImage.src = qrCodeDataUrl;
+        });
 
-      // Coin supérieur gauche
-      modQrCtx.beginPath();
-      modQrCtx.arc(0, 0, radius, 0, Math.PI / 2);
-      modQrCtx.lineTo(0, 0);
-      modQrCtx.fill();
+        const qrX = (width - qrSize) / 2;
+        const qrY = showFrame ? 50 : 0;
+        ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
 
-      // Coin supérieur droit
-      modQrCtx.beginPath();
-      modQrCtx.arc(qrSize, 0, radius, Math.PI / 2, Math.PI);
-      modQrCtx.lineTo(qrSize, 0);
-      modQrCtx.fill();
+        // Dessiner le logo au centre du QR code
+        const logoX = qrX + (qrSize - logoWidth) / 2;
+        const logoY = qrY + (qrSize - logoHeight) / 2;
 
-      // Coin inférieur gauche
-      modQrCtx.beginPath();
-      modQrCtx.arc(0, qrSize, radius, -Math.PI / 2, 0);
-      modQrCtx.lineTo(0, qrSize);
-      modQrCtx.fill();
-
-      // Coin inférieur droit
-      modQrCtx.beginPath();
-      modQrCtx.arc(qrSize, qrSize, radius, Math.PI, -Math.PI / 2);
-      modQrCtx.lineTo(qrSize, qrSize);
-      modQrCtx.fill();
-
-      modQrCtx.globalCompositeOperation = 'source-over';
-
-      // Dessiner le QR code modifié sur le canvas principal
-      const qrX = (width - qrSize) / 2;
-      const qrY = showFrame ? 50 : 0;
-      ctx.drawImage(modifiedQrCanvas, qrX, qrY, qrSize, qrSize);
-
-      // Charger et dessiner le logo
-      const logoImage = new Image();
-      logoImage.src = '/icons/logo.png';
-      await new Promise(resolve => logoImage.onload = resolve);
-
-      // Calculer la taille du logo en préservant le ratio d'aspect original (766:549)
-      const originalRatio = 766/549;
-      const logoMaxWidth = qrSize * 0.3;
-      const logoWidth = logoMaxWidth;
-      const logoHeight = logoWidth / originalRatio;
-      const logoX = qrX + (qrSize - logoWidth) / 2;
-      const logoY = qrY + (qrSize - logoHeight) / 2;
-
-      // Créer un cercle blanc derrière le logo
-      ctx.beginPath();
-      const circleRadius = Math.max(logoWidth, logoHeight) / 1.8;
-      ctx.arc(logoX + logoWidth/2, logoY + logoHeight/2, circleRadius, 0, Math.PI * 2);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fill();
-
-      // Dessiner le logo
-      ctx.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
-
-      if (showFrame) {
-        // Ligne décorative sous le QR code
-        ctx.strokeStyle = '#F78C48';
-        ctx.lineWidth = 2;
+        // Créer un cercle blanc pour le fond du logo
         ctx.beginPath();
-        ctx.moveTo(100, 480);
-        ctx.lineTo(width - 100, 480);
-        ctx.stroke();
+        ctx.arc(logoX + logoWidth/2, logoY + logoHeight/2, logoWidth/2 + 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
 
-        // Nom du site sous la ligne
-        ctx.fillStyle = '#F78C48';
-        ctx.font = 'bold 24px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(site.name, width / 2, 530);
+        // Dessiner le logo
+        ctx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
+
+        if (showFrame) {
+          ctx.strokeStyle = '#F78C48';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(100, 480);
+          ctx.lineTo(width - 100, 480);
+          ctx.stroke();
+
+          ctx.fillStyle = '#F78C48';
+          ctx.font = 'bold 24px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(site.name, width / 2, 530);
+        }
+
+        return canvas.toDataURL('image/png');
+      } catch (error) {
+        console.error('Error generating QR code:', error);
+        throw error;
       }
-
-      return canvas.toDataURL('image/png');
     };
 
-    // Fonction pour générer le QR code pour la prévisualisation
-    const generateQRCode = async (site) => {
+    const generateQRCode = async (site: Site): Promise<void> => {
       try {
         const qrCode = await generateStyledQRCode(site, {
           width: 500,
@@ -1809,17 +1887,18 @@ export default {
           showFrame: false
         });
 
-        selectedSite.value = {
-          ...selectedSite.value,
-          qr_code: qrCode
-        };
-      } catch (error) {
+        if (selectedSite.value) {
+          selectedSite.value = {
+            ...selectedSite.value,
+            qr_code: qrCode
+          } as Site;
+        }
+      } catch (error: unknown) {
         console.error('Erreur lors de la génération du QR code:', error);
       }
     };
 
-    // Fonction pour télécharger le QR code
-    const downloadQRCode = async (site) => {
+    const downloadQRCode = async (site: Site): Promise<void> => {
       if (!site.qr_code) return;
 
       try {
@@ -1840,6 +1919,30 @@ export default {
         console.error('Erreur lors du téléchargement du QR code:', error);
       }
     };
+
+    const toggleSiteStatus = async (site: Site): Promise<void> => {
+      try {
+        site.isUpdating = true
+        const updatedSite = await sitesApi.updateSite(site.id, {
+          is_active: !site.is_active
+        })
+        
+        // Mettre à jour le site dans la liste
+        const index = sites.value.findIndex(s => s.id === site.id)
+        if (index !== -1) {
+          sites.value[index] = updatedSite.data
+        }
+        
+        // Si le site est actuellement sélectionné, mettre à jour aussi selectedSite
+        if (selectedSite.value?.id === site.id) {
+          selectedSite.value = updatedSite.data
+        }
+      } catch (error) {
+        console.error('Erreur lors de la modification du statut du site:', error)
+      } finally {
+        site.isUpdating = false
+      }
+    }
 
     onMounted(() => {
       fetchSites()
@@ -1909,9 +2012,10 @@ export default {
       // Fonctions pour la gestion des QR codes
       generateQRCode,
       downloadQRCode,
+      toggleSiteStatus,
     }
   }
-}
+})
 </script>
 
 <style scoped>
