@@ -26,24 +26,34 @@
     >
       <v-list @click="handleListItemClick">
         <!-- Tableau de bord -->
-        <v-list-item to="/dashboard" active-class="primary--text">
-          <template v-slot:prepend>
-            <v-icon>mdi-view-dashboard</v-icon>
+        <v-tooltip location="right" :disabled="!rail">
+          <template v-slot:activator="{ props }">
+            <v-list-item to="/dashboard" active-class="primary--text" v-bind="props">
+              <template v-slot:prepend>
+                <v-icon>mdi-view-dashboard</v-icon>
+              </template>
+              <v-list-item-title>Tableau de bord</v-list-item-title>
+            </v-list-item>
           </template>
-          <v-list-item-title>Tableau de bord</v-list-item-title>
-        </v-list-item>
+          <span>Tableau de bord</span>
+        </v-tooltip>
 
         <!-- Section Super Admin -->
         <template v-if="isSuperAdmin">
           <v-divider class="my-2"></v-divider>
           <v-list-subheader>Administration globale</v-list-subheader>
           
-          <v-list-item to="/dashboard/admin/users" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-account-cog</v-icon>
+          <v-tooltip location="right" :disabled="!rail">
+            <template v-slot:activator="{ props }">
+              <v-list-item to="/dashboard/admin/users" active-class="primary--text" v-bind="props">
+                <template v-slot:prepend>
+                  <v-icon>mdi-account-cog</v-icon>
+                </template>
+                <v-list-item-title>Gestion des accès</v-list-item-title>
+              </v-list-item>
             </template>
-            <v-list-item-title>Gestion des accès</v-list-item-title>
-          </v-list-item>
+            <span>Gestion des accès</span>
+          </v-tooltip>
         </template>
 
         <!-- Section Manager -->
@@ -51,12 +61,17 @@
           <v-divider class="my-2"></v-divider>
           <v-list-subheader>Gestion des employés</v-list-subheader>
           
-          <v-list-item to="/dashboard/admin/users" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-account-group</v-icon>
+          <v-tooltip location="right" :disabled="!rail">
+            <template v-slot:activator="{ props }">
+              <v-list-item to="/dashboard/admin/users" active-class="primary--text" v-bind="props">
+                <template v-slot:prepend>
+                  <v-icon>mdi-account-group</v-icon>
+                </template>
+                <v-list-item-title>Gestion des employés</v-list-item-title>
+              </v-list-item>
             </template>
-            <v-list-item-title>Gestion des employés</v-list-item-title>
-          </v-list-item>
+            <span>Gestion des employés</span>
+          </v-tooltip>
         </template>
 
         <!-- Section Gestion -->
@@ -64,12 +79,17 @@
         <v-list-subheader>Gestion opérationnelle</v-list-subheader>
         
         <template v-if="isManager || isSuperAdmin">
-          <v-list-item to="/dashboard/sites" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-domain</v-icon>
+          <v-tooltip location="right" :disabled="!rail">
+            <template v-slot:activator="{ props }">
+              <v-list-item to="/dashboard/sites" active-class="primary--text" v-bind="props">
+                <template v-slot:prepend>
+                  <v-icon>mdi-domain</v-icon>
+                </template>
+                <v-list-item-title>Sites & Plannings</v-list-item-title>
+              </v-list-item>
             </template>
-            <v-list-item-title>Sites & Plannings</v-list-item-title>
-          </v-list-item>
+            <span>Sites & Plannings</span>
+          </v-tooltip>
         </template>
 
         <!-- Section Suivi -->
@@ -77,26 +97,41 @@
         <v-list-subheader>Suivi & rapports</v-list-subheader>
         
         <template v-if="isManager || isSuperAdmin">
-          <v-list-item to="/dashboard/timesheets" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-clock-time-four</v-icon>
+          <v-tooltip location="right" :disabled="!rail">
+            <template v-slot:activator="{ props }">
+              <v-list-item to="/dashboard/timesheets" active-class="primary--text" v-bind="props">
+                <template v-slot:prepend>
+                  <v-icon>mdi-clock-time-four</v-icon>
+                </template>
+                <v-list-item-title>Pointages</v-list-item-title>
+              </v-list-item>
             </template>
-            <v-list-item-title>Pointages</v-list-item-title>
-          </v-list-item>
+            <span>Pointages</span>
+          </v-tooltip>
           
-          <v-list-item to="/dashboard/anomalies" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-alert</v-icon>
+          <v-tooltip location="right" :disabled="!rail">
+            <template v-slot:activator="{ props }">
+              <v-list-item to="/dashboard/anomalies" active-class="primary--text" v-bind="props">
+                <template v-slot:prepend>
+                  <v-icon>mdi-alert</v-icon>
+                </template>
+                <v-list-item-title>Anomalies</v-list-item-title>
+              </v-list-item>
             </template>
-            <v-list-item-title>Anomalies</v-list-item-title>
-          </v-list-item>
+            <span>Anomalies</span>
+          </v-tooltip>
           
-          <v-list-item to="/dashboard/reports" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-file-chart</v-icon>
+          <v-tooltip location="right" :disabled="!rail">
+            <template v-slot:activator="{ props }">
+              <v-list-item to="/dashboard/reports" active-class="primary--text" v-bind="props">
+                <template v-slot:prepend>
+                  <v-icon>mdi-file-chart</v-icon>
+                </template>
+                <v-list-item-title>Rapports</v-list-item-title>
+              </v-list-item>
             </template>
-            <v-list-item-title>Rapports</v-list-item-title>
-          </v-list-item>
+            <span>Rapports</span>
+          </v-tooltip>
         </template>
 
         <!-- Section Configuration -->
@@ -104,12 +139,17 @@
         <v-list-subheader>Configuration</v-list-subheader>
         
         <template v-if="isManager || isSuperAdmin">
-          <v-list-item to="/dashboard/settings" active-class="primary--text">
-            <template v-slot:prepend>
-              <v-icon>mdi-cog</v-icon>
+          <v-tooltip location="right" :disabled="!rail">
+            <template v-slot:activator="{ props }">
+              <v-list-item to="/dashboard/settings" active-class="primary--text" v-bind="props">
+                <template v-slot:prepend>
+                  <v-icon>mdi-cog</v-icon>
+                </template>
+                <v-list-item-title>Paramètres</v-list-item-title>
+              </v-list-item>
             </template>
-            <v-list-item-title>Paramètres</v-list-item-title>
-          </v-list-item>
+            <span>Paramètres</span>
+          </v-tooltip>
         </template>
       </v-list>
     </v-navigation-drawer>
@@ -184,36 +224,110 @@ export default {
 <style scoped>
 .v-navigation-drawer {
   transition: width 0.3s ease;
+  background-color: rgb(0, 32, 96) !important;
 }
 
-.v-list-item {
+:deep(.v-list) {
+  background-color: transparent !important;
+}
+
+:deep(.v-list-item) {
   margin: 4px 8px;
   border-radius: 8px;
+  min-height: 44px !important;
+  padding: 0 12px;
 }
 
-.v-list-item--active {
-  background-color: rgba(255, 255, 255, 0.1) !important;
+:deep(.v-list-item--active) {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
 }
 
-.v-list-item:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+:deep(.v-list-item:hover) {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
-.v-list-subheader {
+:deep(.v-list-subheader) {
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.8rem;
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  background-color: transparent !important;
+  padding: 0 20px;
+  min-height: 36px;
 }
 
-.v-divider {
+:deep(.v-divider) {
   border-color: rgba(255, 255, 255, 0.1);
-  margin: 8px 0;
+  margin: 8px 16px;
 }
 
-.v-icon {
-  color: inherit;
+:deep(.v-icon) {
+  color: white !important;
+}
+
+/* Mode rail */
+:deep(.v-navigation-drawer--rail) {
+  .v-list {
+    padding: 8px 0;
+  }
+
+  .v-list-item {
+    margin: 4px auto;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    min-height: 40px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+  }
+
+  .v-list-item--active {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+  }
+
+  .v-list-item:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .v-list-item__prepend {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+
+  .v-list-item__content,
+  .v-list-item__append,
+  .v-list-subheader {
+    display: none !important;
+  }
+
+  .v-divider {
+    margin: 8px auto;
+    width: 24px;
+  }
+
+  .v-icon {
+    color: white !important;
+    font-size: 24px;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+/* Style des tooltips */
+:deep(.v-tooltip) {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  padding: 4px 8px;
+  color: white !important;
 }
 </style>
+
 

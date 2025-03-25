@@ -1618,7 +1618,13 @@ export default {
           name: site.name
         }
 
-        // Générer le QR code en base64 localement
+        // Créer un canvas temporaire
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        canvas.width = 300
+        canvas.height = 300
+
+        // Générer le QR code en base64
         const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
           width: 300,
           margin: 2,
@@ -1628,10 +1634,44 @@ export default {
           }
         })
 
-        // Mettre à jour le QR code localement sans l'envoyer au serveur
+        // Charger le QR code dans une image
+        const qrImage = new Image()
+        await new Promise((resolve) => {
+          qrImage.onload = resolve
+          qrImage.src = qrCodeDataUrl
+        })
+
+        // Dessiner le QR code sur le canvas
+        ctx.drawImage(qrImage, 0, 0, 300, 300)
+
+        // Charger le logo
+        const logoImage = new Image()
+        await new Promise((resolve) => {
+          logoImage.onload = resolve
+          logoImage.src = '/icons/logo.png'
+        })
+
+        // Calculer la taille et la position du logo (30% de la taille du QR code)
+        const logoSize = 300 * 0.3
+        const logoX = (300 - logoSize) / 2
+        const logoY = (300 - logoSize) / 2
+
+        // Créer un cercle blanc derrière le logo
+        ctx.beginPath()
+        ctx.arc(300/2, 300/2, logoSize/1.8, 0, Math.PI * 2)
+        ctx.fillStyle = '#FFFFFF'
+        ctx.fill()
+
+        // Dessiner le logo au centre
+        ctx.drawImage(logoImage, logoX, logoY, logoSize, logoSize)
+
+        // Convertir le canvas en base64
+        const finalQrCode = canvas.toDataURL('image/png')
+
+        // Mettre à jour le QR code localement
         selectedSite.value = {
           ...selectedSite.value,
-          qr_code: qrCodeDataUrl
+          qr_code: finalQrCode
         }
       } catch (error) {
         console.error('Erreur lors de la génération du QR code:', error)
@@ -1764,6 +1804,59 @@ export default {
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 8px;
   padding: 8px;
+}
+
+/* Styles pour les boutons d'action */
+:deep(.v-btn--icon) {
+  background-color: transparent !important;
+}
+
+:deep(.v-btn--icon .v-icon) {
+  color: inherit !important;
+  opacity: 1 !important;
+}
+
+:deep(.v-data-table .v-btn--icon) {
+  margin: 0 4px;
+}
+
+:deep(.v-btn--icon.v-btn--density-default) {
+  width: 36px;
+  height: 36px;
+}
+
+:deep(.v-btn--icon.v-btn--size-small) {
+  width: 32px;
+  height: 32px;
+}
+
+/* Style des boutons colorés */
+:deep(.v-btn--icon[color="#00346E"]) {
+  color: #00346E !important;
+}
+
+:deep(.v-btn--icon[color="#F78C48"]) {
+  color: #F78C48 !important;
+}
+
+:deep(.v-btn--icon[color="error"]) {
+  color: rgb(var(--v-theme-error)) !important;
+}
+
+/* Style des boutons normaux */
+:deep(.v-btn:not(.v-btn--icon)) {
+  font-weight: 500;
+  letter-spacing: 0.0892857143em;
+}
+
+:deep(.v-btn[color="#00346E"]:not(.v-btn--icon)) {
+  background-color: #00346E !important;
+  color: white !important;
+}
+
+:deep(.v-btn[color="#F78C48"]:not(.v-btn--icon)) {
+  background-color: #F78C48 !important;
+  color: white !important;
 }
 </style>
 

@@ -752,4 +752,61 @@ export default {
   background-color: rgba(var(--v-theme-surface-variant), 0.08);
   border-radius: 8px;
 }
+
+/* Styles des boutons d'action */
+:deep(.v-btn--icon) {
+  background-color: transparent !important;
+  opacity: 1 !important;
+}
+
+:deep(.v-btn--icon .v-icon) {
+  color: inherit !important;
+  opacity: 1 !important;
+}
+
+/* Style des boutons colorés */
+:deep(.v-btn[color="primary"]) {
+  background-color: #00346E !important;
+  color: white !important;
+}
+
+:deep(.v-btn[color="error"]) {
+  background-color: #F78C48 !important;
+  color: white !important;
+}
+
+:deep(.v-btn[color="success"]) {
+  background-color: #00346E !important;
+  color: white !important;
+}
+
+/* Style des boutons icônes colorés */
+:deep(.v-btn--icon[color="primary"]) {
+  color: #00346E !important;
+}
+
+:deep(.v-btn--icon[color="error"]) {
+  color: #F78C48 !important;
+}
+
+:deep(.v-btn--icon[color="success"]) {
+  color: #00346E !important;
+}
+
+/* Correction des overlays et underlays */
+:deep(.v-btn__overlay),
+:deep(.v-btn__underlay) {
+  opacity: 0 !important;
+}
+
+/* Style des boutons dans le toggle */
+:deep(.v-btn-toggle .v-btn) {
+  opacity: 1 !important;
+  color: #00346E !important;
+}
+
+:deep(.v-btn-toggle .v-btn--active) {
+  background-color: rgba(0, 52, 110, 0.1) !important;
+  color: #00346E !important;
+}
 </style> 
