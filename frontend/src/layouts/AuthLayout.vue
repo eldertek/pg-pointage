@@ -3,12 +3,18 @@
     <div class="auth-container">
       <router-view />
     </div>
+    <PwaInstall />
   </div>
 </template>
 
 <script>
+import PwaInstall from '@/components/PwaInstall.vue'
+
 export default {
-  name: 'AuthLayout'
+  name: 'AuthLayout',
+  components: {
+    PwaInstall
+  }
 }
 </script>
 
@@ -25,6 +31,7 @@ export default {
 .auth-container {
   width: 100%;
   max-width: 450px;
+  margin-bottom: 80px; /* Espace pour le prompt PWA */
 }
 </style>
 
