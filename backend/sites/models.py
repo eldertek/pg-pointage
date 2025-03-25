@@ -6,6 +6,9 @@ class Site(models.Model):
     
     name = models.CharField(_('nom'), max_length=100)
     address = models.TextField(_('adresse'))
+    postal_code = models.CharField(_('code postal'), max_length=5)
+    city = models.CharField(_('ville'), max_length=100)
+    country = models.CharField(_('pays'), max_length=100, default='France')
     organization = models.ForeignKey(
         'organizations.Organization',
         on_delete=models.CASCADE,
@@ -179,7 +182,13 @@ class SiteEmployee(models.Model):
     class Meta:
         verbose_name = _('employé du site')
         verbose_name_plural = _('employés du site')
-        unique_together = ['site', 'employee']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['site', 'employee', 'schedule'],
+                condition=models.Q(is_active=True),
+                name='unique_active_site_employee_schedule'
+            )
+        ]
     
     def __str__(self):
         return f"{self.employee.get_full_name()} - {self.site.name}"

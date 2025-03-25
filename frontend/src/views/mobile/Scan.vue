@@ -7,33 +7,78 @@
       
       <v-card-text>
         <div v-if="!scanning" class="text-center">
-          <p class="mb-4">Appuyez sur le bouton ci-dessous pour scanner un badge NFC ou un QR code</p>
-          <v-btn 
-            color="primary" 
-            size="large" 
-            @click="startScan" 
-            :loading="loading"
-            class="mt-4"
-          >
-            Scanner
-          </v-btn>
+          <p class="mb-4">
+            <span v-if="userScanPreference === 'BOTH'">
+              Choisissez votre méthode de scan ci-dessous
+            </span>
+            <span v-else-if="userScanPreference === 'NFC_ONLY'">
+              Appuyez sur le bouton ci-dessous pour scanner un badge NFC
+            </span>
+            <span v-else>
+              Appuyez sur le bouton ci-dessous pour scanner un QR code
+            </span>
+          </p>
+          
+          <!-- Boutons de scan -->
+          <div class="d-flex flex-column align-center gap-4">
+            <!-- Bouton NFC -->
+            <v-btn 
+              v-if="userScanPreference === 'NFC_ONLY' || userScanPreference === 'BOTH'"
+              color="primary" 
+              size="large" 
+              @click="startNfcScan"
+              :loading="loading && scanMode === 'NFC'"
+              class="scan-button"
+            >
+              <v-icon start class="mr-3">mdi-nfc</v-icon>
+              Scanner un badge NFC
+            </v-btn>
+
+            <!-- Bouton QR Code -->
+            <v-btn 
+              v-if="userScanPreference === 'QR_ONLY' || userScanPreference === 'BOTH'"
+              color="primary" 
+              size="large" 
+              @click="startQrScan"
+              :loading="loading && scanMode === 'QR'"
+              class="scan-button"
+            >
+              <v-icon start class="mr-3">mdi-qrcode-scan</v-icon>
+              Scanner un QR Code
+            </v-btn>
+          </div>
         </div>
         
         <div v-else class="text-center">
-          <p class="mb-4">Approchez votre téléphone du badge NFC ou scannez le QR code</p>
-          <v-progress-circular
-            indeterminate
-            color="primary"
-            size="64"
-          ></v-progress-circular>
-          <v-btn 
-            color="error" 
-            variant="outlined" 
-            @click="cancelScan" 
-            class="mt-6"
-          >
-            Annuler
-          </v-btn>
+          <div class="video-container" v-if="isQrScanning">
+            <video ref="videoPreview" playsinline class="video-preview"></video>
+            <div class="scan-region-highlight">
+              <div class="scanning-line"></div>
+            </div>
+          </div>
+          <p class="mb-4" v-else>
+            <span v-if="scanMode === 'NFC'">
+              Approchez votre téléphone du badge NFC
+            </span>
+            <span v-else>
+              Scannez le QR code
+            </span>
+          </p>
+          <div class="loading-container">
+            <v-progress-circular
+              indeterminate
+              color="primary"
+              size="32"
+            ></v-progress-circular>
+            <v-btn 
+              color="error" 
+              variant="outlined" 
+              @click="cancelScan"
+              class="ml-4"
+            >
+              Annuler
+            </v-btn>
+          </div>
         </div>
         
         <v-dialog v-model="showAmbiguousDialog" max-width="500">
@@ -67,9 +112,10 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useTimesheetStore } from '@/stores/timesheet'
 import { useGeolocation } from '@/composables/useGeolocation'
+import { usersApi } from '@/services/api'
 
 // Détection de la plateforme
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
@@ -116,14 +162,34 @@ export default {
     const loading = ref(false)
     const showAmbiguousDialog = ref(false)
     const ambiguousTimesheetData = ref(null)
+    const userScanPreference = ref('BOTH')
     const snackbar = ref({
       show: false,
       text: '',
       color: 'success'
     })
+    const videoPreview = ref(null)
+    const isQrScanning = ref(false)
+    const scanMode = ref('QR')
+    
+    // Récupérer la préférence de scan de l'utilisateur
+    const fetchUserScanPreference = async () => {
+      try {
+        const response = await usersApi.getProfile()
+        userScanPreference.value = response.data.scan_preference
+      } catch (error) {
+        console.error('Erreur lors de la récupération des préférences:', error)
+        showError('Erreur lors de la récupération de vos préférences')
+      }
+    }
     
     // Fonction pour vérifier la compatibilité NFC
     const checkNFCCompatibility = () => {
+      // Si l'utilisateur est configuré pour QR uniquement, on ne vérifie pas le NFC
+      if (userScanPreference.value === 'QR_ONLY') {
+        return { compatible: false, message: 'Mode QR Code uniquement activé' }
+      }
+
       if (isIOS) {
         return {
           compatible: false,
@@ -152,40 +218,53 @@ export default {
       loading.value = true
       
       try {
-        // Vérifier la compatibilité NFC
-        const nfcStatus = checkNFCCompatibility()
-        if (!nfcStatus.compatible) {
-          showError(nfcStatus.message)
-          return
-        }
-
-        // Obtenir la position actuelle
-        await getCurrentPosition()
-        
-        // Démarrer le scan NFC ou QR code
+        // On ne récupère plus la position ici
         scanning.value = true
         
-        if ('NDEFReader' in window) {
-          // Utiliser l'API Web NFC si disponible
+        if (userScanPreference.value === 'QR_ONLY') {
+          startQrScan()
+        } else if (userScanPreference.value === 'NFC_ONLY') {
+          const nfcStatus = checkNFCCompatibility()
+          if (!nfcStatus.compatible) {
+            showError(nfcStatus.message)
+            scanning.value = false
+            return
+          }
           startNfcScan()
         } else {
-          // Sinon, utiliser la caméra pour scanner un QR code
-          startQrScan()
+          // Mode BOTH : on essaie d'abord le NFC, sinon on bascule sur QR
+          const nfcStatus = checkNFCCompatibility()
+          if (nfcStatus.compatible) {
+            startNfcScan()
+          } else {
+            startQrScan()
+          }
         }
       } catch (err) {
-        showError('Impossible d\'obtenir votre position. Veuillez activer la géolocalisation.')
+        showError('Une erreur est survenue lors du démarrage du scan')
       } finally {
         loading.value = false
       }
     }
     
-    // Fonction pour scanner un badge NFC
+    // Fonction pour démarrer le scan NFC
     const startNfcScan = async () => {
+      loading.value = true
+      scanMode.value = 'NFC'
+      
       try {
+        scanning.value = true
+        const nfcStatus = checkNFCCompatibility()
+        if (!nfcStatus.compatible) {
+          showError(nfcStatus.message)
+          scanning.value = false
+          return
+        }
+        
         const nfcReader = getNFCImplementation()
         await nfcReader.scan()
         
-        nfcReader.addEventListener('reading', ({ serialNumber }) => {
+        nfcReader.addEventListener('reading', async ({ serialNumber }) => {
           console.log('Badge NFC détecté:', serialNumber)
           
           // Formater l'ID NFC
@@ -203,8 +282,14 @@ export default {
             return
           }
 
-          console.log('ID du site validé:', siteId)
-          handleScanResult(siteId)
+          try {
+            await getCurrentPosition()
+            console.log('Position GPS obtenue au moment du scan NFC:', position.value)
+            handleScanResult(siteId, 'NFC')
+          } catch (gpsError) {
+            showError('Impossible d\'obtenir votre position. Veuillez activer la géolocalisation.')
+            scanning.value = false
+          }
         })
 
         nfcReader.addEventListener('error', (error) => {
@@ -235,29 +320,120 @@ export default {
         
         showError(errorMessage)
         scanning.value = false
+      } finally {
+        loading.value = false
       }
     }
     
-    // Fonction pour scanner un QR code
-    const startQrScan = () => {
-      // Implémentation du scan QR code
-      // Cette partie nécessiterait une bibliothèque comme quagga.js ou zxing
-      // Pour simplifier, nous simulons un scan réussi après 2 secondes
-      setTimeout(() => {
-        const mockSiteId = 'SITE123'
-        handleScanResult(mockSiteId)
-      }, 2000)
+    // Fonction pour démarrer le scan QR
+    const startQrScan = async () => {
+      loading.value = true
+      scanMode.value = 'QR'
+      
+      try {
+        scanning.value = true
+        isQrScanning.value = true
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        const video = videoPreview.value
+        video.srcObject = stream
+        video.setAttribute('playsinline', true)
+        await video.play()
+
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        const context = canvas.getContext('2d', { willReadFrequently: true })
+
+        const { default: jsQR } = await import('jsqr')
+        
+        let lastFrameTime = 0
+        const frameInterval = 1000 / 30
+        
+        const scanFrame = async (timestamp) => {
+          if (!scanning.value) {
+            stream.getTracks().forEach(track => track.stop())
+            isQrScanning.value = false
+            return
+          }
+
+          if (timestamp - lastFrameTime < frameInterval) {
+            requestAnimationFrame(scanFrame)
+            return
+          }
+          
+          lastFrameTime = timestamp
+          
+          try {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height)
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+            const code = jsQR(imageData.data, imageData.width, imageData.height)
+
+            if (code) {
+              try {
+                let qrData
+                try {
+                  qrData = JSON.parse(code.data)
+                } catch {
+                  const url = new URL(code.data)
+                  if (url.hostname.includes('planetegardiens') && url.searchParams.has('site')) {
+                    qrData = {
+                      type: 'PG_SITE',
+                      nfc_id: url.searchParams.get('site')
+                    }
+                  } else {
+                    throw new Error('QR code non reconnu')
+                  }
+                }
+                
+                if (qrData.type === 'PG_SITE' && qrData.nfc_id) {
+                  try {
+                    await getCurrentPosition()
+                    console.log('Position GPS obtenue au moment du scan QR:', position.value)
+                    handleScanResult(qrData.nfc_id, 'QR_CODE')
+                    stream.getTracks().forEach(track => track.stop())
+                    isQrScanning.value = false
+                    return
+                  } catch (gpsError) {
+                    showError('Impossible d\'obtenir votre position. Veuillez activer la géolocalisation.')
+                    scanning.value = false
+                    stream.getTracks().forEach(track => track.stop())
+                    isQrScanning.value = false
+                    return
+                  }
+                }
+              } catch (e) {
+                console.debug('QR code non valide détecté:', e)
+              }
+            }
+          } catch (error) {
+            console.error('Erreur lors du scan:', error)
+          }
+          
+          requestAnimationFrame(scanFrame)
+        }
+
+        requestAnimationFrame(scanFrame)
+      } catch (error) {
+        console.error('Erreur lors de l\'initialisation du scan QR:', error)
+        showError('Impossible d\'accéder à la caméra. Veuillez vérifier les permissions.')
+        scanning.value = false
+        isQrScanning.value = false
+      } finally {
+        loading.value = false
+      }
     }
     
     // Fonction pour traiter le résultat du scan
-    const handleScanResult = async (siteId) => {
+    const handleScanResult = async (siteId, scanMethod = 'QR_CODE') => {
       console.log('Traitement du scan pour le site:', siteId)
       try {
         const result = await timesheetStore.createTimesheet({
           site_id: siteId,
-          latitude: position.value?.coords.latitude,
-          longitude: position.value?.coords.longitude,
-          scan_type: 'NFC'
+          latitude: position.value?.coords.latitude || null,
+          longitude: position.value?.coords.longitude || null,
+          scan_type: scanMethod,
+          entry_type: 'ARRIVAL' // Par défaut on met ARRIVAL, le backend déterminera si c'est un départ
         })
         
         if (result.is_ambiguous) {
@@ -265,10 +441,10 @@ export default {
           // Cas ambigu, demander à l'utilisateur de préciser
           ambiguousTimesheetData.value = {
             site_id: siteId,
-            latitude: position.value?.coords.latitude,
-            longitude: position.value?.coords.longitude,
+            latitude: position.value?.coords.latitude || null,
+            longitude: position.value?.coords.longitude || null,
             timestamp: new Date().toISOString(),
-            scan_type: 'NFC'
+            scan_type: scanMethod
           }
           showAmbiguousDialog.value = true
         } else {
@@ -321,15 +497,24 @@ export default {
         color: 'error'
       }
     }
-    
+
+    onMounted(() => {
+      fetchUserScanPreference()
+    })
+
     return {
       scanning,
       loading,
       showAmbiguousDialog,
       snackbar,
-      startScan,
+      startNfcScan,
+      startQrScan,
       cancelScan,
-      confirmAmbiguousTimesheet
+      confirmAmbiguousTimesheet,
+      userScanPreference,
+      videoPreview,
+      isQrScanning,
+      scanMode
     }
   }
 }
@@ -349,6 +534,77 @@ export default {
   width: 100%;
   max-width: 500px;
   padding: 16px;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto 20px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.video-preview {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  background-color: #000;
+}
+
+.scan-region-highlight {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  transform: translate(-50%, -50%);
+  border: 2px solid #42A5F5;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.scanning-line {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #42A5F5, transparent);
+  animation: scanning 2s linear infinite;
+}
+
+@keyframes scanning {
+  0% {
+    top: 0;
+  }
+  50% {
+    top: 100%;
+  }
+  100% {
+    top: 0;
+  }
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.scan-button {
+  min-width: 250px;
+  height: 56px;
+  font-size: 1.1rem;
+  padding-left: 24px;
+  padding-right: 24px;
+  white-space: nowrap;
+}
+
+.gap-4 {
+  gap: 1rem;
 }
 </style>
 

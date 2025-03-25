@@ -29,8 +29,6 @@ import ReportAnomaly from "@/views/mobile/ReportAnomaly.vue"
 
 // Vues Admin
 import AdminUsers from "@/views/dashboard/admin/Users.vue"
-import AdminLogs from "@/views/dashboard/admin/Logs.vue"
-import AdminSettings from "@/views/dashboard/admin/Settings.vue"
 
 interface RouteMeta {
   requiresAuth?: boolean;
@@ -84,12 +82,6 @@ const routes: RouteRecordRaw[] = [
         path: "organizations/:id",
         name: "OrganizationDetail",
         component: OrganizationDetail,
-        meta: { roles: ["SUPER_ADMIN"] },
-      },
-      {
-        path: "admin/settings",
-        name: "AdminSettings",
-        component: AdminSettings,
         meta: { roles: ["SUPER_ADMIN"] },
       },
       // Routes communes

@@ -32,13 +32,25 @@ class SiteListView(generics.ListCreateAPIView):
         user = self.request.user
         # Super admin voit tous les sites
         if user.is_super_admin:
-            return Site.objects.all()
+            return Site.objects.prefetch_related(
+                'schedules',
+                'schedules__assigned_employees',
+                'schedules__assigned_employees__employee'
+            ).all()
         # Manager voit les sites de son organisation
         elif user.is_manager and user.organization:
-            return Site.objects.filter(organization=user.organization)
+            return Site.objects.prefetch_related(
+                'schedules',
+                'schedules__assigned_employees',
+                'schedules__assigned_employees__employee'
+            ).filter(organization=user.organization)
         # Employé voit les sites auxquels il est assigné
         elif user.is_employee:
-            return Site.objects.filter(employees__employee=user, employees__is_active=True)
+            return Site.objects.prefetch_related(
+                'schedules',
+                'schedules__assigned_employees',
+                'schedules__assigned_employees__employee'
+            ).filter(employees__employee=user, employees__is_active=True)
         return Site.objects.none()
     
     def perform_create(self, serializer):
@@ -60,11 +72,23 @@ class SiteDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.is_super_admin:
-            return Site.objects.all()
+            return Site.objects.prefetch_related(
+                'schedules',
+                'schedules__assigned_employees',
+                'schedules__assigned_employees__employee'
+            ).all()
         elif user.is_manager and user.organization:
-            return Site.objects.filter(organization=user.organization)
+            return Site.objects.prefetch_related(
+                'schedules',
+                'schedules__assigned_employees',
+                'schedules__assigned_employees__employee'
+            ).filter(organization=user.organization)
         elif user.is_employee:
-            return Site.objects.filter(employees__employee=user, employees__is_active=True)
+            return Site.objects.prefetch_related(
+                'schedules',
+                'schedules__assigned_employees',
+                'schedules__assigned_employees__employee'
+            ).filter(employees__employee=user, employees__is_active=True)
         return Site.objects.none()
 
 class ScheduleListView(generics.ListCreateAPIView):
@@ -167,39 +191,44 @@ class ScheduleEmployeeListView(generics.ListCreateAPIView):
         
         site_pk = self.kwargs.get('site_pk')
         schedule_pk = self.kwargs.get('schedule_pk')
-        employee_id = self.request.data.get('employee_id')
+        employee_id = self.request.data.get('employee')
         
-        logger.info(f"Tentative d'assignation - Données reçues: site_pk={site_pk}, schedule_pk={schedule_pk}, employee_id={employee_id}")
-        logger.info(f"Request data complète: {self.request.data}")
-        logger.info(f"Serializer initial data: {serializer.initial_data}")
-        logger.info(f"Serializer validated data: {serializer.validated_data}")
+        if not employee_id:
+            logger.error("employee manquant dans la requête")
+            raise serializers.ValidationError({"employee": "Ce champ est obligatoire."})
         
         try:
-            # Vérifier si l'employé est déjà assigné au site
-            site_employee = SiteEmployee.objects.filter(
+            # Vérifier si l'employé est déjà assigné à ce planning
+            existing_assignment = SiteEmployee.objects.filter(
                 site_id=site_pk,
-                employee_id=employee_id
+                employee_id=employee_id,
+                schedule_id=schedule_pk,
+                is_active=True
             ).first()
             
-            logger.info(f"Employé existant trouvé: {site_employee}")
+            if existing_assignment:
+                logger.info(f"L'employé {employee_id} est déjà assigné à ce planning")
+                serializer.instance = existing_assignment
+                return
             
-            if site_employee:
-                # Mettre à jour le planning de l'employé existant
-                logger.info(f"Mise à jour du planning pour l'employé existant {employee_id}")
-                site_employee.schedule_id = schedule_pk
-                site_employee.is_active = True
-                site_employee.save()
-                serializer = self.get_serializer(site_employee)
-                logger.info("Mise à jour réussie")
-            else:
-                # Créer une nouvelle assignation
-                logger.info(f"Création d'une nouvelle assignation pour l'employé {employee_id}")
-                instance = serializer.save(
-                    site_id=site_pk,
-                    schedule_id=schedule_pk
-                )
-                logger.info(f"Nouvelle assignation créée avec succès: {instance}")
-                
+            # Désactiver toute autre assignation active de l'employé pour ce site
+            SiteEmployee.objects.filter(
+                site_id=site_pk,
+                employee_id=employee_id,
+                is_active=True
+            ).update(is_active=False)
+            
+            # Créer une nouvelle assignation
+            logger.info(f"Création d'une nouvelle assignation pour l'employé {employee_id}")
+            instance = serializer.save(
+                site_id=site_pk,
+                employee_id=employee_id,
+                schedule_id=schedule_pk,
+                is_active=True
+            )
+            logger.info("Nouvelle assignation créée avec succès")
+            return instance
+            
         except Exception as e:
             logger.error(f"Erreur lors de l'assignation: {str(e)}")
             raise

@@ -4,9 +4,7 @@
     
     <v-tabs v-model="activeTab" grow>
       <v-tab value="profile">Profil</v-tab>
-      <v-tab value="notifications">Notifications</v-tab>
       <v-tab value="security">Sécurité</v-tab>
-      <v-tab value="appearance">Apparence</v-tab>
     </v-tabs>
     
     <v-window v-model="activeTab" class="mt-4">
@@ -67,67 +65,6 @@
         </v-card>
       </v-window-item>
       
-      <v-window-item value="notifications">
-        <v-card>
-          <v-card-title>Paramètres de notifications</v-card-title>
-          <v-card-text>
-            <v-form @submit.prevent="saveNotifications" ref="notificationsForm">
-              <v-switch
-                v-model="notifications.email"
-                label="Recevoir des notifications par email"
-                color="primary"
-              ></v-switch>
-              
-              <v-switch
-                v-model="notifications.app"
-                label="Recevoir des notifications dans l'application"
-                color="primary"
-              ></v-switch>
-              
-              <v-divider class="my-4"></v-divider>
-              
-              <h3 class="text-h6 mb-2">Types de notifications</h3>
-              
-              <v-checkbox
-                v-model="notifications.types"
-                label="Retards"
-                value="lates"
-                color="primary"
-              ></v-checkbox>
-              
-              <v-checkbox
-                v-model="notifications.types"
-                label="Départs anticipés"
-                value="earlyDepartures"
-                color="primary"
-              ></v-checkbox>
-              
-              <v-checkbox
-                v-model="notifications.types"
-                label="Anomalies"
-                value="anomalies"
-                color="primary"
-              ></v-checkbox>
-              
-              <v-checkbox
-                v-model="notifications.types"
-                label="Rapports"
-                value="reports"
-                color="primary"
-              ></v-checkbox>
-              
-              <v-btn
-                type="submit"
-                color="primary"
-                :loading="saving.notifications"
-              >
-                Enregistrer
-              </v-btn>
-            </v-form>
-          </v-card-text>
-        </v-card>
-      </v-window-item>
-      
       <v-window-item value="security">
         <v-card>
           <v-card-title>Sécurité</v-card-title>
@@ -140,6 +77,7 @@
                 variant="outlined"
                 :rules="[rules.required]"
                 class="mb-4"
+                autocomplete="current-password"
               ></v-text-field>
               
               <v-text-field
@@ -149,6 +87,7 @@
                 variant="outlined"
                 :rules="[rules.required, rules.minLength]"
                 class="mb-4"
+                autocomplete="new-password"
               ></v-text-field>
               
               <v-text-field
@@ -158,6 +97,7 @@
                 variant="outlined"
                 :rules="[rules.required, passwordMatchRule]"
                 class="mb-4"
+                autocomplete="new-password"
               ></v-text-field>
               
               <v-btn
@@ -166,48 +106,6 @@
                 :loading="saving.security"
               >
                 Changer le mot de passe
-              </v-btn>
-            </v-form>
-          </v-card-text>
-        </v-card>
-      </v-window-item>
-      
-      <v-window-item value="appearance">
-        <v-card>
-          <v-card-title>Apparence</v-card-title>
-          <v-card-text>
-            <v-form @submit.prevent="saveAppearance" ref="appearanceForm">
-              <h3 class="text-h6 mb-2">Thème</h3>
-              
-              <v-radio-group v-model="appearance.theme" class="mb-4">
-                <v-radio value="light" label="Clair"></v-radio>
-                <v-radio value="dark" label="Sombre"></v-radio>
-                <v-radio value="system" label="Suivre les préférences système"></v-radio>
-              </v-radio-group>
-              
-              <h3 class="text-h6 mb-2">Taille du texte</h3>
-              
-              <v-slider
-                v-model="appearance.fontSize"
-                label="Taille du texte"
-                min="80"
-                max="120"
-                step="5"
-                thumb-label
-                :thumb-size="24"
-                class="mb-4"
-              >
-                <template v-slot:append>
-                  <div class="text-caption">{{ appearance.fontSize }}%</div>
-                </template>
-              </v-slider>
-              
-              <v-btn
-                type="submit"
-                color="primary"
-                :loading="saving.appearance"
-              >
-                Enregistrer
               </v-btn>
             </v-form>
           </v-card-text>
@@ -227,7 +125,7 @@
 
 <script>
 import { ref, computed, onMounted } from 'vue'
-import api from '@/services/api'
+import { usersApi } from '@/services/api'
 
 export default {
   name: 'SettingsView',
@@ -235,22 +133,14 @@ export default {
     const activeTab = ref('profile')
     
     const profileForm = ref(null)
-    const notificationsForm = ref(null)
     const passwordForm = ref(null)
-    const appearanceForm = ref(null)
     
     const profile = ref({
-      firstName: 'Jean',
-      lastName: 'Dupont',
-      email: 'jean.dupont@example.com',
-      phone: '06 12 34 56 78'
-    })
-    
-    const notifications = ref({
-      email: true,
-      sms: false,
-      app: true,
-      types: ['lates', 'anomalies', 'reports']
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      username: ''
     })
     
     const security = ref({
@@ -259,16 +149,9 @@ export default {
       confirmPassword: ''
     })
     
-    const appearance = ref({
-      theme: 'light',
-      fontSize: 100
-    })
-    
     const saving = ref({
       profile: false,
-      notifications: false,
-      security: false,
-      appearance: false
+      security: false
     })
     
     const snackbar = ref({
@@ -289,10 +172,14 @@ export default {
     
     const loadProfileData = async () => {
       try {
-        console.log('Chargement des données du profil...')
-        const response = await api.get('/users/profile')
-        console.log('Données du profil reçues:', response.data)
-        profile.value = response.data
+        const response = await usersApi.getProfile()
+        profile.value = {
+          firstName: response.data.first_name,
+          lastName: response.data.last_name,
+          email: response.data.email,
+          phone: response.data.phone_number || '',
+          username: response.data.username
+        }
       } catch (error) {
         console.error('Erreur lors du chargement du profil:', error)
         showError('Erreur lors du chargement des données du profil')
@@ -308,11 +195,14 @@ export default {
       
       if (isValid.valid) {
         saving.value.profile = true
-        
         try {
-          console.log('Envoi des données du profil:', profile.value)
-          const response = await api.put('/users/profile', profile.value)
-          console.log('Réponse de mise à jour du profil:', response.data)
+          await usersApi.updateProfile({
+            firstName: profile.value.firstName,
+            lastName: profile.value.lastName,
+            email: profile.value.email,
+            phone: profile.value.phone,
+            username: profile.value.username
+          })
           showSuccess('Profil mis à jour avec succès')
         } catch (error) {
           console.error('Erreur lors de la mise à jour du profil:', error)
@@ -323,35 +213,16 @@ export default {
       }
     }
     
-    const saveNotifications = async () => {
-      saving.value.notifications = true
-      
-      try {
-        console.log('Envoi des paramètres de notifications:', notifications.value)
-        const response = await api.put('/users/notifications', notifications.value)
-        console.log('Réponse de mise à jour des notifications:', response.data)
-        showSuccess('Paramètres de notifications mis à jour avec succès')
-      } catch (error) {
-        console.error('Erreur lors de la mise à jour des notifications:', error)
-        showError('Erreur lors de la mise à jour des paramètres de notifications')
-      } finally {
-        saving.value.notifications = false
-      }
-    }
-    
     const changePassword = async () => {
       const isValid = await passwordForm.value.validate()
       
       if (isValid.valid) {
         saving.value.security = true
-        
         try {
-          console.log('Envoi de la demande de changement de mot de passe')
-          const response = await api.put('/users/password', {
+          await usersApi.changePassword({
             currentPassword: security.value.currentPassword,
             newPassword: security.value.newPassword
           })
-          console.log('Réponse du changement de mot de passe:', response.data)
           
           security.value = {
             currentPassword: '',
@@ -362,26 +233,11 @@ export default {
           showSuccess('Mot de passe changé avec succès')
         } catch (error) {
           console.error('Erreur lors du changement de mot de passe:', error)
-          showError('Erreur lors du changement de mot de passe')
+          const errorMessage = error.response?.data?.error || 'Une erreur est survenue lors du changement de mot de passe'
+          showError(errorMessage)
         } finally {
           saving.value.security = false
         }
-      }
-    }
-    
-    const saveAppearance = async () => {
-      saving.value.appearance = true
-      
-      try {
-        console.log('Envoi des paramètres d\'apparence:', appearance.value)
-        const response = await api.put('/users/appearance', appearance.value)
-        console.log('Réponse de mise à jour de l\'apparence:', response.data)
-        showSuccess('Paramètres d\'apparence mis à jour avec succès')
-      } catch (error) {
-        console.error('Erreur lors de la mise à jour de l\'apparence:', error)
-        showError('Erreur lors de la mise à jour des paramètres d\'apparence')
-      } finally {
-        saving.value.appearance = false
       }
     }
     
@@ -404,22 +260,15 @@ export default {
     return {
       activeTab,
       profileForm,
-      notificationsForm,
       passwordForm,
-      appearanceForm,
       profile,
-      notifications,
       security,
-      appearance,
       saving,
       snackbar,
       rules,
       passwordMatchRule,
-      loadProfileData,
       saveProfile,
-      saveNotifications,
-      changePassword,
-      saveAppearance
+      changePassword
     }
   }
 }

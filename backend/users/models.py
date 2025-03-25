@@ -10,12 +10,23 @@ class User(AbstractUser):
         MANAGER = 'MANAGER', _('Manager')
         EMPLOYEE = 'EMPLOYEE', _('Employé')
     
+    class ScanPreference(models.TextChoices):
+        BOTH = 'BOTH', _('NFC et QR Code')
+        NFC_ONLY = 'NFC_ONLY', _('NFC uniquement')
+        QR_ONLY = 'QR_ONLY', _('QR Code uniquement')
+    
     email = models.EmailField(_('adresse email'), unique=True)
     role = models.CharField(
         _('rôle'),
         max_length=20,
         choices=Role.choices,
         default=Role.EMPLOYEE
+    )
+    scan_preference = models.CharField(
+        _('préférence de scan'),
+        max_length=20,
+        choices=ScanPreference.choices,
+        default=ScanPreference.BOTH
     )
     organization = models.ForeignKey(
         'organizations.Organization',

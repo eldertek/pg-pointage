@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 class Timesheet(models.Model):
     """Modèle pour les pointages"""
@@ -31,15 +32,15 @@ class Timesheet(models.Model):
     # Informations de géolocalisation
     latitude = models.DecimalField(
         _('latitude'),
-        max_digits=9,
-        decimal_places=6,
+        max_digits=13,
+        decimal_places=10,
         null=True,
         blank=True
     )
     longitude = models.DecimalField(
         _('longitude'),
-        max_digits=9,
-        decimal_places=6,
+        max_digits=13,
+        decimal_places=10,
         null=True,
         blank=True
     )
@@ -76,6 +77,53 @@ class Timesheet(models.Model):
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
     updated_at = models.DateTimeField(_('mis à jour le'), auto_now=True)
     
+    def clean(self):
+        # Vérifier s'il existe déjà un pointage du même type pour le même employé et site
+        last_timesheet = Timesheet.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            timestamp__date=self.timestamp.date()
+        ).exclude(id=self.id).order_by('-timestamp').first()
+        
+        if last_timesheet and last_timesheet.entry_type == self.entry_type:
+            # Créer une anomalie pour les pointages consécutifs du même type
+            Anomaly.objects.create(
+                employee=self.employee,
+                site=self.site,
+                timesheet=self,
+                date=self.timestamp.date(),
+                anomaly_type=Anomaly.AnomalyType.CONSECUTIVE_SAME_TYPE,
+                description=_(
+                    f'Pointage {self.get_entry_type_display()} consécutif détecté. '
+                    f'Dernier pointage : {last_timesheet.timestamp.strftime("%H:%M")}'
+                ),
+                status=Anomaly.AnomalyStatus.PENDING
+            )
+            
+            if self.entry_type == self.EntryType.ARRIVAL:
+                raise ValidationError({
+                    'entry_type': _('Vous avez déjà pointé votre arrivée. Vous devez d\'abord pointer votre départ.')
+                })
+            else:
+                raise ValidationError({
+                    'entry_type': _('Vous avez déjà pointé votre départ. Vous devez d\'abord pointer votre arrivée.')
+                })
+        
+        # Vérifier la cohérence arrivée/départ
+        if last_timesheet:
+            if self.entry_type == self.EntryType.ARRIVAL and last_timesheet.entry_type == self.EntryType.ARRIVAL:
+                raise ValidationError({
+                    'entry_type': _('Vous devez d\'abord pointer votre départ avant de pointer une nouvelle arrivée.')
+                })
+            elif self.entry_type == self.EntryType.DEPARTURE and last_timesheet.entry_type == self.EntryType.DEPARTURE:
+                raise ValidationError({
+                    'entry_type': _('Vous devez d\'abord pointer votre arrivée avant de pointer un nouveau départ.')
+                })
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = _('pointage')
         verbose_name_plural = _('pointages')
@@ -94,6 +142,7 @@ class Anomaly(models.Model):
         MISSING_ARRIVAL = 'MISSING_ARRIVAL', _('Arrivée manquante')
         MISSING_DEPARTURE = 'MISSING_DEPARTURE', _('Départ manquant')
         INSUFFICIENT_HOURS = 'INSUFFICIENT_HOURS', _('Heures insuffisantes')
+        CONSECUTIVE_SAME_TYPE = 'CONSECUTIVE_SAME_TYPE', _('Pointages consécutifs du même type')
         OTHER = 'OTHER', _('Autre')
     
     class AnomalyStatus(models.TextChoices):
@@ -124,7 +173,7 @@ class Anomaly(models.Model):
     date = models.DateField(_('date'))
     anomaly_type = models.CharField(
         _('type d\'anomalie'),
-        max_length=20,
+        max_length=30,
         choices=AnomalyType.choices
     )
     description = models.TextField(_('description'), blank=True)

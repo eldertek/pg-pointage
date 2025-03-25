@@ -87,25 +87,26 @@
           >
             <div class="d-flex justify-space-between align-center">
               <div>
-                <div class="text-subtitle-2">{{ timesheet.site }}</div>
-                <div class="text-caption">{{ formatDate(timesheet.date, timesheet.time) }}</div>
+                <div class="text-subtitle-2">{{ timesheet.site_name }}</div>
+                <div class="text-caption">{{ formatDate(timesheet.timestamp.split('T')[0], timesheet.timestamp.split('T')[1]) }}</div>
               </div>
               <v-chip
                 :color="getTimesheetColor(timesheet)"
                 size="small"
                 class="ml-2"
               >
-                {{ timesheet.type }}
+                {{ timesheet.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
               </v-chip>
             </div>
-            <div v-if="timesheet.status !== 'Normal'" class="mt-1">
+            <div v-if="timesheet.is_late || timesheet.is_early_departure" class="mt-1">
               <v-chip
                 size="x-small"
-                :color="getStatusColor(timesheet.status)"
+                :color="getTimesheetColor(timesheet)"
                 variant="outlined"
                 class="mt-1"
               >
-                {{ timesheet.statusDetail }}
+                {{ timesheet.is_late ? `Retard de ${timesheet.late_minutes} minutes` : 
+                   timesheet.is_early_departure ? `Départ anticipé de ${timesheet.early_departure_minutes} minutes` : '' }}
               </v-chip>
             </div>
           </v-timeline-item>
@@ -128,9 +129,10 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { timesheetsApi, sitesApi } from '@/services/api'
 
 export default {
   name: 'HistoryView',
@@ -138,6 +140,8 @@ export default {
     const loading = ref(true)
     const loadingMore = ref(false)
     const hasMoreTimesheets = ref(true)
+    const currentPage = ref(1)
+    const perPage = ref(10)
     
     const filters = ref({
       site: '',
@@ -147,7 +151,7 @@ export default {
       endDate: ''
     })
     
-    const siteOptions = ref(['Centre Commercial', 'Hôpital Nord', 'Résidence Les Pins'])
+    const siteOptions = ref([])
     const typeOptions = ref(['Arrivée', 'Départ'])
     const statusOptions = ref(['Normal', 'Retard', 'Départ anticipé'])
     
@@ -159,9 +163,9 @@ export default {
     }
     
     const getTimesheetColor = (timesheet) => {
-      if (timesheet.status === 'Retard') return 'warning'
-      if (timesheet.status === 'Départ anticipé') return 'error'
-      return timesheet.type === 'Arrivée' ? 'success' : 'info'
+      if (timesheet.is_late) return 'warning'
+      if (timesheet.is_early_departure) return 'error'
+      return timesheet.entry_type === 'ARRIVAL' ? 'success' : 'info'
     }
     
     const getStatusColor = (status) => {
@@ -171,15 +175,67 @@ export default {
       return 'grey'
     }
     
+    const loadSites = async () => {
+      try {
+        const response = await sitesApi.getAllSites()
+        siteOptions.value = response.data.results.map(site => site.name)
+      } catch (error) {
+        console.error('Erreur lors de la récupération des sites:', error)
+      }
+    }
+    
+    const fetchTimesheets = async () => {
+      try {
+        const params = {
+          page: currentPage.value,
+          pageSize: perPage.value
+        }
+
+        // Ajouter les filtres seulement s'ils sont définis
+        if (filters.value.site) {
+          params.site = filters.value.site;
+        }
+        
+        if (filters.value.type) {
+          params.entryType = filters.value.type === 'Arrivée' ? 'ARRIVAL' : 'DEPARTURE';
+        }
+        
+        if (filters.value.startDate) {
+          params.startDate = filters.value.startDate;
+        }
+        
+        if (filters.value.endDate) {
+          params.endDate = filters.value.endDate;
+        }
+        
+        if (filters.value.status === 'Retard') {
+          params.isLate = true;
+        } else if (filters.value.status === 'Départ anticipé') {
+          params.isEarlyDeparture = true;
+        }
+
+        const response = await timesheetsApi.getTimesheets(params)
+        const data = response.data
+
+        if (currentPage.value === 1) {
+          timesheets.value = data.results || [];
+        } else {
+          timesheets.value = [...timesheets.value, ...(data.results || [])];
+        }
+
+        hasMoreTimesheets.value = data.next !== null
+      } catch (error) {
+        console.error('Erreur lors de la récupération des pointages:', error)
+      } finally {
+        loading.value = false
+        loadingMore.value = false
+      }
+    }
+    
     const applyFilters = () => {
       loading.value = true
-      
-      // Simulation d'API call avec filtre
-      setTimeout(() => {
-        timesheets.value = generateMockTimesheets()
-        loading.value = false
-        hasMoreTimesheets.value = true
-      }, 1000)
+      currentPage.value = 1
+      fetchTimesheets()
     }
     
     const resetFilters = () => {
@@ -195,57 +251,15 @@ export default {
     
     const loadMoreTimesheets = () => {
       loadingMore.value = true
-      
-      // Simulation d'API call pour charger plus de données
-      setTimeout(() => {
-        const moreTimesheets = generateMockTimesheets(5)
-        timesheets.value = [...timesheets.value, ...moreTimesheets]
-        loadingMore.value = false
-        
-        // Simulation de fin des données
-        if (timesheets.value.length > 20) {
-          hasMoreTimesheets.value = false
-        }
-      }, 1000)
-    }
-    
-    const generateMockTimesheets = (count = 10) => {
-      const result = []
-      const sites = ['Centre Commercial', 'Hôpital Nord', 'Résidence Les Pins']
-      const types = ['Arrivée', 'Départ']
-      const statuses = ['Normal', 'Retard', 'Départ anticipé']
-      
-      for (let i = 0; i < count; i++) {
-        const status = statuses[Math.floor(Math.random() * statuses.length)]
-        const type = types[Math.floor(Math.random() * types.length)]
-        
-        let statusDetail = ''
-        if (status === 'Retard') {
-          statusDetail = `Retard de ${Math.floor(Math.random() * 30) + 1} minutes`
-        } else if (status === 'Départ anticipé') {
-          statusDetail = `Départ anticipé de ${Math.floor(Math.random() * 30) + 1} minutes`
-        }
-        
-        result.push({
-          site: sites[Math.floor(Math.random() * sites.length)],
-          date: `2025-03-${String(Math.floor(Math.random() * 15) + 1).padStart(2, '0')}`,
-          time: `${String(Math.floor(Math.random() * 12) + 8).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}`,
-          type,
-          status,
-          statusDetail
-        })
-      }
-      
-      // Trier par date et heure, du plus récent au plus ancien
-      return result.sort((a, b) => {
-        const dateA = new Date(`${a.date}T${a.time}`)
-        const dateB = new Date(`${b.date}T${b.time}`)
-        return dateB - dateA
-      })
+      currentPage.value++
+      fetchTimesheets()
     }
     
     // Charger les données initiales
-    applyFilters()
+    onMounted(async () => {
+      await loadSites()
+      fetchTimesheets()
+    })
     
     return {
       loading,

@@ -31,12 +31,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class UserSerializer(serializers.ModelSerializer):
     """Serializer pour les utilisateurs (admin)"""
     password = serializers.CharField(write_only=True, required=False)
-    organization_name = serializers.SerializerMethodField()
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
     
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 
-                'organization', 'phone_number', 'is_active', 'employee_id', 'date_joined', 'password', 'organization_name']
+                'organization', 'phone_number', 'is_active', 'employee_id', 'date_joined', 'password', 'organization_name', 'scan_preference']
         read_only_fields = ['date_joined']
 
     def get_organization_name(self, obj):
@@ -76,7 +76,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 
-                'organization', 'organization_name', 'phone_number', 'employee_id']
+                'organization', 'organization_name', 'phone_number', 'employee_id', 'scan_preference']
         read_only_fields = ['id', 'role', 'organization', 'organization_name', 'employee_id']
     
     def get_organization_name(self, obj):

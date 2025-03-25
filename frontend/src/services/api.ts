@@ -16,17 +16,17 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
       console.log("Ajout du token à la requête:", {
-        url: config.url,
+        url: config.url || '',
         method: config.method,
-        baseURL: config.baseURL,
-        fullURL: config.baseURL + config.url,
+        baseURL: config.baseURL || '',
+        fullURL: (config.baseURL || '') + (config.url || ''),
         token: token.substring(0, 10) + "..."
       })
 
       // Ajouter des logs pour les données envoyées
       if (config.data) {
         console.log("Données envoyées dans la requête:", {
-          url: config.url,
+          url: config.url || '',
           method: config.method,
           data: config.data
         })
@@ -96,12 +96,16 @@ const toSnakeCase = (str: string): string => {
 
 // Fonction pour convertir les clés d'un objet de camelCase à snake_case
 const convertKeysToSnakeCase = (obj: any): any => {
+  if (!obj) return obj;
   if (Array.isArray(obj)) {
     return obj.map(v => convertKeysToSnakeCase(v));
-  } else if (obj !== null && obj.constructor === Object) {
+  } else if (obj !== null && typeof obj === 'object') {
     return Object.keys(obj).reduce((result: any, key) => {
-      const snakeKey = toSnakeCase(key);
-      result[snakeKey] = convertKeysToSnakeCase(obj[key]);
+      const value = obj[key];
+      if (value !== undefined) {  // Ne pas inclure les valeurs undefined
+        const snakeKey = toSnakeCase(key);
+        result[snakeKey] = convertKeysToSnakeCase(value);
+      }
       return result;
     }, {});
   }
@@ -132,25 +136,6 @@ const sitesApi = {
   
   // Delete a site
   deleteSite: (id: number) => api.delete(`/sites/${id}/`),
-
-  // Get site employees
-  getSiteEmployees: (siteId: number) => api.get(`/sites/${siteId}/employees/`),
-
-  // Get available employees
-  getAvailableEmployees: () => api.get('/users/', {
-    params: {
-      role: 'EMPLOYEE',
-      is_active: true
-    }
-  }),
-
-  // Assign employee to site
-  assignEmployee: (siteId: number, employeeId: number) => 
-    api.post(`/sites/${siteId}/employees/`, { employee_id: employeeId }),
-
-  // Unassign employee from site
-  unassignEmployee: (siteId: number, employeeId: number) => 
-    api.delete(`/sites/${siteId}/employees/${employeeId}/`),
   
   // Schedule methods
   createSchedule: (siteId: number, data: any) => 
@@ -174,19 +159,9 @@ const sitesApi = {
 
   deleteScheduleDetail: (siteId: number, scheduleId: number, detailId: number) =>
     api.delete(`/sites/${siteId}/schedules/${scheduleId}/details/${detailId}/`),
-  
-  // Employee assignment methods
-  getScheduleEmployees: (siteId: number, scheduleId: number) =>
-    api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`),
 
-  assignEmployeeToSchedule: (siteId: number, scheduleId: number, employeeId: number) => 
-    api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/`, convertKeysToSnakeCase({ employeeId })),
-  
-  unassignEmployeeFromSchedule: (siteId: number, scheduleId: number, employeeId: number) => 
-    api.delete(`/sites/${siteId}/schedules/${scheduleId}/employees/${employeeId}/`),
-  
-  updateEmployeeAssignment: (siteId: number, scheduleId: number, employeeId: number, data: any) => 
-    api.put(`/sites/${siteId}/schedules/${scheduleId}/employees/${employeeId}/`, convertKeysToSnakeCase(data))
+  getScheduleEmployees: (siteId: number, scheduleId: number) =>
+    api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`)
 }
 
 // Schedules API methods
@@ -226,19 +201,96 @@ const schedulesApi = {
   // Delete schedule detail
   deleteScheduleDetail: (scheduleId: number, detailId: number) => 
     api.delete(`/schedules/${scheduleId}/details/${detailId}/`),
-  
-  // Get employees assigned to a schedule
-  getScheduleEmployees: (scheduleId: number) => api.get(`/schedules/${scheduleId}/employees/`),
-  
-  // Assign employee to schedule
-  assignEmployee: (scheduleId: number, data: any) => 
-    api.post(`/schedules/${scheduleId}/employees/`, convertKeysToSnakeCase(data)),
-  
-  // Unassign employee from schedule
-  unassignEmployee: (scheduleId: number, employeeId: number) => 
-    api.delete(`/schedules/${scheduleId}/employees/${employeeId}/`)
+
+  // Employee management
+  getAvailableEmployees: () => api.get('/users/', {
+    params: {
+      role: 'EMPLOYEE',
+      is_active: true
+    }
+  }),
+
+  assignEmployee: (siteId: number, scheduleId: number, employeeId: number) => 
+    api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/`, { 
+      site: siteId,
+      employee: employeeId,
+      schedule: scheduleId
+    }),
+
+  unassignEmployee: (siteId: number, scheduleId: number, employeeId: number) => 
+    api.delete(`/sites/${siteId}/schedules/${scheduleId}/employees/${employeeId}/`),
+
+  getScheduleEmployees: (siteId: number, scheduleId: number) =>
+    api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`)
 }
 
-export { sitesApi, schedulesApi }
+// Users API methods
+const usersApi = {
+  // Get user profile
+  getProfile: () => api.get('/users/profile/'),
+  
+  // Update user profile
+  updateProfile: (data: any) => api.put('/users/profile/', convertKeysToSnakeCase({
+    first_name: data.firstName,
+    last_name: data.lastName,
+    email: data.email,
+    phone_number: data.phone,
+    username: data.username,
+    scan_preference: data.scanPreference
+  })),
+  
+  // Change password
+  changePassword: (data: any) => api.post('/users/change-password/', {
+    old_password: data.currentPassword,
+    new_password: data.newPassword
+  }),
+
+  // Search users
+  searchUsers: (query: string) => api.get('/users/', {
+    params: {
+      search: query,
+      role: 'EMPLOYEE',
+      is_active: true
+    }
+  })
+}
+
+// Timesheets API methods
+const timesheetsApi = {
+  // Get all timesheets with filters and pagination
+  getTimesheets: (params: any = {}) => {
+    const queryParams = convertKeysToSnakeCase(params);
+    return api.get('/timesheets/', { params: queryParams });
+  },
+
+  // Get a single timesheet by ID
+  getTimesheet: (id: number) => api.get(`/timesheets/${id}/`),
+
+  // Update a timesheet
+  updateTimesheet: (id: number, data: any) => 
+    api.put(`/timesheets/${id}/`, convertKeysToSnakeCase(data)),
+
+  // Delete a timesheet
+  deleteTimesheet: (id: number) => 
+    api.delete(`/timesheets/${id}/`),
+
+  // Get anomalies
+  getAnomalies: (params: any = {}) => {
+    const queryParams = convertKeysToSnakeCase(params);
+    return api.get('/timesheets/anomalies/', { params: queryParams });
+  },
+
+  // Update anomaly
+  updateAnomaly: (id: number, data: any) =>
+    api.patch(`/timesheets/anomalies/${id}/`, convertKeysToSnakeCase(data)),
+
+  // Scan for anomalies
+  scanAnomalies: (params: any = {}) => {
+    const queryParams = convertKeysToSnakeCase(params);
+    return api.post('/timesheets/scan-anomalies/', { params: queryParams });
+  }
+}
+
+export { sitesApi, schedulesApi, usersApi, timesheetsApi }
 export default api
 

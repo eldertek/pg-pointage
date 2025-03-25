@@ -90,13 +90,6 @@
           </template>
           <v-list-item-title>Paramètres</v-list-item-title>
         </v-list-item>
-
-        <v-list-item v-if="isSuperAdmin" to="/dashboard/admin/settings" active-class="primary--text">
-          <template v-slot:prepend>
-            <v-icon>mdi-cog-transfer</v-icon>
-          </template>
-          <v-list-item-title>Paramètres système</v-list-item-title>
-        </v-list-item>
       </v-list>
     </v-navigation-drawer>
 

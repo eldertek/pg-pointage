@@ -10,6 +10,7 @@ class Alert(models.Model):
         MISSING_ARRIVAL = 'MISSING_ARRIVAL', _('Arrivée manquante')
         MISSING_DEPARTURE = 'MISSING_DEPARTURE', _('Départ manquant')
         INSUFFICIENT_HOURS = 'INSUFFICIENT_HOURS', _('Heures insuffisantes')
+        CONSECUTIVE_SAME_TYPE = 'CONSECUTIVE_SAME_TYPE', _('Pointages consécutifs du même type')
         ANOMALY_REPORTED = 'ANOMALY_REPORTED', _('Anomalie signalée')
         OTHER = 'OTHER', _('Autre')
     
@@ -41,7 +42,7 @@ class Alert(models.Model):
     )
     alert_type = models.CharField(
         _('type d\'alerte'),
-        max_length=20,
+        max_length=30,
         choices=AlertType.choices
     )
     message = models.TextField(_('message'))

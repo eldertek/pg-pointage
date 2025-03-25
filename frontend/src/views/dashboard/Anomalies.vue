@@ -1,20 +1,44 @@
 <template>
   <div>
-    <h1 class="text-h4 mb-4">Anomalies</h1>
+    <div class="d-flex justify-space-between align-center mb-4">
+      <h1 class="text-h4">Anomalies</h1>
+      <v-btn 
+        color="warning" 
+        prepend-icon="mdi-magnify-scan" 
+        :loading="scanning"
+        @click="scanForAnomalies"
+      >
+        Scanner les anomalies
+      </v-btn>
+    </div>
     
     <v-card class="mb-4">
       <v-card-title>Filtres</v-card-title>
       <v-card-text>
         <v-row>
           <v-col cols="12" md="3">
-            <v-text-field
+            <v-autocomplete
               v-model="filters.employee"
+              :loading="searchingEmployees"
+              :items="employeeOptions"
+              :search-input.sync="employeeSearch"
               label="Employé"
+              item-title="text"
+              item-value="value"
               variant="outlined"
               prepend-inner-icon="mdi-account-search"
               clearable
+              @update:search="searchEmployees"
               @update:modelValue="applyFilters"
-            ></v-text-field>
+            >
+              <template v-slot:no-data>
+                <v-list-item>
+                  <v-list-item-title>
+                    Commencez à taper pour rechercher un employé
+                  </v-list-item-title>
+                </v-list-item>
+              </template>
+            </v-autocomplete>
           </v-col>
           
           <v-col cols="12" md="3">
@@ -22,6 +46,8 @@
               v-model="filters.site"
               label="Site"
               :items="siteOptions"
+              item-title="text"
+              item-value="value"
               variant="outlined"
               prepend-inner-icon="mdi-map-marker"
               clearable
@@ -34,6 +60,8 @@
               v-model="filters.type"
               label="Type d'anomalie"
               :items="anomalyTypeOptions"
+              item-title="text"
+              item-value="value"
               variant="outlined"
               prepend-inner-icon="mdi-alert-circle"
               clearable
@@ -46,6 +74,8 @@
               v-model="filters.status"
               label="Statut"
               :items="statusOptions"
+              item-title="text"
+              item-value="value"
               variant="outlined"
               prepend-inner-icon="mdi-check-circle"
               clearable
@@ -111,23 +141,23 @@
       >
         <template #type="{ item }">
           <v-chip
-            :color="getTypeColor(item.raw.type)"
+            :color="getTypeColor(item.raw.anomaly_type_display)"
             size="small"
           >
-            {{ item.raw.type }}
+            {{ item.raw.anomaly_type_display }}
           </v-chip>
         </template>
         <template #status="{ item }">
           <v-chip
-            :color="getStatusColor(item.raw.status)"
+            :color="getStatusColor(item.raw.status_display)"
             size="small"
           >
-            {{ item.raw.status }}
+            {{ item.raw.status_display }}
           </v-chip>
         </template>
         <template #actions="{ item }">
           <v-btn
-            v-if="item.raw.status === 'En attente'"
+            v-if="item.raw.status === 'PENDING'"
             icon
             variant="text"
             size="small"
@@ -137,7 +167,7 @@
             <v-icon>mdi-check</v-icon>
           </v-btn>
           <v-btn
-            v-if="item.raw.status === 'En attente'"
+            v-if="item.raw.status === 'PENDING'"
             icon
             variant="text"
             size="small"
@@ -161,19 +191,27 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
+import { useToast } from 'vue-toastification'
 
 export default {
   name: 'AnomaliesView',
   setup() {
     const loading = ref(true)
+    const scanning = ref(false)
+    const error = ref(null)
+    const searchingEmployees = ref(false)
+    const employeeSearch = ref('')
+    const employeeOptions = ref([])
+    
     const headers = ref([
       { title: 'Date', align: 'start', key: 'date' },
-      { title: 'Employé', align: 'start', key: 'employee' },
-      { title: 'Site', align: 'start', key: 'site' },
-      { title: 'Type', align: 'center', key: 'type' },
+      { title: 'Employé', align: 'start', key: 'employee_name' },
+      { title: 'Site', align: 'start', key: 'site_name' },
+      { title: 'Type', align: 'center', key: 'anomaly_type_display' },
       { title: 'Description', align: 'start', key: 'description' },
-      { title: 'Statut', align: 'center', key: 'status' },
+      { title: 'Statut', align: 'center', key: 'status_display' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }
     ])
     
@@ -186,11 +224,41 @@ export default {
       endDate: ''
     })
     
-    const siteOptions = ref(['Centre Commercial', 'Hôpital Nord', 'Résidence Les Pins'])
-    const anomalyTypeOptions = ref(['Retard', 'Départ anticipé', 'Arrivée manquante', 'Départ manquant', 'Heures insuffisantes'])
-    const statusOptions = ref(['En attente', 'Résolu', 'Ignoré'])
+    const siteOptions = ref([])
+    const anomalyTypeOptions = ref([
+      { text: 'Retard', value: 'LATE' },
+      { text: 'Départ anticipé', value: 'EARLY_DEPARTURE' },
+      { text: 'Arrivée manquante', value: 'MISSING_ARRIVAL' },
+      { text: 'Départ manquant', value: 'MISSING_DEPARTURE' },
+      { text: 'Heures insuffisantes', value: 'INSUFFICIENT_HOURS' },
+      { text: 'Pointages consécutifs', value: 'CONSECUTIVE_SAME_TYPE' }
+    ])
+    const statusOptions = ref([
+      { text: 'En attente', value: 'PENDING' },
+      { text: 'Résolu', value: 'RESOLVED' },
+      { text: 'Ignoré', value: 'IGNORED' }
+    ])
     
     const anomalies = ref([])
+    
+    // Charger les sites
+    const loadSites = async () => {
+      try {
+        const response = await sitesApi.getAllSites()
+        if (response.data?.results) {
+          siteOptions.value = response.data.results.map(site => ({
+            text: site.name,
+            value: site.id
+          }))
+        } else {
+          console.error('Format de réponse inattendu pour les sites:', response.data)
+          siteOptions.value = []
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des sites:', error)
+        siteOptions.value = []
+      }
+    }
     
     const getTypeColor = (type) => {
       if (type === 'Retard') return 'warning'
@@ -198,6 +266,7 @@ export default {
       if (type === 'Arrivée manquante') return 'red'
       if (type === 'Départ manquant') return 'purple'
       if (type === 'Heures insuffisantes') return 'deep-orange'
+      if (type === 'Pointages consécutifs') return 'orange'
       return 'grey'
     }
     
@@ -208,82 +277,81 @@ export default {
       return 'grey'
     }
     
-    const resolveAnomaly = (id) => {
-      // Simulation d'API call
-      console.log(`Résolution de l'anomalie ${id}`)
-      
-      // Pour la démo, on met à jour le statut localement
-      const index = anomalies.value.findIndex(a => a.id === id)
-      if (index !== -1) {
-        anomalies.value[index].status = 'Résolu'
-      }
-    }
-    
-    const ignoreAnomaly = (id) => {
-      // Simulation d'API call
-      console.log(`Ignorer l'anomalie ${id}`)
-      
-      // Pour la démo, on met à jour le statut localement
-      const index = anomalies.value.findIndex(a => a.id === id)
-      if (index !== -1) {
-        anomalies.value[index].status = 'Ignoré'
-      }
-    }
-    
-    const applyFilters = () => {
-      loading.value = true
-      
-      // Simulation d'API call avec filtre
-      setTimeout(() => {
-        anomalies.value = [
-          { 
-            id: 1, 
-            date: '11/03/2025', 
-            employee: 'Jean Dupont', 
-            site: 'Centre Commercial', 
-            type: 'Retard', 
-            description: 'Retard de 17 minutes',
-            status: 'En attente'
-          },
-          { 
-            id: 2, 
-            date: '11/03/2025', 
-            employee: 'Jean Dupont', 
-            site: 'Centre Commercial', 
-            type: 'Départ anticipé', 
-            description: 'Départ anticipé de 15 minutes',
-            status: 'En attente'
-          },
-          { 
-            id: 3, 
-            date: '10/03/2025', 
-            employee: 'Pierre Lambert', 
-            site: 'Résidence Les Pins', 
-            type: 'Arrivée manquante', 
-            description: 'Aucun pointage d\'arrivée enregistré',
-            status: 'Résolu'
-          },
-          { 
-            id: 4, 
-            date: '09/03/2025', 
-            employee: 'Marie Martin', 
-            site: 'Hôpital Nord', 
-            type: 'Départ manquant', 
-            description: 'Aucun pointage de départ enregistré',
-            status: 'Ignoré'
-          },
-          { 
-            id: 5, 
-            date: '08/03/2025', 
-            employee: 'Sophie Petit', 
-            site: 'Centre Commercial', 
-            type: 'Heures insuffisantes', 
-            description: 'Total: 5h30 (minimum requis: 6h)',
-            status: 'Résolu'
-          }
-        ]
+    const resolveAnomaly = async (id) => {
+      try {
+        loading.value = true
+        await timesheetsApi.updateAnomaly(id, {
+          status: 'RESOLVED'
+        })
+        await applyFilters()
+      } catch (error) {
+        console.error('Erreur lors de la résolution de l\'anomalie:', error)
+      } finally {
         loading.value = false
-      }, 1000)
+      }
+    }
+    
+    const ignoreAnomaly = async (id) => {
+      try {
+        loading.value = true
+        await timesheetsApi.updateAnomaly(id, {
+          status: 'IGNORED'
+        })
+        await applyFilters()
+      } catch (error) {
+        console.error('Erreur lors de l\'ignorance de l\'anomalie:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const buildQueryParams = () => {
+      const params = {}
+      
+      if (filters.value.employee) {
+        params.employee = filters.value.employee
+      }
+      if (filters.value.site) {
+        params.site = filters.value.site
+      }
+      if (filters.value.type) {
+        params.anomaly_type = filters.value.type
+      }
+      if (filters.value.status) {
+        params.status = filters.value.status
+      }
+      if (filters.value.startDate) {
+        params.start_date = filters.value.startDate
+      }
+      if (filters.value.endDate) {
+        params.end_date = filters.value.endDate
+      }
+      
+      return params
+    }
+    
+    const applyFilters = async () => {
+      loading.value = true
+      error.value = null
+      try {
+        const params = buildQueryParams()
+        const response = await timesheetsApi.getAnomalies(params)
+        if (response.data?.results) {
+          anomalies.value = response.data.results
+        } else if (Array.isArray(response.data)) {
+          anomalies.value = response.data
+        } else {
+          console.error('Format de réponse inattendu pour les anomalies:', response.data)
+          anomalies.value = []
+          error.value = 'Format de données incorrect'
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des anomalies:', error)
+        anomalies.value = []
+        error.value = 'Erreur lors du chargement des données'
+      } finally {
+        loading.value = false
+      }
     }
     
     const resetFilters = () => {
@@ -298,11 +366,83 @@ export default {
       applyFilters()
     }
     
+    const scanForAnomalies = async () => {
+      try {
+        scanning.value = true
+        const params = buildQueryParams()
+        const response = await timesheetsApi.scanAnomalies(params)
+        
+        // Afficher une notification de succès
+        if (response.data?.anomalies_count !== undefined) {
+          const count = response.data.anomalies_count
+          const message = count > 0 
+            ? `${count} anomalie${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''} et créée${count > 1 ? 's' : ''}.`
+            : 'Aucune nouvelle anomalie détectée.'
+          
+          // Utiliser le système de notification de Vuetify
+          const { $toast } = useToast()
+          $toast.success(message, {
+            position: 'top-right',
+            duration: 5000,
+            dismissible: true
+          })
+        }
+        
+        // Recharger les anomalies après le scan
+        await applyFilters()
+      } catch (error) {
+        console.error('Erreur lors du scan des anomalies:', error)
+        
+        // Afficher une notification d'erreur
+        const { $toast } = useToast()
+        $toast.error(
+          error.response?.data?.error || 'Une erreur est survenue lors du scan des anomalies.',
+          {
+            position: 'top-right',
+            duration: 5000,
+            dismissible: true
+          }
+        )
+      } finally {
+        scanning.value = false
+      }
+    }
+    
+    // Recherche d'employés
+    const searchEmployees = async (query) => {
+      if (!query || query.length < 2) {
+        employeeOptions.value = []
+        return
+      }
+
+      try {
+        searchingEmployees.value = true
+        const response = await usersApi.searchUsers(query)
+        if (response.data?.results) {
+          employeeOptions.value = response.data.results.map(user => ({
+            text: `${user.first_name} ${user.last_name}`,
+            value: user.id
+          }))
+        }
+      } catch (error) {
+        console.error('Erreur lors de la recherche des employés:', error)
+        employeeOptions.value = []
+      } finally {
+        searchingEmployees.value = false
+      }
+    }
+    
     // Charger les données initiales
+    loadSites()
     applyFilters()
     
     return {
       loading,
+      scanning,
+      error,
+      searchingEmployees,
+      employeeSearch,
+      employeeOptions,
       headers,
       filters,
       siteOptions,
@@ -314,7 +454,9 @@ export default {
       resolveAnomaly,
       ignoreAnomaly,
       applyFilters,
-      resetFilters
+      resetFilters,
+      scanForAnomalies,
+      searchEmployees
     }
   }
 }

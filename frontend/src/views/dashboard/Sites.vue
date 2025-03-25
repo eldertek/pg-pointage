@@ -25,6 +25,21 @@
           class="elevation-1"
           @update:options="handleTableUpdate"
         >
+          <template #[`item.address`]="{ item }">
+            {{ item.address }}<br>
+            {{ item.postal_code }} {{ item.city }}<br>
+            {{ item.country }}
+          </template>
+
+          <template #[`item.status`]="{ item }">
+            <v-chip
+              :color="item.is_active ? 'success' : 'error'"
+              size="small"
+            >
+              {{ item.is_active ? 'Actif' : 'Inactif' }}
+            </v-chip>
+          </template>
+
           <template #[`item.actions`]="{ item }">
             <v-btn
               icon
@@ -68,7 +83,6 @@
         <v-tabs v-model="activeTab" color="#00346E">
           <v-tab value="details">Informations</v-tab>
           <v-tab value="schedules">Plannings</v-tab>
-          <v-tab value="employees">Employés</v-tab>
         </v-tabs>
 
         <v-card-text>
@@ -80,49 +94,205 @@
                   <v-list>
                     <v-list-item>
                       <template #prepend>
+                        <v-icon>mdi-domain</v-icon>
+                      </template>
+                      <v-list-item-title>Nom</v-list-item-title>
+                      <v-list-item-subtitle>{{ selectedSite.name }}</v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <template #prepend>
                         <v-icon>mdi-map-marker</v-icon>
                       </template>
                       <v-list-item-title>Adresse</v-list-item-title>
-                      <v-list-item-subtitle>{{ selectedSite.address }}</v-list-item-subtitle>
+                      <v-list-item-subtitle class="white-space-pre-wrap">
+                        {{ selectedSite.address }}
+                        {{ selectedSite.postal_code }} {{ selectedSite.city }}
+                        {{ selectedSite.country }}
+                      </v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item>
                       <template #prepend>
                         <v-icon>mdi-nfc</v-icon>
                       </template>
                       <v-list-item-title>ID NFC</v-list-item-title>
-                      <v-list-item-subtitle>{{ selectedSite.nfcId }}</v-list-item-subtitle>
+                      <v-list-item-subtitle>{{ selectedSite.nfc_id }}</v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item>
                       <template #prepend>
-                        <v-icon>mdi-domain</v-icon>
+                        <v-icon>mdi-qrcode</v-icon>
+                      </template>
+                      <v-list-item-title>QR Code</v-list-item-title>
+                      <v-list-item-subtitle>
+                        <v-btn
+                          color="#00346E"
+                          size="small"
+                          prepend-icon="mdi-download"
+                          @click="downloadQRCode(selectedSite)"
+                          :loading="!selectedSite.qr_code"
+                        >
+                          Télécharger
+                        </v-btn>
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <template #prepend>
+                        <v-icon>mdi-office-building</v-icon>
                       </template>
                       <v-list-item-title>Organisation</v-list-item-title>
                       <v-list-item-subtitle>{{ selectedSite.organization }}</v-list-item-subtitle>
                     </v-list-item>
-                  </v-list>
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-list>
                     <v-list-item>
                       <template #prepend>
                         <v-icon>mdi-clock-alert</v-icon>
                       </template>
                       <v-list-item-title>Marge de retard</v-list-item-title>
-                      <v-list-item-subtitle>{{ selectedSite.lateMargin }} minutes</v-list-item-subtitle>
+                      <v-list-item-subtitle>{{ selectedSite.late_margin }} minutes</v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item>
                       <template #prepend>
                         <v-icon>mdi-clock-check</v-icon>
                       </template>
                       <v-list-item-title>Marge de départ anticipé</v-list-item-title>
-                      <v-list-item-subtitle>{{ selectedSite.earlyDepartureMargin }} minutes</v-list-item-subtitle>
+                      <v-list-item-subtitle>{{ selectedSite.early_departure_margin }} minutes</v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <template #prepend>
+                        <v-icon>mdi-clock-question</v-icon>
+                      </template>
+                      <v-list-item-title>Marge pour cas ambigus</v-list-item-title>
+                      <v-list-item-subtitle>{{ selectedSite.ambiguous_margin }} minutes</v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item>
                       <template #prepend>
                         <v-icon>mdi-email-alert</v-icon>
                       </template>
                       <v-list-item-title>Emails pour les alertes</v-list-item-title>
-                      <v-list-item-subtitle>{{ selectedSite.alertEmails }}</v-list-item-subtitle>
+                      <v-list-item-subtitle>{{ selectedSite.alert_emails }}</v-list-item-subtitle>
+                    </v-list-item>
+                  </v-list>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-card class="qr-code-card" variant="outlined">
+                    <v-card-title class="d-flex align-center">
+                      <v-icon icon="mdi-qrcode" class="mr-2"></v-icon>
+                      QR Code du site
+                    </v-card-title>
+                    <v-card-text class="text-center">
+                      <div v-if="selectedSite.qr_code" class="qr-code-container">
+                        <v-img
+                          :src="selectedSite.qr_code"
+                          max-width="250"
+                          class="mx-auto mb-4"
+                        ></v-img>
+                        <v-btn
+                          color="#00346E"
+                          prepend-icon="mdi-download"
+                          @click="downloadQRCode(selectedSite)"
+                        >
+                          Télécharger
+                        </v-btn>
+                        <v-btn
+                          color="#F78C48"
+                          prepend-icon="mdi-refresh"
+                          class="ml-2"
+                          @click="generateQRCode(selectedSite)"
+                        >
+                          Régénérer
+                        </v-btn>
+                      </div>
+                      <v-progress-circular
+                        v-else
+                        indeterminate
+                        color="primary"
+                      ></v-progress-circular>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+                <v-col cols="12">
+                  <v-divider class="my-4"></v-divider>
+                  <h3 class="text-h6 mb-4">Paramètres de géolocalisation</h3>
+                  <v-list>
+                    <v-list-item>
+                      <template #prepend>
+                        <v-icon>mdi-map-marker-radius</v-icon>
+                      </template>
+                      <v-list-item-title>Géolocalisation requise</v-list-item-title>
+                      <v-list-item-subtitle>
+                        <v-chip
+                          :color="selectedSite.require_geolocation ? 'success' : 'error'"
+                          size="small"
+                        >
+                          {{ selectedSite.require_geolocation ? 'Oui' : 'Non' }}
+                        </v-chip>
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item v-if="selectedSite.require_geolocation">
+                      <template #prepend>
+                        <v-icon>mdi-radius</v-icon>
+                      </template>
+                      <v-list-item-title>Rayon de géolocalisation</v-list-item-title>
+                      <v-list-item-subtitle>{{ selectedSite.geolocation_radius }} mètres</v-list-item-subtitle>
+                    </v-list-item>
+                  </v-list>
+                </v-col>
+                <v-col cols="12">
+                  <v-divider class="my-4"></v-divider>
+                  <h3 class="text-h6 mb-4">Paramètres de synchronisation</h3>
+                  <v-list>
+                    <v-list-item>
+                      <template #prepend>
+                        <v-icon>mdi-wifi-off</v-icon>
+                      </template>
+                      <v-list-item-title>Mode hors ligne autorisé</v-list-item-title>
+                      <v-list-item-subtitle>
+                        <v-chip
+                          :color="selectedSite.allow_offline_mode ? 'success' : 'error'"
+                          size="small"
+                        >
+                          {{ selectedSite.allow_offline_mode ? 'Oui' : 'Non' }}
+                        </v-chip>
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item v-if="selectedSite.allow_offline_mode">
+                      <template #prepend>
+                        <v-icon>mdi-timer-sand</v-icon>
+                      </template>
+                      <v-list-item-title>Durée maximale hors ligne</v-list-item-title>
+                      <v-list-item-subtitle>{{ selectedSite.max_offline_duration }} heures</v-list-item-subtitle>
+                    </v-list-item>
+                  </v-list>
+                </v-col>
+                <v-col cols="12">
+                  <v-divider class="my-4"></v-divider>
+                  <h3 class="text-h6 mb-4">Informations système</h3>
+                  <v-list>
+                    <v-list-item>
+                      <template #prepend>
+                        <v-icon>mdi-calendar-plus</v-icon>
+                      </template>
+                      <v-list-item-title>Créé le</v-list-item-title>
+                      <v-list-item-subtitle>{{ new Date(selectedSite.created_at).toLocaleString() }}</v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <template #prepend>
+                        <v-icon>mdi-calendar-edit</v-icon>
+                      </template>
+                      <v-list-item-title>Mis à jour le</v-list-item-title>
+                      <v-list-item-subtitle>{{ new Date(selectedSite.updated_at).toLocaleString() }}</v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <template #prepend>
+                        <v-icon>mdi-check-circle</v-icon>
+                      </template>
+                      <v-list-item-title>Statut</v-list-item-title>
+                      <v-list-item-subtitle>
+                        <v-chip
+                          :color="selectedSite.is_active ? 'success' : 'error'"
+                          size="small"
+                        >
+                          {{ selectedSite.is_active ? 'Actif' : 'Inactif' }}
+                        </v-chip>
+                      </v-list-item-subtitle>
                     </v-list-item>
                   </v-list>
                 </v-col>
@@ -133,7 +303,7 @@
             <v-window-item value="schedules">
               <div class="d-flex justify-space-between align-center mb-4">
                 <div></div>
-                <v-btn color="#00346E" prepend-icon="mdi-plus" @click="showScheduleDialog = true">
+                <v-btn color="#00346E" prepend-icon="mdi-plus" @click="showCreateScheduleDialog">
                   Ajouter un planning
                 </v-btn>
               </div>
@@ -142,6 +312,8 @@
                 :items="selectedSite.schedules || []"
                 :loading="loadingSchedules"
                 :no-data-text="'Aucun planning trouvé'"
+                :items-per-page="-1"
+                hide-default-footer
               >
                 <template #[`item.type`]="{ item }">
                   <v-chip
@@ -150,6 +322,30 @@
                   >
                     {{ item.schedule_type === 'FIXED' ? 'Fixe (gardien)' : 'Fréquence (nettoyage)' }}
                   </v-chip>
+                </template>
+                <template #[`item.employees`]="{ item }">
+                  <div class="d-flex align-center">
+                    <div v-if="item.assigned_employees && item.assigned_employees.length > 0">
+                      <v-chip
+                        v-for="employee in item.assigned_employees"
+                        :key="employee.id"
+                        class="mr-1 mb-1"
+                        closable
+                        @click:close="unassignEmployeeFromSchedule(item.id, employee.id)"
+                      >
+                        {{ employee.employee_name }}
+                      </v-chip>
+                    </div>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="#00346E"
+                      @click="showAssignEmployeeDialog(item)"
+                    >
+                      <v-icon>mdi-account-plus</v-icon>
+                    </v-btn>
+                  </div>
                 </template>
                 <template #[`item.actions`]="{ item }">
                   <v-btn
@@ -177,59 +373,6 @@
                     @click="deleteSchedule(item)"
                   >
                     <v-icon>mdi-delete</v-icon>
-                  </v-btn>
-                </template>
-              </v-data-table>
-            </v-window-item>
-
-            <!-- Onglet Employés -->
-            <v-window-item value="employees">
-              <div class="d-flex justify-space-between align-center mb-4">
-                <div></div>
-                <v-btn color="#00346E" prepend-icon="mdi-plus" @click="showEmployeeDialog = true">
-                  Assigner un employé
-                </v-btn>
-              </div>
-              <v-data-table
-                :headers="employeeHeaders"
-                :items="siteEmployees"
-                :loading="loadingEmployees"
-                :no-data-text="'Aucun employé trouvé'"
-              >
-                <template #[`item.status`]="{ item }">
-                  <v-chip
-                    :color="item.is_active ? 'success' : 'error'"
-                    size="small"
-                  >
-                    {{ item.is_active ? 'Actif' : 'Inactif' }}
-                  </v-chip>
-                </template>
-                <template #[`item.actions`]="{ item }">
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    @click="viewEmployeeDetails(item)"
-                  >
-                    <v-icon>mdi-eye</v-icon>
-                  </v-btn>
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="#00346E"
-                    @click="editEmployee(item)"
-                  >
-                    <v-icon>mdi-pencil</v-icon>
-                  </v-btn>
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="#F78C48"
-                    @click="unassignEmployee(item)"
-                  >
-                    <v-icon>mdi-account-remove</v-icon>
                   </v-btn>
                 </template>
               </v-data-table>
@@ -309,27 +452,27 @@
                   :rules="[v => !!v || 'Le pays est requis']"
                 ></v-text-field>
               </v-col>
-              <v-col cols="12" md="6">
+              <v-col cols="12" md="4">
                 <v-text-field
-                  v-model="siteForm.lateMargin"
+                  v-model="siteForm.late_margin"
                   label="Marge de retard (minutes)"
                   type="number"
                   required
                   :rules="[v => !!v || 'La marge de retard est requise']"
                 ></v-text-field>
               </v-col>
-              <v-col cols="12" md="6">
+              <v-col cols="12" md="4">
                 <v-text-field
-                  v-model="siteForm.earlyDepartureMargin"
+                  v-model="siteForm.early_departure_margin"
                   label="Marge de départ anticipé (minutes)"
                   type="number"
                   required
                   :rules="[v => !!v || 'La marge de départ anticipé est requise']"
                 ></v-text-field>
               </v-col>
-              <v-col cols="12" md="6">
+              <v-col cols="12" md="4">
                 <v-text-field
-                  v-model="siteForm.ambiguousMargin"
+                  v-model="siteForm.ambiguous_margin"
                   label="Marge pour cas ambigus (minutes)"
                   type="number"
                   required
@@ -338,7 +481,7 @@
               </v-col>
               <v-col cols="12">
                 <v-text-field
-                  v-model="siteForm.alertEmails"
+                  v-model="siteForm.alert_emails"
                   label="Emails pour les alertes (séparés par des virgules)"
                   required
                   :rules="[
@@ -361,13 +504,13 @@
               <v-col cols="12">
                 <v-divider class="mb-3">Paramètres de géolocalisation</v-divider>
                 <v-switch
-                  v-model="siteForm.requireGeolocation"
+                  v-model="siteForm.require_geolocation"
                   label="Géolocalisation requise"
                   color="primary"
                 ></v-switch>
                 <v-text-field
-                  v-if="siteForm.requireGeolocation"
-                  v-model="siteForm.geolocationRadius"
+                  v-if="siteForm.require_geolocation"
+                  v-model="siteForm.geolocation_radius"
                   label="Rayon de géolocalisation (mètres)"
                   type="number"
                   required
@@ -377,18 +520,26 @@
               <v-col cols="12">
                 <v-divider class="mb-3">Paramètres de synchronisation</v-divider>
                 <v-switch
-                  v-model="siteForm.allowOfflineMode"
+                  v-model="siteForm.allow_offline_mode"
                   label="Autoriser le mode hors ligne"
                   color="primary"
                 ></v-switch>
                 <v-text-field
-                  v-if="siteForm.allowOfflineMode"
-                  v-model="siteForm.maxOfflineDuration"
+                  v-if="siteForm.allow_offline_mode"
+                  v-model="siteForm.max_offline_duration"
                   label="Durée maximale hors ligne (heures)"
                   type="number"
                   required
                   :rules="[v => !!v || 'La durée maximale hors ligne est requise']"
                 ></v-text-field>
+              </v-col>
+              <v-col cols="12">
+                <v-divider class="mb-3">Statut du site</v-divider>
+                <v-switch
+                  v-model="siteForm.is_active"
+                  label="Site actif"
+                  color="success"
+                ></v-switch>
               </v-col>
             </v-row>
           </v-form>
@@ -401,12 +552,305 @@
       </v-card>
     </v-dialog>
 
-    <!-- Dialogs pour les plannings et employés -->
-    <v-dialog v-model="showScheduleDialog" max-width="800px">
-      <!-- Contenu du dialog de planning -->
+    <!-- Dialog pour les plannings -->
+    <v-dialog v-model="showScheduleDialog" max-width="800px" persistent>
+      <v-card>
+        <v-card-title class="d-flex justify-space-between align-center">
+          <span>{{ selectedSchedule ? 'Modifier le planning' : 'Nouveau planning' }}</span>
+          <v-btn icon="mdi-close" variant="text" @click="closeScheduleDialog"></v-btn>
+        </v-card-title>
+
+        <v-card-text>
+          <v-form ref="scheduleFormRef" @submit.prevent>
+            <v-container>
+              <v-row>
+                <!-- Informations de base -->
+                <v-col cols="12">
+                  <v-text-field
+                    v-model="scheduleForm.name"
+                    label="Nom du planning*"
+                    :rules="[v => !!v || 'Le nom est requis']"
+                    hide-details="auto"
+                  ></v-text-field>
+                </v-col>
+
+                <v-col cols="12">
+                  <v-radio-group
+                    v-model="scheduleForm.schedule_type"
+                    label="Type de planning*"
+                    :rules="[v => !!v || 'Le type est requis']"
+                    hide-details="auto"
+                  >
+                    <v-radio
+                      label="Fixe (gardien)"
+                      value="FIXED"
+                      color="#00346E"
+                    ></v-radio>
+                    <v-radio
+                      label="Fréquence (nettoyage)"
+                      value="FREQUENCY"
+                      color="#F78C48"
+                    ></v-radio>
+                  </v-radio-group>
+                </v-col>
+
+                <!-- Paramètres spécifiques au type FIXED (gardien) -->
+                <template v-if="scheduleForm.schedule_type === 'FIXED'">
+                  <!-- Heures -->
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="scheduleForm.min_daily_hours"
+                      label="Heures minimales par jour*"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      :rules="[v => !!v || 'Les heures minimales par jour sont requises']"
+                      hide-details="auto"
+                    ></v-text-field>
+                  </v-col>
+
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="scheduleForm.min_weekly_hours"
+                      label="Heures minimales par semaine*"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      :rules="[v => !!v || 'Les heures minimales par semaine sont requises']"
+                      hide-details="auto"
+                    ></v-text-field>
+                  </v-col>
+
+                  <!-- Paramètres de pointage pour FIXED -->
+                  <v-col cols="12">
+                    <v-card variant="outlined" class="pa-4">
+                      <div class="text-subtitle-1 mb-4">Paramètres de pointage</div>
+                      <v-row>
+                        <v-col cols="12" md="6">
+                          <v-switch
+                            v-model="scheduleForm.allow_early_arrival"
+                            label="Autoriser les arrivées en avance"
+                            color="#00346E"
+                            hide-details
+                          ></v-switch>
+                        </v-col>
+
+                        <v-col cols="12" md="6">
+                          <v-switch
+                            v-model="scheduleForm.allow_late_departure"
+                            label="Autoriser les départs en retard"
+                            color="#00346E"
+                            hide-details
+                          ></v-switch>
+                        </v-col>
+
+                        <v-col cols="12" md="6" v-if="scheduleForm.allow_early_arrival">
+                          <v-text-field
+                            v-model="scheduleForm.early_arrival_limit"
+                            label="Limite d'arrivée en avance (minutes)"
+                            type="number"
+                            min="0"
+                            :rules="[v => !!v || 'La limite d\'arrivée en avance est requise']"
+                            hide-details="auto"
+                          ></v-text-field>
+                        </v-col>
+
+                        <v-col cols="12" md="6" v-if="scheduleForm.allow_late_departure">
+                          <v-text-field
+                            v-model="scheduleForm.late_departure_limit"
+                            label="Limite de départ en retard (minutes)"
+                            type="number"
+                            min="0"
+                            :rules="[v => !!v || 'La limite de départ en retard est requise']"
+                            hide-details="auto"
+                          ></v-text-field>
+                        </v-col>
+                      </v-row>
+                    </v-card>
+                  </v-col>
+
+                  <!-- Paramètres de pause pour FIXED -->
+                  <v-col cols="12">
+                    <v-card variant="outlined" class="pa-4">
+                      <div class="text-subtitle-1 mb-4">Paramètres de pause</div>
+                      <v-row>
+                        <v-col cols="12" md="4">
+                          <v-text-field
+                            v-model="scheduleForm.break_duration"
+                            label="Durée de la pause (minutes)*"
+                            type="number"
+                            min="0"
+                            :rules="[v => !!v || 'La durée de la pause est requise']"
+                            hide-details="auto"
+                          ></v-text-field>
+                        </v-col>
+
+                        <v-col cols="12" md="4">
+                          <v-text-field
+                            v-model="scheduleForm.min_break_start"
+                            label="Début de pause min.*"
+                            type="time"
+                            :rules="[v => !!v || 'L\'heure de début de pause est requise']"
+                            hide-details="auto"
+                          ></v-text-field>
+                        </v-col>
+
+                        <v-col cols="12" md="4">
+                          <v-text-field
+                            v-model="scheduleForm.max_break_end"
+                            label="Fin de pause max.*"
+                            type="time"
+                            :rules="[v => !!v || 'L\'heure de fin de pause est requise']"
+                            hide-details="auto"
+                          ></v-text-field>
+                        </v-col>
+                      </v-row>
+                    </v-card>
+                  </v-col>
+                </template>
+
+                <!-- Paramètres spécifiques au type FREQUENCY (nettoyage) -->
+                <template v-else>
+                  <v-col cols="12">
+                    <v-card variant="outlined" class="pa-4">
+                      <div class="text-subtitle-1 mb-4">Paramètres de fréquence</div>
+                      <v-row>
+                        <v-col cols="12" md="6">
+                          <v-text-field
+                            v-model="scheduleForm.frequency_hours"
+                            label="Nombre d'heures par passage*"
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            :rules="[v => !!v || 'Le nombre d\'heures par passage est requis']"
+                            hide-details="auto"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                          <v-select
+                            v-model="scheduleForm.frequency_type"
+                            :items="[
+                              { text: 'Par jour', value: 'DAILY' },
+                              { text: 'Par semaine', value: 'WEEKLY' },
+                              { text: 'Par mois', value: 'MONTHLY' }
+                            ]"
+                            label="Type de fréquence*"
+                            :rules="[v => !!v || 'Le type de fréquence est requis']"
+                            hide-details="auto"
+                          ></v-select>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                          <v-text-field
+                            v-model="scheduleForm.frequency_count"
+                            label="Nombre de passages*"
+                            type="number"
+                            min="1"
+                            :rules="[v => !!v || 'Le nombre de passages est requis']"
+                            hide-details="auto"
+                          ></v-text-field>
+                        </v-col>
+                        <v-col cols="12" md="6">
+                          <v-text-field
+                            v-model="scheduleForm.time_window"
+                            label="Plage horaire (heures)*"
+                            type="number"
+                            min="1"
+                            max="24"
+                            :rules="[
+                              v => !!v || 'La plage horaire est requise',
+                              v => v <= 24 || 'La plage horaire ne peut pas dépasser 24 heures'
+                            ]"
+                            hide-details="auto"
+                          ></v-text-field>
+                        </v-col>
+                      </v-row>
+                    </v-card>
+                  </v-col>
+                </template>
+
+                <!-- Horaires par jour - uniquement pour le type FIXED -->
+                <v-col cols="12" v-if="scheduleForm.schedule_type === 'FIXED'">
+                  <v-card variant="outlined" class="pa-4">
+                    <div class="text-subtitle-1 mb-4">Horaires par jour</div>
+                    <v-row v-for="(day, index) in weekDays" :key="day.value">
+                      <v-col cols="12" md="3">
+                        <v-switch
+                          v-model="scheduleForm.days[index].enabled"
+                          :label="day.text"
+                          color="#00346E"
+                          hide-details
+                        ></v-switch>
+                      </v-col>
+                      <v-col cols="12" md="9" v-if="scheduleForm.days[index].enabled">
+                        <v-row>
+                          <v-col cols="12" md="6">
+                            <div class="d-flex align-center">
+                              <v-text-field
+                                v-model="scheduleForm.days[index].start_time_1"
+                                label="Début matin"
+                                type="time"
+                                hide-details="auto"
+                                class="mr-2"
+                              ></v-text-field>
+                              <v-text-field
+                                v-model="scheduleForm.days[index].end_time_1"
+                                label="Fin matin"
+                                type="time"
+                                hide-details="auto"
+                              ></v-text-field>
+                            </div>
+                          </v-col>
+                          <v-col cols="12" md="6">
+                            <div class="d-flex align-center">
+                              <v-text-field
+                                v-model="scheduleForm.days[index].start_time_2"
+                                label="Début après-midi"
+                                type="time"
+                                hide-details="auto"
+                                class="mr-2"
+                              ></v-text-field>
+                              <v-text-field
+                                v-model="scheduleForm.days[index].end_time_2"
+                                label="Fin après-midi"
+                                type="time"
+                                hide-details="auto"
+                              ></v-text-field>
+                            </div>
+                          </v-col>
+                        </v-row>
+                      </v-col>
+                    </v-row>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-form>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="error"
+            variant="text"
+            @click="closeScheduleDialog"
+            :disabled="saving"
+          >
+            Annuler
+          </v-btn>
+          <v-btn
+            color="primary"
+            @click="saveSchedule"
+            :loading="saving"
+            :disabled="!isScheduleFormValid"
+          >
+            {{ selectedSchedule ? 'Modifier' : 'Créer' }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
     </v-dialog>
 
-    <v-dialog v-model="showEmployeeDialog" max-width="600px">
+    <!-- Dialog pour assigner un employé -->
+    <v-dialog v-model="showAssignDialog" max-width="500px">
       <v-card>
         <v-card-title>Assigner un employé</v-card-title>
         <v-card-text>
@@ -419,18 +863,7 @@
                 item-title="formatted_name"
                 item-value="id"
                 :rules="[v => !!v || 'L\'employé est requis']"
-                @update:model-value="val => console.log('Employé sélectionné:', val)"
-              ></v-select>
-            </v-col>
-            <v-col cols="12">
-              <v-select
-                v-model="employeeForm.schedule"
-                :items="selectedSite.schedules || []"
-                label="Planning"
-                item-title="name"
-                item-value="id"
-                :rules="[v => !!v || 'Le planning est requis']"
-                @update:model-value="val => console.log('Planning sélectionné:', val)"
+                :no-data-text="'Aucun employé disponible'"
               ></v-select>
             </v-col>
           </v-row>
@@ -442,29 +875,74 @@
             color="#00346E" 
             @click="assignEmployee" 
             :loading="saving"
-            :disabled="!employeeForm.employee || !employeeForm.schedule"
+            :disabled="!employeeForm.employee"
           >
             Assigner
           </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Dialog pour le calendrier -->
+    <v-dialog v-model="showCalendarDialog" max-width="1200px">
+      <v-card>
+        <v-card-title class="d-flex justify-space-between align-center">
+          <span>Calendrier du planning: {{ selectedScheduleForCalendar?.name }}</span>
+          <v-btn icon="mdi-close" variant="text" @click="showCalendarDialog = false"></v-btn>
+        </v-card-title>
+        <v-card-text>
+          <schedule-calendar
+            v-if="selectedScheduleForCalendar"
+            :schedule="selectedScheduleForCalendar"
+          ></schedule-calendar>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
-import { sitesApi } from '@/services/api'
+import { ref, onMounted, watch, computed } from 'vue'
+import { sitesApi, schedulesApi } from '@/services/api'
+import ScheduleCalendar from '@/components/ScheduleCalendar.vue'
+import QRCode from 'qrcode'
 
 export default {
   name: 'SitesView',
+  components: {
+    ScheduleCalendar
+  },
   setup() {
+    // Jours de la semaine
+    const weekDays = [
+      { text: 'Lundi', value: 1 },
+      { text: 'Mardi', value: 2 },
+      { text: 'Mercredi', value: 3 },
+      { text: 'Jeudi', value: 4 },
+      { text: 'Vendredi', value: 5 },
+      { text: 'Samedi', value: 6 },
+      { text: 'Dimanche', value: 0 }
+    ]
+
+    // Initialisation du formulaire de planning
+    const initScheduleDays = () => {
+      return weekDays.map(() => ({
+        enabled: false,
+        start_time_1: '08:00',
+        end_time_1: '12:00',
+        start_time_2: '14:00',
+        end_time_2: '18:00'
+      }))
+    }
+
     // États généraux
     const loading = ref(true)
     const saving = ref(false)
     const showCreateDialog = ref(false)
     const showScheduleDialog = ref(false)
     const showEmployeeDialog = ref(false)
+    const showAssignDialog = ref(false)
+    const selectedSchedule = ref(null)
     const form = ref(null)
     const editedItem = ref(null)
     const organizations = ref([])
@@ -479,6 +957,27 @@ export default {
       schedule: null
     })
     const employeeFormRef = ref(null)
+    const scheduleForm = ref({
+      name: '',
+      schedule_type: 'FIXED',
+      min_daily_hours: 0,
+      min_weekly_hours: 0,
+      allow_early_arrival: false,
+      allow_late_departure: false,
+      early_arrival_limit: 30,
+      late_departure_limit: 30,
+      break_duration: 60,
+      min_break_start: '09:00',
+      max_break_end: '17:00',
+      days: initScheduleDays(),
+      frequency_hours: 0,
+      frequency_type: 'DAILY',
+      frequency_count: 1,
+      time_window: 8
+    })
+    const scheduleFormRef = ref(null)
+    const showCalendarDialog = ref(false)
+    const selectedScheduleForCalendar = ref(null)
 
     // Formatage des données
     const formatEmployeeName = (employee) => {
@@ -490,8 +989,8 @@ export default {
     const headers = ref([
       { title: 'Nom', align: 'start', key: 'name' },
       { title: 'Adresse', align: 'start', key: 'address' },
+      { title: 'ID NFC', align: 'start', key: 'nfc_id' },
       { title: 'Franchise', align: 'start', key: 'organization' },
-      { title: 'Employés', align: 'center', key: 'employeesCount' },
       { title: 'Statut', align: 'center', key: 'status' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }
     ])
@@ -499,15 +998,7 @@ export default {
     const scheduleHeaders = ref([
       { title: 'Nom', align: 'start', key: 'name' },
       { title: 'Type', align: 'center', key: 'type' },
-      { title: 'Employés assignés', align: 'center', key: 'employeesCount' },
-      { title: 'Actions', align: 'end', key: 'actions', sortable: false }
-    ])
-
-    const employeeHeaders = ref([
-      { title: 'Nom', align: 'start', key: 'name' },
-      { title: 'Email', align: 'start', key: 'email' },
-      { title: 'Téléphone', align: 'start', key: 'phone' },
-      { title: 'Statut', align: 'center', key: 'status' },
+      { title: 'Employés', align: 'start', key: 'employees' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }
     ])
 
@@ -532,14 +1023,15 @@ export default {
       country: 'France',
       nfcId: '',
       organization: null,
-      lateMargin: 15,
-      earlyDepartureMargin: 15,
-      ambiguousMargin: 20,
-      alertEmails: '',
-      requireGeolocation: true,
-      geolocationRadius: 100,
-      allowOfflineMode: true,
-      maxOfflineDuration: 24
+      late_margin: 15,
+      early_departure_margin: 15,
+      ambiguous_margin: 20,
+      alert_emails: '',
+      require_geolocation: true,
+      geolocation_radius: 100,
+      allow_offline_mode: true,
+      max_offline_duration: 24,
+      is_active: true
     })
 
     // Chargement des données
@@ -574,12 +1066,18 @@ export default {
       try {
         loadingEmployees.value = true
         // Appel API pour récupérer tous les employés disponibles
-        const response = await sitesApi.getAvailableEmployees()
-        // Ajouter le nom formaté à chaque employé
-        availableEmployees.value = response.data.results.map(employee => ({
-          ...employee,
-          formatted_name: formatEmployeeName(employee)
-        }))
+        const response = await schedulesApi.getAvailableEmployees()
+        
+        // Filtrer les employés déjà assignés au planning sélectionné
+        const assignedEmployeeIds = selectedSchedule.value.assigned_employees?.map(emp => emp.employee) || []
+        
+        // Ajouter le nom formaté à chaque employé et filtrer les employés déjà assignés
+        availableEmployees.value = response.data.results
+          .filter(employee => !assignedEmployeeIds.includes(employee.id))
+          .map(employee => ({
+            ...employee,
+            formatted_name: formatEmployeeName(employee)
+          }))
       } catch (error) {
         console.error('Erreur lors du chargement des employés disponibles:', error)
       } finally {
@@ -588,33 +1086,35 @@ export default {
     }
 
     // Actions sur les sites
-    const viewSiteDetails = (site) => {
+    const viewSiteDetails = async (site) => {
       selectedSite.value = site
       activeTab.value = 'details'
-      if (site.id) {
-        fetchSiteEmployees(site.id)
-        fetchAvailableEmployees()
+      
+      // Générer automatiquement le QR code si non existant
+      if (!site.qr_code) {
+        await generateQRCode(site)
       }
     }
 
     const editSite = (site) => {
       editedItem.value = site
       siteForm.value = {
-        name: site.name,
-        address: site.address,
-        postal_code: site.postal_code,
-        city: site.city,
+        name: site.name || '',
+        address: site.address || '',
+        postal_code: site.postal_code || '',
+        city: site.city || '',
         country: site.country || 'France',
         nfcId: site.nfc_id?.replace('PG', '') || '',
-        organization: site.organization,
-        lateMargin: site.late_margin || 15,
-        earlyDepartureMargin: site.early_departure_margin || 15,
-        ambiguousMargin: site.ambiguous_margin || 20,
-        alertEmails: site.alert_emails || '',
-        requireGeolocation: site.require_geolocation ?? true,
-        geolocationRadius: site.geolocation_radius || 100,
-        allowOfflineMode: site.allow_offline_mode ?? true,
-        maxOfflineDuration: site.max_offline_duration || 24
+        organization: site.organization || null,
+        late_margin: site.late_margin || 15,
+        early_departure_margin: site.early_departure_margin || 15,
+        ambiguous_margin: site.ambiguous_margin || 20,
+        alert_emails: site.alert_emails || '',
+        require_geolocation: site.require_geolocation ?? true,
+        geolocation_radius: site.geolocation_radius || 100,
+        allow_offline_mode: site.allow_offline_mode ?? true,
+        max_offline_duration: site.max_offline_duration || 24,
+        is_active: site.is_active ?? true
       }
       showCreateDialog.value = true
     }
@@ -626,8 +1126,24 @@ export default {
 
       saving.value = true
       try {
-        const siteData = { ...siteForm.value }
-        siteData.nfcId = 'PG' + siteData.nfcId
+        const siteData = {
+          name: siteForm.value.name,
+          address: siteForm.value.address,
+          postal_code: siteForm.value.postal_code,
+          city: siteForm.value.city,
+          country: siteForm.value.country,
+          nfc_id: 'PG' + siteForm.value.nfcId,
+          organization: siteForm.value.organization,
+          late_margin: parseInt(siteForm.value.late_margin),
+          early_departure_margin: parseInt(siteForm.value.early_departure_margin),
+          ambiguous_margin: parseInt(siteForm.value.ambiguous_margin),
+          alert_emails: siteForm.value.alert_emails,
+          require_geolocation: siteForm.value.require_geolocation,
+          geolocation_radius: parseInt(siteForm.value.geolocation_radius),
+          allow_offline_mode: siteForm.value.allow_offline_mode,
+          max_offline_duration: parseInt(siteForm.value.max_offline_duration),
+          is_active: siteForm.value.is_active
+        }
         
         if (editedItem.value) {
           await sitesApi.updateSite(editedItem.value.id, siteData)
@@ -653,12 +1169,47 @@ export default {
     }
 
     // Actions sur les plannings
+    const showCreateScheduleDialog = () => {
+      selectedSchedule.value = null
+      resetScheduleForm()
+      showScheduleDialog.value = true
+    }
+
     const viewScheduleDetails = (schedule) => {
-      // Implémenter la logique pour afficher les détails du planning
+      selectedScheduleForCalendar.value = schedule
+      showCalendarDialog.value = true
     }
 
     const editSchedule = (schedule) => {
-      // Implémenter la logique pour éditer un planning
+      selectedSchedule.value = schedule
+      scheduleForm.value = {
+        name: schedule.name,
+        schedule_type: schedule.schedule_type,
+        ...(schedule.schedule_type === 'FIXED' ? {
+          min_daily_hours: schedule.min_daily_hours || 0,
+          min_weekly_hours: schedule.min_weekly_hours || 0,
+          allow_early_arrival: schedule.allow_early_arrival || false,
+          allow_late_departure: schedule.allow_late_departure || false,
+          early_arrival_limit: schedule.early_arrival_limit || 30,
+          late_departure_limit: schedule.late_departure_limit || 30,
+          break_duration: schedule.break_duration || 60,
+          min_break_start: schedule.min_break_start || '09:00',
+          max_break_end: schedule.max_break_end || '17:00',
+          days: schedule.details ? schedule.details.map(detail => ({
+            enabled: true,
+            start_time_1: detail.start_time_1 || '08:00',
+            end_time_1: detail.end_time_1 || '12:00',
+            start_time_2: detail.start_time_2 || '14:00',
+            end_time_2: detail.end_time_2 || '18:00'
+          })) : initScheduleDays()
+        } : {
+          frequency_hours: schedule.frequency_hours || 0,
+          frequency_type: schedule.frequency_type || 'DAILY',
+          frequency_count: schedule.frequency_count || 1,
+          time_window: schedule.time_window || 8
+        })
+      }
+      showScheduleDialog.value = true
     }
 
     const deleteSchedule = async (schedule) => {
@@ -672,24 +1223,6 @@ export default {
       }
     }
 
-    // Actions sur les employés
-    const viewEmployeeDetails = (employee) => {
-      // Implémenter la logique pour afficher les détails de l'employé
-    }
-
-    const editEmployee = (employee) => {
-      // Implémenter la logique pour éditer un employé
-    }
-
-    const unassignEmployee = async (employee) => {
-      try {
-        await sitesApi.unassignEmployee(selectedSite.value.id, employee.id)
-        await fetchSiteEmployees(selectedSite.value.id)
-      } catch (error) {
-        console.error('Erreur lors de la désassignation de l\'employé:', error)
-      }
-    }
-
     // Utilitaires
     const handleTableUpdate = (options) => {
       const { page, itemsPerPage: newItemsPerPage } = options
@@ -699,14 +1232,14 @@ export default {
     const closeDialog = () => {
       showCreateDialog.value = false
       showScheduleDialog.value = false
-      showEmployeeDialog.value = false
+      showAssignDialog.value = false
       editedItem.value = null
-      resetForm()
-      // Réinitialiser le formulaire d'employé
+      selectedSchedule.value = null
       employeeForm.value = {
         employee: null,
         schedule: null
       }
+      resetScheduleForm()
     }
 
     const onDialogClose = (val) => {
@@ -728,14 +1261,15 @@ export default {
         country: 'France',
         nfcId: '',
         organization: null,
-        lateMargin: 15,
-        earlyDepartureMargin: 15,
-        ambiguousMargin: 20,
-        alertEmails: '',
-        requireGeolocation: true,
-        geolocationRadius: 100,
-        allowOfflineMode: true,
-        maxOfflineDuration: 24
+        late_margin: 15,
+        early_departure_margin: 15,
+        ambiguous_margin: 20,
+        alert_emails: '',
+        require_geolocation: true,
+        geolocation_radius: 100,
+        allow_offline_mode: true,
+        max_offline_duration: 24,
+        is_active: true
       }
     }
 
@@ -749,36 +1283,47 @@ export default {
       siteForm.value.nfcId = numbers.substring(0, 6)
     }
 
-    const assignEmployee = async () => {
-      console.log('Tentative d\'assignation d\'un employé:', employeeForm.value)
+    // Méthodes pour la gestion des employés
+    const showAssignEmployeeDialog = (schedule) => {
+      selectedSchedule.value = schedule
+      showAssignDialog.value = true
+      fetchAvailableEmployees()
+    }
 
-      if (!employeeForm.value.employee || !employeeForm.value.schedule) {
-        console.log('Formulaire incomplet')
-        return
+    const unassignEmployeeFromSchedule = async (scheduleId, employeeId) => {
+      if (!selectedSite.value) return
+      
+      try {
+        await schedulesApi.unassignEmployee(selectedSite.value.id, scheduleId, employeeId)
+        // Recharger les données du site pour mettre à jour la liste des employés
+        const response = await sitesApi.getSite(selectedSite.value.id)
+        selectedSite.value = response.data
+      } catch (error) {
+        console.error('Erreur lors de la désassignation de l\'employé:', error)
       }
+    }
 
-      if (!selectedSite.value?.id) {
-        console.error('ID du site non trouvé')
+    const assignEmployee = async () => {
+      if (!employeeForm.value.employee || !selectedSchedule.value || !selectedSite.value) {
+        console.log('Formulaire incomplet')
         return
       }
 
       saving.value = true
       try {
-        console.log('Envoi de la requête d\'assignation:', {
-          siteId: selectedSite.value.id,
-          scheduleId: employeeForm.value.schedule,
-          employeeId: employeeForm.value.employee
-        })
-
-        await sitesApi.assignEmployeeToSchedule(
+        await schedulesApi.assignEmployee(
           selectedSite.value.id,
-          employeeForm.value.schedule,
+          selectedSchedule.value.id,
           employeeForm.value.employee
         )
 
-        console.log('Assignation réussie')
-        await fetchSiteEmployees(selectedSite.value.id)
-        closeDialog()
+        // Recharger les données du site
+        const response = await sitesApi.getSite(selectedSite.value.id)
+        selectedSite.value = response.data
+        
+        // Fermer le dialogue et réinitialiser le formulaire
+        showAssignDialog.value = false
+        employeeForm.value.employee = null
       } catch (error) {
         console.error('Erreur lors de l\'assignation de l\'employé:', error)
         if (error.response?.data) {
@@ -787,6 +1332,144 @@ export default {
       } finally {
         saving.value = false
       }
+    }
+
+    const saveSchedule = async () => {
+      if (!scheduleFormRef.value) return
+      const { valid } = await scheduleFormRef.value.validate()
+      if (!valid || !selectedSite.value) return
+
+      saving.value = true
+      try {
+        const scheduleData = {
+          site: selectedSite.value.id,
+          name: scheduleForm.value.name,
+          schedule_type: scheduleForm.value.schedule_type,
+        }
+
+        // Ajouter les champs spécifiques selon le type de planning
+        if (scheduleForm.value.schedule_type === 'FIXED') {
+          Object.assign(scheduleData, {
+            min_daily_hours: parseFloat(scheduleForm.value.min_daily_hours) || 0,
+            min_weekly_hours: parseFloat(scheduleForm.value.min_weekly_hours) || 0,
+            allow_early_arrival: scheduleForm.value.allow_early_arrival,
+            allow_late_departure: scheduleForm.value.allow_late_departure,
+            early_arrival_limit: parseInt(scheduleForm.value.early_arrival_limit) || 30,
+            late_departure_limit: parseInt(scheduleForm.value.late_departure_limit) || 30,
+            break_duration: parseInt(scheduleForm.value.break_duration) || 60,
+            min_break_start: scheduleForm.value.min_break_start,
+            max_break_end: scheduleForm.value.max_break_end,
+            details: scheduleForm.value.days
+              .map((day, index) => day.enabled ? {
+                day_of_week: weekDays[index].value,
+                start_time_1: day.start_time_1,
+                end_time_1: day.end_time_1,
+                start_time_2: day.start_time_2,
+                end_time_2: day.end_time_2
+              } : null)
+              .filter(Boolean)
+          })
+        } else {
+          Object.assign(scheduleData, {
+            frequency_hours: parseFloat(scheduleForm.value.frequency_hours) || 0,
+            frequency_type: scheduleForm.value.frequency_type,
+            frequency_count: parseInt(scheduleForm.value.frequency_count) || 1,
+            time_window: parseInt(scheduleForm.value.time_window) || 8
+          })
+        }
+
+        console.log('Saving schedule with data:', scheduleData)
+
+        if (selectedSchedule.value?.id) {
+          await sitesApi.updateSchedule(selectedSite.value.id, selectedSchedule.value.id, scheduleData)
+        } else {
+          await sitesApi.createSchedule(selectedSite.value.id, scheduleData)
+        }
+
+        // Recharger les données du site
+        const response = await sitesApi.getSite(selectedSite.value.id)
+        selectedSite.value = response.data
+        
+        closeScheduleDialog()
+      } catch (error) {
+        console.error('Erreur lors de l\'enregistrement du planning:', error)
+      } finally {
+        saving.value = false
+      }
+    }
+
+    const resetScheduleForm = () => {
+      scheduleForm.value = {
+        name: '',
+        schedule_type: 'FIXED',
+        min_daily_hours: 0,
+        min_weekly_hours: 0,
+        allow_early_arrival: false,
+        allow_late_departure: false,
+        early_arrival_limit: 30,
+        late_departure_limit: 30,
+        break_duration: 60,
+        min_break_start: '09:00',
+        max_break_end: '17:00',
+        days: initScheduleDays(),
+        frequency_hours: 0,
+        frequency_type: 'DAILY',
+        frequency_count: 1,
+        time_window: 8
+      }
+    }
+
+    const isScheduleFormValid = computed(() => {
+      return scheduleForm.value.name && scheduleForm.value.schedule_type
+    })
+
+    const closeScheduleDialog = () => {
+      showScheduleDialog.value = false
+      selectedSchedule.value = null
+      resetScheduleForm()
+    }
+
+    // Fonctions pour la gestion des QR codes
+    const generateQRCode = async (site) => {
+      try {
+        // Créer un objet avec les données nécessaires pour le scan
+        const qrData = {
+          type: 'PG_SITE',
+          nfc_id: site.nfc_id,
+          site_id: site.id,
+          name: site.name
+        }
+
+        // Générer le QR code en base64 localement
+        const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
+          width: 300,
+          margin: 2,
+          color: {
+            dark: '#00346E',
+            light: '#FFFFFF'
+          }
+        })
+
+        // Mettre à jour le QR code localement sans l'envoyer au serveur
+        selectedSite.value = {
+          ...selectedSite.value,
+          qr_code: qrCodeDataUrl
+        }
+      } catch (error) {
+        console.error('Erreur lors de la génération du QR code:', error)
+      }
+    }
+
+    const downloadQRCode = (site) => {
+      if (!site.qr_code) return
+
+      // Créer un lien temporaire pour le téléchargement
+      const link = document.createElement('a')
+      link.href = site.qr_code
+      link.download = `qr-code-${site.name.toLowerCase().replace(/\s+/g, '-')}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     }
 
     onMounted(() => {
@@ -800,7 +1483,11 @@ export default {
       showCreateDialog,
       showScheduleDialog,
       showEmployeeDialog,
+      showAssignDialog,
+      selectedSchedule,
       form,
+      scheduleForm,
+      scheduleFormRef,
       employeeForm,
       siteForm,
       organizations,
@@ -815,7 +1502,6 @@ export default {
       // Données
       headers,
       scheduleHeaders,
-      employeeHeaders,
       sites,
       totalSites,
       currentPage,
@@ -835,18 +1521,70 @@ export default {
       viewScheduleDetails,
       editSchedule,
       deleteSchedule,
-      viewEmployeeDetails,
-      editEmployee,
-      unassignEmployee,
-      assignEmployee
+      saveSchedule,
+      showAssignEmployeeDialog,
+      assignEmployee,
+      unassignEmployeeFromSchedule,
+      showCreateScheduleDialog,
+
+      // Nouvelles données
+      showCalendarDialog,
+      selectedScheduleForCalendar,
+      isScheduleFormValid,
+      closeScheduleDialog,
+
+      // Jours de la semaine
+      weekDays,
+
+      // Fonctions pour la gestion des QR codes
+      generateQRCode,
+      downloadQRCode,
     }
   }
 }
 </script>
 
 <style scoped>
+.white-space-pre-wrap {
+  white-space: pre-wrap !important;
+}
+
 .v-data-table {
   border-radius: 8px;
+}
+
+.schedule-type-select {
+  z-index: 1000;
+}
+
+:deep(.v-select-list) {
+  z-index: 1001;
+}
+
+.v-card {
+  border-radius: 8px;
+}
+
+.v-card.outlined {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.mr-2 {
+  margin-right: 8px;
+}
+
+.qr-code-card {
+  height: 100%;
+}
+
+.qr-code-container {
+  padding: 16px;
+}
+
+.v-img.mx-auto {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  padding: 8px;
 }
 </style>
 

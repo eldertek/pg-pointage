@@ -257,6 +257,17 @@
                     :rules="[v => userForm.role === 'SUPER_ADMIN' || !!v || 'L\'organisation est requise']"
                   ></v-select>
                 </v-col>
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="userForm.scan_preference"
+                    :items="scanPreferences"
+                    label="Méthode de scan"
+                    item-title="text"
+                    item-value="value"
+                    autocomplete="off"
+                    :rules="[v => !!v || 'La méthode de scan est requise']"
+                  ></v-select>
+                </v-col>
                 <!-- Champs mot de passe en création et édition -->
                 <template v-if="!editedItem || (editedItem && showPasswordFields)">
                   <v-col cols="12" sm="6">
@@ -429,6 +440,12 @@ export default {
       'EMPLOYEE': 'Employé'
     }
 
+    const scanPreferences = [
+      { text: 'NFC et QR Code', value: 'BOTH' },
+      { text: 'NFC uniquement', value: 'NFC_ONLY' },
+      { text: 'QR Code uniquement', value: 'QR_ONLY' }
+    ]
+
     const userForm = ref({
       first_name: '',
       last_name: '',
@@ -437,7 +454,8 @@ export default {
       role: '',
       organization: null,
       password: '',
-      confirm_password: ''
+      confirm_password: '',
+      scan_preference: 'BOTH'
     })
 
     const organizationForm = ref({
@@ -633,7 +651,8 @@ export default {
           role: '',
           organization: null,
           password: '',
-          confirm_password: ''
+          confirm_password: '',
+          scan_preference: 'BOTH'
         }
       } else {
         organizationForm.value = {
@@ -692,7 +711,8 @@ export default {
       showPasswordFields,
       passwordRules,
       confirmPasswordRules,
-      editedItem
+      editedItem,
+      scanPreferences
     }
   }
 }
