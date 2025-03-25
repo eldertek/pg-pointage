@@ -324,6 +324,7 @@ const usersApi = {
       phone_number: string;
       username: string;
       scan_preference?: string;
+      simplified_mobile_view?: boolean;
     }
     
     const profileData: ProfileData = {
@@ -334,12 +335,20 @@ const usersApi = {
       username: data.username,
     }
     
-    // Ajouter scan_preference uniquement pour les employés
+    // Ajouter scan_preference et simplified_mobile_view uniquement pour les employés
     if (data.role === 'EMPLOYEE') {
       profileData.scan_preference = data.scanPreference
+      profileData.simplified_mobile_view = data.simplifiedMobileView
     }
     
     return api.put('/users/profile/', convertKeysToSnakeCase(profileData))
+  },
+  
+  // Update user preferences
+  updatePreferences: (data: { simplifiedMobileView: boolean }) => {
+    return api.patch('/users/profile/', convertKeysToSnakeCase({
+      simplified_mobile_view: data.simplifiedMobileView
+    }))
   },
   
   // Change password

@@ -269,6 +269,15 @@
                     :rules="[v => !!v || 'La méthode de scan est requise']"
                   ></v-select>
                 </v-col>
+                <v-col cols="12" v-if="userForm.role === 'EMPLOYEE'">
+                  <v-switch
+                    v-model="userForm.simplified_mobile_view"
+                    label="Vue mobile simplifiée"
+                    color="primary"
+                    hint="Affiche uniquement le bouton de pointage sur mobile"
+                    persistent-hint
+                  ></v-switch>
+                </v-col>
                 <!-- Champs mot de passe en création et édition -->
                 <template v-if="!editedItem || (editedItem && showPasswordFields)">
                   <v-col cols="12" sm="6">
@@ -465,7 +474,8 @@ export default {
       organization: null,
       password: '',
       confirm_password: '',
-      scan_preference: 'BOTH'
+      scan_preference: 'BOTH',
+      simplified_mobile_view: false
     })
 
     const organizationForm = ref({
@@ -679,7 +689,8 @@ export default {
           organization: null,
           password: '',
           confirm_password: '',
-          scan_preference: 'BOTH'
+          scan_preference: 'BOTH',
+          simplified_mobile_view: false
         }
       } else {
         organizationForm.value = {

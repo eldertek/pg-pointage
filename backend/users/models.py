@@ -31,6 +31,10 @@ class User(AbstractUser):
         null=True,
         help_text=_('Uniquement pour les employés')
     )
+    simplified_mobile_view = models.BooleanField(
+        default=False,
+        help_text='Si activé, affiche uniquement le bouton de pointage sur mobile'
+    )
     organization = models.ForeignKey(
         'organizations.Organization',
         on_delete=models.SET_NULL,

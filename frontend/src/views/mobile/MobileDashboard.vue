@@ -1,6 +1,33 @@
 <template>
   <div class="dashboard-container">
-    <v-card class="dashboard-card">
+    <!-- Vue simplifiée -->
+    <template v-if="user?.simplified_mobile_view">
+      <v-card class="simplified-view">
+        <v-card-text class="text-center">
+          <h2 class="text-h5 mb-4">Bienvenue{{ user?.first_name ? ', ' + user.first_name : '' }}</h2>
+          <v-btn
+            color="primary"
+            size="x-large"
+            to="/mobile/scan"
+            class="mb-4"
+            block
+          >
+            Pointer maintenant
+          </v-btn>
+          <v-btn
+            variant="text"
+            color="primary"
+            to="/mobile/profile"
+            size="small"
+          >
+            Accéder au profil
+          </v-btn>
+        </v-card-text>
+      </v-card>
+    </template>
+
+    <!-- Vue complète -->
+    <v-card v-else class="dashboard-card">
       <v-card-title class="text-center">
         Tableau de bord
       </v-card-title>
@@ -193,8 +220,17 @@ export default {
   padding: 16px;
 }
 
-.dashboard-card {
+.dashboard-card,
+.simplified-view {
   width: 100%;
+}
+
+.simplified-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  margin-top: 20vh;
 }
 
 .stat-card {

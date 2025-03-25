@@ -224,6 +224,13 @@ export const useAuthStore = defineStore("auth", {
         console.error("Erreur lors de la mise à jour du profil:", error)
         throw error
       }
+    },
+
+    updateUser(userData) {
+      this.user = {
+        ...this.user,
+        ...userData
+      }
     }
   }
 })

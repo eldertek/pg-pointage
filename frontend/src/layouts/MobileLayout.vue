@@ -13,7 +13,7 @@
       <router-view />
     </v-main>
     
-    <v-bottom-navigation grow color="primary">
+    <v-bottom-navigation v-if="!isSimplifiedView" grow color="primary">
       <v-btn to="/mobile">
         <v-icon>mdi-view-dashboard</v-icon>
         Accueil
@@ -27,6 +27,19 @@
       <v-btn to="/mobile/history">
         <v-icon>mdi-history</v-icon>
         Historique
+      </v-btn>
+      
+      <v-btn to="/mobile/profile">
+        <v-icon>mdi-account</v-icon>
+        Profil
+      </v-btn>
+    </v-bottom-navigation>
+
+    <!-- Navigation simplifiée -->
+    <v-bottom-navigation v-else grow color="primary">
+      <v-btn to="/mobile/scan">
+        <v-icon>mdi-qrcode-scan</v-icon>
+        Scanner
       </v-btn>
       
       <v-btn to="/mobile/profile">
@@ -50,14 +63,26 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'MobileLayout',
   setup() {
     const authStore = useAuthStore()
+    const router = useRouter()
     const showLogoutDialog = ref(false)
+    
+    const isSimplifiedView = computed(() => authStore.user?.simplified_mobile_view)
+    
+    // Rediriger vers /mobile/scan si vue simplifiée et sur une route non autorisée
+    if (isSimplifiedView.value) {
+      const allowedRoutes = ['/mobile/scan', '/mobile/profile']
+      if (!allowedRoutes.includes(router.currentRoute.value.path)) {
+        router.push('/mobile/scan')
+      }
+    }
     
     const logout = () => {
       authStore.logout()
@@ -65,7 +90,8 @@ export default {
     
     return {
       showLogoutDialog,
-      logout
+      logout,
+      isSimplifiedView
     }
   }
 }

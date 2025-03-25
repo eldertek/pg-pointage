@@ -35,8 +35,11 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 
-                'organization', 'phone_number', 'is_active', 'employee_id', 'date_joined', 'password', 'organization_name', 'scan_preference']
+        fields = (
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'role', 'organization', 'phone_number', 'is_active', 'employee_id', 'date_joined', 'password', 'organization_name', 'scan_preference',
+            'simplified_mobile_view'
+        )
         read_only_fields = ['date_joined']
 
     def get_organization_name(self, obj):
@@ -75,8 +78,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 
-                'organization', 'organization_name', 'phone_number', 'employee_id', 'scan_preference']
+        fields = (
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'role', 'organization', 'organization_name', 'phone_number', 'employee_id', 'scan_preference',
+            'simplified_mobile_view'
+        )
         read_only_fields = ['id', 'role', 'organization', 'organization_name', 'employee_id']
     
     def get_organization_name(self, obj):

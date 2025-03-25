@@ -51,6 +51,22 @@
             <v-list-item-title>Méthode de scan</v-list-item-title>
             <v-list-item-subtitle>{{ scanPreferenceLabels[user.scan_preference] }}</v-list-item-subtitle>
           </v-list-item>
+
+          <v-list-item v-if="user.role === 'EMPLOYEE'">
+            <template v-slot:prepend>
+              <v-icon icon="mdi-cellphone-cog"></v-icon>
+            </template>
+            <v-list-item-title>Vue simplifiée</v-list-item-title>
+            <v-list-item-subtitle>
+              <v-switch
+                v-model="simplifiedView"
+                color="primary"
+                hide-details
+                density="compact"
+                @update:model-value="updateSimplifiedView"
+              ></v-switch>
+            </v-list-item-subtitle>
+          </v-list-item>
         </v-list>
       </v-card-text>
     </v-card>
@@ -227,6 +243,8 @@ export default {
       return v => v === passwordForm.value.newPassword || 'Les mots de passe ne correspondent pas'
     })
     
+    const simplifiedView = ref(false)
+    
     const fetchAssignedSites = async () => {
       try {
         // Si l'utilisateur n'est pas un employé, on ne charge pas les sites
@@ -252,6 +270,8 @@ export default {
       try {
         const response = await usersApi.getProfile()
         user.value = response.data
+        // Mettre à jour simplifiedView avec la valeur du profil
+        simplifiedView.value = response.data.simplified_mobile_view || false
         // Charger les sites assignés après avoir récupéré le profil
         await fetchAssignedSites()
       } catch (error) {
@@ -308,6 +328,38 @@ export default {
       }
     }
     
+    const updateSimplifiedView = async (value) => {
+      try {
+        saving.value = true
+        await usersApi.updatePreferences({ simplifiedMobileView: value })
+        
+        // Mettre à jour le store et le user local
+        authStore.updateUser({ simplified_mobile_view: value })
+        user.value.simplified_mobile_view = value
+        
+        snackbar.value = {
+          show: true,
+          text: 'Préférences mises à jour',
+          color: 'success'
+        }
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour des préférences:', error)
+        snackbar.value = {
+          show: true,
+          text: 'Erreur lors de la mise à jour des préférences',
+          color: 'error'
+        }
+        // Restaurer l'ancienne valeur dans tous les endroits
+        simplifiedView.value = !value
+        if (user.value) {
+          user.value.simplified_mobile_view = !value
+        }
+        authStore.updateUser({ simplified_mobile_view: !value })
+      } finally {
+        saving.value = false
+      }
+    }
+    
     onMounted(() => {
       fetchUserProfile()
     })
@@ -326,7 +378,9 @@ export default {
       changePassword,
       logout,
       roleLabels,
-      scanPreferenceLabels
+      scanPreferenceLabels,
+      simplifiedView,
+      updateSimplifiedView,
     }
   }
 }

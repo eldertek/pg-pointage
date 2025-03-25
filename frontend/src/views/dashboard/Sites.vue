@@ -1865,10 +1865,53 @@ export default defineComponent({
           ctx.lineTo(width - 100, 480);
           ctx.stroke();
 
+          // Configuration du texte
           ctx.fillStyle = '#F78C48';
           ctx.font = 'bold 24px Arial';
           ctx.textAlign = 'center';
-          ctx.fillText(site.name, width / 2, 530);
+          
+          // Calculer la largeur maximale disponible pour le texte
+          const maxWidth = width - 100;
+          
+          // Fonction pour découper le texte en lignes
+          const getLines = (text: string, maxWidth: number): string[] => {
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+              const word = words[i];
+              const width = ctx.measureText(currentLine + ' ' + word).width;
+              if (width < maxWidth) {
+                currentLine += ' ' + word;
+              } else {
+                lines.push(currentLine);
+                currentLine = word;
+              }
+            }
+            lines.push(currentLine);
+            return lines;
+          };
+
+          // Découper le texte en lignes
+          const lines = getLines(site.name, maxWidth - 40); // -40 pour avoir une marge
+          
+          // Calculer la hauteur totale du texte
+          const lineHeight = 30;
+          const totalHeight = lines.length * lineHeight;
+          
+          // Position de départ pour le texte
+          let y = 530;
+          
+          // Ajuster la position verticale si nécessaire pour centrer le texte
+          if (lines.length > 1) {
+            y = y - (totalHeight / 2) + (lineHeight / 2);
+          }
+          
+          // Dessiner chaque ligne
+          lines.forEach((line, index) => {
+            ctx.fillText(line, width / 2, y + (index * lineHeight));
+          });
         }
 
         return canvas.toDataURL('image/png');
