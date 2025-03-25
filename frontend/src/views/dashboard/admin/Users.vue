@@ -249,12 +249,12 @@
                   <v-select
                     v-model="userForm.organization"
                     :items="organizations"
-                    label="Organisation"
+                    label="Franchise"
                     item-title="name"
                     item-value="id"
                     autocomplete="off"
                     :disabled="userForm.role === 'SUPER_ADMIN'"
-                    :rules="[v => userForm.role === 'SUPER_ADMIN' || !!v || 'L\'organisation est requise']"
+                    :rules="[v => userForm.role === 'SUPER_ADMIN' || !!v || 'La franchise est requise']"
                   ></v-select>
                 </v-col>
                 <v-col cols="12" sm="6" v-if="userForm.role === 'EMPLOYEE'">
