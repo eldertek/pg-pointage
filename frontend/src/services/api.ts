@@ -272,6 +272,15 @@ const usersApi = {
   })
 }
 
+// Organizations API methods
+const organizationsApi = {
+  // Get all organizations
+  getAllOrganizations: () => api.get('/organizations/'),
+  
+  // Get a single organization by ID
+  getOrganization: (id: number) => api.get(`/organizations/${id}/`)
+}
+
 // Timesheets API methods
 const timesheetsApi = {
   // Get all timesheets with filters and pagination
@@ -308,6 +317,6 @@ const timesheetsApi = {
   }
 }
 
-export { sitesApi, schedulesApi, usersApi, timesheetsApi }
+export { sitesApi, schedulesApi, usersApi, timesheetsApi, organizationsApi }
 export default api
 

@@ -21,8 +21,10 @@
       width="256"
       color="primary"
       class="text-white"
+      touchless
+      @click:outside="handleDrawerOutsideClick"
     >
-      <v-list>
+      <v-list @click="handleListItemClick">
         <!-- Tableau de bord -->
         <v-list-item to="/dashboard" active-class="primary--text">
           <template v-slot:prepend>
@@ -122,6 +124,7 @@ export default {
   name: 'DashboardLayout',
   setup() {
     const authStore = useAuthStore()
+    const display = useDisplay()
     const drawer = ref(true)
     const rail = ref(false)
     const showLogoutDialog = ref(false)
@@ -132,6 +135,18 @@ export default {
     const logout = () => {
       authStore.logout()
     }
+
+    const handleDrawerOutsideClick = () => {
+      if (display.mdAndDown.value) {
+        drawer.value = false
+      }
+    }
+
+    const handleListItemClick = () => {
+      if (display.mdAndDown.value) {
+        drawer.value = false
+      }
+    }
     
     return {
       drawer,
@@ -139,7 +154,9 @@ export default {
       showLogoutDialog,
       isSuperAdmin,
       isManager,
-      logout
+      logout,
+      handleDrawerOutsideClick,
+      handleListItemClick
     }
   }
 }
