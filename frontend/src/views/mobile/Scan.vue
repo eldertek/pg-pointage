@@ -193,7 +193,7 @@ export default {
       if (isIOS) {
         return {
           compatible: false,
-          message: 'Pour utiliser le NFC sur iOS, veuillez installer notre application native depuis l\'App Store'
+          message: 'Apple ne permet pas d\'utiliser le NFC sur iOS.'
         }
       }
       
@@ -334,10 +334,24 @@ export default {
         scanning.value = true
         isQrScanning.value = true
         
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        })
         const video = videoPreview.value
         video.srcObject = stream
         video.setAttribute('playsinline', true)
+        video.setAttribute('autoplay', true)
+        video.setAttribute('muted', true)
+        video.setAttribute('webkit-playsinline', true)
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => {
+            resolve()
+          }
+        })
         await video.play()
 
         const canvas = document.createElement('canvas')

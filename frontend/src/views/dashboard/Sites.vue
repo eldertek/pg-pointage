@@ -1149,7 +1149,7 @@ export default {
       { title: 'Nom', align: 'start', key: 'name' },
       { title: 'Adresse', align: 'start', key: 'address' },
       { title: 'ID NFC', align: 'start', key: 'nfc_id' },
-      { title: 'Franchise', align: 'start', key: 'organization' },
+      { title: 'Franchise', align: 'start', key: 'organization_name' },
       { title: 'Statut', align: 'center', key: 'status' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }
     ])
@@ -1230,9 +1230,12 @@ export default {
         // Filtrer les employés déjà assignés au planning sélectionné
         const assignedEmployeeIds = selectedSchedule.value.assigned_employees?.map(emp => emp.employee) || []
         
-        // Ajouter le nom formaté à chaque employé et filtrer les employés déjà assignés
+        // Filtrer les employés par organisation et ceux déjà assignés
         availableEmployees.value = response.data.results
-          .filter(employee => !assignedEmployeeIds.includes(employee.id))
+          .filter(employee => {
+            return !assignedEmployeeIds.includes(employee.id) && 
+                   employee.organization === selectedSite.value.organization
+          })
           .map(employee => ({
             ...employee,
             formatted_name: formatEmployeeName(employee)
@@ -1474,6 +1477,13 @@ export default {
     const assignEmployee = async () => {
       if (!employeeForm.value.employee || !selectedSchedule.value || !selectedSite.value) {
         console.log('Formulaire incomplet')
+        return
+      }
+
+      // Vérifier que l'employé appartient à la même organisation que le site
+      const selectedEmployee = availableEmployees.value.find(emp => emp.id === employeeForm.value.employee)
+      if (!selectedEmployee || selectedEmployee.organization !== selectedSite.value.organization) {
+        console.error('L\'employé doit appartenir à la même organisation que le site')
         return
       }
 

@@ -46,52 +46,71 @@
           </v-list-item>
         </template>
 
+        <!-- Section Manager -->
+        <template v-if="isManager">
+          <v-divider class="my-2"></v-divider>
+          <v-list-subheader>Gestion des employés</v-list-subheader>
+          
+          <v-list-item to="/dashboard/admin/users" active-class="primary--text">
+            <template v-slot:prepend>
+              <v-icon>mdi-account-group</v-icon>
+            </template>
+            <v-list-item-title>Gestion des employés</v-list-item-title>
+          </v-list-item>
+        </template>
+
         <!-- Section Gestion -->
         <v-divider class="my-2"></v-divider>
         <v-list-subheader>Gestion opérationnelle</v-list-subheader>
         
-        <v-list-item to="/dashboard/sites" active-class="primary--text">
-          <template v-slot:prepend>
-            <v-icon>mdi-domain</v-icon>
-          </template>
-          <v-list-item-title>Sites & Plannings</v-list-item-title>
-        </v-list-item>
+        <template v-if="isManager || isSuperAdmin">
+          <v-list-item to="/dashboard/sites" active-class="primary--text">
+            <template v-slot:prepend>
+              <v-icon>mdi-domain</v-icon>
+            </template>
+            <v-list-item-title>Sites & Plannings</v-list-item-title>
+          </v-list-item>
+        </template>
 
         <!-- Section Suivi -->
         <v-divider class="my-2"></v-divider>
         <v-list-subheader>Suivi & rapports</v-list-subheader>
         
-        <v-list-item to="/dashboard/timesheets" active-class="primary--text">
-          <template v-slot:prepend>
-            <v-icon>mdi-clock-time-four</v-icon>
-          </template>
-          <v-list-item-title>Pointages</v-list-item-title>
-        </v-list-item>
-        
-        <v-list-item to="/dashboard/anomalies" active-class="primary--text">
-          <template v-slot:prepend>
-            <v-icon>mdi-alert</v-icon>
-          </template>
-          <v-list-item-title>Anomalies</v-list-item-title>
-        </v-list-item>
-        
-        <v-list-item to="/dashboard/reports" active-class="primary--text">
-          <template v-slot:prepend>
-            <v-icon>mdi-file-chart</v-icon>
-          </template>
-          <v-list-item-title>Rapports</v-list-item-title>
-        </v-list-item>
+        <template v-if="isManager || isSuperAdmin">
+          <v-list-item to="/dashboard/timesheets" active-class="primary--text">
+            <template v-slot:prepend>
+              <v-icon>mdi-clock-time-four</v-icon>
+            </template>
+            <v-list-item-title>Pointages</v-list-item-title>
+          </v-list-item>
+          
+          <v-list-item to="/dashboard/anomalies" active-class="primary--text">
+            <template v-slot:prepend>
+              <v-icon>mdi-alert</v-icon>
+            </template>
+            <v-list-item-title>Anomalies</v-list-item-title>
+          </v-list-item>
+          
+          <v-list-item to="/dashboard/reports" active-class="primary--text">
+            <template v-slot:prepend>
+              <v-icon>mdi-file-chart</v-icon>
+            </template>
+            <v-list-item-title>Rapports</v-list-item-title>
+          </v-list-item>
+        </template>
 
         <!-- Section Configuration -->
         <v-divider class="my-2"></v-divider>
         <v-list-subheader>Configuration</v-list-subheader>
         
-        <v-list-item to="/dashboard/settings" active-class="primary--text">
-          <template v-slot:prepend>
-            <v-icon>mdi-cog</v-icon>
-          </template>
-          <v-list-item-title>Paramètres</v-list-item-title>
-        </v-list-item>
+        <template v-if="isManager || isSuperAdmin">
+          <v-list-item to="/dashboard/settings" active-class="primary--text">
+            <template v-slot:prepend>
+              <v-icon>mdi-cog</v-icon>
+            </template>
+            <v-list-item-title>Paramètres</v-list-item-title>
+          </v-list-item>
+        </template>
       </v-list>
     </v-navigation-drawer>
 

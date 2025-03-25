@@ -2,8 +2,9 @@
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
       <div>
-        <h1 class="text-h4">{{ currentView === 'users' ? 'Gestion des Utilisateurs' : 'Gestion des Franchises' }}</h1>
+        <h1 class="text-h4">{{ isSuperAdmin ? 'Gestion des Utilisateurs' : 'Gestion des Employés' }}</h1>
         <v-btn-toggle
+          v-if="isSuperAdmin"
           v-model="currentView"
           mandatory
           color="primary"
@@ -43,7 +44,7 @@
 
       <!-- Table des utilisateurs -->
       <v-data-table
-        v-if="currentView === 'users'"
+        v-if="currentView === 'users' || !isSuperAdmin"
         :headers="userHeaders"
         :items="users"
         :search="search"
@@ -118,9 +119,9 @@
         </template>
       </v-data-table>
 
-      <!-- Table des franchises -->
+      <!-- Table des franchises (uniquement pour super admin) -->
       <v-data-table
-        v-else
+        v-if="currentView === 'organizations' && isSuperAdmin"
         :headers="organizationHeaders"
         :items="organizations"
         :search="search"
@@ -202,7 +203,7 @@
         <v-card-text>
           <v-form ref="form" @submit.prevent="saveItem">
             <!-- Formulaire utilisateur -->
-            <template v-if="currentView === 'users'">
+            <template v-if="currentView === 'users' || !isSuperAdmin">
               <v-row>
                 <v-col cols="12" sm="6">
                   <v-text-field
@@ -238,14 +239,14 @@
                 <v-col cols="12" sm="6">
                   <v-select
                     v-model="userForm.role"
-                    :items="roles"
+                    :items="availableRoles"
                     label="Rôle"
                     required
                     autocomplete="off"
                     :rules="[v => !!v || 'Le rôle est requis']"
                   ></v-select>
                 </v-col>
-                <v-col cols="12" sm="6">
+                <v-col cols="12" sm="6" v-if="isSuperAdmin">
                   <v-select
                     v-model="userForm.organization"
                     :items="organizations"
@@ -301,8 +302,8 @@
               </v-row>
             </template>
 
-            <!-- Formulaire franchise -->
-            <template v-else>
+            <!-- Formulaire franchise (uniquement pour super admin) -->
+            <template v-else-if="isSuperAdmin">
               <v-row>
                 <v-col cols="12">
                   <v-text-field
@@ -394,7 +395,7 @@
 </template>
 
 <script>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -408,18 +409,27 @@ export default {
     const showCreateDialog = ref(false)
     const form = ref(null)
     const editedItem = ref(null)
-    const currentView = ref('users')
+    const currentView = ref(authStore.isSuperAdmin ? 'users' : 'users')
     const currentUser = ref(null)
     const showPasswordFields = ref(false)
     
-    const userHeaders = ref([
-      { title: 'Nom', align: 'start', key: 'fullName' },
-      { title: 'Courriel', key: 'email' },
-      { title: 'Rôle', key: 'role', align: 'center' },
-      { title: 'Franchise', key: 'organization_name' },
-      { title: 'Statut', key: 'is_active', align: 'center' },
-      { title: 'Actions', key: 'actions', align: 'end', sortable: false }
-    ])
+    const isSuperAdmin = computed(() => authStore.isSuperAdmin)
+    
+    const userHeaders = computed(() => {
+      const headers = [
+        { title: 'Nom', align: 'start', key: 'fullName' },
+        { title: 'Courriel', key: 'email' },
+        { title: 'Rôle', key: 'role', align: 'center' },
+        { title: 'Statut', key: 'is_active', align: 'center' },
+        { title: 'Actions', key: 'actions', align: 'end', sortable: false }
+      ]
+      
+      if (isSuperAdmin.value) {
+        headers.splice(3, 0, { title: 'Franchise', key: 'organization_name' })
+      }
+      
+      return headers
+    })
 
     const organizationHeaders = ref([
       { title: 'Nom', align: 'start', key: 'name' },
@@ -480,6 +490,13 @@ export default {
       v => !v || v === userForm.value.password || 'Les mots de passe ne correspondent pas'
     ]
 
+    const availableRoles = computed(() => {
+      if (isSuperAdmin.value) {
+        return ['SUPER_ADMIN', 'MANAGER', 'EMPLOYEE']
+      }
+      return ['EMPLOYEE'] // Les managers ne peuvent créer que des employés
+    })
+
     const getRoleColor = (role) => {
       switch (role) {
         case 'SUPER_ADMIN':
@@ -496,7 +513,11 @@ export default {
     const fetchUsers = async () => {
       loading.value = true
       try {
-        const response = await api.get('/users/')
+        const response = await api.get('/users/', {
+          params: {
+            role: isSuperAdmin.value ? undefined : 'EMPLOYEE'
+          }
+        })
         console.log('Données utilisateurs reçues:', response.data)
         users.value = response.data.results || []
       } catch (error) {
@@ -596,8 +617,14 @@ export default {
 
       saving.value = true
       try {
-        if (currentView.value === 'users') {
+        if (currentView.value === 'users' || !isSuperAdmin.value) {
           const userData = { ...userForm.value }
+          // Si c'est un manager, on force l'organisation
+          if (!isSuperAdmin.value) {
+            userData.organization = authStore.user.organization
+            userData.role = 'EMPLOYEE'
+          }
+          
           // Générer le username à partir de l'email
           userData.username = userData.email.split('@')[0]
           
@@ -621,7 +648,7 @@ export default {
             await api.post('/users/', userData)
           }
           await fetchUsers()
-        } else {
+        } else if (isSuperAdmin.value) {
           if (editedItem.value) {
             await api.put(`/organizations/${editedItem.value.id}/`, organizationForm.value)
           } else {
@@ -712,7 +739,9 @@ export default {
       passwordRules,
       confirmPasswordRules,
       editedItem,
-      scanPreferences
+      scanPreferences,
+      isSuperAdmin,
+      availableRoles
     }
   }
 }

@@ -44,6 +44,9 @@ export const useAuthStore = defineStore("auth", {
     },
 
     async login(credentials) {
+      // Réinitialiser l'état avant la nouvelle connexion
+      this.resetStore()
+      
       this.loading = true
       this.error = null
       try {
@@ -100,41 +103,52 @@ export const useAuthStore = defineStore("auth", {
               tokenStart: refreshToken.substring(0, 10) + '...'
             })
             
-            // Si le token est expiré ou invalide, on procède directement à la déconnexion locale
             try {
               await api.post("/users/logout/", { refresh: refreshToken })
               console.log("Déconnexion réussie côté serveur")
             } catch (error) {
-              if (error.response?.status === 400 && error.response?.data?.error === 'Invalid refresh token') {
-                console.warn("Token expiré ou invalide, procédant à la déconnexion locale")
-              } else {
-                console.warn(
-                  "Erreur lors de la déconnexion côté serveur:", 
-                  error.response?.data?.error || error.message,
-                  "Status:", error.response?.status,
-                  "Details:", error.response?.data?.detail
-                )
-              }
+              console.warn(
+                "Erreur lors de la déconnexion côté serveur:", 
+                error.response?.data?.error || error.message
+              )
             }
           } catch (error) {
             console.error("Erreur inattendue lors de la déconnexion:", error)
           }
-        } else {
-          console.warn("Pas de refresh token valide trouvé pour la déconnexion")
         }
         
-        // Always perform local logout
-        this.user = null
-        this.clearTokens()
-        console.log("Session locale nettoyée")
-        await router.push("/login")
+        // Nettoyage complet de la session
+        this.resetStore()
+        
+        // Réinitialiser les en-têtes de l'API
+        delete api.defaults.headers.common["Authorization"]
+        
+        // Forcer le rechargement de la page pour nettoyer tout état résiduel
+        window.location.href = '/login'
+        
       } catch (error) {
         console.error("Erreur lors de la déconnexion:", error)
-        // Ensure we still clear local state even if navigation fails
-        this.user = null
-        this.clearTokens()
+        // S'assurer que l'état local est nettoyé même en cas d'erreur
+        this.resetStore()
         throw error
       }
+    },
+
+    // Nouvelle fonction pour réinitialiser complètement le store
+    resetStore() {
+      this.user = null
+      this.token = null
+      this.refreshToken = null
+      this.loading = false
+      this.error = null
+      
+      // Nettoyer le localStorage
+      localStorage.clear()
+      
+      // Nettoyer les cookies de session si présents
+      document.cookie.split(";").forEach(function(c) { 
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
+      })
     },
 
     async refreshAccessToken() {

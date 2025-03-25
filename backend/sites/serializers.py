@@ -18,11 +18,12 @@ class ScheduleDetailSerializer(serializers.ModelSerializer):
 class SiteEmployeeSerializer(serializers.ModelSerializer):
     """Serializer pour les employés du site"""
     employee_name = serializers.SerializerMethodField()
+    employee_organization = serializers.IntegerField(source='employee.organization.id', read_only=True)
     
     class Meta:
         model = SiteEmployee
-        fields = ['id', 'site', 'employee', 'employee_name', 'schedule', 'created_at', 'is_active']
-        read_only_fields = ['created_at', 'employee_name']
+        fields = ['id', 'site', 'employee', 'employee_name', 'employee_organization', 'schedule', 'created_at', 'is_active']
+        read_only_fields = ['created_at', 'employee_name', 'employee_organization']
     
     def get_employee_name(self, obj):
         if isinstance(obj, dict):
@@ -39,8 +40,13 @@ class SiteEmployeeSerializer(serializers.ModelSerializer):
         logger = logging.getLogger(__name__)
         logger.info(f"Validation des données: {attrs}")
         
-        # Les champs site, employee et schedule sont gérés dans la vue
-        # Nous n'avons pas besoin de validation supplémentaire ici
+        # Vérifier que l'employé appartient à la même organisation que le site
+        site = attrs.get('site')
+        employee = attrs.get('employee')
+        
+        if site and employee and site.organization != employee.organization:
+            raise serializers.ValidationError("L'employé doit appartenir à la même organisation que le site")
+        
         return attrs
 
 class ScheduleSerializer(serializers.ModelSerializer):
@@ -60,14 +66,15 @@ class ScheduleSerializer(serializers.ModelSerializer):
 class SiteSerializer(serializers.ModelSerializer):
     """Serializer pour les sites"""
     schedules = ScheduleSerializer(many=True, read_only=True)
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
     
     class Meta:
         model = Site
         fields = ['id', 'name', 'address', 'postal_code', 'city', 'country',
-                 'organization', 'nfc_id', 'qr_code', 'late_margin',
+                 'organization', 'organization_name', 'nfc_id', 'qr_code', 'late_margin',
                  'early_departure_margin', 'ambiguous_margin', 'alert_emails',
                  'require_geolocation', 'geolocation_radius', 'allow_offline_mode',
                  'max_offline_duration', 'created_at', 'updated_at', 'is_active',
                  'schedules']
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'organization_name']
 

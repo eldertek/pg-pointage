@@ -7,7 +7,7 @@
       
       <v-card-text>
         <div class="text-center mb-6">
-          <h2 class="text-h5 mb-2">Bienvenue, {{ user?.first_name }}</h2>
+          <h2 class="text-h5 mb-2">Bienvenue{{ user?.first_name ? ', ' + user.first_name : '' }}</h2>
           <p class="text-subtitle-1 text-medium-emphasis">{{ currentDate }}</p>
         </div>
         
@@ -16,7 +16,7 @@
             <v-card variant="outlined" class="stat-card">
               <v-card-text class="text-center">
                 <div class="text-overline mb-1">Retards</div>
-                <div class="text-h4 mb-2">{{ stats.lateCount }}</div>
+                <div class="text-h4 mb-2">{{ stats?.lateCount || 0 }}</div>
                 <div class="text-caption">Ce mois-ci</div>
               </v-card-text>
             </v-card>
@@ -26,7 +26,7 @@
             <v-card variant="outlined" class="stat-card">
               <v-card-text class="text-center">
                 <div class="text-overline mb-1">Départs anticipés</div>
-                <div class="text-h4 mb-2">{{ stats.earlyDepartureCount }}</div>
+                <div class="text-h4 mb-2">{{ stats?.earlyDepartureCount || 0 }}</div>
                 <div class="text-caption">Ce mois-ci</div>
               </v-card-text>
             </v-card>
@@ -92,11 +92,11 @@
             class="message-card"
           >
             <v-card-text>
-              <p v-if="stats.lateCount === 0 && stats.earlyDepartureCount === 0">
+              <p v-if="!stats.lateCount && !stats.earlyDepartureCount">
                 Félicitations ! Vous n'avez aucun retard ni départ anticipé ce mois-ci.
               </p>
               <p v-else>
-                Vous avez accumulé {{ stats.lateCount }} retard(s) et {{ stats.earlyDepartureCount }} départ(s) anticipé(s) ce mois-ci.
+                Vous avez {{ stats.lateCount || 0 }} retard(s) et {{ stats.earlyDepartureCount || 0 }} départ(s) anticipé(s) ce mois-ci.
               </p>
             </v-card-text>
           </v-card>
@@ -146,11 +146,17 @@ export default {
       try {
         // Récupérer les derniers pointages
         const timesheets = await timesheetStore.fetchRecentTimesheets()
-        recentTimesheets.value = timesheets.slice(0, 5)
+        recentTimesheets.value = timesheets?.slice(0, 5) || []
         
         // Récupérer les statistiques
         const userStats = await timesheetStore.fetchUserStats()
-        stats.value = userStats
+        if (userStats) {
+          stats.value = {
+            lateCount: userStats.lateCount || 0,
+            earlyDepartureCount: userStats.earlyDepartureCount || 0,
+            totalHours: userStats.totalHours || 0
+          }
+        }
       } catch (err) {
         console.error('Erreur lors de la récupération des données:', err)
       }

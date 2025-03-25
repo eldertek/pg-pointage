@@ -19,6 +19,7 @@ import Timesheets from "@/views/dashboard/Timesheets.vue"
 import Anomalies from "@/views/dashboard/Anomalies.vue"
 import Reports from "@/views/dashboard/Reports.vue"
 import Settings from "@/views/dashboard/Settings.vue"
+import AdminUsers from "@/views/dashboard/admin/Users.vue"
 
 // Views - Mobile (Employee)
 import MobileDashboard from "@/views/mobile/MobileDashboard.vue"
@@ -26,9 +27,6 @@ import Scan from "@/views/mobile/Scan.vue"
 import History from "@/views/mobile/History.vue"
 import Profile from "@/views/mobile/Profile.vue"
 import ReportAnomaly from "@/views/mobile/ReportAnomaly.vue"
-
-// Vues Admin
-import AdminUsers from "@/views/dashboard/admin/Users.vue"
 
 interface RouteMeta {
   requiresAuth?: boolean;
@@ -74,9 +72,9 @@ const routes: RouteRecordRaw[] = [
       // Routes Super Admin
       {
         path: "admin/users",
-        name: "AdminUsers",
+        name: "Users",
         component: AdminUsers,
-        meta: { roles: ["SUPER_ADMIN"] },
+        meta: { roles: ["SUPER_ADMIN", "MANAGER"] },
       },
       {
         path: "organizations/:id",
