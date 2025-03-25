@@ -121,6 +121,15 @@ export default {
   left: 0;
   right: 0;
   z-index: 100;
+  pointer-events: none; /* Permet de cliquer à travers quand caché */
+}
+
+.pwa-install-prompt .v-alert {
+  pointer-events: auto; /* Réactive les événements pour l'alerte */
+  margin: 16px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .gap-2 {
