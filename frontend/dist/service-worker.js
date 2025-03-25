@@ -36,21 +36,38 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event
 self.addEventListener('fetch', (event) => {
+  // Only handle GET requests
+  if (event.request.method !== 'GET') {
+    return event.respondWith(fetch(event.request));
+  }
+
+  // Don't cache API requests
+  if (event.request.url.includes('/api/')) {
+    return event.respondWith(fetch(event.request));
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
         if (response) {
           return response;
         }
+
         return fetch(event.request).then((response) => {
+          // Don't cache non-successful responses or non-basic responses
           if (!response || response.status !== 200 || response.type !== 'basic') {
             return response;
           }
+
+          // Clone the response
           const responseToCache = response.clone();
+
+          // Cache the response
           caches.open(CACHE_NAME)
             .then((cache) => {
               cache.put(event.request, responseToCache);
             });
+
           return response;
         });
       })
