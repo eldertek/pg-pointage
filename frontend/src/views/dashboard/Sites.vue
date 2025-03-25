@@ -499,6 +499,7 @@
                   item-value="id"
                   required
                   :rules="[v => !!v || 'La franchise est requise']"
+                  :no-data-text="'Aucune franchise disponible'"
                 ></v-select>
               </v-col>
               <v-col cols="12">
@@ -903,7 +904,7 @@
 
 <script>
 import { ref, onMounted, watch, computed } from 'vue'
-import { sitesApi, schedulesApi } from '@/services/api'
+import { sitesApi, schedulesApi, organizationsApi } from '@/services/api'
 import ScheduleCalendar from '@/components/ScheduleCalendar.vue'
 import QRCode from 'qrcode'
 
@@ -1082,6 +1083,15 @@ export default {
         console.error('Erreur lors du chargement des employés disponibles:', error)
       } finally {
         loadingEmployees.value = false
+      }
+    }
+
+    const fetchOrganizations = async () => {
+      try {
+        const response = await organizationsApi.getAllOrganizations()
+        organizations.value = response.data.results || []
+      } catch (error) {
+        console.error('Erreur lors du chargement des organisations:', error)
       }
     }
 
@@ -1474,6 +1484,7 @@ export default {
 
     onMounted(() => {
       fetchSites()
+      fetchOrganizations()
     })
     
     return {
