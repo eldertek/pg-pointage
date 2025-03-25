@@ -7,8 +7,8 @@
           <v-avatar color="primary" size="100">
             <span class="text-h4 text-white">{{ userInitials }}</span>
           </v-avatar>
-          <h2 class="text-h5 mt-2">{{ user.firstName }} {{ user.lastName }}</h2>
-          <p class="text-subtitle-1">{{ user.role }}</p>
+          <h2 class="text-h5 mt-2">{{ user.first_name }} {{ user.last_name }}</h2>
+          <p class="text-subtitle-1">{{ roleLabels[user.role] || user.role }}</p>
         </div>
         
         <v-list>
@@ -25,45 +25,57 @@
               <v-icon icon="mdi-phone"></v-icon>
             </template>
             <v-list-item-title>Téléphone</v-list-item-title>
-            <v-list-item-subtitle>{{ user.phone }}</v-list-item-subtitle>
+            <v-list-item-subtitle>{{ user.phone_number || 'Non renseigné' }}</v-list-item-subtitle>
           </v-list-item>
           
-          <v-list-item>
+          <v-list-item v-if="user.organization_name">
             <template v-slot:prepend>
               <v-icon icon="mdi-domain"></v-icon>
             </template>
             <v-list-item-title>Franchise</v-list-item-title>
-            <v-list-item-subtitle>{{ user.organization }}</v-list-item-subtitle>
+            <v-list-item-subtitle>{{ user.organization_name }}</v-list-item-subtitle>
           </v-list-item>
           
-          <v-list-item>
+          <v-list-item v-if="user.employee_id">
             <template v-slot:prepend>
               <v-icon icon="mdi-badge-account"></v-icon>
             </template>
             <v-list-item-title>ID Employé</v-list-item-title>
-            <v-list-item-subtitle>{{ user.employeeId }}</v-list-item-subtitle>
+            <v-list-item-subtitle>{{ user.employee_id }}</v-list-item-subtitle>
+          </v-list-item>
+
+          <v-list-item v-if="user.role === 'EMPLOYEE'">
+            <template v-slot:prepend>
+              <v-icon icon="mdi-qrcode-scan"></v-icon>
+            </template>
+            <v-list-item-title>Méthode de scan</v-list-item-title>
+            <v-list-item-subtitle>{{ scanPreferenceLabels[user.scan_preference] }}</v-list-item-subtitle>
           </v-list-item>
         </v-list>
       </v-card-text>
     </v-card>
     
-    <v-card class="mb-4">
+    <!-- Sites assignés - uniquement pour les employés -->
+    <v-card v-if="user.role === 'EMPLOYEE'" class="mb-4">
       <v-card-title>
         <div class="d-flex justify-space-between align-center">
           <span>Sites assignés ({{ assignedSites.length }})</span>
-          <v-chip color="primary" size="small">{{ user.mainSite }}</v-chip>
         </div>
       </v-card-title>
       <v-card-text>
-        <v-list>
-          <v-list-item v-for="(site, index) in assignedSites" :key="index">
+        <v-list v-if="assignedSites.length > 0">
+          <v-list-item v-for="site in assignedSites" :key="site.id">
             <template v-slot:prepend>
               <v-icon icon="mdi-map-marker"></v-icon>
             </template>
             <v-list-item-title>{{ site.name }}</v-list-item-title>
-            <v-list-item-subtitle>{{ site.schedule }}</v-list-item-subtitle>
+            <v-list-item-subtitle>{{ site.address }}</v-list-item-subtitle>
           </v-list-item>
         </v-list>
+        <div v-else class="text-center pa-4">
+          <v-icon icon="mdi-alert" color="warning" class="mb-2"></v-icon>
+          <p class="text-body-1">Aucun site assigné</p>
+        </div>
       </v-card-text>
     </v-card>
     
@@ -161,8 +173,9 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import api, { usersApi } from '@/services/api'
 
 export default {
   name: 'ProfileView',
@@ -185,25 +198,24 @@ export default {
       color: 'success'
     })
     
-    // Utilisateur simulé pour la démo
-    const user = ref({
-      firstName: 'Pierre',
-      lastName: 'Lambert',
-      role: 'Employé',
-      email: 'pierre.lambert@example.com',
-      phone: '06 34 56 78 90',
-      organization: 'Planète Gardiens Paris',
-      employeeId: 'EMP003',
-      mainSite: 'Centre Commercial'
-    })
+    const user = ref({})
+    const assignedSites = ref([])
     
-    const assignedSites = ref([
-      { name: 'Centre Commercial', schedule: 'Gardiennage jour' },
-      { name: 'Hôpital Nord', schedule: 'Gardiennage nuit' }
-    ])
+    const roleLabels = {
+      'SUPER_ADMIN': 'Super Administrateur',
+      'MANAGER': 'Gestionnaire',
+      'EMPLOYEE': 'Employé'
+    }
+
+    const scanPreferenceLabels = {
+      'BOTH': 'NFC et QR Code',
+      'NFC_ONLY': 'NFC uniquement',
+      'QR_ONLY': 'QR Code uniquement'
+    }
     
     const userInitials = computed(() => {
-      return `${user.value.firstName.charAt(0)}${user.value.lastName.charAt(0)}`
+      if (!user.value.first_name || !user.value.last_name) return ''
+      return `${user.value.first_name.charAt(0)}${user.value.last_name.charAt(0)}`
     })
     
     const rules = {
@@ -215,37 +227,69 @@ export default {
       return v => v === passwordForm.value.newPassword || 'Les mots de passe ne correspondent pas'
     })
     
+    const fetchAssignedSites = async () => {
+      try {
+        // Si l'utilisateur n'est pas un employé, on ne charge pas les sites
+        if (user.value.role !== 'EMPLOYEE') {
+          assignedSites.value = []
+          return
+        }
+        
+        const response = await api.get('/sites/', {
+          params: {
+            assigned_to: user.value.id,
+            is_active: true
+          }
+        })
+        assignedSites.value = response.data.results || []
+      } catch (error) {
+        console.error('Erreur lors du chargement des sites assignés:', error)
+        assignedSites.value = []
+      }
+    }
+    
+    const fetchUserProfile = async () => {
+      try {
+        const response = await usersApi.getProfile()
+        user.value = response.data
+        // Charger les sites assignés après avoir récupéré le profil
+        await fetchAssignedSites()
+      } catch (error) {
+        showError('Erreur lors du chargement du profil')
+        console.error('Erreur lors du chargement du profil:', error)
+      }
+    }
+    
     const changePassword = async () => {
       if (!passwordForm.value) return
       
-      const isValid = await passwordForm.value.validate()
-      
-      if (isValid.valid) {
-        saving.value = true
+      saving.value = true
+      try {
+        await usersApi.changePassword({
+          currentPassword: passwordForm.value.currentPassword,
+          newPassword: passwordForm.value.newPassword
+        })
         
-        try {
-          // Simulation d'API call
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          // Réinitialiser les champs
-          passwordForm.value = {
-            currentPassword: '',
-            newPassword: '',
-            confirmPassword: ''
-          }
-          
-          showPasswordDialog.value = false
-          showSuccess('Mot de passe changé avec succès')
-        } catch (error) {
-          showError('Erreur lors du changement de mot de passe')
-        } finally {
-          saving.value = false
+        // Réinitialiser les champs
+        passwordForm.value = {
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
         }
+        
+        showPasswordDialog.value = false
+        showSuccess('Mot de passe changé avec succès')
+      } catch (error) {
+        showError('Erreur lors du changement de mot de passe')
+        console.error('Erreur lors du changement de mot de passe:', error)
+      } finally {
+        saving.value = false
       }
     }
     
     const logout = () => {
       authStore.logout()
+      showLogoutDialog.value = false
     }
     
     const showSuccess = (text) => {
@@ -264,6 +308,10 @@ export default {
       }
     }
     
+    onMounted(() => {
+      fetchUserProfile()
+    })
+    
     return {
       user,
       assignedSites,
@@ -276,7 +324,9 @@ export default {
       rules,
       passwordMatchRule,
       changePassword,
-      logout
+      logout,
+      roleLabels,
+      scanPreferenceLabels
     }
   }
 }
