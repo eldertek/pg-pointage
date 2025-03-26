@@ -150,32 +150,21 @@ interface Site {
 
 interface Schedule {
   id: number;
-  name: string;
   schedule_type: 'FIXED' | 'FREQUENCY';
-  min_daily_hours?: number;
-  min_weekly_hours?: number;
-  allow_early_arrival?: boolean;
-  allow_late_departure?: boolean;
-  early_arrival_limit?: number;
-  late_departure_limit?: number;
-  break_duration?: number;
-  min_break_start?: string;
-  max_break_end?: string;
-  frequency_hours?: number;
-  frequency_type?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
-  frequency_count?: number;
-  time_window?: number;
+  site?: { id: number };
   details?: ScheduleDetail[];
   assigned_employees?: Array<{ employee: number }>;
 }
 
 interface ScheduleDetail {
-  id: number;
+  id?: number;
   day_of_week: number;
-  start_time_1: string;
-  end_time_1: string;
-  start_time_2: string;
-  end_time_2: string;
+  frequency_duration?: number;
+  start_time_1?: string;
+  end_time_1?: string;
+  start_time_2?: string;
+  end_time_2?: string;
+  day_type?: 'FULL' | 'AM' | 'PM';
 }
 
 interface Employee {

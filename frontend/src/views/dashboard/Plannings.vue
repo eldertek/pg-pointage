@@ -88,7 +88,7 @@
 
             <!-- Site -->
             <template v-slot:item.site_name="{ item }">
-              {{ item.name }}
+              {{ item.site_name }}
             </template>
 
             <!-- Actions -->
@@ -318,24 +318,42 @@ interface BaseSchedule extends Omit<Schedule, 'site'> {
 // Type pour le planning en édition
 interface EditingSchedule {
   id: number;
-  name: string;
   schedule_type: 'FIXED' | 'FREQUENCY';
   site?: number;
   employee?: number;
-  tolerance_margin?: number;
   details: {
     [key: number]: ScheduleDetailEdit;
   };
-  min_daily_hours?: number;
-  min_weekly_hours?: number;
-  allow_early_arrival?: boolean;
-  allow_late_departure?: boolean;
-  assigned_employees?: Array<{ employee: number }>;
+  assigned_employees: Array<{ employee: number }>;
+}
+
+// Type pour les détails à envoyer à l'API
+interface ScheduleDetailAPI {
+  day_of_week: number;
+  frequency_duration?: number;
+  start_time_1?: string;
+  end_time_1?: string;
+  start_time_2?: string;
+  end_time_2?: string;
+  day_type?: 'FULL' | 'AM' | 'PM';
+}
+
+// Type pour les données à envoyer à l'API
+interface ScheduleAPI {
+  schedule_type: 'FIXED' | 'FREQUENCY';
+  site?: { id: number };
+  details: ScheduleDetailAPI[];
+  assigned_employees: Array<{ employee: number }>;
 }
 
 // Type pour le planning avec site
-interface ScheduleWithSite extends Schedule {
+interface ScheduleWithSite {
+  id: number;
+  schedule_type: 'FIXED' | 'FREQUENCY';
   site?: { id: number };
+  site_name?: string;
+  details?: ScheduleDetail[];
+  assigned_employees?: Array<{ employee: number }>;
 }
 
 // État
@@ -370,7 +388,7 @@ const weekDays = [
 ]
 
 const headers = [
-  { title: 'Site', key: 'site_name' },
+  { title: 'Site', key: 'site_name', align: 'start' },
   { title: 'Type', key: 'schedule_type' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
@@ -395,16 +413,10 @@ const defaultDetails = () => {
 
 const editedItem = ref<EditingSchedule>({
   id: 0,
-  name: '',
   schedule_type: 'FIXED',
   site: undefined,
   employee: undefined,
   details: defaultDetails(),
-  min_daily_hours: 0,
-  min_weekly_hours: 0,
-  allow_early_arrival: false,
-  allow_late_departure: false,
-  tolerance_margin: 0,
   assigned_employees: []
 })
 
@@ -431,7 +443,10 @@ const loadPlannings = async () => {
   loading.value = true
   try {
     const response = await planningsApi.getAllPlannings(page.value, itemsPerPage.value)
-    plannings.value = response.data.results
+    plannings.value = response.data.results.map(planning => ({
+      ...planning,
+      site_name: planning.site_name || ''  // S'assurer que site_name existe
+    }))
     totalItems.value = response.data.count
   } catch (error) {
     console.error('Erreur lors du chargement des plannings:', error)
@@ -471,26 +486,30 @@ const openDialog = (item?: ScheduleWithSite) => {
       })
     }
 
+    // Récupérer l'ID du site correctement
+    const siteId = typeof item.site === 'object' ? item.site?.id : item.site
+
     editedItem.value = {
-      ...item,
+      id: item.id,
+      schedule_type: item.schedule_type,
+      site: siteId,
+      employee: item.assigned_employees?.[0]?.employee,
       details,
-      site: item.site?.id,
-      employee: item.assigned_employees?.[0]?.employee
+      assigned_employees: item.assigned_employees || []
+    }
+
+    // Charger les employés du site si un site est sélectionné
+    if (siteId) {
+      loadSiteEmployees()
     }
   } else {
     // Mode création
     editedItem.value = {
       id: 0,
-      name: '',
       schedule_type: 'FIXED',
       site: undefined,
       employee: undefined,
       details: defaultDetails(),
-      min_daily_hours: 0,
-      min_weekly_hours: 0,
-      allow_early_arrival: false,
-      allow_late_departure: false,
-      tolerance_margin: 0,
       assigned_employees: []
     }
   }
@@ -502,27 +521,47 @@ const savePlanning = async () => {
     // Convertir les détails en tableau
     const details = Object.values(editedItem.value.details)
       .filter(detail => detail.enabled)
-      .map(detail => ({
-        id: 0, // Requis par le type ScheduleDetail
-        day_of_week: detail.day_of_week,
-        day_type: detail.day_type,
-        frequency_duration: editedItem.value.schedule_type === 'FREQUENCY' ? detail.frequency_duration : undefined,
-        start_time_1: editedItem.value.schedule_type === 'FIXED' ? detail.start_time_1 : undefined,
-        end_time_1: editedItem.value.schedule_type === 'FIXED' ? detail.end_time_1 : undefined,
-        start_time_2: editedItem.value.schedule_type === 'FIXED' ? detail.start_time_2 : undefined,
-        end_time_2: editedItem.value.schedule_type === 'FIXED' ? detail.end_time_2 : undefined
-      })) as ScheduleDetail[]
+      .map(detail => {
+        const baseDetail = {
+          day_of_week: detail.day_of_week,
+          day_type: detail.day_type,
+          schedule_type: editedItem.value.schedule_type
+        }
 
-    const planningData: Partial<BaseSchedule> = {
-      id: editedItem.value.id,
-      name: editedItem.value.name,
+        if (editedItem.value.schedule_type === 'FREQUENCY') {
+          return {
+            ...baseDetail,
+            frequency_duration: detail.frequency_duration
+          }
+        } else {
+          // Gestion des horaires en fonction du type de journée
+          const timeFields = {
+            start_time_1: null,
+            end_time_1: null,
+            start_time_2: null,
+            end_time_2: null
+          }
+
+          if (detail.day_type === 'FULL' || detail.day_type === 'AM') {
+            timeFields.start_time_1 = detail.start_time_1 || null
+            timeFields.end_time_1 = detail.end_time_1 || null
+          }
+
+          if (detail.day_type === 'FULL' || detail.day_type === 'PM') {
+            timeFields.start_time_2 = detail.start_time_2 || null
+            timeFields.end_time_2 = detail.end_time_2 || null
+          }
+
+          return {
+            ...baseDetail,
+            ...timeFields
+          }
+        }
+      })
+
+    const planningData = {
       schedule_type: editedItem.value.schedule_type,
       site: editedItem.value.site ? { id: editedItem.value.site } : undefined,
-      min_daily_hours: editedItem.value.min_daily_hours,
-      min_weekly_hours: editedItem.value.min_weekly_hours,
-      allow_early_arrival: editedItem.value.allow_early_arrival,
-      allow_late_departure: editedItem.value.allow_late_departure,
-      tolerance_margin: editedItem.value.tolerance_margin,
       details: details,
       assigned_employees: editedItem.value.employee 
         ? [{ employee: editedItem.value.employee }] 
@@ -530,9 +569,9 @@ const savePlanning = async () => {
     }
 
     if (editedItem.value.id) {
-      await planningsApi.updatePlanning(editedItem.value.id, planningData as Partial<Schedule>)
+      await planningsApi.updatePlanning(editedItem.value.id, planningData)
     } else {
-      await planningsApi.createPlanning(planningData as Partial<Schedule>)
+      await planningsApi.createPlanning(planningData)
     }
     dialog.value = false
     loadPlannings()
@@ -595,26 +634,40 @@ onMounted(() => {
   color: white !important;
 }
 
-/* Style des boutons icônes colorés */
-:deep(.v-btn--icon[color="primary"]) {
+/* Style des boutons icônes colorés dans le tableau */
+:deep(.v-data-table .v-btn--icon[color="primary"]) {
+  background-color: transparent !important;
   color: #00346E !important;
+  opacity: 1 !important;
 }
 
-:deep(.v-btn--icon[color="error"]) {
+:deep(.v-data-table .v-btn--icon[color="error"]) {
+  background-color: transparent !important;
   color: #F78C48 !important;
+  opacity: 1 !important;
 }
 
-:deep(.v-btn--icon[color="success"]) {
+:deep(.v-data-table .v-btn--icon[color="success"]) {
+  background-color: transparent !important;
   color: #00346E !important;
+  opacity: 1 !important;
 }
 
-:deep(.v-btn--icon[color="warning"]) {
+:deep(.v-data-table .v-btn--icon[color="warning"]) {
+  background-color: transparent !important;
   color: #F78C48 !important;
+  opacity: 1 !important;
 }
 
 /* Correction des overlays et underlays */
 :deep(.v-btn__overlay),
 :deep(.v-btn__underlay) {
   opacity: 0 !important;
+}
+
+/* Assurer que les icônes dans les boutons sont visibles */
+:deep(.v-data-table .v-btn--icon .v-icon) {
+  opacity: 1 !important;
+  color: inherit !important;
 }
 </style> 

@@ -7,6 +7,7 @@ from .utils import generate_site_id, validate_site_id
 class ScheduleDetailSerializer(serializers.ModelSerializer):
     """Serializer pour les détails de planning"""
     day_name = serializers.SerializerMethodField()
+    schedule_type = serializers.CharField(write_only=True)
     
     class Meta:
         model = ScheduleDetail
@@ -14,14 +15,15 @@ class ScheduleDetailSerializer(serializers.ModelSerializer):
             'id', 'day_of_week', 'day_type',
             'start_time_1', 'end_time_1',
             'start_time_2', 'end_time_2',
-            'frequency_duration'
+            'frequency_duration', 'day_name',
+            'schedule_type'
         ]
     
     def get_day_name(self, obj):
         return obj.get_day_of_week_display()
 
     def validate(self, data):
-        schedule_type = self.context.get('schedule_type')
+        schedule_type = data.get('schedule_type')
         if not schedule_type:
             raise serializers.ValidationError("Le type de planning doit être spécifié")
             
@@ -69,6 +71,8 @@ class ScheduleDetailSerializer(serializers.ModelSerializer):
                     'Les horaires ne doivent pas être définis pour un planning fréquence'
                 )
         
+        # Supprimer le schedule_type des données avant la création
+        data.pop('schedule_type', None)
         return data
 
 class SiteEmployeeSerializer(serializers.ModelSerializer):
@@ -129,9 +133,12 @@ class ScheduleSerializer(serializers.ModelSerializer):
         # Créer le planning
         schedule = Schedule.objects.create(**validated_data)
         
-        # Créer les détails du planning
+        # Créer les détails du planning avec le type de planning dans le contexte
         for detail_data in details_data:
-            ScheduleDetail.objects.create(schedule=schedule, **detail_data)
+            ScheduleDetail.objects.create(
+                schedule=schedule,
+                **detail_data
+            )
         
         # Assigner l'employé si spécifié
         if employee:
@@ -156,10 +163,13 @@ class ScheduleSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         
-        # Mettre à jour les détails
+        # Mettre à jour les détails avec le type de planning dans le contexte
         instance.details.all().delete()  # Supprimer les anciens détails
         for detail_data in details_data:
-            ScheduleDetail.objects.create(schedule=instance, **detail_data)
+            ScheduleDetail.objects.create(
+                schedule=instance,
+                **detail_data
+            )
         
         # Mettre à jour l'assignation de l'employé
         if employee:
@@ -174,6 +184,28 @@ class ScheduleSerializer(serializers.ModelSerializer):
             site_employee.save()
         
         return instance
+
+    def to_internal_value(self, data):
+        # Si le site est envoyé comme un dictionnaire avec un id, extraire l'id
+        if isinstance(data.get('site'), dict) and 'id' in data['site']:
+            data['site'] = data['site']['id']
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        # Ajouter le type de planning au contexte pour la validation des détails
+        details = attrs.get('details', [])
+        schedule_type = attrs.get('schedule_type')
+        
+        if details:
+            # Ajouter le type de planning à chaque détail
+            for detail in details:
+                detail['schedule_type'] = schedule_type
+            
+            detail_serializer = ScheduleDetailSerializer(data=details, many=True)
+            detail_serializer.is_valid(raise_exception=True)
+            attrs['details'] = detail_serializer.validated_data
+        
+        return attrs
 
 class SiteSerializer(serializers.ModelSerializer):
     """Serializer pour les sites"""
