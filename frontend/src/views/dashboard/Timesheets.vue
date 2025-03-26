@@ -110,7 +110,7 @@
           { title: 'Tout', value: -1 }
         ]"
         @update:options="handleTableUpdate"
-        @click:row="(event, { item }) => showDetails(item)"
+        @click:row="(_: any, { item }: any) => showDetails(item)"
         class="elevation-1"
       >
         <template v-slot:item.entry_type="{ item }">
@@ -319,40 +319,88 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted, computed } from 'vue'
-import { timesheetsApi } from '@/services/api'
+<script lang="ts">
+import { ref, onMounted, computed, watch } from 'vue'
+import { sitesApi, timesheetsApi } from '@/services/api'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '@/stores/auth'
+import { useSitesStore } from '@/stores/sites'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
+
+interface Timesheet {
+  id: number;
+  timestamp: string;
+  employee_name: string;
+  site_name: string;
+  entry_type: 'ARRIVAL' | 'DEPARTURE';
+  is_late: boolean;
+  is_early_departure: boolean;
+  late_minutes?: number;
+  early_departure_minutes?: number;
+  correction_note?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  date?: string;
+  time?: string;
+  raw?: any;
+  employee?: string;
+  site?: string;
+}
+
+interface TableOptions {
+  page: number;
+  itemsPerPage: number;
+}
+
+interface Filters {
+  employee: string;
+  site: number | null;
+  entryType: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+}
+
+interface EditingTimesheet {
+  id: number;
+  timestamp: string;
+  entry_type: 'ARRIVAL' | 'DEPARTURE';
+  correction_note: string;
+}
+
+interface SiteOption {
+  title: string;
+  value: number;
+}
 
 export default {
   name: 'TimesheetsView',
   setup() {
     const auth = useAuthStore()
+    const sitesStore = useSitesStore()
     const loading = ref(true)
     const headers = ref([
-      { title: 'Date', align: 'start', key: 'date' },
-      { title: 'Heure', align: 'start', key: 'time' },
-      { title: 'Employé', align: 'start', key: 'employee' },
-      { title: 'Site', align: 'start', key: 'site' },
-      { title: 'Type', align: 'center', key: 'entry_type' },
-      { title: 'Statut', align: 'center', key: 'status' },
-      { title: 'Actions', align: 'center', key: 'actions', sortable: false }
+      { title: 'Date', align: 'start' as const, key: 'date' },
+      { title: 'Heure', align: 'start' as const, key: 'time' },
+      { title: 'Employé', align: 'start' as const, key: 'employee' },
+      { title: 'Site', align: 'start' as const, key: 'site' },
+      { title: 'Type', align: 'center' as const, key: 'entry_type' },
+      { title: 'Statut', align: 'center' as const, key: 'status' },
+      { title: 'Actions', align: 'center' as const, key: 'actions', sortable: false }
     ])
     
-    const filters = ref({
+    const filters = ref<Filters>({
       employee: '',
-      site: '',
+      site: null,
       entryType: '',
       status: '',
       startDate: '',
       endDate: ''
     })
     
-    const siteOptions = ref([])
+    const siteOptions = ref<SiteOption[]>([])
     const entryTypeOptions = ref([
       { title: 'Arrivée', value: 'ARRIVAL' },
       { title: 'Départ', value: 'DEPARTURE' }
@@ -363,8 +411,7 @@ export default {
       { title: 'Départ anticipé', value: 'EARLY_DEPARTURE' }
     ])
     
-    const timesheets = ref([])
-    
+    const timesheets = ref<Timesheet[]>([])
     const currentPage = ref(1)
     const itemsPerPage = ref(10)
     const totalItems = ref(0)
@@ -372,32 +419,32 @@ export default {
     const detailDialog = ref(false)
     const editDialog = ref(false)
     const deleteDialog = ref(false)
-    const selectedTimesheet = ref(null)
-    const editingTimesheet = ref(null)
-    const timesheetToDelete = ref(null)
-    let map = null
+    const selectedTimesheet = ref<Timesheet | null>(null)
+    const editingTimesheet = ref<EditingTimesheet | null>(null)
+    const timesheetToDelete = ref<Timesheet | null>(null)
+    let map: L.Map | null = null
 
     const canEditTimesheet = computed(() => {
-      return auth.user?.is_super_admin || auth.user?.is_manager
+      return auth.user?.role === 'SUPER_ADMIN' || auth.user?.role === 'MANAGER'
     })
 
-    const getStatusColor = (timesheet) => {
+    const getStatusColor = (timesheet: Timesheet): string => {
       if (timesheet.is_late) return 'warning'
       if (timesheet.is_early_departure) return 'error'
       return 'success'
     }
 
-    const getStatusLabel = (timesheet) => {
+    const getStatusLabel = (timesheet: Timesheet): string => {
       if (timesheet.is_late) return `Retard (${timesheet.late_minutes} min)`
       if (timesheet.is_early_departure) return `Départ anticipé (${timesheet.early_departure_minutes} min)`
       return 'Normal'
     }
 
-    const getEntryTypeLabel = (type) => {
+    const getEntryTypeLabel = (type: 'ARRIVAL' | 'DEPARTURE'): string => {
       return type === 'ARRIVAL' ? 'Arrivée' : 'Départ'
     }
     
-    const formatTimesheet = (timesheet) => {
+    const formatTimesheet = (timesheet: Timesheet): Timesheet => {
       try {
         const timestamp = new Date(timesheet.timestamp)
         if (isNaN(timestamp.getTime())) {
@@ -430,12 +477,12 @@ export default {
       }
     }
     
-    const fetchTimesheets = async (options = {}) => {
+    const fetchTimesheets = async (options: Partial<TableOptions> = {}) => {
       try {
         loading.value = true
         const params = {
           employee_name: filters.value.employee || undefined,
-          site: filters.value.site || undefined,
+          site: sitesStore.getCurrentSiteId || filters.value.site || undefined,
           entry_type: filters.value.entryType || undefined,
           start_date: filters.value.startDate || undefined,
           end_date: filters.value.endDate || undefined,
@@ -450,7 +497,7 @@ export default {
         const rawTimesheets = [...results]
         
         // Format timesheets for display
-        timesheets.value = results.map(timesheet => ({
+        timesheets.value = results.map((timesheet: Timesheet) => ({
           ...formatTimesheet(timesheet),
           raw: timesheet // Keep the raw data
         }))
@@ -469,7 +516,7 @@ export default {
       }
     }
     
-    const handleTableUpdate = (options) => {
+    const handleTableUpdate = (options: TableOptions): void => {
       const { page, itemsPerPage: newItemsPerPage } = options
       fetchTimesheets({ 
         page: page,
@@ -485,7 +532,7 @@ export default {
     const resetFilters = () => {
       filters.value = {
         employee: '',
-        site: '',
+        site: null,
         entryType: '',
         status: '',
         startDate: '',
@@ -495,10 +542,9 @@ export default {
       fetchTimesheets()
     }
     
-    const showDetails = (item) => {
+    const showDetails = (item: Timesheet): void => {
       try {
         console.log('Item reçu:', item)
-        // Formater les données pour l'affichage
         const timestamp = new Date(item.timestamp)
         console.log('Timestamp original:', item.timestamp)
         console.log('Timestamp parsé:', timestamp)
@@ -514,17 +560,14 @@ export default {
           time: format(timestamp, 'HH:mm', { locale: fr }),
           employee: item.employee_name,
           site: item.site_name,
-          latitude: item.latitude ? parseFloat(item.latitude) : null,
-          longitude: item.longitude ? parseFloat(item.longitude) : null,
+          latitude: item.latitude ? parseFloat(String(item.latitude)) : null,
+          longitude: item.longitude ? parseFloat(String(item.longitude)) : null,
           entry_type: item.entry_type
         }
         
-        console.log('Timesheet sélectionné:', selectedTimesheet.value)
         detailDialog.value = true
         
-        // Initialize map after dialog is shown
-        if (selectedTimesheet.value.latitude && selectedTimesheet.value.longitude) {
-          // Augmenter le délai pour s'assurer que le dialog est bien rendu
+        if (selectedTimesheet.value?.latitude && selectedTimesheet.value?.longitude) {
           setTimeout(() => {
             try {
               if (map) {
@@ -533,15 +576,13 @@ export default {
               }
               
               const mapDiv = document.getElementById('mapContainer')
-              console.log('Map container:', mapDiv)
               
               if (mapDiv) {
-                // Forcer une mise à jour du conteneur de la carte
                 mapDiv.style.height = '300px'
                 mapDiv.style.width = '100%'
                 
                 map = L.map('mapContainer').setView(
-                  [selectedTimesheet.value.latitude, selectedTimesheet.value.longitude], 
+                  [selectedTimesheet.value!.latitude!, selectedTimesheet.value!.longitude!], 
                   15
                 )
                 
@@ -549,26 +590,23 @@ export default {
                   attribution: '© OpenStreetMap contributors'
                 }).addTo(map)
                 
-                L.marker([selectedTimesheet.value.latitude, selectedTimesheet.value.longitude]).addTo(map)
+                L.marker([selectedTimesheet.value!.latitude!, selectedTimesheet.value!.longitude!]).addTo(map)
                 
-                // Forcer une mise à jour de la carte
                 setTimeout(() => {
-                  map.invalidateSize()
+                  map?.invalidateSize()
                 }, 100)
-              } else {
-                console.error('Container de carte non trouvé')
               }
             } catch (error) {
               console.error('Erreur lors de l\'initialisation de la carte:', error)
             }
-          }, 250) // Augmenter le délai d'initialisation
+          }, 250)
         }
       } catch (error) {
         console.error('Erreur lors de l\'affichage des détails:', error)
       }
     }
 
-    const editTimesheet = (item) => {
+    const editTimesheet = (item: Timesheet): void => {
       try {
         const timestamp = new Date(item.timestamp)
         if (isNaN(timestamp.getTime())) {
@@ -590,6 +628,7 @@ export default {
 
     const saveTimesheet = async () => {
       try {
+        if (!editingTimesheet.value) return;
         loading.value = true
         await timesheetsApi.updateTimesheet(editingTimesheet.value.id, {
           timestamp: editingTimesheet.value.timestamp,
@@ -600,32 +639,58 @@ export default {
         await fetchTimesheets()
       } catch (error) {
         console.error('Erreur lors de la mise à jour du pointage:', error)
-        // TODO: Ajouter une notification d'erreur
       } finally {
         loading.value = false
       }
     }
 
-    const confirmDelete = (item) => {
+    const confirmDelete = (item: Timesheet): void => {
       timesheetToDelete.value = item
       deleteDialog.value = true
     }
 
     const deleteTimesheet = async () => {
       try {
+        if (!timesheetToDelete.value) return;
         loading.value = true
         await timesheetsApi.deleteTimesheet(timesheetToDelete.value.id)
         deleteDialog.value = false
         await fetchTimesheets()
       } catch (error) {
         console.error('Erreur lors de la suppression du pointage:', error)
-        // TODO: Ajouter une notification d'erreur
       } finally {
         loading.value = false
       }
     }
 
+    // Watch for changes in current site
+    watch(() => sitesStore.getCurrentSiteId, (newSiteId) => {
+      if (newSiteId) {
+        filters.value.site = newSiteId
+        currentPage.value = 1 // Reset to first page
+        fetchTimesheets()
+      }
+    })
+
+    // Ajout de la fonction pour charger les sites
+    const loadSites = async () => {
+      try {
+        const response = await sitesApi.getAllSites()
+        siteOptions.value = response.data.results.map(site => ({
+          title: site.name,
+          value: site.id
+        }))
+      } catch (error) {
+        console.error('Erreur lors du chargement des sites:', error)
+        siteOptions.value = []
+      }
+    }
+
     onMounted(() => {
+      if (sitesStore.getCurrentSiteId) {
+        filters.value.site = sitesStore.getCurrentSiteId
+      }
+      loadSites() // Chargement des sites
       fetchTimesheets()
     })
     
@@ -656,7 +721,8 @@ export default {
       editTimesheet,
       saveTimesheet,
       confirmDelete,
-      deleteTimesheet
+      deleteTimesheet,
+      loadSites
     }
   }
 }

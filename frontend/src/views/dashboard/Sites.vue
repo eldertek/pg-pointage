@@ -12,7 +12,7 @@
       <v-card>
         <v-data-table
           :headers="headers"
-          :items="sites"
+          :items="sites || []"
           :loading="loading"
           :items-per-page="itemsPerPage"
           :total-items="totalSites"
@@ -25,13 +25,13 @@
           class="elevation-1"
           @update:options="handleTableUpdate"
         >
-          <template #[`item.address`]="{ item }">
+          <template v-slot:item.address="{ item }">
             {{ item.address }}<br>
             {{ item.postal_code }} {{ item.city }}<br>
             {{ item.country }}
           </template>
 
-          <template #[`item.status`]="{ item }">
+          <template v-slot:item.status="{ item }">
             <v-chip
               :color="item.is_active ? 'success' : 'error'"
               size="small"
@@ -40,7 +40,7 @@
             </v-chip>
           </template>
 
-          <template #[`item.actions`]="{ item }">
+          <template v-slot:item.actions="{ item }">
             <v-btn
               icon
               variant="text"
@@ -93,6 +93,9 @@
         <v-tabs v-model="activeTab" color="#00346E">
           <v-tab value="details">Informations</v-tab>
           <v-tab value="schedules">Plannings</v-tab>
+          <v-tab value="timesheets">Pointages</v-tab>
+          <v-tab value="anomalies">Anomalies</v-tab>
+          <v-tab value="reports">Rapports</v-tab>
         </v-tabs>
 
         <v-card-text>
@@ -326,7 +329,7 @@
               </div>
               <v-data-table
                 :headers="scheduleHeaders"
-                :items="selectedSite.schedules || []"
+                :items="selectedSite?.schedules || []"
                 :loading="loadingSchedules"
                 :no-data-text="'Aucun planning trouvé'"
                 :items-per-page="-1"
@@ -393,6 +396,30 @@
                   </v-btn>
                 </template>
               </v-data-table>
+            </v-window-item>
+
+            <!-- Onglet Pointages -->
+            <v-window-item value="timesheets">
+              <TimesheetsView 
+                :site-id="selectedSite.id"
+                :loading="loadingTimesheets"
+              ></TimesheetsView>
+            </v-window-item>
+
+            <!-- Onglet Anomalies -->
+            <v-window-item value="anomalies">
+              <AnomaliesView 
+                :site-id="selectedSite.id"
+                :loading="loadingAnomalies"
+              ></AnomaliesView>
+            </v-window-item>
+
+            <!-- Onglet Rapports -->
+            <v-window-item value="reports">
+              <ReportsView 
+                :site-id="selectedSite.id"
+                :loading="loadingReports"
+              ></ReportsView>
             </v-window-item>
           </v-window>
         </v-card-text>
@@ -1115,89 +1142,61 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, computed, defineComponent, watch } from 'vue'
-import { sitesApi, schedulesApi, organizationsApi, usersApi } from '@/services/api'
+import { defineComponent, ref, watch, computed, onMounted } from 'vue'
 import ScheduleCalendar from '@/components/ScheduleCalendar.vue'
+import TimesheetsView from '@/components/TimesheetsView.vue'
+import AnomaliesView from '@/components/AnomaliesView.vue'
+import ReportsView from '@/components/ReportsView.vue'
+import { sitesApi, schedulesApi, organizationsApi, usersApi, anomaliesApi, reportsApi, timesheetsApi, type Site, type Schedule, type Employee, type Organization } from '@/services/api'
 import QRCode from 'qrcode'
-import axios from 'axios'
+
+interface EditingTimesheet {
+  id: number;
+  employee_name: string;
+  check_in: string;
+}
+
+interface Filters {
+  site?: number;
+  employee?: number;
+  date_from?: string;
+  date_to?: string;
+}
+
+interface SiteOption {
+  id: number;
+  name: string;
+  organization: number;
+}
+
+interface TableOptions {
+  page: number;
+  itemsPerPage: number;
+  sortBy: string[];
+  sortDesc: boolean[];
+}
+
+interface Timesheet {
+  id: number;
+  employee: number;
+  employee_name: string;
+  check_in: string;
+  check_out?: string;
+  site: number;
+}
 
 interface WeekDay {
   text: string;
   value: number;
 }
 
-interface Site {
-  id: number;
-  name: string;
-  address: string;
-  postal_code: string;
-  city: string;
-  country: string;
-  nfc_id: string;  // Format: FFF-Sxxxx
-  organization: number;
-  organization_name?: string;
-  manager?: number;
-  manager_name?: string;
-  late_margin: number;
-  early_departure_margin: number;
-  ambiguous_margin: number;
-  alert_emails: string;
-  require_geolocation: boolean;
-  geolocation_radius: number;
-  allow_offline_mode: boolean;
-  max_offline_duration: number;
-  is_active: boolean;
-  qr_code?: string;
-  created_at: string;
-  updated_at: string;
-  schedules?: Schedule[];
-  isUpdating?: boolean;
-}
-
-interface Schedule {
-  id: number;
-  name: string;
-  schedule_type: 'FIXED' | 'FREQUENCY';
-  min_daily_hours?: number;
-  min_weekly_hours?: number;
-  allow_early_arrival?: boolean;
-  allow_late_departure?: boolean;
-  early_arrival_limit?: number;
-  late_departure_limit?: number;
-  break_duration?: number;
-  min_break_start?: string;
-  max_break_end?: string;
-  frequency_hours?: number;
-  frequency_type?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
-  frequency_count?: number;
-  time_window?: number;
-  details?: ScheduleDetail[];
-  assigned_employees?: Array<{ employee: number }>;
-}
-
 interface ScheduleDetail {
-  id?: number;  // Add optional id field
+  id?: number;
   day_of_week: number;
   start_time_1: string;
   end_time_1: string;
   start_time_2: string;
   end_time_2: string;
-}
-
-interface Employee {
-  id: number;
-  employee_name: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  organization: number;
-  employee?: number;
-}
-
-interface Organization {
-  id: number;
-  name: string;
-  org_id: string;  // Ajout du champ org_id
 }
 
 interface SiteForm {
@@ -1206,7 +1205,7 @@ interface SiteForm {
   postal_code: string;
   city: string;
   country: string;
-  nfcId: string;  // Format: xxxx (4 chiffres uniquement)
+  nfcId: string;
   organization: number | null;
   manager: number | null;
   late_margin: number;
@@ -1257,10 +1256,49 @@ interface Manager {
   name: string;
 }
 
+interface Anomaly {
+  id: number;
+  site_id: number;
+  employee_id: number;
+  employee_name: string;
+  type: string;
+  description: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Report {
+  id: number;
+  site_id: number;
+  type: string;
+  period_start: string;
+  period_end: string;
+  data: any;
+  created_at: string;
+  updated_at: string;
+}
+
+// Add loadingEmployees ref
+const loadingEmployees = ref<boolean>(false)
+
+// Update the Site interface to extend the API type
+interface ExtendedSite extends Omit<Site, 'schedules'> {
+  isUpdating?: boolean;
+  timesheets?: Timesheet[];
+  anomalies?: Anomaly[];
+  reports?: Report[];
+  schedules?: Schedule[];
+  manager_name?: string;
+}
+
 export default defineComponent({
   name: 'SitesView',
   components: {
-    ScheduleCalendar
+    ScheduleCalendar,
+    TimesheetsView,
+    AnomaliesView,
+    ReportsView
   },
   setup() {
     // Jours de la semaine
@@ -1295,13 +1333,15 @@ export default defineComponent({
     const selectedSchedule = ref<Schedule | null>(null)
     const form = ref<any>(null)
     const valid = ref<boolean>(false)
-    const editedItem = ref<Site | null>(null)
+    const editedItem = ref<ExtendedSite | null>(null)
     const organizations = ref<Organization[]>([])
     const managers = ref<Manager[]>([])
-    const selectedSite = ref<Site | null>(null)
-    const activeTab = ref<'details' | 'schedules'>('details')
+    const selectedSite = ref<ExtendedSite | null>(null)
+    const activeTab = ref<'details' | 'schedules' | 'timesheets' | 'anomalies' | 'reports'>('details')
     const loadingSchedules = ref<boolean>(false)
-    const loadingEmployees = ref<boolean>(false)
+    const loadingTimesheets = ref<boolean>(false)
+    const loadingAnomalies = ref<boolean>(false)
+    const loadingReports = ref<boolean>(false)
     const siteEmployees = ref<Employee[]>([])
     const availableEmployees = ref<Employee[]>([])
     const employeeForm = ref<EmployeeForm>({
@@ -1358,7 +1398,7 @@ export default defineComponent({
     ])
 
     // Pagination
-    const sites = ref<Site[]>([])
+    const sites = ref<ExtendedSite[]>([])
     const totalSites = ref<number>(0)
     const currentPage = ref<number>(1)
     const itemsPerPage = ref<number>(10)
@@ -1414,12 +1454,24 @@ export default defineComponent({
     const fetchSites = async (page: number = 1, perPage: number = itemsPerPage.value): Promise<void> => {
       try {
         loading.value = true
+        console.log('[Sites][Data] Chargement des sites avec paramètres:', { page, perPage })
         const response = await sitesApi.getAllSites(page, perPage)
-        sites.value = response.data.results
-        totalSites.value = response.data.count
+        console.log('[Sites][Data] Réponse API reçue:', {
+          count: response.data.count,
+          resultsCount: response.data.results?.length || 0
+        })
+        sites.value = Array.isArray(response.data.results) ? response.data.results : []
+        totalSites.value = response.data.count || 0
         currentPage.value = page
+        console.log('[Sites][Data] Sites chargés avec succès:', {
+          totalSites: totalSites.value,
+          currentPage: currentPage.value,
+          sitesCount: sites.value.length
+        })
       } catch (error) {
-        console.error('Erreur lors du chargement des sites:', error)
+        console.error('[Sites][Data] Erreur lors du chargement des sites:', error)
+        sites.value = []
+        totalSites.value = 0
       } finally {
         loading.value = false
       }
@@ -1503,11 +1555,81 @@ export default defineComponent({
 
     // Actions sur les sites
     const viewSiteDetails = async (site: Site): Promise<void> => {
-      selectedSite.value = site
-      activeTab.value = 'details'
+      console.log('[Sites][Details] Début du chargement des détails du site:', {
+        id: site.id,
+        name: site.name,
+        hasQRCode: !!site.qr_code
+      });
       
-      if (!site.qr_code) {
-        await generateQRCode(site)
+      selectedSite.value = site;
+      loadingSchedules.value = true;
+      loadingTimesheets.value = true;
+      loadingAnomalies.value = true;
+      loadingReports.value = true;
+
+      try {
+        // Si le site n'a pas de QR code, on le génère
+        if (!site.qr_code) {
+          console.log('[Sites][Details] QR code manquant, génération...');
+          await generateQRCode(site);
+        } else {
+          console.log('[Sites][Details] QR code existant:', {
+            length: site.qr_code.length,
+            preview: site.qr_code.substring(0, 50) + '...'
+          });
+        }
+
+        // Charger les plannings
+        console.log('[Sites][Details][Schedules] Chargement des plannings...')
+        const schedulesResponse = await schedulesApi.getSchedulesBySite(site.id)
+        console.log('[Sites][Details][Schedules] Réponse brute:', schedulesResponse)
+        
+        interface ApiResponse {
+          results?: Schedule[];
+          data?: Schedule[];
+        }
+        const schedules = Array.isArray((schedulesResponse.data as ApiResponse).data) ? (schedulesResponse.data as ApiResponse).data :
+                         Array.isArray((schedulesResponse.data as ApiResponse).results) ? (schedulesResponse.data as ApiResponse).results : []
+        
+        
+        if (selectedSite.value) {
+          selectedSite.value.schedules = schedules
+          console.log('[Sites][Details][Schedules] Plannings mis à jour dans le site')
+        }
+
+        // Charger les pointages
+        console.log('[Sites][Details][Timesheets] Chargement des pointages...')
+        const timesheetsResponse = await timesheetsApi.getTimesheets({ site: site.id })
+        if (selectedSite.value) {
+          selectedSite.value.timesheets = timesheetsResponse.data.results || []
+        }
+
+        // Charger les anomalies
+        console.log('[Sites][Details][Anomalies] Chargement des anomalies...')
+        const anomaliesResponse = await anomaliesApi.getAnomaliesBySite(site.id)
+        if (selectedSite.value) {
+          selectedSite.value.anomalies = anomaliesResponse.data.results || []
+        }
+
+        // Charger les rapports
+        console.log('[Sites][Details][Reports] Chargement des rapports...')
+        console.log('Fetching reports for site:', site.id)
+        const reportsResponse = await reportsApi.getReportsBySite(site.id)
+        console.log('Reports response:', reportsResponse.data)
+        if (selectedSite.value) {
+          selectedSite.value.reports = reportsResponse.data.results || []
+        }
+      } catch (error) {
+        console.error('Detailed error in viewSiteDetails:', error)
+        if (error instanceof Error) {
+          console.error('Error message:', error.message)
+          console.error('Error stack:', error.stack)
+        }
+      } finally {
+        loadingSchedules.value = false
+        loadingTimesheets.value = false
+        loadingAnomalies.value = false
+        loadingReports.value = false
       }
     }
 
@@ -1543,20 +1665,34 @@ export default defineComponent({
     }
 
     const saveSite = async (): Promise<void> => {
-      if (!form.value) return;
-      const { valid } = await form.value.validate();
-      if (!valid) return;
-
-      // Vérifier que le manager appartient à l'organisation
-      if (!validateManager(siteForm.value.manager)) {
-        console.error('Le manager sélectionné n\'appartient pas à l\'organisation')
-        return
-      }
-
-      saving.value = true;
+      console.log('Starting site save process')
       try {
-        const organization = organizations.value.find(org => org.id === siteForm.value.organization);
-        if (!organization || !siteForm.value.organization) throw new Error('Organisation non trouvée');
+        if (!form.value) {
+          console.warn('Form reference is null')
+          return
+        }
+        
+        console.log('Form current state:', form.value)
+        console.log('Site form data:', siteForm.value)
+        
+        // Validation manuelle des champs requis
+        if (!siteForm.value.name || !siteForm.value.address || !siteForm.value.postal_code || 
+            !siteForm.value.city || !siteForm.value.organization) {
+          console.warn('Form validation failed - missing required fields')
+          return
+        }
+
+        saving.value = true
+        const organization = organizations.value.find(org => org.id === siteForm.value.organization)
+        console.log('Selected organization:', organization)
+        
+        if (!organization || !siteForm.value.organization) {
+          console.error('Organization not found:', { 
+            orgId: siteForm.value.organization, 
+            availableOrgs: organizations.value 
+          })
+          throw new Error('Organisation non trouvée')
+        }
 
         const siteData = {
           name: siteForm.value.name,
@@ -1575,21 +1711,28 @@ export default defineComponent({
           allow_offline_mode: siteForm.value.allow_offline_mode,
           max_offline_duration: parseInt(siteForm.value.max_offline_duration.toString()),
           is_active: siteForm.value.is_active
-        };
+        }
+        console.log('Prepared site data:', siteData)
         
         if (editedItem.value) {
-          await sitesApi.updateSite(editedItem.value.id, siteData);
+          console.log('Updating existing site:', editedItem.value.id)
+          await sitesApi.updateSite(editedItem.value.id, siteData)
         } else {
-          await sitesApi.createSite(siteData);
+          console.log('Creating new site')
+          await sitesApi.createSite(siteData)
         }
-        await fetchSites(currentPage.value);
-        closeDialog();
+        await fetchSites(currentPage.value)
+        closeDialog()
       } catch (error) {
-        console.error('Erreur lors de l\'enregistrement du site:', error);
+        console.error('Detailed error in saveSite:', error)
+        if (error instanceof Error) {
+          console.error('Error message:', error.message)
+          console.error('Error stack:', error.stack)
+        }
       } finally {
-        saving.value = false;
+        saving.value = false
       }
-    };
+    }
 
     const deleteSite = (site: Site): void => {
       siteToDelete.value = site
@@ -1690,7 +1833,9 @@ export default defineComponent({
 
     // Utilitaires
     const handleTableUpdate = (options: any): void => {
+      console.log('Table options updated:', options)
       const { page, itemsPerPage: newItemsPerPage } = options
+      console.log('Pagination values:', { page, newItemsPerPage })
       fetchSites(page, newItemsPerPage)
     }
 
@@ -1913,6 +2058,10 @@ export default defineComponent({
       showFrame?: boolean;
       radius?: number;
     } = {}): Promise<string> => {
+      console.log('[Sites][QR Code][generateStyledQRCode] Début de la génération pour le site:', site.name);
+      console.log('[Sites][QR Code][generateStyledQRCode] Options:', options);
+      console.log('[Sites][QR Code][generateStyledQRCode] Données du site:', { id: site.id, nfc_id: site.nfc_id, name: site.name });
+
       const {
         width = 500,
         height = 700,
@@ -1923,8 +2072,12 @@ export default defineComponent({
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Could not get canvas context');
+      if (!ctx) {
+        console.error('[Sites][QR Code][generateStyledQRCode] Erreur: Impossible d\'obtenir le contexte du canvas');
+        throw new Error('Could not get canvas context');
+      }
       
+      console.log('[Sites][QR Code][generateStyledQRCode] Canvas créé avec dimensions:', { width, height });
       canvas.width = width;
       canvas.height = height;
 
@@ -1932,29 +2085,28 @@ export default defineComponent({
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, width, height);
 
-      if (showFrame) {
-        // Cadre orange arrondi
-        ctx.strokeStyle = '#F78C48';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.roundRect(10, 10, width - 20, height - 20, 40);
-        ctx.stroke();
-      }
-
       // Générer le QR Code avec qrcode
       const qrData = JSON.stringify({
         type: 'PG_SITE',
-        nfc_id: site.nfc_id,
         site_id: site.id,
+        nfc_id: site.nfc_id,
         name: site.name
       });
+      console.log('[Sites][QR Code][generateStyledQRCode] Données encodées dans le QR code:', qrData);
 
       try {
+        console.log('[Sites][QR Code][generateStyledQRCode] Chargement du logo...');
         // Charger le logo
         const logo = new Image();
         await new Promise<void>((resolve, reject) => {
-          logo.onload = () => resolve();
-          logo.onerror = (error) => reject(error);
+          logo.onload = () => {
+            console.log('[Sites][QR Code][generateStyledQRCode] Logo chargé avec succès');
+            resolve();
+          };
+          logo.onerror = (error) => {
+            console.error('[Sites][QR Code][generateStyledQRCode] Erreur de chargement du logo:', error);
+            reject(error);
+          };
           logo.src = '/icons/logo.png';
         });
 
@@ -1963,8 +2115,10 @@ export default defineComponent({
         const logoAspectRatio = logo.width / logo.height;
         const logoWidth = logoSize;
         const logoHeight = logoSize / logoAspectRatio;
+        console.log('[Sites][QR Code][generateStyledQRCode] Dimensions du logo calculées:', { logoWidth, logoHeight });
 
         // Générer le QR code avec une zone centrale transparente pour le logo
+        console.log('[Sites][QR Code][generateStyledQRCode] Génération du QR code...');
         const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
           width: qrSize,
           margin: 1,
@@ -1973,32 +2127,44 @@ export default defineComponent({
             light: '#FFFFFF'
           }
         });
+        console.log('[Sites][QR Code][generateStyledQRCode] QR code généré avec succès');
 
         const qrImage = new Image();
         await new Promise<void>((resolve, reject) => {
-          qrImage.onload = () => resolve();
-          qrImage.onerror = (error) => reject(error);
+          qrImage.onload = () => {
+            console.log('[Sites][QR Code][generateStyledQRCode] Image QR code chargée');
+            resolve();
+          };
+          qrImage.onerror = (error) => {
+            console.error('[Sites][QR Code][generateStyledQRCode] Erreur de chargement de l\'image QR code:', error);
+            reject(error);
+          };
           qrImage.src = qrCodeDataUrl;
         });
 
         const qrX = (width - qrSize) / 2;
         const qrY = showFrame ? 50 : 0;
         ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+        console.log('[Sites][QR Code][generateStyledQRCode] QR code dessiné sur le canvas');
 
         // Dessiner le logo au centre du QR code
         const logoX = qrX + (qrSize - logoWidth) / 2;
         const logoY = qrY + (qrSize - logoHeight) / 2;
+        console.log('[Sites][QR Code][generateStyledQRCode] Position du logo calculée:', { logoX, logoY });
 
         // Créer un cercle blanc pour le fond du logo
         ctx.beginPath();
         ctx.arc(logoX + logoWidth/2, logoY + logoHeight/2, logoWidth/2 + 5, 0, Math.PI * 2);
         ctx.fillStyle = '#FFFFFF';
         ctx.fill();
+        console.log('[Sites][QR Code][generateStyledQRCode] Fond blanc du logo créé');
 
         // Dessiner le logo
         ctx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
+        console.log('[Sites][QR Code][generateStyledQRCode] Logo dessiné sur le canvas');
 
         if (showFrame) {
+          console.log('[Sites][QR Code][generateStyledQRCode] Ajout du cadre et du texte');
           ctx.strokeStyle = '#F78C48';
           ctx.lineWidth = 2;
           ctx.beginPath();
@@ -2035,7 +2201,8 @@ export default defineComponent({
           };
 
           // Découper le texte en lignes
-          const lines = getLines(site.name, maxWidth - 40); // -40 pour avoir une marge
+          const lines = getLines(site.name, maxWidth - 40);
+          console.log('[Sites][QR Code][generateStyledQRCode] Texte découpé en lignes:', lines);
           
           // Calculer la hauteur totale du texte
           const lineHeight = 30;
@@ -2053,58 +2220,116 @@ export default defineComponent({
           lines.forEach((line, index) => {
             ctx.fillText(line, width / 2, y + (index * lineHeight));
           });
+          console.log('[Sites][QR Code][generateStyledQRCode] Texte ajouté au canvas');
         }
 
+        console.log('[Sites][QR Code][generateStyledQRCode] Génération terminée avec succès');
         return canvas.toDataURL('image/png');
       } catch (error) {
-        console.error('Error generating QR code:', error);
+        console.error('[Sites][QR Code][generateStyledQRCode] Erreur détaillée:', error);
+        if (error instanceof Error) {
+          console.error('[Sites][QR Code][generateStyledQRCode] Message:', error.message);
+          console.error('[Sites][QR Code][generateStyledQRCode] Stack:', error.stack);
+        }
         throw error;
       }
     };
 
     const generateQRCode = async (site: Site): Promise<void> => {
+      console.log('[Sites][QR Code][generateQRCode] Début de la génération pour le site:', {
+        id: site.id,
+        name: site.name,
+        hasQRCode: !!site.qr_code,
+        qrCodeType: site.qr_code ? (site.qr_code.startsWith('data:') ? 'data URL' : 'autre format') : 'aucun'
+      });
+      
       try {
-        const qrCode = await generateStyledQRCode(site, {
-          width: 500,
-          height: 500,
-          qrSize: 500,
-          showFrame: false
-        });
+        // Toujours générer un nouveau QR code si inexistant ou au mauvais format
+        if (!site.qr_code || !site.qr_code.startsWith('data:')) {
+          console.log('[Sites][QR Code][generateQRCode] Génération d\'un nouveau QR code...');
+          const qrCode = await generateStyledQRCode(site, {
+            width: 500,
+            height: 500,
+            qrSize: 500,
+            showFrame: false
+          });
+          console.log('[Sites][QR Code][generateQRCode] QR code généré avec succès, longueur:', qrCode.length);
 
-        if (selectedSite.value) {
-          selectedSite.value = {
-            ...selectedSite.value,
-            qr_code: qrCode
-          } as Site;
+          // Mettre à jour le QR code localement
+          if (selectedSite.value && selectedSite.value.id === site.id) {
+            console.log('[Sites][QR Code][generateQRCode] Mise à jour du QR code pour le site sélectionné');
+            selectedSite.value.qr_code = qrCode;
+          }
+
+          // Mettre à jour le QR code dans la liste des sites
+          const siteIndex = sites.value.findIndex(s => s.id === site.id);
+          if (siteIndex !== -1) {
+            console.log('[Sites][QR Code][generateQRCode] Mise à jour du QR code dans la liste des sites');
+            sites.value[siteIndex].qr_code = qrCode;
+          }
+        } else {
+          console.log('[Sites][QR Code][generateQRCode] QR code existant et valide, génération ignorée');
         }
       } catch (error: unknown) {
-        console.error('Erreur lors de la génération du QR code:', error);
+        console.error('[Sites][QR Code][generateQRCode] Erreur lors de la génération:', error);
+        if (error instanceof Error) {
+          console.error('[Sites][QR Code][generateQRCode] Message:', error.message);
+          console.error('[Sites][QR Code][generateQRCode] Stack:', error.stack);
+        }
+        throw error;
       }
     };
 
     const downloadQRCode = async (site: Site): Promise<void> => {
-      if (!site.qr_code) return;
-
+      console.log('[Sites][QR Code][downloadQRCode] Début du téléchargement pour le site:', {
+        id: site.id,
+        name: site.name,
+        hasQRCode: !!site.qr_code
+      });
+      
       try {
+        // Toujours générer un nouveau QR code pour le téléchargement
+        console.log('[Sites][QR Code][downloadQRCode] Génération du QR code pour le téléchargement...');
         const qrCode = await generateStyledQRCode(site, {
           width: 500,
           height: 700,
           qrSize: 400,
           showFrame: true
         });
+        console.log('[Sites][QR Code][downloadQRCode] QR code généré avec succès');
+
+        // Mettre à jour le QR code dans le site si nécessaire
+        if (!site.qr_code) {
+          console.log('[Sites][QR Code][downloadQRCode] Mise à jour du QR code manquant dans le site');
+          if (selectedSite.value && selectedSite.value.id === site.id) {
+            selectedSite.value.qr_code = qrCode;
+          }
+          const siteIndex = sites.value.findIndex(s => s.id === site.id);
+          if (siteIndex !== -1) {
+            sites.value[siteIndex].qr_code = qrCode;
+          }
+        }
+
+        const fileName = `qr-code-${site.name.toLowerCase().replace(/\s+/g, '-')}.png`;
+        console.log('[Sites][QR Code][downloadQRCode] Nom du fichier:', fileName);
 
         const link = document.createElement('a');
         link.href = qrCode;
-        link.download = `qr-code-${site.name.toLowerCase().replace(/\s+/g, '-')}.png`;
+        link.download = fileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        console.log('[Sites][QR Code][downloadQRCode] Téléchargement initié');
       } catch (error) {
-        console.error('Erreur lors du téléchargement du QR code:', error);
+        console.error('[Sites][QR Code][downloadQRCode] Erreur détaillée:', error);
+        if (error instanceof Error) {
+          console.error('[Sites][QR Code][downloadQRCode] Message:', error.message);
+          console.error('[Sites][QR Code][downloadQRCode] Stack:', error.stack);
+        }
       }
     };
 
-    const toggleSiteStatus = async (site: Site): Promise<void> => {
+    const toggleSiteStatus = async (site: ExtendedSite): Promise<void> => {
       try {
         site.isUpdating = true
         const updatedSite = await sitesApi.updateSite(site.id, {
@@ -2172,7 +2397,9 @@ export default defineComponent({
       selectedSite,
       activeTab,
       loadingSchedules,
-      loadingEmployees,
+      loadingTimesheets,
+      loadingAnomalies,
+      loadingReports,
       siteEmployees,
       availableEmployees,
       formatEmployeeName,
@@ -2215,7 +2442,6 @@ export default defineComponent({
 
       // Jours de la semaine
       weekDays,
-
       // Fonctions pour la gestion des QR codes
       generateQRCode,
       downloadQRCode,
@@ -2323,4 +2549,3 @@ export default defineComponent({
   color: white !important;
 }
 </style>
-

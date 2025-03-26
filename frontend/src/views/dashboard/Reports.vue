@@ -132,11 +132,14 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, watch, onMounted } from 'vue'
+import { reportsApi, sitesApi } from '@/services/api'
+import { useSitesStore } from '@/stores/sites'
 
 export default {
   name: 'ReportsView',
   setup() {
+    const sitesStore = useSitesStore()
     const form = ref(null)
     const loading = ref(true)
     const generating = ref(false)
@@ -255,39 +258,53 @@ export default {
       }
     }
     
-    // Charger les rapports initiaux
-    setTimeout(() => {
-      reports.value = [
-        { 
-          id: 1, 
-          name: 'Rapport mensuel Mars 2025', 
-          type: 'Mensuel',
-          format: 'PDF',
-          period: '01/03/2025 - 31/03/2025',
-          site: 'Tous les sites',
-          createdAt: '31/03/2025'
-        },
-        { 
-          id: 2, 
-          name: 'Rapport hebdomadaire S10', 
-          type: 'Hebdomadaire',
-          format: 'Excel',
-          period: '04/03/2025 - 10/03/2025',
-          site: 'Centre Commercial',
-          createdAt: '11/03/2025'
-        },
-        { 
-          id: 3, 
-          name: 'Rapport mensuel Février 2025', 
-          type: 'Mensuel',
-          format: 'PDF',
-          period: '01/02/2025 - 29/02/2025',
-          site: 'Tous les sites',
-          createdAt: '29/02/2025'
+    // Charger les sites
+    const loadSites = async () => {
+      try {
+        const response = await sitesApi.getAllSites()
+        if (response.data?.results) {
+          siteOptions.value = response.data.results.map(site => ({
+            text: site.name,
+            value: site.id
+          }))
         }
-      ]
-      loading.value = false
-    }, 1000)
+      } catch (error) {
+        console.error('Erreur lors du chargement des sites:', error)
+        siteOptions.value = []
+      }
+    }
+
+    // Watch for changes in current site
+    watch(() => sitesStore.getCurrentSiteId, (newSiteId) => {
+      if (newSiteId) {
+        reportForm.value.site = newSiteId
+        loadReports()
+      }
+    })
+
+    const loadReports = async () => {
+      try {
+        loading.value = true
+        const siteId = sitesStore.getCurrentSiteId || reportForm.value.site
+        if (siteId) {
+          const response = await reportsApi.getReportsBySite(siteId)
+          updateReports(response.data)
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des rapports:', error)
+        updateReports({ results: [] })
+      } finally {
+        loading.value = false
+      }
+    }
+
+    onMounted(async () => {
+      await loadSites()
+      if (sitesStore.getCurrentSiteId) {
+        reportForm.value.site = sitesStore.getCurrentSiteId
+      }
+      await loadReports()
+    })
     
     return {
       form,
@@ -304,7 +321,8 @@ export default {
       dateRangeRule,
       generateReport,
       downloadReport,
-      deleteReport
+      deleteReport,
+      loadReports
     }
   }
 }

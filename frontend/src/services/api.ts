@@ -1,4 +1,5 @@
-import axios, { AxiosResponse } from "axios"
+import axios from "axios"
+import type { AxiosResponse } from "axios"
 
 const api = axios.create({
   baseURL: "/api/v1",
@@ -130,6 +131,7 @@ interface Site {
   nfc_id: string;  // Format: S0001 à S9999
   organization: number;
   organization_name?: string;
+  manager?: number | null;
   late_margin: number;
   early_departure_margin: number;
   ambiguous_margin: number;
@@ -188,6 +190,7 @@ interface Employee {
 interface Organization {
   id: number;
   name: string;
+  org_id: string;
 }
 
 // Utilitaires pour la validation des IDs de sites
@@ -262,7 +265,11 @@ const sitesApi = {
     api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`),
 
   getSiteEmployees: (siteId: number): Promise<AxiosResponse<ApiResponse<Employee>>> =>
-    api.get(`/sites/${siteId}/employees/`)
+    api.get(`/sites/${siteId}/employees/`),
+
+  // Get schedules by site
+  getSchedulesBySite: (siteId: number): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
+    api.get(`/sites/${siteId}/schedules/`),
 }
 
 // Schedules API methods
@@ -275,6 +282,10 @@ const schedulesApi = {
         page_size: perPage 
       }
     }),
+  
+  // Get schedules by site
+  getSchedulesBySite: (siteId: number): Promise<AxiosResponse<Schedule[]>> => 
+    api.get(`/sites/${siteId}/schedules/`),
   
   // Get a single schedule by ID
   getSchedule: (id: number): Promise<AxiosResponse<Schedule>> => api.get(`/schedules/${id}/`),
@@ -433,6 +444,32 @@ const timesheetsApi = {
   }
 }
 
-export { sitesApi, schedulesApi, usersApi, timesheetsApi, organizationsApi }
+// Anomalies API methods
+const anomaliesApi = {
+  getAnomaliesBySite: (siteId: number) => 
+    api.get(`/timesheets/anomalies/`, { params: { site: siteId } }),
+  
+  updateAnomaly: (id: number, data: any) => 
+    api.patch(`/timesheets/anomalies/${id}/`, convertKeysToSnakeCase(data))
+}
+
+// Reports API methods
+const reportsApi = {
+  getReportsBySite: (siteId: number) => 
+    api.get(`/reports/`, { params: { site: siteId } })
+}
+
+// Export types
+export type { Site, Schedule, Employee, Organization, ScheduleDetail }
+
+export { 
+  sitesApi, 
+  schedulesApi, 
+  usersApi, 
+  timesheetsApi, 
+  organizationsApi,
+  anomaliesApi,
+  reportsApi 
+}
 export default api
 

@@ -7,6 +7,24 @@
       ></v-app-bar-nav-icon>
       <v-app-bar-title>Planète Gardiens - Administration</v-app-bar-title>
       <v-spacer></v-spacer>
+      
+      <!-- Sélecteur de site -->
+      <v-autocomplete
+        v-if="isManager || isSuperAdmin"
+        v-model="selectedSite"
+        :loading="loadingSites"
+        :items="siteOptions"
+        label="Sélectionner un site"
+        item-title="text"
+        item-value="value"
+        variant="outlined"
+        density="compact"
+        hide-details
+        class="site-selector mx-4"
+        clearable
+        @update:modelValue="handleSiteChange"
+      ></v-autocomplete>
+
       <v-btn icon @click="showLogoutDialog = true">
         <v-icon>mdi-logout</v-icon>
       </v-btn>
@@ -175,21 +193,56 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useSitesStore } from '@/stores/sites'
+import { sitesApi } from '@/services/api'
 import { useDisplay } from 'vuetify'
 
 export default {
   name: 'DashboardLayout',
   setup() {
     const authStore = useAuthStore()
+    const sitesStore = useSitesStore()
     const display = useDisplay()
     const drawer = ref(true)
     const rail = ref(false)
     const showLogoutDialog = ref(false)
+    const selectedSite = ref(null)
+    const siteOptions = ref([])
+    const loadingSites = ref(false)
     
     const isSuperAdmin = computed(() => authStore.isSuperAdmin)
     const isManager = computed(() => authStore.isManager)
+    
+    const loadSites = async () => {
+      try {
+        loadingSites.value = true
+        const response = await sitesApi.getAllSites()
+        siteOptions.value = response.data.results.map(site => ({
+          text: site.name,
+          value: site.id
+        }))
+      } catch (error) {
+        console.error('Erreur lors du chargement des sites:', error)
+      } finally {
+        loadingSites.value = false
+      }
+    }
+
+    const handleSiteChange = async (siteId) => {
+      if (siteId) {
+        await sitesStore.setCurrentSite(siteId)
+      } else {
+        sitesStore.clearCurrentSite()
+      }
+    }
+
+    onMounted(() => {
+      if (isManager.value || isSuperAdmin.value) {
+        loadSites()
+      }
+    })
     
     const logout = () => {
       authStore.logout()
@@ -213,9 +266,13 @@ export default {
       showLogoutDialog,
       isSuperAdmin,
       isManager,
+      selectedSite,
+      siteOptions,
+      loadingSites,
       logout,
       handleDrawerOutsideClick,
-      handleListItemClick
+      handleListItemClick,
+      handleSiteChange
     }
   }
 }
@@ -327,6 +384,29 @@ export default {
   font-size: 0.875rem;
   padding: 4px 8px;
   color: white !important;
+}
+
+/* Style du sélecteur de site */
+.site-selector {
+  max-width: 300px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+:deep(.site-selector .v-field__input) {
+  color: white !important;
+}
+
+:deep(.site-selector .v-field__outline) {
+  --v-field-border-opacity: 0.2;
+}
+
+:deep(.site-selector .v-field__append-inner) {
+  color: white !important;
+}
+
+:deep(.site-selector .v-label) {
+  color: rgba(255, 255, 255, 0.7) !important;
 }
 </style>
 

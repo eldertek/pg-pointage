@@ -194,11 +194,13 @@
 import { ref, watch } from 'vue'
 import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
 import { useToast } from 'vue-toastification'
+import { useSitesStore } from '@/stores/sites'
 
 export default {
   name: 'AnomaliesView',
   setup() {
     const toast = useToast()
+    const sitesStore = useSitesStore()
     const loading = ref(true)
     const scanning = ref(false)
     const error = ref(null)
@@ -312,7 +314,10 @@ export default {
       if (filters.value.employee) {
         params.employee = filters.value.employee
       }
-      if (filters.value.site) {
+      // Utiliser le site actif en priorité
+      if (sitesStore.getCurrentSiteId) {
+        params.site = sitesStore.getCurrentSiteId
+      } else if (filters.value.site) {
         params.site = filters.value.site
       }
       if (filters.value.type) {
@@ -421,9 +426,24 @@ export default {
       }
     }
     
+    // Watch for changes in current site
+    watch(() => sitesStore.getCurrentSiteId, (newSiteId) => {
+      if (newSiteId) {
+        filters.value.site = newSiteId
+        applyFilters()
+      }
+    })
+    
     // Charger les données initiales
-    loadSites()
-    applyFilters()
+    const init = async () => {
+      if (sitesStore.getCurrentSiteId) {
+        filters.value.site = sitesStore.getCurrentSiteId
+      }
+      await loadSites()
+      await applyFilters()
+    }
+    
+    init()
     
     return {
       loading,

@@ -1,5 +1,6 @@
-import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router"
-import { useAuthStore } from "@/stores/auth"
+import { createRouter, createWebHistory } from "vue-router"
+import type { RouteRecordRaw } from "vue-router"
+import { useAuthStore } from "@/stores/auth.ts"
 
 // Layouts
 import AuthLayout from "@/layouts/AuthLayout.vue"
@@ -194,7 +195,7 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // Vérifier les rôles requis
-    if (requiredRoles.length > 0 && !requiredRoles.includes(authStore.userRole)) {
+    if (requiredRoles.length > 0 && authStore.userRole && !requiredRoles.includes(authStore.userRole)) {
       console.log("Accès refusé - rôle incorrect:", authStore.userRole)
       // Rediriger vers le dashboard approprié en fonction du rôle
       if (authStore.userRole === "EMPLOYEE") {
