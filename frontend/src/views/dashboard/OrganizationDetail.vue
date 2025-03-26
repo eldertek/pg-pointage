@@ -37,7 +37,21 @@
                   <template #prepend>
                     <v-icon icon="mdi-map-marker"></v-icon>
                   </template>
-                  <v-list-item-title>Adresse</v-list-item-title>
+                  <v-list-item-title class="d-flex align-center">
+                    Adresse
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      :href="formatAddressForMaps(organization.address, organization.postal_code, organization.city, organization.country)"
+                      target="_blank"
+                      color="primary"
+                      class="ml-2"
+                    >
+                      <v-icon>mdi-map-marker</v-icon>
+                      <v-tooltip activator="parent">Ouvrir dans Google Maps</v-tooltip>
+                    </v-btn>
+                  </v-list-item-title>
                   <v-list-item-subtitle>
                     {{ organization.address }}<br>
                     {{ organization.postal_code }} {{ organization.city }}<br>
@@ -66,7 +80,7 @@
                     <v-icon icon="mdi-phone"></v-icon>
                   </template>
                   <v-list-item-title>Téléphone</v-list-item-title>
-                  <v-list-item-subtitle>{{ organization.phone }}</v-list-item-subtitle>
+                  <v-list-item-subtitle>{{ formatPhoneNumber(organization.phone) }}</v-list-item-subtitle>
                 </v-list-item>
 
                 <v-list-item>
@@ -168,6 +182,21 @@
               </v-chip>
             </template>
 
+            <template #[`item.address`]="{ item }">
+              {{ item.address }}, {{ item.postal_code }} {{ item.city }}
+              <v-btn
+                icon
+                variant="text"
+                size="x-small"
+                :href="formatAddressForMaps(item.address, item.postal_code, item.city, item.country)"
+                target="_blank"
+                color="primary"
+              >
+                <v-icon>mdi-map-marker</v-icon>
+                <v-tooltip activator="parent">Ouvrir dans Google Maps</v-tooltip>
+              </v-btn>
+            </template>
+
             <template #[`item.actions`]="{ item }">
               <v-btn
                 icon
@@ -176,6 +205,7 @@
                 :to="`/dashboard/sites/${item.id}`"
               >
                 <v-icon>mdi-eye</v-icon>
+                <v-tooltip activator="parent">Voir les détails</v-tooltip>
               </v-btn>
             </template>
           </v-data-table>
@@ -258,6 +288,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
+import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
 
 export default {
   name: 'OrganizationDetailView',
@@ -357,9 +388,52 @@ export default {
       employees,
       editOrganization,
       confirmDelete,
-      deleteOrganization
+      deleteOrganization,
+      formatPhoneNumber,
+      formatAddressForMaps
     }
   }
 }
 </script>
+
+<style scoped>
+.v-btn--icon.v-btn--density-default {
+  color: rgb(0, 52, 110) !important;
+}
+
+:deep(.v-btn--icon) {
+  background-color: transparent !important;
+}
+
+:deep(.v-btn--icon .v-icon) {
+  color: rgb(0, 52, 110) !important;
+  opacity: 1 !important;
+}
+
+/* Style des icônes dans les informations générales */
+:deep(.v-list-item .v-icon) {
+  color: rgb(0, 52, 110) !important;
+  opacity: 1 !important;
+}
+
+/* Style des boutons dans les tables */
+:deep(.v-data-table .v-btn--icon) {
+  opacity: 1 !important;
+}
+
+:deep(.v-data-table .v-btn--icon .v-icon) {
+  color: rgb(0, 52, 110) !important;
+  opacity: 1 !important;
+}
+
+/* Style des boutons dans la liste d'informations */
+:deep(.v-list-item .v-btn--icon) {
+  opacity: 1 !important;
+}
+
+:deep(.v-list-item .v-btn--icon .v-icon) {
+  color: rgb(0, 52, 110) !important;
+  opacity: 1 !important;
+}
+</style>
 

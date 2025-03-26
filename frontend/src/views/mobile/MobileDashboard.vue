@@ -4,7 +4,7 @@
     <template v-if="user?.simplified_mobile_view">
       <v-card class="simplified-view">
         <v-card-text class="text-center">
-          <h2 class="text-h5 mb-4">Bienvenue{{ user?.first_name ? ', ' + user.first_name : '' }}</h2>
+          <h2 class="text-h5 mb-4">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</h2>
           <v-btn
             color="primary"
             size="x-large"
@@ -12,7 +12,7 @@
             class="mb-4"
             block
           >
-            Pointer maintenant
+            S'enregistrer maintenant
           </v-btn>
           <v-btn
             variant="text"
@@ -34,7 +34,7 @@
       
       <v-card-text>
         <div class="text-center mb-6">
-          <h2 class="text-h5 mb-2">Bienvenue{{ user?.first_name ? ', ' + user.first_name : '' }}</h2>
+          <h2 class="text-h5 mb-2">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</h2>
           <p class="text-subtitle-1 text-medium-emphasis">{{ currentDate }}</p>
         </div>
         
@@ -61,7 +61,7 @@
         </v-row>
         
         <div class="mt-6">
-          <h3 class="text-h6 mb-3">Derniers pointages</h3>
+          <h3 class="text-h6 mb-3">Derniers enregistrements</h3>
           <v-timeline density="compact" align="start">
             <v-timeline-item
               v-for="(timesheet, index) in recentTimesheets"
@@ -96,7 +96,7 @@
           </v-timeline>
           
           <div v-if="recentTimesheets.length === 0" class="text-center pa-4">
-            <p class="text-medium-emphasis">Aucun pointage récent</p>
+            <p class="text-medium-emphasis">Aucun enregistrement récent</p>
           </div>
           
           <div class="text-center mt-4">
@@ -137,7 +137,7 @@
           to="/mobile/scan"
           block
         >
-          Pointer maintenant
+          S'enregistrer maintenant
         </v-btn>
       </v-card-actions>
     </v-card>

@@ -10,11 +10,66 @@ class ScheduleDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ScheduleDetail
-        fields = ['id', 'schedule', 'day_of_week', 'day_name', 'start_time_1', 'end_time_1', 
-                'start_time_2', 'end_time_2']
+        fields = [
+            'id', 'day_of_week', 'day_type',
+            'start_time_1', 'end_time_1',
+            'start_time_2', 'end_time_2',
+            'frequency_duration'
+        ]
     
     def get_day_name(self, obj):
         return obj.get_day_of_week_display()
+
+    def validate(self, data):
+        schedule_type = self.context.get('schedule_type')
+        if not schedule_type:
+            raise serializers.ValidationError("Le type de planning doit être spécifié")
+            
+        if schedule_type == Schedule.ScheduleType.FIXED:
+            # Validation pour planning fixe
+            if 'frequency_duration' in data:
+                raise serializers.ValidationError({
+                    'frequency_duration': 'La durée ne doit pas être définie pour un planning fixe'
+                })
+                
+            day_type = data.get('day_type')
+            if day_type == ScheduleDetail.DayType.FULL:
+                if not all([data.get('start_time_1'), data.get('end_time_1'),
+                          data.get('start_time_2'), data.get('end_time_2')]):
+                    raise serializers.ValidationError(
+                        'Tous les horaires doivent être définis pour une journée entière'
+                    )
+            elif day_type == ScheduleDetail.DayType.AM:
+                if not all([data.get('start_time_1'), data.get('end_time_1')]):
+                    raise serializers.ValidationError(
+                        'Les horaires du matin doivent être définis'
+                    )
+                if any([data.get('start_time_2'), data.get('end_time_2')]):
+                    raise serializers.ValidationError(
+                        'Les horaires de l\'après-midi ne doivent pas être définis'
+                    )
+            else:  # PM
+                if not all([data.get('start_time_2'), data.get('end_time_2')]):
+                    raise serializers.ValidationError(
+                        'Les horaires de l\'après-midi doivent être définis'
+                    )
+                if any([data.get('start_time_1'), data.get('end_time_1')]):
+                    raise serializers.ValidationError(
+                        'Les horaires du matin ne doivent pas être définis'
+                    )
+        else:
+            # Validation pour planning fréquence
+            if not data.get('frequency_duration'):
+                raise serializers.ValidationError({
+                    'frequency_duration': 'La durée doit être définie pour un planning fréquence'
+                })
+            if any([data.get('start_time_1'), data.get('end_time_1'),
+                   data.get('start_time_2'), data.get('end_time_2')]):
+                raise serializers.ValidationError(
+                    'Les horaires ne doivent pas être définis pour un planning fréquence'
+                )
+        
+        return data
 
 class SiteEmployeeSerializer(serializers.ModelSerializer):
     """Serializer pour les employés du site"""
@@ -52,17 +107,73 @@ class SiteEmployeeSerializer(serializers.ModelSerializer):
 
 class ScheduleSerializer(serializers.ModelSerializer):
     """Serializer pour les plannings"""
-    details = ScheduleDetailSerializer(many=True, read_only=True)
-    assigned_employees = SiteEmployeeSerializer(many=True, read_only=True)
+    details = ScheduleDetailSerializer(many=True, required=False)
+    site_name = serializers.CharField(source='site.name', read_only=True)
+    employee = serializers.PrimaryKeyRelatedField(
+        write_only=True,
+        required=False,
+        queryset=SiteEmployee.objects.all()
+    )
     
     class Meta:
         model = Schedule
-        fields = ['id', 'site', 'name', 'schedule_type', 'min_daily_hours', 
-                'min_weekly_hours', 'allow_early_arrival', 'allow_late_departure',
-                'early_arrival_limit', 'late_departure_limit', 'break_duration',
-                'min_break_start', 'max_break_end', 'created_at', 'updated_at', 
-                'is_active', 'details', 'assigned_employees']
-        read_only_fields = ['created_at', 'updated_at']
+        fields = [
+            'id', 'site', 'site_name', 'schedule_type',
+            'details', 'employee', 'created_at', 'updated_at', 'is_active'
+        ]
+    
+    def create(self, validated_data):
+        details_data = validated_data.pop('details', [])
+        employee = validated_data.pop('employee', None)
+        
+        # Créer le planning
+        schedule = Schedule.objects.create(**validated_data)
+        
+        # Créer les détails du planning
+        for detail_data in details_data:
+            ScheduleDetail.objects.create(schedule=schedule, **detail_data)
+        
+        # Assigner l'employé si spécifié
+        if employee:
+            SiteEmployee.objects.filter(
+                site=schedule.site,
+                employee=employee.employee
+            ).update(schedule=schedule)
+        elif SiteEmployee.objects.filter(site=schedule.site).count() == 1:
+            # Si un seul employé sur le site, l'assigner automatiquement
+            site_employee = SiteEmployee.objects.get(site=schedule.site)
+            site_employee.schedule = schedule
+            site_employee.save()
+        
+        return schedule
+    
+    def update(self, instance, validated_data):
+        details_data = validated_data.pop('details', [])
+        employee = validated_data.pop('employee', None)
+        
+        # Mettre à jour le planning
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        # Mettre à jour les détails
+        instance.details.all().delete()  # Supprimer les anciens détails
+        for detail_data in details_data:
+            ScheduleDetail.objects.create(schedule=instance, **detail_data)
+        
+        # Mettre à jour l'assignation de l'employé
+        if employee:
+            # Désassigner tous les employés de ce planning
+            SiteEmployee.objects.filter(schedule=instance).update(schedule=None)
+            # Assigner le nouvel employé
+            site_employee = SiteEmployee.objects.get(
+                site=instance.site,
+                employee=employee.employee
+            )
+            site_employee.schedule = instance
+            site_employee.save()
+        
+        return instance
 
 class SiteSerializer(serializers.ModelSerializer):
     """Serializer pour les sites"""

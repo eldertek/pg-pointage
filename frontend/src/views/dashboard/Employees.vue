@@ -120,7 +120,9 @@
                   <v-text-field
                     v-model="formData.phone_number"
                     label="Téléphone"
-                    :rules="[v => !v || /^[0-9+ -]{10,}$/.test(v) || 'Le numéro de téléphone doit être valide']"
+                    :rules="[v => !v || /^[0-9]{10}$/.test(v.replace(/\D/g, '')) || 'Le numéro de téléphone doit contenir 10 chiffres']"
+                    :value="formData.phone_number ? formatPhoneNumber(formData.phone_number) : ''"
+                    @input="e => formData.phone_number = e.target.value.replace(/\D/g, '')"
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12">
@@ -197,6 +199,7 @@
 <script>
 import { ref, onMounted } from 'vue'
 import { useEmployeesStore } from '@/stores/employees'
+import { formatPhoneNumber } from '@/utils/formatters'
 
 export default {
   name: 'EmployeesView',
@@ -213,7 +216,7 @@ export default {
       { title: 'Prénom', align: 'start', key: 'first_name' },
       { title: 'Nom', align: 'start', key: 'last_name' },
       { title: 'Email', align: 'start', key: 'email' },
-      { title: 'Téléphone', align: 'start', key: 'phone_number' },
+      { title: 'Téléphone', align: 'start', key: 'phone_number', format: value => value ? formatPhoneNumber(value) : '-' },
       { title: 'ID Employé', align: 'start', key: 'employee_id' },
       { title: 'Statut', align: 'center', key: 'is_active' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }

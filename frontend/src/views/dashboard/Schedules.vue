@@ -110,14 +110,6 @@
                 ></v-select>
               </v-col>
               <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="formData.name"
-                  label="Nom du planning"
-                  required
-                  :rules="[v => !!v || 'Le nom est requis']"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="6">
                 <v-select
                   v-model="formData.schedule_type"
                   label="Type de planning"
@@ -338,11 +330,10 @@ export default {
     const sites = ref([])
     
     const headers = ref([
-      { title: 'Nom', align: 'start', key: 'name', width: '20%' },
-      { title: 'Site', align: 'start', key: 'site', width: '20%' },
-      { title: 'Type', align: 'center', key: 'type', width: '15%' },
-      { title: 'Heures min. quotidiennes', align: 'center', key: 'minDailyHours', width: '15%' },
-      { title: 'Heures min. hebdomadaires', align: 'center', key: 'minWeeklyHours', width: '15%' },
+      { title: 'Site', align: 'start', key: 'site', width: '25%' },
+      { title: 'Type', align: 'center', key: 'type', width: '20%' },
+      { title: 'Heures min. quotidiennes', align: 'center', key: 'minDailyHours', width: '20%' },
+      { title: 'Heures min. hebdomadaires', align: 'center', key: 'minWeeklyHours', width: '20%' },
       { title: 'Employés assignés', align: 'center', key: 'employeesCount', width: '10%' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false, width: '150px' }
     ])
@@ -357,7 +348,6 @@ export default {
 
     const formData = ref({
       site: null,
-      name: '',
       schedule_type: 'FIXED',
       working_days: [],
       min_daily_hours: null,
@@ -401,7 +391,6 @@ export default {
             if (schedule) {  // Vérifier que le planning existe
               allSchedules.push({
                 id: schedule.id,
-                name: schedule.name || '',
                 site: site.name || '',
                 siteId: site.id,
                 schedule_type: schedule.schedule_type || 'FIXED',
@@ -450,7 +439,6 @@ export default {
       editingSchedule.value = true
       formData.value = {
         site: schedule.site_id,
-        name: schedule.name,
         schedule_type: schedule.type,
         working_days: schedule.working_days || [],
         min_daily_hours: schedule.min_daily_hours,
@@ -496,7 +484,6 @@ export default {
       try {
         const scheduleData = {
           site: formData.value.site,
-          name: formData.value.name,
           type: formData.value.schedule_type,
           working_days: formData.value.working_days,
           min_daily_hours: formData.value.min_daily_hours,
@@ -542,7 +529,6 @@ export default {
     const resetScheduleForm = () => {
       formData.value = {
         site: null,
-        name: '',
         schedule_type: 'FIXED',
         working_days: [],
         min_daily_hours: null,

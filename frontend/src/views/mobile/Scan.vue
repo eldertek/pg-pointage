@@ -2,7 +2,7 @@
   <div class="scan-container">
     <v-card class="scan-card">
       <v-card-title class="text-center">
-        Pointage
+        Enregistrement
       </v-card-title>
       
       <v-card-text>
@@ -85,7 +85,7 @@
           <v-card>
             <v-card-title>Précisez votre action</v-card-title>
             <v-card-text>
-              <p>Ce pointage est entre deux plages horaires. Veuillez préciser s'il s'agit d'un départ ou d'une arrivée.</p>
+              <p>Cet enregistrement est entre deux plages horaires. Veuillez préciser s'il s'agit d'un départ ou d'une arrivée.</p>
             </v-card-text>
             <v-card-actions>
               <v-spacer></v-spacer>
@@ -486,18 +486,18 @@ export default {
           }
           showAmbiguousDialog.value = true
         } else {
-          // Pointage réussi
-          showSuccess(result.message || 'Pointage enregistré avec succès')
+          // Enregistrement réussi
+          showSuccess(result.message || 'Enregistrement effectué avec succès')
         }
       } catch (err) {
-        console.error('Erreur lors du pointage:', err)
-        showError(err.message || 'Erreur lors de l\'enregistrement du pointage')
+        console.error('Erreur lors de l\'enregistrement:', err)
+        showError(err.message || 'Erreur lors de l\'enregistrement')
       } finally {
         scanning.value = false
       }
     }
     
-    // Fonction pour confirmer un pointage ambigu
+    // Fonction pour confirmer un enregistrement ambigu
     const confirmAmbiguousTimesheet = async (entryType) => {
       try {
         const result = await timesheetStore.createTimesheet({
@@ -505,9 +505,9 @@ export default {
           entry_type: entryType
         })
         
-        showSuccess(result.message || 'Pointage enregistré avec succès')
+        showSuccess(result.message || 'Enregistrement effectué avec succès')
       } catch (err) {
-        showError(err.message || 'Erreur lors de l\'enregistrement du pointage')
+        showError(err.message || 'Erreur lors de l\'enregistrement')
       } finally {
         showAmbiguousDialog.value = false
         ambiguousTimesheetData.value = null

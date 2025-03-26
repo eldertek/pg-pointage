@@ -49,6 +49,9 @@
                     v-model="profile.phone"
                     label="Téléphone"
                     variant="outlined"
+                    :value="profile.phone ? formatPhoneNumber(profile.phone) : ''"
+                    @input="e => profile.phone = e.target.value.replace(/\D/g, '')"
+                    :rules="[rules.phone]"
                   ></v-text-field>
                 </v-col>
               </v-row>
@@ -126,6 +129,7 @@
 <script>
 import { ref, computed, onMounted } from 'vue'
 import { usersApi } from '@/services/api'
+import { formatPhoneNumber } from '@/utils/formatters'
 
 export default {
   name: 'SettingsView',
@@ -163,7 +167,8 @@ export default {
     const rules = {
       required: v => !!v || 'Ce champ est requis',
       email: v => /.+@.+\..+/.test(v) || 'Veuillez entrer un email valide',
-      minLength: v => v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
+      minLength: v => v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères',
+      phone: v => !v || /^[0-9]{10}$/.test(v.replace(/\D/g, '')) || 'Le numéro de téléphone doit contenir 10 chiffres'
     }
     
     const passwordMatchRule = computed(() => {
@@ -268,7 +273,8 @@ export default {
       rules,
       passwordMatchRule,
       saveProfile,
-      changePassword
+      changePassword,
+      formatPhoneNumber
     }
   }
 }

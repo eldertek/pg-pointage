@@ -37,6 +37,11 @@ class Site(models.Model):
     # Paramètres de retard et départ anticipé
     late_margin = models.PositiveIntegerField(_('marge de retard (minutes)'), default=15)
     early_departure_margin = models.PositiveIntegerField(_('marge de départ anticipé (minutes)'), default=15)
+    frequency_tolerance = models.PositiveIntegerField(
+        _('tolérance planning fréquence (%)'),
+        default=10,
+        help_text=_('Pourcentage de tolérance pour la durée des plannings fréquence')
+    )
     ambiguous_margin = models.PositiveIntegerField(_('marge pour cas ambigus (minutes)'), default=20)
     
     # Destinataires des alertes
@@ -93,40 +98,12 @@ class Schedule(models.Model):
         related_name='schedules',
         verbose_name=_('site')
     )
-    name = models.CharField(_('nom'), max_length=100)
     schedule_type = models.CharField(
         _('type de planning'),
         max_length=20,
         choices=ScheduleType.choices,
         default=ScheduleType.FIXED
     )
-    
-    # Pour les plannings de type FREQUENCY
-    min_daily_hours = models.DecimalField(
-        _('heures minimales par jour'),
-        max_digits=4,
-        decimal_places=2,
-        null=True,
-        blank=True
-    )
-    min_weekly_hours = models.DecimalField(
-        _('heures minimales par semaine'),
-        max_digits=5,
-        decimal_places=2,
-        null=True,
-        blank=True
-    )
-    
-    # Paramètres de flexibilité
-    allow_early_arrival = models.BooleanField(_('autoriser arrivée en avance'), default=True)
-    allow_late_departure = models.BooleanField(_('autoriser départ tardif'), default=True)
-    early_arrival_limit = models.PositiveIntegerField(_('limite arrivée en avance (minutes)'), default=30)
-    late_departure_limit = models.PositiveIntegerField(_('limite départ tardif (minutes)'), default=30)
-    
-    # Paramètres de pause
-    break_duration = models.PositiveIntegerField(_('durée de pause (minutes)'), default=60)
-    min_break_start = models.TimeField(_('début pause au plus tôt'), null=True, blank=True)
-    max_break_end = models.TimeField(_('fin pause au plus tard'), null=True, blank=True)
     
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
     updated_at = models.DateTimeField(_('mis à jour le'), auto_now=True)
@@ -135,10 +112,10 @@ class Schedule(models.Model):
     class Meta:
         verbose_name = _('planning')
         verbose_name_plural = _('plannings')
-        ordering = ['site', 'name']
+        ordering = ['site']
     
     def __str__(self):
-        return f"{self.name} - {self.site.name}"
+        return f"Planning {self.schedule_type} - {self.site.name}"
 
 
 class ScheduleDetail(models.Model):
@@ -153,6 +130,11 @@ class ScheduleDetail(models.Model):
         SATURDAY = 5, _('Samedi')
         SUNDAY = 6, _('Dimanche')
     
+    class DayType(models.TextChoices):
+        FULL = 'FULL', _('Journée entière')
+        AM = 'AM', _('Matin')
+        PM = 'PM', _('Après-midi')
+    
     schedule = models.ForeignKey(
         Schedule,
         on_delete=models.CASCADE,
@@ -163,10 +145,22 @@ class ScheduleDetail(models.Model):
         _('jour de la semaine'),
         choices=DayOfWeek.choices
     )
-    start_time_1 = models.TimeField(_('heure de début 1'))
-    end_time_1 = models.TimeField(_('heure de fin 1'))
+    day_type = models.CharField(
+        _('type de journée'),
+        max_length=4,
+        choices=DayType.choices,
+        default=DayType.FULL
+    )
+    start_time_1 = models.TimeField(_('heure de début 1'), null=True, blank=True)
+    end_time_1 = models.TimeField(_('heure de fin 1'), null=True, blank=True)
     start_time_2 = models.TimeField(_('heure de début 2'), null=True, blank=True)
     end_time_2 = models.TimeField(_('heure de fin 2'), null=True, blank=True)
+    frequency_duration = models.PositiveIntegerField(
+        _('durée en minutes'),
+        null=True,
+        blank=True,
+        help_text=_('Pour les plannings de type fréquence uniquement')
+    )
     
     class Meta:
         verbose_name = _('détail du planning')
@@ -176,7 +170,40 @@ class ScheduleDetail(models.Model):
     
     def __str__(self):
         day_name = self.get_day_of_week_display()
-        return f"{self.schedule.name} - {day_name}"
+        return f"Planning {self.schedule.schedule_type} - {self.schedule.site.name} - {day_name}"
+    
+    def clean(self):
+        """Validation personnalisée du modèle"""
+        super().clean()
+        
+        if self.schedule.schedule_type == Schedule.ScheduleType.FIXED:
+            # Pour les plannings fixes
+            if self.frequency_duration is not None:
+                raise ValidationError({
+                    'frequency_duration': _('La durée en minutes ne doit pas être définie pour un planning fixe')
+                })
+                
+            if self.day_type == self.DayType.FULL:
+                if not all([self.start_time_1, self.end_time_1, self.start_time_2, self.end_time_2]):
+                    raise ValidationError(_('Tous les horaires doivent être définis pour une journée entière'))
+            elif self.day_type == self.DayType.AM:
+                if not all([self.start_time_1, self.end_time_1]):
+                    raise ValidationError(_('Les horaires du matin doivent être définis'))
+                if any([self.start_time_2, self.end_time_2]):
+                    raise ValidationError(_('Les horaires de l\'après-midi ne doivent pas être définis'))
+            else:  # PM
+                if not all([self.start_time_2, self.end_time_2]):
+                    raise ValidationError(_('Les horaires de l\'après-midi doivent être définis'))
+                if any([self.start_time_1, self.end_time_1]):
+                    raise ValidationError(_('Les horaires du matin ne doivent pas être définis'))
+        else:
+            # Pour les plannings fréquence
+            if self.frequency_duration is None:
+                raise ValidationError({
+                    'frequency_duration': _('La durée en minutes doit être définie pour un planning fréquence')
+                })
+            if any([self.start_time_1, self.end_time_1, self.start_time_2, self.end_time_2]):
+                raise ValidationError(_('Les horaires ne doivent pas être définis pour un planning fréquence'))
 
 
 class SiteEmployee(models.Model):

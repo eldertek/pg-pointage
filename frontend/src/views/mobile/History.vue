@@ -1,6 +1,6 @@
 <template>
   <div class="history-container">
-    <h1 class="text-h5 mb-4">Historique des pointages</h1>
+    <h1 class="text-h5 mb-4">Historique des enregistrements</h1>
     
     <v-card class="mb-4">
       <v-card-title>Filtres</v-card-title>
@@ -74,7 +74,7 @@
     
     <template v-else>
       <div v-if="timesheets.length === 0" class="text-center my-4">
-        <p class="text-subtitle-1">Aucun pointage trouvé</p>
+        <p class="text-subtitle-1">Aucun enregistrement trouvé</p>
       </div>
       
       <template v-else>
@@ -225,7 +225,7 @@ export default {
 
         hasMoreTimesheets.value = data.next !== null
       } catch (error) {
-        console.error('Erreur lors de la récupération des pointages:', error)
+        console.error('Erreur lors de la récupération des enregistrements:', error)
       } finally {
         loading.value = false
         loadingMore.value = false

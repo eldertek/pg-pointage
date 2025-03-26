@@ -25,7 +25,7 @@
               <v-icon icon="mdi-phone"></v-icon>
             </template>
             <v-list-item-title>Téléphone</v-list-item-title>
-            <v-list-item-subtitle>{{ user.phone_number || 'Non renseigné' }}</v-list-item-subtitle>
+            <v-list-item-subtitle>{{ user.phone_number ? formatPhoneNumber(user.phone_number) : 'Non renseigné' }}</v-list-item-subtitle>
           </v-list-item>
           
           <v-list-item v-if="user.organization_name">
@@ -192,6 +192,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import api, { usersApi } from '@/services/api'
+import { formatPhoneNumber } from '@/utils/formatters'
 
 export default {
   name: 'ProfileView',
@@ -381,6 +382,7 @@ export default {
       scanPreferenceLabels,
       simplifiedView,
       updateSimplifiedView,
+      formatPhoneNumber,
     }
   }
 }

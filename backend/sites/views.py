@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions, viewsets
 from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
 from .models import Site, Schedule, ScheduleDetail, SiteEmployee
 from .serializers import (
     SiteSerializer, ScheduleSerializer, ScheduleDetailSerializer, 
@@ -168,88 +169,6 @@ class SiteEmployeeDetailView(generics.RetrieveUpdateDestroyAPIView):
         site_pk = self.kwargs.get('site_pk')
         return SiteEmployee.objects.filter(site_id=site_pk)
 
-class ScheduleEmployeeListView(generics.ListCreateAPIView):
-    """Vue pour lister et assigner des employés à un planning"""
-    serializer_class = SiteEmployeeSerializer
-    
-    def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticated()]
-        return [IsAdminOrManager()]
-    
-    def get_queryset(self):
-        site_pk = self.kwargs.get('site_pk')
-        schedule_pk = self.kwargs.get('schedule_pk')
-        return SiteEmployee.objects.filter(
-            site_id=site_pk,
-            schedule_id=schedule_pk
-        )
-    
-    def perform_create(self, serializer):
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        site_pk = self.kwargs.get('site_pk')
-        schedule_pk = self.kwargs.get('schedule_pk')
-        employee_id = self.request.data.get('employee')
-        
-        if not employee_id:
-            logger.error("employee manquant dans la requête")
-            raise serializers.ValidationError({"employee": "Ce champ est obligatoire."})
-        
-        try:
-            # Vérifier si l'employé est déjà assigné à ce planning
-            existing_assignment = SiteEmployee.objects.filter(
-                site_id=site_pk,
-                employee_id=employee_id,
-                schedule_id=schedule_pk,
-                is_active=True
-            ).first()
-            
-            if existing_assignment:
-                logger.info(f"L'employé {employee_id} est déjà assigné à ce planning")
-                serializer.instance = existing_assignment
-                return
-            
-            # Désactiver toute autre assignation active de l'employé pour ce site
-            SiteEmployee.objects.filter(
-                site_id=site_pk,
-                employee_id=employee_id,
-                is_active=True
-            ).update(is_active=False)
-            
-            # Créer une nouvelle assignation
-            logger.info(f"Création d'une nouvelle assignation pour l'employé {employee_id}")
-            instance = serializer.save(
-                site_id=site_pk,
-                employee_id=employee_id,
-                schedule_id=schedule_pk,
-                is_active=True
-            )
-            logger.info("Nouvelle assignation créée avec succès")
-            return instance
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de l'assignation: {str(e)}")
-            raise
-
-class ScheduleEmployeeDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Vue pour gérer un employé spécifique d'un planning"""
-    serializer_class = SiteEmployeeSerializer
-    
-    def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticated()]
-        return [IsAdminOrManager()]
-    
-    def get_queryset(self):
-        site_pk = self.kwargs.get('site_pk')
-        schedule_pk = self.kwargs.get('schedule_pk')
-        return SiteEmployee.objects.filter(
-            site_id=site_pk,
-            schedule_id=schedule_pk
-        )
-
 class SiteViewSet(viewsets.ModelViewSet):
     queryset = Site.objects.all()
     serializer_class = SiteSerializer
@@ -258,4 +177,22 @@ class SiteViewSet(viewsets.ModelViewSet):
         if self.request.method in permissions.SAFE_METHODS:
             return [IsAuthenticated()]
         return [IsAdminOrManager()]
+
+class GlobalScheduleListView(generics.ListCreateAPIView):
+    queryset = Schedule.objects.all()
+    serializer_class = ScheduleSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Filtrer par site si spécifié
+        site = self.request.query_params.get('site', None)
+        if site is not None:
+            queryset = queryset.filter(site=site)
+        return queryset
+
+class GlobalScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Schedule.objects.all()
+    serializer_class = ScheduleSerializer
+    permission_classes = [IsAuthenticated]
 

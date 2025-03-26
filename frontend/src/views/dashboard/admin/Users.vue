@@ -2,7 +2,7 @@
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
       <div>
-        <h1 class="text-h4">{{ isSuperAdmin ? 'Gestion des Utilisateurs' : 'Gestion des Employés' }}</h1>
+        <h1 class="text-h4">{{ isSuperAdmin ? 'Gestion des accès' : 'Gestion des Employés' }}</h1>
         <v-btn-toggle
           v-if="isSuperAdmin"
           v-model="currentView"
@@ -139,7 +139,7 @@
           'page-text': '{0}-{1} sur {2}',
           'items-per-page-options': [5, 10, 20, 50, 100]
         }"
-        @click:row="(_, { item }) => router.push(`/dashboard/organizations/${item.id}`)"
+        @click:row="(_, { item }) => editItem(item)"
       >
         <template v-slot:item.status="{ item }">
           <v-chip
@@ -150,6 +150,10 @@
           </v-chip>
         </template>
 
+        <template v-slot:item.phone="{ item }">
+          {{ formatPhoneNumber(item.phone) }}
+        </template>
+
         <template v-slot:item.org_id="{ item }">
           <v-chip
             color="primary"
@@ -158,6 +162,20 @@
           >
             {{ item.org_id }}
           </v-chip>
+        </template>
+
+        <template v-slot:item.address="{ item }">
+          {{ item.address }}, {{ item.postal_code }} {{ item.city }}
+          <v-btn
+            icon
+            variant="text"
+            size="x-small"
+            :href="formatAddressForMaps(item.address, item.postal_code, item.city, item.country)"
+            target="_blank"
+            color="primary"
+          >
+            <v-icon>mdi-map-marker</v-icon>
+          </v-btn>
         </template>
 
         <template v-slot:item.actions="{ item }">
@@ -352,6 +370,8 @@
                     label="Téléphone"
                     required
                     :rules="[v => !!v || 'Le téléphone est requis']"
+                    :value="organizationForm.phone ? formatPhoneNumber(organizationForm.phone) : ''"
+                    @input="e => organizationForm.phone = e.target.value.replace(/\D/g, '')"
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12" sm="6">
@@ -420,6 +440,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute, useRouter } from 'vue-router'
+import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
 
 export default {
   name: 'AdminUsersView',
@@ -459,10 +480,10 @@ export default {
       { title: 'ID', align: 'start', key: 'org_id' },
       { title: 'Nom', align: 'start', key: 'name' },
       { title: 'Email', key: 'contact_email' },
-      { title: 'Téléphone', key: 'phone' },
-      { title: 'Ville', key: 'city' },
-      { title: 'Statut', key: 'status', align: 'center' },
-      { title: 'Actions', key: 'actions', align: 'end', sortable: false }
+      { title: 'Adresse', key: 'address' },
+      { title: 'Téléphone', key: 'phone', format: value => formatPhoneNumber(value) },
+      { title: 'Statut', align: 'center', key: 'status' },
+      { title: 'Actions', align: 'end', key: 'actions', sortable: false }
     ])
 
     const users = ref([])
@@ -789,7 +810,9 @@ export default {
       editedItem,
       scanPreferences,
       isSuperAdmin,
-      availableRoles
+      availableRoles,
+      formatPhoneNumber,
+      formatAddressForMaps
     }
   }
 }

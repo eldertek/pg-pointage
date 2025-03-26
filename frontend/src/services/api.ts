@@ -142,6 +142,7 @@ interface Site {
   max_offline_duration: number;
   is_active: boolean;
   qr_code?: string;
+  download_qr_code?: string;
   created_at: string;
   updated_at: string;
   schedules?: Schedule[];
@@ -459,6 +460,66 @@ const reportsApi = {
     api.get(`/reports/`, { params: { site: siteId } })
 }
 
+// Plannings API methods
+const planningsApi = {
+  // Get all plannings with pagination
+  getAllPlannings: (page = 1, perPage = 10): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
+    api.get('/sites/schedules/', { 
+      params: { 
+        page,
+        page_size: perPage 
+      }
+    }),
+  
+  // Get a single planning by ID
+  getPlanning: (id: number): Promise<AxiosResponse<Schedule>> => 
+    api.get(`/sites/schedules/${id}/`),
+  
+  // Create a new planning
+  createPlanning: (data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
+    api.post('/sites/schedules/', convertKeysToSnakeCase(data)),
+  
+  // Update a planning
+  updatePlanning: (id: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
+    api.put(`/sites/schedules/${id}/`, convertKeysToSnakeCase(data)),
+  
+  // Delete a planning
+  deletePlanning: (id: number): Promise<AxiosResponse<void>> => 
+    api.delete(`/sites/schedules/${id}/`),
+
+  // Get plannings by site
+  getPlanningsBySite: (siteId: number): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
+    api.get(`/sites/${siteId}/schedules/`),
+}
+
+// Access Management API methods
+const accessManagementApi = {
+  // Get all access rights
+  getAllAccessRights: (page = 1, perPage = 10): Promise<AxiosResponse<ApiResponse<any>>> => 
+    api.get('/access-rights/', {
+      params: {
+        page,
+        page_size: perPage
+      }
+    }),
+
+  // Get access rights for a specific user
+  getUserAccessRights: (userId: number): Promise<AxiosResponse<any>> => 
+    api.get(`/users/${userId}/access-rights/`),
+
+  // Update user access rights
+  updateUserAccessRights: (userId: number, data: any): Promise<AxiosResponse<any>> => 
+    api.put(`/users/${userId}/access-rights/`, convertKeysToSnakeCase(data)),
+
+  // Get access rights for a specific site
+  getSiteAccessRights: (siteId: number): Promise<AxiosResponse<any>> => 
+    api.get(`/sites/${siteId}/access-rights/`),
+
+  // Update site access rights
+  updateSiteAccessRights: (siteId: number, data: any): Promise<AxiosResponse<any>> => 
+    api.put(`/sites/${siteId}/access-rights/`, convertKeysToSnakeCase(data)),
+}
+
 // Export types
 export type { Site, Schedule, Employee, Organization, ScheduleDetail }
 
@@ -469,7 +530,9 @@ export {
   timesheetsApi, 
   organizationsApi,
   anomaliesApi,
-  reportsApi 
+  reportsApi,
+  planningsApi,
+  accessManagementApi
 }
 export default api
 

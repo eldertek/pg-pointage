@@ -13,36 +13,36 @@
       <router-view />
     </v-main>
     
-    <v-bottom-navigation v-if="!isSimplifiedView" grow color="primary">
-      <v-btn to="/mobile">
+    <v-bottom-navigation v-if="!isSimplifiedView" grow v-model="activeTab">
+      <v-btn value="home" to="/mobile" variant="flat">
         <v-icon>mdi-view-dashboard</v-icon>
         Accueil
       </v-btn>
       
-      <v-btn to="/mobile/scan">
+      <v-btn value="scan" to="/mobile/scan" variant="flat">
         <v-icon>mdi-qrcode-scan</v-icon>
         Scanner
       </v-btn>
       
-      <v-btn to="/mobile/history">
+      <v-btn value="history" to="/mobile/history" variant="flat">
         <v-icon>mdi-history</v-icon>
         Historique
       </v-btn>
       
-      <v-btn to="/mobile/profile">
+      <v-btn value="profile" to="/mobile/profile" variant="flat">
         <v-icon>mdi-account</v-icon>
         Profil
       </v-btn>
     </v-bottom-navigation>
 
     <!-- Navigation simplifiée -->
-    <v-bottom-navigation v-else grow color="primary">
-      <v-btn to="/mobile/scan">
+    <v-bottom-navigation v-else grow v-model="activeTab">
+      <v-btn value="scan" to="/mobile/scan" variant="flat">
         <v-icon>mdi-qrcode-scan</v-icon>
         Scanner
       </v-btn>
       
-      <v-btn to="/mobile/profile">
+      <v-btn value="profile" to="/mobile/profile" variant="flat">
         <v-icon>mdi-account</v-icon>
         Profil
       </v-btn>
@@ -63,7 +63,7 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 
@@ -73,8 +73,17 @@ export default {
     const authStore = useAuthStore()
     const router = useRouter()
     const showLogoutDialog = ref(false)
+    const activeTab = ref('home')
     
     const isSimplifiedView = computed(() => authStore.user?.simplified_mobile_view)
+
+    // Mettre à jour l'onglet actif en fonction de la route
+    watch(() => router.currentRoute.value.path, (newPath) => {
+      if (newPath === '/mobile') activeTab.value = 'home'
+      else if (newPath === '/mobile/scan') activeTab.value = 'scan'
+      else if (newPath === '/mobile/history') activeTab.value = 'history'
+      else if (newPath === '/mobile/profile') activeTab.value = 'profile'
+    }, { immediate: true })
     
     // Rediriger vers /mobile/scan si vue simplifiée et sur une route non autorisée
     if (isSimplifiedView.value) {
@@ -91,7 +100,8 @@ export default {
     return {
       showLogoutDialog,
       logout,
-      isSimplifiedView
+      isSimplifiedView,
+      activeTab
     }
   }
 }

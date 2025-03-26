@@ -27,9 +27,17 @@
           @click:row="(_: any, { item }: any) => viewSiteDetails(item)"
         >
           <template v-slot:item.address="{ item }">
-            {{ item.address }}<br>
-            {{ item.postal_code }} {{ item.city }}<br>
-            {{ item.country }}
+            {{ item.address }}, {{ item.postal_code }} {{ item.city }}
+            <v-btn
+              icon
+              variant="text"
+              size="x-small"
+              :href="formatAddressForMaps(item.address, item.postal_code, item.city, item.country)"
+              target="_blank"
+              color="primary"
+            >
+              <v-icon>mdi-map-marker</v-icon>
+            </v-btn>
           </template>
 
           <template v-slot:item.status="{ item }">
@@ -46,9 +54,10 @@
               icon
               variant="text"
               size="small"
-              @click="viewSiteDetails(item)"
+              :to="`/dashboard/sites/${item.id}`"
             >
               <v-icon>mdi-eye</v-icon>
+              <v-tooltip activator="parent">Voir les détails</v-tooltip>
             </v-btn>
             <v-btn
               icon
@@ -122,6 +131,18 @@
                         {{ selectedSite.address }}
                         {{ selectedSite.postal_code }} {{ selectedSite.city }}
                         {{ selectedSite.country }}
+                        <v-btn
+                          icon
+                          variant="text"
+                          size="small"
+                          :href="formatAddressForMaps(selectedSite.address, selectedSite.postal_code, selectedSite.city, selectedSite.country)"
+                          target="_blank"
+                          color="primary"
+                          class="mt-2"
+                        >
+                          <v-icon>mdi-map-marker</v-icon>
+                          <v-tooltip activator="parent">Ouvrir dans Google Maps</v-tooltip>
+                        </v-btn>
                       </v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item>
@@ -618,15 +639,6 @@
             <v-container>
               <v-row>
                 <!-- Informations de base -->
-                <v-col cols="12">
-                  <v-text-field
-                    v-model="scheduleForm.name"
-                    label="Nom du planning*"
-                    :rules="[(v: string) => !!v || 'Le nom est requis']"
-                    hide-details="auto"
-                  ></v-text-field>
-                </v-col>
-
                 <v-col cols="12">
                   <v-radio-group
                     v-model="scheduleForm.schedule_type"
@@ -1150,6 +1162,8 @@ import ReportsView from '@/views/dashboard/Reports.vue'
 import { sitesApi, schedulesApi, organizationsApi, usersApi, anomaliesApi, reportsApi, timesheetsApi, type Site, type Schedule, type Employee, type Organization } from '@/services/api'
 import QRCode from 'qrcode'
 import type { EditingTimesheet, Filters, SiteOption, TableOptions, Timesheet } from '@/types/sites'
+import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
+import { useRouter } from 'vue-router'
 
 // Interfaces
 interface WeekDay {
@@ -1268,6 +1282,8 @@ export default defineComponent({
     ReportsView
   },
   setup() {
+    const router = useRouter()
+
     // Jours de la semaine
     const weekDays: WeekDay[] = [
       { text: 'Lundi', value: 1 },
@@ -1522,82 +1538,7 @@ export default defineComponent({
 
     // Actions sur les sites
     const viewSiteDetails = async (site: Site): Promise<void> => {
-      console.log('[Sites][Details] Début du chargement des détails du site:', {
-        id: site.id,
-        name: site.name,
-        hasQRCode: !!site.qr_code
-      });
-      
-      selectedSite.value = site;
-      loadingSchedules.value = true;
-      loadingTimesheets.value = true;
-      loadingAnomalies.value = true;
-      loadingReports.value = true;
-
-      try {
-        // Si le site n'a pas de QR code, on le génère
-        if (!site.qr_code) {
-          console.log('[Sites][Details] QR code manquant, génération...');
-          await generateQRCode(site);
-        } else {
-          console.log('[Sites][Details] QR code existant:', {
-            length: site.qr_code.length,
-            preview: site.qr_code.substring(0, 50) + '...'
-          });
-        }
-
-        // Charger les plannings
-        console.log('[Sites][Details][Schedules] Chargement des plannings...')
-        const schedulesResponse = await schedulesApi.getSchedulesBySite(site.id)
-        console.log('[Sites][Details][Schedules] Réponse brute:', schedulesResponse)
-        
-        interface ApiResponse {
-          results?: Schedule[];
-          data?: Schedule[];
-        }
-        const schedules = Array.isArray((schedulesResponse.data as ApiResponse).data) ? (schedulesResponse.data as ApiResponse).data :
-                         Array.isArray((schedulesResponse.data as ApiResponse).results) ? (schedulesResponse.data as ApiResponse).results : []
-        
-        
-        if (selectedSite.value) {
-          selectedSite.value.schedules = schedules
-          console.log('[Sites][Details][Schedules] Plannings mis à jour dans le site')
-        }
-
-        // Charger les pointages
-        console.log('[Sites][Details][Timesheets] Chargement des pointages...')
-        const timesheetsResponse = await timesheetsApi.getTimesheets({ site: site.id })
-        if (selectedSite.value) {
-          selectedSite.value.timesheets = timesheetsResponse.data.results || []
-        }
-
-        // Charger les anomalies
-        console.log('[Sites][Details][Anomalies] Chargement des anomalies...')
-        const anomaliesResponse = await anomaliesApi.getAnomaliesBySite(site.id)
-        if (selectedSite.value) {
-          selectedSite.value.anomalies = anomaliesResponse.data.results || []
-        }
-
-        // Charger les rapports
-        console.log('[Sites][Details][Reports] Chargement des rapports...')
-        console.log('Fetching reports for site:', site.id)
-        const reportsResponse = await reportsApi.getReportsBySite(site.id)
-        console.log('Reports response:', reportsResponse.data)
-        if (selectedSite.value) {
-          selectedSite.value.reports = reportsResponse.data.results || []
-        }
-      } catch (error) {
-        console.error('Detailed error in viewSiteDetails:', error)
-        if (error instanceof Error) {
-          console.error('Error message:', error.message)
-          console.error('Error stack:', error.stack)
-        }
-      } finally {
-        loadingSchedules.value = false
-        loadingTimesheets.value = false
-        loadingAnomalies.value = false
-        loadingReports.value = false
-      }
+      router.push(`/dashboard/sites/${site.id}`);
     }
 
     const editSite = (site: Site): void => {
@@ -2008,7 +1949,7 @@ export default defineComponent({
     }
 
     const isScheduleFormValid = computed((): boolean => {
-      return Boolean(scheduleForm.value.name && scheduleForm.value.schedule_type)
+      return Boolean(scheduleForm.value.schedule_type)
     })
 
     const closeScheduleDialog = (): void => {
@@ -2415,6 +2356,8 @@ export default defineComponent({
       toggleSiteStatus,
       confirmDeleteSite,
       nfcIdPreview,
+      formatPhoneNumber,
+      formatAddressForMaps
     }
   }
 })

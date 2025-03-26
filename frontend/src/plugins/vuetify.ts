@@ -36,14 +36,15 @@ export default createVuetify({
     },
   },
   defaults: {
+    VBottomNavigation: {
+      color: 'primary',
+    },
     VBtn: {
       color: 'primary',
-      variant: 'flat',
-      style: 'opacity: 1 !important;',
+      variant: 'text',
     },
     VIcon: {
       color: 'primary',
-      style: 'opacity: 1 !important;',
     },
   },
 }) 

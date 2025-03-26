@@ -16,11 +16,13 @@ import ResetPassword from "@/views/auth/ResetPassword.vue"
 import Dashboard from "@/views/dashboard/Dashboard.vue"
 import OrganizationDetail from "@/views/dashboard/OrganizationDetail.vue"
 import Sites from "@/views/dashboard/Sites.vue"
+import Plannings from "@/views/dashboard/Plannings.vue"
 import Timesheets from "@/views/dashboard/Timesheets.vue"
 import Anomalies from "@/views/dashboard/Anomalies.vue"
 import Reports from "@/views/dashboard/Reports.vue"
 import Settings from "@/views/dashboard/Settings.vue"
 import AdminUsers from "@/views/dashboard/admin/Users.vue"
+import AccessManagement from "@/views/dashboard/admin/AccessManagement.vue"
 
 // Views - Mobile (Employee)
 import MobileDashboard from "@/views/mobile/MobileDashboard.vue"
@@ -89,7 +91,7 @@ const routes: RouteRecordRaw[] = [
         path: "organizations/:id",
         name: "OrganizationDetail",
         component: OrganizationDetail,
-        meta: { roles: ["SUPER_ADMIN"] },
+        meta: { roles: ["SUPER_ADMIN"], section: "sites" },
       },
       {
         path: "organizations/:id/edit",
@@ -102,6 +104,16 @@ const routes: RouteRecordRaw[] = [
         path: "sites",
         name: "Sites",
         component: Sites,
+      },
+      {
+        path: "sites/:id",
+        name: "SiteDetails",
+        component: () => import("@/views/dashboard/SiteDetails.vue"),
+      },
+      {
+        path: "plannings",
+        name: "Plannings",
+        component: Plannings,
       },
       {
         path: "timesheets",
@@ -122,6 +134,12 @@ const routes: RouteRecordRaw[] = [
         path: "settings",
         name: "Settings",
         component: Settings,
+      },
+      {
+        path: "admin/access",
+        name: "AccessManagement",
+        component: AccessManagement,
+        meta: { roles: ["SUPER_ADMIN"] },
       },
     ],
   },

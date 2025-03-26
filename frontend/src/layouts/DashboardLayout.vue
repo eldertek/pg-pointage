@@ -39,119 +39,114 @@
           <span>Tableau de bord</span>
         </v-tooltip>
 
-        <!-- Section Super Admin -->
-        <template v-if="isSuperAdmin">
-          <v-divider class="my-2"></v-divider>
-          <v-list-subheader>Administration globale</v-list-subheader>
-          
-          <v-tooltip location="right" :disabled="!rail">
-            <template v-slot:activator="{ props }">
-              <v-list-item to="/dashboard/admin/users" active-class="primary--text" v-bind="props">
-                <template v-slot:prepend>
-                  <v-icon>mdi-account-cog</v-icon>
-                </template>
-                <v-list-item-title>Gestion des accès</v-list-item-title>
-              </v-list-item>
-            </template>
-            <span>Gestion des accès</span>
-          </v-tooltip>
-        </template>
+        <!-- Utilisateurs -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+          <template v-slot:activator="{ props }">
+            <v-list-item to="/dashboard/admin/users" active-class="primary--text" v-bind="props">
+              <template v-slot:prepend>
+                <v-icon>mdi-account-group</v-icon>
+              </template>
+              <v-list-item-title>Utilisateurs</v-list-item-title>
+            </v-list-item>
+          </template>
+          <span>Utilisateurs</span>
+        </v-tooltip>
 
-        <!-- Section Manager -->
-        <template v-if="isManager">
-          <v-divider class="my-2"></v-divider>
-          <v-list-subheader>Gestion des employés</v-list-subheader>
-          
-          <v-tooltip location="right" :disabled="!rail">
-            <template v-slot:activator="{ props }">
-              <v-list-item to="/dashboard/admin/users" active-class="primary--text" v-bind="props">
-                <template v-slot:prepend>
-                  <v-icon>mdi-account-group</v-icon>
-                </template>
-                <v-list-item-title>Gestion des employés</v-list-item-title>
-              </v-list-item>
-            </template>
-            <span>Gestion des employés</span>
-          </v-tooltip>
-        </template>
+        <!-- Sites -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+          <template v-slot:activator="{ props }">
+            <v-list-item 
+              to="/dashboard/sites" 
+              :active="$route.meta.section === 'sites' || $route.path === '/dashboard/sites'"
+              active-class="primary--text" 
+              v-bind="props"
+            >
+              <template v-slot:prepend>
+                <v-icon>mdi-domain</v-icon>
+              </template>
+              <v-list-item-title>Sites</v-list-item-title>
+            </v-list-item>
+          </template>
+          <span>Sites</span>
+        </v-tooltip>
 
-        <!-- Section Gestion -->
-        <v-divider class="my-2"></v-divider>
-        <v-list-subheader>Gestion opérationnelle</v-list-subheader>
-        
-        <template v-if="isManager || isSuperAdmin">
-          <v-tooltip location="right" :disabled="!rail">
-            <template v-slot:activator="{ props }">
-              <v-list-item to="/dashboard/sites" active-class="primary--text" v-bind="props">
-                <template v-slot:prepend>
-                  <v-icon>mdi-domain</v-icon>
-                </template>
-                <v-list-item-title>Sites & Plannings</v-list-item-title>
-              </v-list-item>
-            </template>
-            <span>Sites & Plannings</span>
-          </v-tooltip>
-        </template>
+        <!-- Plannings -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+          <template v-slot:activator="{ props }">
+            <v-list-item to="/dashboard/plannings" active-class="primary--text" v-bind="props">
+              <template v-slot:prepend>
+                <v-icon>mdi-calendar</v-icon>
+              </template>
+              <v-list-item-title>Plannings</v-list-item-title>
+            </v-list-item>
+          </template>
+          <span>Plannings</span>
+        </v-tooltip>
 
-        <!-- Section Suivi -->
-        <v-divider class="my-2"></v-divider>
-        <v-list-subheader>Suivi & rapports</v-list-subheader>
-        
-        <template v-if="isManager || isSuperAdmin">
-          <v-tooltip location="right" :disabled="!rail">
-            <template v-slot:activator="{ props }">
-              <v-list-item to="/dashboard/timesheets" active-class="primary--text" v-bind="props">
-                <template v-slot:prepend>
-                  <v-icon>mdi-clock-time-four</v-icon>
-                </template>
-                <v-list-item-title>Pointages</v-list-item-title>
-              </v-list-item>
-            </template>
-            <span>Pointages</span>
-          </v-tooltip>
-          
-          <v-tooltip location="right" :disabled="!rail">
-            <template v-slot:activator="{ props }">
-              <v-list-item to="/dashboard/anomalies" active-class="primary--text" v-bind="props">
-                <template v-slot:prepend>
-                  <v-icon>mdi-alert</v-icon>
-                </template>
-                <v-list-item-title>Anomalies</v-list-item-title>
-              </v-list-item>
-            </template>
-            <span>Anomalies</span>
-          </v-tooltip>
-          
-          <v-tooltip location="right" :disabled="!rail">
-            <template v-slot:activator="{ props }">
-              <v-list-item to="/dashboard/reports" active-class="primary--text" v-bind="props">
-                <template v-slot:prepend>
-                  <v-icon>mdi-file-chart</v-icon>
-                </template>
-                <v-list-item-title>Rapports</v-list-item-title>
-              </v-list-item>
-            </template>
-            <span>Rapports</span>
-          </v-tooltip>
-        </template>
+        <!-- Pointages -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+          <template v-slot:activator="{ props }">
+            <v-list-item to="/dashboard/timesheets" active-class="primary--text" v-bind="props">
+              <template v-slot:prepend>
+                <v-icon>mdi-clock-time-four</v-icon>
+              </template>
+              <v-list-item-title>Pointages</v-list-item-title>
+            </v-list-item>
+          </template>
+          <span>Pointages</span>
+        </v-tooltip>
 
-        <!-- Section Configuration -->
-        <v-divider class="my-2"></v-divider>
-        <v-list-subheader>Configuration</v-list-subheader>
-        
-        <template v-if="isManager || isSuperAdmin">
-          <v-tooltip location="right" :disabled="!rail">
-            <template v-slot:activator="{ props }">
-              <v-list-item to="/dashboard/settings" active-class="primary--text" v-bind="props">
-                <template v-slot:prepend>
-                  <v-icon>mdi-cog</v-icon>
-                </template>
-                <v-list-item-title>Paramètres</v-list-item-title>
-              </v-list-item>
-            </template>
-            <span>Paramètres</span>
-          </v-tooltip>
-        </template>
+        <!-- Anomalies -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+          <template v-slot:activator="{ props }">
+            <v-list-item to="/dashboard/anomalies" active-class="primary--text" v-bind="props">
+              <template v-slot:prepend>
+                <v-icon>mdi-alert</v-icon>
+              </template>
+              <v-list-item-title>Anomalies</v-list-item-title>
+            </v-list-item>
+          </template>
+          <span>Anomalies</span>
+        </v-tooltip>
+
+        <!-- Rapports -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+          <template v-slot:activator="{ props }">
+            <v-list-item to="/dashboard/reports" active-class="primary--text" v-bind="props">
+              <template v-slot:prepend>
+                <v-icon>mdi-file-chart</v-icon>
+              </template>
+              <v-list-item-title>Rapports</v-list-item-title>
+            </v-list-item>
+          </template>
+          <span>Rapports</span>
+        </v-tooltip>
+
+        <!-- Gestion des accès -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin">
+          <template v-slot:activator="{ props }">
+            <v-list-item to="/dashboard/admin/access" active-class="primary--text" v-bind="props">
+              <template v-slot:prepend>
+                <v-icon>mdi-account-cog</v-icon>
+              </template>
+              <v-list-item-title>Gestion des accès</v-list-item-title>
+            </v-list-item>
+          </template>
+          <span>Gestion des accès</span>
+        </v-tooltip>
+
+        <!-- Paramètres -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+          <template v-slot:activator="{ props }">
+            <v-list-item to="/dashboard/settings" active-class="primary--text" v-bind="props">
+              <template v-slot:prepend>
+                <v-icon>mdi-cog</v-icon>
+              </template>
+              <v-list-item-title>Paramètres</v-list-item-title>
+            </v-list-item>
+          </template>
+          <span>Paramètres</span>
+        </v-tooltip>
       </v-list>
     </v-navigation-drawer>
 
@@ -246,6 +241,12 @@ export default {
   color: white !important;
 }
 
+/* Style spécifique pour le tableau de bord */
+:deep(.v-list-item[href="/dashboard"].v-list-item--active) {
+  background-color: rgba(247, 140, 72, 0.2) !important;
+  border-left: 3px solid rgb(247, 140, 72) !important;
+}
+
 :deep(.v-list-item:hover) {
   background-color: rgba(255, 255, 255, 0.1);
 }
@@ -292,8 +293,10 @@ export default {
     background-color: rgba(255, 255, 255, 0.15) !important;
   }
 
-  .v-list-item:hover {
-    background-color: rgba(255, 255, 255, 0.1) !important;
+  /* Style spécifique pour le tableau de bord en mode rail */
+  .v-list-item[href="/dashboard"].v-list-item--active {
+    background-color: rgba(247, 140, 72, 0.2) !important;
+    border: 2px solid rgb(247, 140, 72) !important;
   }
 
   .v-list-item__prepend {
