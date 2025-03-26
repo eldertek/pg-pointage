@@ -153,6 +153,13 @@
                     </v-list-item>
                     <v-list-item>
                       <template #prepend>
+                        <v-icon>mdi-account-tie</v-icon>
+                      </template>
+                      <v-list-item-title>Manager</v-list-item-title>
+                      <v-list-item-subtitle>{{ selectedSite.manager_name || 'Aucun manager assigné' }}</v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item>
+                      <template #prepend>
                         <v-icon>mdi-clock-alert</v-icon>
                       </template>
                       <v-list-item-title>Marge de retard</v-list-item-title>
@@ -399,33 +406,51 @@
           {{ editedItem ? 'Modifier le site' : 'Nouveau site' }}
         </v-card-title>
         <v-card-text>
-          <v-form ref="form" @submit.prevent="saveSite">
+          <v-form ref="form" :model-value="formValid">
             <v-row>
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model="siteForm.name"
-                  label="Nom du site"
+                  label="Nom"
+                  :rules="[v => !!v || 'Le nom est requis']"
                   required
-                  :rules="[(v: string) => !!v || 'Le nom est requis']"
                 ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-select
+                  v-model="siteForm.organization"
+                  :items="organizations"
+                  label="Organisation"
+                  item-title="name"
+                  item-value="id"
+                  :rules="[(v: number) => !!v || 'L\'organisation est requise']"
+                  :no-data-text="'Aucune organisation disponible'"
+                  @update:model-value="loadManagers"
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-select
+                  v-model="siteForm.manager"
+                  :items="managers"
+                  label="Manager"
+                  item-title="name"
+                  item-value="id"
+                  :rules="[(v: number) => !!v || 'Le manager est requis']"
+                  :no-data-text="'Aucun manager disponible'"
+                  :disabled="!siteForm.organization"
+                ></v-select>
               </v-col>
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model="siteForm.nfcId"
                   label="ID NFC"
-                  required
-                  :prefix="'S'"
-                  placeholder="0001"
                   :rules="[
                     (v: string) => !!v || 'L\'ID NFC est requis',
-                    (v: string) => /^\d{4}$/.test(v) || 'L\'ID NFC doit être composé de 4 chiffres',
-                    (v: string) => parseInt(v) > 0 && parseInt(v) < 10000 || 'L\'ID doit être entre 0001 et 9999'
+                    (v: string) => /^\d{4}$/.test(v) || 'L\'ID NFC doit contenir 4 chiffres'
                   ]"
-                  hint="Entrez uniquement les 4 chiffres, S sera ajouté automatiquement"
+                  :hint="nfcIdPreview"
                   persistent-hint
-                  @update:model-value="formatNfcId"
-                  maxlength="4"
-                  :readonly="!!editedItem"
+                  :disabled="!siteForm.organization"
                 ></v-text-field>
               </v-col>
               <v-col cols="12">
@@ -501,18 +526,6 @@
                     (v: string) => v.split(',').every((email: string) => /.+@.+\..+/.test(email.trim())) || 'Format d\'email invalide'
                   ]"
                 ></v-text-field>
-              </v-col>
-              <v-col cols="12">
-                <v-select
-                  v-model="siteForm.organization"
-                  :items="organizations"
-                  label="Organisation"
-                  item-title="name"
-                  item-value="id"
-                  required
-                  :rules="[(v: number) => !!v || 'L\'organisation est requise']"
-                  :no-data-text="'Aucune organisation disponible'"
-                ></v-select>
               </v-col>
               <v-col cols="12">
                 <v-divider class="mb-3">Paramètres de géolocalisation</v-divider>
@@ -1102,10 +1115,11 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, computed, defineComponent } from 'vue'
-import { sitesApi, schedulesApi, organizationsApi } from '@/services/api'
+import { ref, onMounted, computed, defineComponent, watch } from 'vue'
+import { sitesApi, schedulesApi, organizationsApi, usersApi } from '@/services/api'
 import ScheduleCalendar from '@/components/ScheduleCalendar.vue'
 import QRCode from 'qrcode'
+import axios from 'axios'
 
 interface WeekDay {
   text: string;
@@ -1122,6 +1136,8 @@ interface Site {
   nfc_id: string;  // Format: FFF-Sxxxx
   organization: number;
   organization_name?: string;
+  manager?: number;
+  manager_name?: string;
   late_margin: number;
   early_departure_margin: number;
   ambiguous_margin: number;
@@ -1192,6 +1208,7 @@ interface SiteForm {
   country: string;
   nfcId: string;  // Format: xxxx (4 chiffres uniquement)
   organization: number | null;
+  manager: number | null;
   late_margin: number;
   early_departure_margin: number;
   ambiguous_margin: number;
@@ -1235,6 +1252,11 @@ interface EmployeeForm {
   schedule: number | null;
 }
 
+interface Manager {
+  id: number;
+  name: string;
+}
+
 export default defineComponent({
   name: 'SitesView',
   components: {
@@ -1272,8 +1294,10 @@ export default defineComponent({
     const showAssignDialog = ref<boolean>(false)
     const selectedSchedule = ref<Schedule | null>(null)
     const form = ref<any>(null)
+    const valid = ref<boolean>(false)
     const editedItem = ref<Site | null>(null)
     const organizations = ref<Organization[]>([])
+    const managers = ref<Manager[]>([])
     const selectedSite = ref<Site | null>(null)
     const activeTab = ref<'details' | 'schedules'>('details')
     const loadingSchedules = ref<boolean>(false)
@@ -1354,6 +1378,7 @@ export default defineComponent({
       country: 'France',
       nfcId: '',
       organization: null,
+      manager: null,
       late_margin: 15,
       early_departure_margin: 15,
       ambiguous_margin: 20,
@@ -1444,6 +1469,38 @@ export default defineComponent({
       }
     }
 
+    // Charger les managers
+    const loadManagers = async () => {
+      try {
+        const response = await usersApi.getAllUsers({
+          role: 'MANAGER',
+          organization: siteForm.value.organization
+        })
+        managers.value = response.data.results.map((manager: any) => ({
+          id: manager.id,
+          name: `${manager.first_name} ${manager.last_name}`
+        }))
+      } catch (error) {
+        console.error('Erreur lors du chargement des managers:', error)
+      }
+    }
+
+    // Mettre à jour la liste des managers quand l'organisation change
+    watch(() => siteForm.value.organization, async (newOrgId) => {
+      if (newOrgId) {
+        siteForm.value.manager = null // Réinitialiser le manager sélectionné
+        await loadManagers()
+      } else {
+        managers.value = []
+      }
+    })
+
+    // Validation du formulaire pour s'assurer que le manager appartient à l'organisation
+    const validateManager = (managerId: number | null): boolean => {
+      if (!managerId || !siteForm.value.organization) return false
+      return managers.value.some(manager => manager.id === managerId)
+    }
+
     // Actions sur les sites
     const viewSiteDetails = async (site: Site): Promise<void> => {
       selectedSite.value = site
@@ -1464,6 +1521,7 @@ export default defineComponent({
         country: site.country || 'France',
         nfcId: site.nfc_id ? site.nfc_id.split('-')[1].slice(1) : '',  // Extraire les 4 chiffres après S
         organization: site.organization || null,
+        manager: site.manager || null,
         late_margin: site.late_margin || 15,
         early_departure_margin: site.early_departure_margin || 15,
         ambiguous_margin: site.ambiguous_margin || 20,
@@ -1489,6 +1547,12 @@ export default defineComponent({
       const { valid } = await form.value.validate();
       if (!valid) return;
 
+      // Vérifier que le manager appartient à l'organisation
+      if (!validateManager(siteForm.value.manager)) {
+        console.error('Le manager sélectionné n\'appartient pas à l\'organisation')
+        return
+      }
+
       saving.value = true;
       try {
         const organization = organizations.value.find(org => org.id === siteForm.value.organization);
@@ -1501,6 +1565,7 @@ export default defineComponent({
           city: siteForm.value.city,
           country: siteForm.value.country,
           organization: siteForm.value.organization,
+          manager: siteForm.value.manager,
           late_margin: parseInt(siteForm.value.late_margin.toString()),
           early_departure_margin: parseInt(siteForm.value.early_departure_margin.toString()),
           ambiguous_margin: parseInt(siteForm.value.ambiguous_margin.toString()),
@@ -1515,9 +1580,7 @@ export default defineComponent({
         if (editedItem.value) {
           await sitesApi.updateSite(editedItem.value.id, siteData);
         } else {
-          const orgId = organization.org_id || '000';
-          const nfcId = `${orgId}-S${siteForm.value.nfcId.padStart(4, '0')}`;
-          await sitesApi.createSite({ ...siteData, nfc_id: nfcId });
+          await sitesApi.createSite(siteData);
         }
         await fetchSites(currentPage.value);
         closeDialog();
@@ -1663,6 +1726,7 @@ export default defineComponent({
         country: 'France',
         nfcId: '',
         organization: null,
+        manager: null,
         late_margin: 15,
         early_departure_margin: 15,
         ambiguous_margin: 20,
@@ -2064,9 +2128,25 @@ export default defineComponent({
       }
     }
 
-    onMounted(() => {
-      fetchSites()
-      fetchOrganizations()
+    // Charger les données initiales
+    onMounted(async () => {
+      await Promise.all([
+        fetchSites(),
+        fetchOrganizations(),
+        loadManagers()
+      ])
+    })
+    
+    const formValid = computed(() => {
+      return form.value?.valid ?? false
+    })
+
+    // Dans la section script, ajouter la computed property pour la prévisualisation
+    const nfcIdPreview = computed(() => {
+      if (!siteForm.value.organization || !siteForm.value.nfcId) return ''
+      const org = organizations.value.find(o => o.id === siteForm.value.organization)
+      if (!org) return ''
+      return `${org.org_id}-S${siteForm.value.nfcId.padStart(4, '0')}`
     })
     
     return {
@@ -2082,11 +2162,13 @@ export default defineComponent({
       showAssignDialog,
       selectedSchedule,
       form,
+      formValid,
       scheduleForm,
       scheduleFormRef,
       employeeForm,
       siteForm,
       organizations,
+      managers,
       selectedSite,
       activeTab,
       loadingSchedules,
@@ -2122,7 +2204,8 @@ export default defineComponent({
       assignEmployee,
       unassignEmployeeFromSchedule,
       showCreateScheduleDialog,
-      openCreateDialog,  // Ajouter la nouvelle méthode ici
+      openCreateDialog,
+      loadManagers,  // Ajout de loadManagers ici
 
       // Nouvelles données
       showCalendarDialog,
@@ -2138,6 +2221,7 @@ export default defineComponent({
       downloadQRCode,
       toggleSiteStatus,
       confirmDeleteSite,
+      nfcIdPreview,
     }
   }
 })

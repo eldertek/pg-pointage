@@ -17,11 +17,20 @@ class Site(models.Model):
         related_name='sites',
         verbose_name=_('organisation')
     )
+    manager = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='managed_sites',
+        verbose_name=_('manager'),
+        limit_choices_to={'role': 'MANAGER'}
+    )
     nfc_id = models.CharField(
         _('ID Site'), 
-        max_length=5,
+        max_length=10,
         unique=True,
-        help_text=_('Format: S0001 à S9999')
+        help_text=_('Format: FFF-Sxxxx où FFF est l\'ID de l\'organisation et xxxx est un nombre entre 0001 et 9999')
     )
     qr_code = models.ImageField(_('QR Code'), upload_to='sites/qrcodes/', blank=True, null=True)
     
@@ -60,7 +69,7 @@ class Site(models.Model):
         # Valider le format de l'ID du site
         if self.nfc_id and not validate_site_id(self.nfc_id):
             raise ValidationError({
-                'nfc_id': _('L\'ID du site doit être au format S0001 à S9999')
+                'nfc_id': _('L\'ID du site doit être au format FFF-Sxxxx')
             })
     
     @property

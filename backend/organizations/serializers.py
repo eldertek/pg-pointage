@@ -10,5 +10,10 @@ class OrganizationSerializer(serializers.ModelSerializer):
             'phone', 'email', 'contact_email', 'siret', 'logo',
             'notes', 'created_at', 'updated_at', 'is_active'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'org_id']
+
+    def create(self, validated_data):
+        # Créer l'organisation sans org_id (il sera généré automatiquement par le modèle)
+        instance = Organization.objects.create(**validated_data)
+        return instance
 

@@ -333,6 +333,9 @@ const usersApi = {
   // Get user profile
   getProfile: () => api.get('/users/profile/'),
   
+  // Get all users with filters
+  getAllUsers: (params: any = {}) => api.get('/users/', { params }),
+  
   // Update user profile
   updateProfile: (data: any) => {
     interface ProfileData {

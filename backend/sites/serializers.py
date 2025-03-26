@@ -68,6 +68,7 @@ class SiteSerializer(serializers.ModelSerializer):
     """Serializer pour les sites"""
     schedules = ScheduleSerializer(many=True, read_only=True)
     organization_name = serializers.CharField(source='organization.name', read_only=True)
+    manager_name = serializers.SerializerMethodField()
     
     class Meta:
         model = Site
@@ -76,8 +77,13 @@ class SiteSerializer(serializers.ModelSerializer):
                  'early_departure_margin', 'ambiguous_margin', 'alert_emails',
                  'require_geolocation', 'geolocation_radius', 'allow_offline_mode',
                  'max_offline_duration', 'created_at', 'updated_at', 'is_active',
-                 'schedules']
+                 'schedules', 'manager', 'manager_name']
         read_only_fields = ['created_at', 'updated_at', 'organization_name', 'nfc_id']
+
+    def get_manager_name(self, obj):
+        if obj.manager:
+            return obj.manager.get_full_name() or obj.manager.username
+        return None
 
     def validate_nfc_id(self, value):
         """Valide le format de l'ID du site"""
@@ -99,4 +105,14 @@ class SiteSerializer(serializers.ModelSerializer):
             # Si l'organisation change, générer un nouvel ID
             validated_data['nfc_id'] = generate_site_id(validated_data['organization'])
         return super().update(instance, validated_data)
+
+    def validate(self, attrs):
+        # Vérifier que le manager appartient à la même organisation que le site
+        manager = attrs.get('manager')
+        organization = attrs.get('organization')
+        
+        if manager and organization and manager.organization != organization:
+            raise serializers.ValidationError("Le manager doit appartenir à la même organisation que le site")
+        
+        return attrs
 

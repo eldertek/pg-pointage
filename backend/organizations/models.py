@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 
@@ -54,16 +54,19 @@ class Organization(models.Model):
     def save(self, *args, **kwargs):
         # Si pas d'org_id, en générer un
         if not self.org_id and not Organization.objects.filter(id=self.id).exists():
-            # Trouver le dernier ID utilisé
-            last_org = Organization.objects.order_by('-org_id').first()
-            if last_org and last_org.org_id:
-                try:
-                    next_number = int(last_org.org_id) + 1
-                except ValueError:
+            with transaction.atomic():
+                # Trouver le dernier ID utilisé
+                last_org = Organization.objects.select_for_update().order_by('-org_id').first()
+                if last_org and last_org.org_id:
+                    try:
+                        next_number = int(last_org.org_id) + 1
+                        if next_number > 999:
+                            next_number = 1
+                    except ValueError:
+                        next_number = 1
+                else:
                     next_number = 1
-            else:
-                next_number = 1
-            self.org_id = f"{next_number:03d}"
+                self.org_id = f"{next_number:03d}"
         
         super().save(*args, **kwargs)
 
