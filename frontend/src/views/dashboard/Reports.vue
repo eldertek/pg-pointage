@@ -35,6 +35,7 @@
               ></v-select>
               
               <v-select
+                v-if="!currentSiteId"
                 v-model="reportForm.site"
                 label="Site"
                 :items="siteOptions"
@@ -132,17 +133,26 @@
 </template>
 
 <script>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { reportsApi, sitesApi } from '@/services/api'
 import { useSitesStore } from '@/stores/sites'
 
 export default {
   name: 'ReportsView',
-  setup() {
+  props: {
+    siteId: {
+      type: Number,
+      default: null
+    }
+  },
+  setup(props) {
     const sitesStore = useSitesStore()
     const form = ref(null)
     const loading = ref(true)
     const generating = ref(false)
+    
+    // Computed pour le site courant - priorité au siteId passé en prop
+    const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
     
     const headers = ref([
       { title: 'Nom', align: 'start', key: 'name' },
@@ -263,10 +273,13 @@ export default {
       try {
         const response = await sitesApi.getAllSites()
         if (response.data?.results) {
-          siteOptions.value = response.data.results.map(site => ({
-            text: site.name,
-            value: site.id
-          }))
+          siteOptions.value = [
+            { title: 'Tous les sites', value: null },
+            ...response.data.results.map(site => ({
+              title: site.name,
+              value: site.id
+            }))
+          ]
         }
       } catch (error) {
         console.error('Erreur lors du chargement des sites:', error)
@@ -322,7 +335,8 @@ export default {
       generateReport,
       downloadReport,
       deleteReport,
-      loadReports
+      loadReports,
+      currentSiteId
     }
   }
 }

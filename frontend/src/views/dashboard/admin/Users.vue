@@ -61,6 +61,7 @@
           'page-text': '{0}-{1} sur {2}',
           'items-per-page-options': [5, 10, 20, 50, 100]
         }"
+        @click:row="(_, { item }) => editItem(item)"
       >
         <template v-slot:item.fullName="{ item }">
           {{ item.first_name }} {{ item.last_name }}
@@ -138,6 +139,7 @@
           'page-text': '{0}-{1} sur {2}',
           'items-per-page-options': [5, 10, 20, 50, 100]
         }"
+        @click:row="(_, { item }) => router.push(`/dashboard/organizations/${item.id}`)"
       >
         <template v-slot:item.status="{ item }">
           <v-chip

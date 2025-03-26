@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="d-flex justify-space-between align-center mb-4">
+    <div class="d-flex justify-space-between align-center mb-4" v-if="!isDetailView">
       <h1 class="text-h4">Anomalies</h1>
       <v-btn 
         color="warning" 
@@ -12,11 +12,11 @@
       </v-btn>
     </div>
     
-    <v-card class="mb-4">
+    <v-card class="mb-4" v-if="!isDetailView">
       <v-card-title>Filtres</v-card-title>
       <v-card-text>
         <v-row>
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-autocomplete
               v-model="filters.employee"
               :loading="searchingEmployees"
@@ -41,7 +41,7 @@
             </v-autocomplete>
           </v-col>
           
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="currentSiteId ? 4 : 3" v-if="!currentSiteId">
             <v-select
               v-model="filters.site"
               label="Site"
@@ -55,7 +55,7 @@
             ></v-select>
           </v-col>
           
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.type"
               label="Type d'anomalie"
@@ -69,7 +69,7 @@
             ></v-select>
           </v-col>
           
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.status"
               label="Statut"
@@ -191,18 +191,32 @@
 </template>
 
 <script>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
 import { useToast } from 'vue-toastification'
 import { useSitesStore } from '@/stores/sites'
 
 export default {
   name: 'AnomaliesView',
-  setup() {
+  props: {
+    isDetailView: {
+      type: Boolean,
+      default: false
+    },
+    siteId: {
+      type: Number,
+      default: null
+    }
+  },
+  setup(props) {
     const toast = useToast()
     const sitesStore = useSitesStore()
     const loading = ref(true)
     const scanning = ref(false)
+    
+    // Computed pour le site courant - priorité au siteId passé en prop
+    const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
+    
     const error = ref(null)
     const searchingEmployees = ref(false)
     const employeeSearch = ref('')
@@ -315,8 +329,8 @@ export default {
         params.employee = filters.value.employee
       }
       // Utiliser le site actif en priorité
-      if (sitesStore.getCurrentSiteId) {
-        params.site = sitesStore.getCurrentSiteId
+      if (currentSiteId.value) {
+        params.site = currentSiteId.value
       } else if (filters.value.site) {
         params.site = filters.value.site
       }
@@ -427,7 +441,7 @@ export default {
     }
     
     // Watch for changes in current site
-    watch(() => sitesStore.getCurrentSiteId, (newSiteId) => {
+    watch(() => currentSiteId.value, (newSiteId) => {
       if (newSiteId) {
         filters.value.site = newSiteId
         applyFilters()
@@ -436,8 +450,8 @@ export default {
     
     // Charger les données initiales
     const init = async () => {
-      if (sitesStore.getCurrentSiteId) {
-        filters.value.site = sitesStore.getCurrentSiteId
+      if (currentSiteId.value) {
+        filters.value.site = currentSiteId.value
       }
       await loadSites()
       await applyFilters()

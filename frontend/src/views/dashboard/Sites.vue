@@ -24,6 +24,7 @@
           :items-per-page-options="itemsPerPageOptions"
           class="elevation-1"
           @update:options="handleTableUpdate"
+          @click:row="(_: any, { item }: any) => viewSiteDetails(item)"
         >
           <template v-slot:item.address="{ item }">
             {{ item.address }}<br>
@@ -398,11 +399,11 @@
               </v-data-table>
             </v-window-item>
 
-            <!-- Onglet Pointages -->
+            <!-- Onglet Timesheets -->
             <v-window-item value="timesheets">
               <TimesheetsView 
                 :site-id="selectedSite.id"
-                :loading="loadingTimesheets"
+                :is-detail-view="true"
               ></TimesheetsView>
             </v-window-item>
 
@@ -410,7 +411,7 @@
             <v-window-item value="anomalies">
               <AnomaliesView 
                 :site-id="selectedSite.id"
-                :loading="loadingAnomalies"
+                :is-detail-view="true"
               ></AnomaliesView>
             </v-window-item>
 
@@ -418,7 +419,6 @@
             <v-window-item value="reports">
               <ReportsView 
                 :site-id="selectedSite.id"
-                :loading="loadingReports"
               ></ReportsView>
             </v-window-item>
           </v-window>
@@ -1144,47 +1144,14 @@
 <script lang="ts">
 import { defineComponent, ref, watch, computed, onMounted } from 'vue'
 import ScheduleCalendar from '@/components/ScheduleCalendar.vue'
-import TimesheetsView from '@/components/TimesheetsView.vue'
-import AnomaliesView from '@/components/AnomaliesView.vue'
-import ReportsView from '@/components/ReportsView.vue'
+import TimesheetsView from '@/views/dashboard/Timesheets.vue'
+import AnomaliesView from '@/views/dashboard/Anomalies.vue'
+import ReportsView from '@/views/dashboard/Reports.vue'
 import { sitesApi, schedulesApi, organizationsApi, usersApi, anomaliesApi, reportsApi, timesheetsApi, type Site, type Schedule, type Employee, type Organization } from '@/services/api'
 import QRCode from 'qrcode'
+import type { EditingTimesheet, Filters, SiteOption, TableOptions, Timesheet } from '@/types/sites'
 
-interface EditingTimesheet {
-  id: number;
-  employee_name: string;
-  check_in: string;
-}
-
-interface Filters {
-  site?: number;
-  employee?: number;
-  date_from?: string;
-  date_to?: string;
-}
-
-interface SiteOption {
-  id: number;
-  name: string;
-  organization: number;
-}
-
-interface TableOptions {
-  page: number;
-  itemsPerPage: number;
-  sortBy: string[];
-  sortDesc: boolean[];
-}
-
-interface Timesheet {
-  id: number;
-  employee: number;
-  employee_name: string;
-  check_in: string;
-  check_out?: string;
-  site: number;
-}
-
+// Interfaces
 interface WeekDay {
   text: string;
   value: number;

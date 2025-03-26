@@ -1,12 +1,12 @@
 <template>
   <div>
-    <h1 class="text-h4 mb-4">Pointages</h1>
+    <h1 class="text-h4 mb-4" v-if="!isDetailView">Pointages</h1>
     
-    <v-card class="mb-4">
+    <v-card class="mb-4" v-if="!isDetailView">
       <v-card-title>Filtres</v-card-title>
       <v-card-text>
         <v-row>
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-text-field
               v-model="filters.employee"
               label="Employé"
@@ -17,7 +17,7 @@
             ></v-text-field>
           </v-col>
           
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="currentSiteId ? 4 : 3" v-if="!currentSiteId">
             <v-select
               v-model="filters.site"
               label="Site"
@@ -29,7 +29,7 @@
             ></v-select>
           </v-col>
           
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.entryType"
               label="Type de pointage"
@@ -41,7 +41,7 @@
             ></v-select>
           </v-col>
           
-          <v-col cols="12" md="3">
+          <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.status"
               label="Statut"
@@ -328,59 +328,29 @@ import { useAuthStore } from '@/stores/auth'
 import { useSitesStore } from '@/stores/sites'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-
-interface Timesheet {
-  id: number;
-  timestamp: string;
-  employee_name: string;
-  site_name: string;
-  entry_type: 'ARRIVAL' | 'DEPARTURE';
-  is_late: boolean;
-  is_early_departure: boolean;
-  late_minutes?: number;
-  early_departure_minutes?: number;
-  correction_note?: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  date?: string;
-  time?: string;
-  raw?: any;
-  employee?: string;
-  site?: string;
-}
-
-interface TableOptions {
-  page: number;
-  itemsPerPage: number;
-}
-
-interface Filters {
-  employee: string;
-  site: number | null;
-  entryType: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-}
-
-interface EditingTimesheet {
-  id: number;
-  timestamp: string;
-  entry_type: 'ARRIVAL' | 'DEPARTURE';
-  correction_note: string;
-}
-
-interface SiteOption {
-  title: string;
-  value: number;
-}
+import type { EditingTimesheet, SiteOption, TableOptions, Timesheet } from '@/types/sites'
+import type { Filters } from '@/types/sites'
 
 export default {
   name: 'TimesheetsView',
-  setup() {
+  props: {
+    isDetailView: {
+      type: Boolean,
+      default: false
+    },
+    siteId: {
+      type: Number,
+      default: null
+    }
+  },
+  setup(props) {
     const auth = useAuthStore()
     const sitesStore = useSitesStore()
     const loading = ref(true)
+    
+    // Computed pour le site courant - priorité au siteId passé en prop
+    const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
+    
     const headers = ref([
       { title: 'Date', align: 'start' as const, key: 'date' },
       { title: 'Heure', align: 'start' as const, key: 'time' },
@@ -453,8 +423,8 @@ export default {
             ...timesheet,
             date: 'Date invalide',
             time: '--:--',
-            employee: timesheet.employee_name || 'Inconnu',
-            site: timesheet.site_name || 'Inconnu'
+            employee: timesheet.employee,
+            site: timesheet.site
           }
         }
 
@@ -462,8 +432,8 @@ export default {
           ...timesheet,
           date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
           time: format(timestamp, 'HH:mm', { locale: fr }),
-          employee: timesheet.employee_name || 'Inconnu',
-          site: timesheet.site_name || 'Inconnu'
+          employee: timesheet.employee,
+          site: timesheet.site
         }
       } catch (error) {
         console.error('Erreur lors du formatage du pointage:', error)
@@ -471,8 +441,8 @@ export default {
           ...timesheet,
           date: 'Erreur',
           time: '--:--',
-          employee: timesheet.employee_name || 'Inconnu',
-          site: timesheet.site_name || 'Inconnu'
+          employee: timesheet.employee,
+          site: timesheet.site
         }
       }
     }
@@ -482,7 +452,7 @@ export default {
         loading.value = true
         const params = {
           employee_name: filters.value.employee || undefined,
-          site: sitesStore.getCurrentSiteId || filters.value.site || undefined,
+          site: currentSiteId.value || filters.value.site || undefined,
           entry_type: filters.value.entryType || undefined,
           start_date: filters.value.startDate || undefined,
           end_date: filters.value.endDate || undefined,
@@ -558,8 +528,8 @@ export default {
           ...item,
           date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
           time: format(timestamp, 'HH:mm', { locale: fr }),
-          employee: item.employee_name,
-          site: item.site_name,
+          employee: item.employee,
+          site: item.site,
           latitude: item.latitude ? parseFloat(String(item.latitude)) : null,
           longitude: item.longitude ? parseFloat(String(item.longitude)) : null,
           entry_type: item.entry_type
@@ -663,13 +633,11 @@ export default {
       }
     }
 
-    // Watch for changes in current site
-    watch(() => sitesStore.getCurrentSiteId, (newSiteId) => {
-      if (newSiteId) {
-        filters.value.site = newSiteId
-        currentPage.value = 1 // Reset to first page
-        fetchTimesheets()
-      }
+    // Update the watch handler to handle the computed ref value correctly
+    watch(() => currentSiteId.value, (newSiteId: number | null) => {
+      filters.value.site = newSiteId
+      currentPage.value = 1
+      fetchTimesheets()
     })
 
     // Ajout de la fonction pour charger les sites
@@ -687,8 +655,8 @@ export default {
     }
 
     onMounted(() => {
-      if (sitesStore.getCurrentSiteId) {
-        filters.value.site = sitesStore.getCurrentSiteId
+      if (currentSiteId.value) {
+        filters.value.site = currentSiteId.value
       }
       loadSites() // Chargement des sites
       fetchTimesheets()
@@ -711,6 +679,7 @@ export default {
       selectedTimesheet,
       editingTimesheet,
       canEditTimesheet,
+      currentSiteId,
       getStatusColor,
       getStatusLabel,
       getEntryTypeLabel,
