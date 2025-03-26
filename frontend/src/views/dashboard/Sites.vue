@@ -2,7 +2,7 @@
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
       <h1 class="text-h4">Sites</h1>
-      <v-btn color="#00346E" prepend-icon="mdi-plus" @click="showCreateDialog = true">
+      <v-btn color="#00346E" prepend-icon="mdi-plus" @click="openCreateDialog">
         Ajouter un site
       </v-btn>
     </div>
@@ -1445,6 +1445,13 @@ export default defineComponent({
       showCreateDialog.value = true
     }
 
+    // Ajouter cette nouvelle méthode pour ouvrir le dialogue de création
+    const openCreateDialog = (): void => {
+      editedItem.value = null
+      resetForm()
+      showCreateDialog.value = true
+    }
+
     const saveSite = async (): Promise<void> => {
       if (!form.value) return;
       const { valid } = await form.value.validate();
@@ -2068,6 +2075,7 @@ export default defineComponent({
       assignEmployee,
       unassignEmployeeFromSchedule,
       showCreateScheduleDialog,
+      openCreateDialog,  // Ajouter la nouvelle méthode ici
 
       // Nouvelles données
       showCalendarDialog,
