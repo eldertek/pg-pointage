@@ -4,7 +4,7 @@
       <v-btn icon class="mr-4" to="/dashboard/organizations">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <h1 class="text-h4">Nouvelle franchise</h1>
+      <h1 class="text-h4">Nouvelle organisation</h1>
     </div>
 
     <v-card>
@@ -14,7 +14,7 @@
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="organizationForm.name"
-                label="Nom de la franchise"
+                label="Nom de l'organisation"
                 required
                 :rules="[v => !!v || 'Le nom est requis']"
               ></v-text-field>
@@ -105,7 +105,7 @@
 
         <v-divider></v-divider>
 
-        <v-card-title>Responsable de la franchise</v-card-title>
+        <v-card-title>Responsable de l'organisation</v-card-title>
         <v-card-text>
           <v-row>
             <v-col cols="12" md="6">
@@ -164,7 +164,7 @@
             type="submit"
             :loading="saving"
           >
-            Créer la franchise
+            Créer l'organisation
           </v-btn>
         </v-card-actions>
       </v-form>
@@ -214,10 +214,10 @@ export default {
 
       saving.value = true
       try {
-        console.log('Données de la franchise à créer:', organizationForm.value)
-        // Créer la franchise
+        console.log('Données de l\'organisation à créer:', organizationForm.value)
+        // Créer l'organisation
         const orgResponse = await api.post('/organizations/', organizationForm.value)
-        console.log('Franchise créée avec succès:', orgResponse.data)
+        console.log('Organisation créée avec succès:', orgResponse.data)
         const organizationId = orgResponse.data.id
 
         // Préparer les données du manager
@@ -232,7 +232,7 @@ export default {
         const userResponse = await api.post('/users/', managerData)
         console.log('Manager créé avec succès:', userResponse.data)
 
-        // Rediriger vers la liste des franchises
+        // Rediriger vers la liste des organisations
         router.push('/dashboard/organizations')
       } catch (error) {
         console.error('Erreur lors de la création:', error)

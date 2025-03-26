@@ -338,12 +338,12 @@
                     <div v-if="item.assigned_employees && item.assigned_employees.length > 0">
                       <v-chip
                         v-for="employee in item.assigned_employees"
-                        :key="employee.id"
+                        :key="employee.employee"
                         class="mr-1 mb-1"
                         closable
-                        @click:close="unassignEmployeeFromSchedule(item.id, employee.id)"
+                        @click:close="unassignEmployeeFromSchedule(item.id, employee.employee)"
                       >
-                        {{ employee.employee_name }}
+                        {{ employee.employee }}
                       </v-chip>
                     </div>
                     <v-btn
@@ -1282,19 +1282,19 @@ export default defineComponent({
 
     // En-têtes des tableaux
     const headers = ref([
-      { title: 'Nom', align: 'start', key: 'name' },
-      { title: 'Adresse', align: 'start', key: 'address' },
-      { title: 'ID NFC', align: 'start', key: 'nfc_id' },
-      { title: 'Organisation', align: 'start', key: 'organization_name' },
-      { title: 'Statut', align: 'center', key: 'status' },
-      { title: 'Actions', align: 'end', key: 'actions', sortable: false }
+      { title: 'Nom', align: 'start' as const, key: 'name' },
+      { title: 'Adresse', align: 'start' as const, key: 'address' },
+      { title: 'ID NFC', align: 'start' as const, key: 'nfc_id' },
+      { title: 'Organisation', align: 'start' as const, key: 'organization_name' },
+      { title: 'Statut', align: 'center' as const, key: 'status' },
+      { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
     ])
 
     const scheduleHeaders = ref([
-      { title: 'Nom', align: 'start', key: 'name' },
-      { title: 'Type', align: 'center', key: 'type' },
-      { title: 'Employés', align: 'start', key: 'employees' },
-      { title: 'Actions', align: 'end', key: 'actions', sortable: false }
+      { title: 'Nom', align: 'start' as const, key: 'name' },
+      { title: 'Type', align: 'center' as const, key: 'type' },
+      { title: 'Employés', align: 'start' as const, key: 'employees' },
+      { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
     ])
 
     // Pagination

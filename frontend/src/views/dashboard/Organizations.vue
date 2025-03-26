@@ -107,14 +107,14 @@
     <!-- Dialog d'édition -->
     <v-dialog v-model="showEditDialog" max-width="800">
       <v-card>
-        <v-card-title>Modifier la franchise</v-card-title>
+        <v-card-title>Modifier l'organisation</v-card-title>
         <v-card-text>
           <v-form ref="form">
             <v-row>
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model="editedOrganization.name"
-                  label="Nom de la franchise"
+                  label="Nom de l'organisation"
                   required
                   :rules="[rules.required]"
                 ></v-text-field>
@@ -224,7 +224,7 @@
               <v-col cols="12">
                 <v-switch
                   v-model="editedOrganization.is_active"
-                  label="Franchise active"
+                  label="Organisation active"
                   color="success"
                 ></v-switch>
               </v-col>
@@ -335,11 +335,11 @@ export default defineComponent({
       try {
         await api.delete(`/organizations/${organizationToDelete.value.id}/`)
         await fetchOrganizations()
-        showSuccess('Franchise supprimée avec succès')
+        showSuccess('Organisation supprimée avec succès')
         showDeleteDialog.value = false
       } catch (error) {
         console.error('Erreur lors de la suppression:', error)
-        showError('Erreur lors de la suppression de la franchise')
+        showError('Erreur lors de la suppression de l\'organisation')
       } finally {
         deleting.value = false
       }
@@ -392,11 +392,11 @@ export default defineComponent({
         )
         console.log('Réponse de mise à jour:', response.data)
         await fetchOrganizations()
-        showSuccess('Franchise mise à jour avec succès')
+        showSuccess('Organisation mise à jour avec succès')
         showEditDialog.value = false
       } catch (error) {
         console.error('Erreur lors de la mise à jour:', error)
-        showError('Erreur lors de la mise à jour de la franchise')
+        showError('Erreur lors de la mise à jour de l\'organisation')
       } finally {
         saving.value = false
       }
