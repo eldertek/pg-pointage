@@ -189,6 +189,12 @@ class GlobalScheduleListView(generics.ListCreateAPIView):
         site = self.request.query_params.get('site', None)
         if site is not None:
             queryset = queryset.filter(site=site)
+            
+        # Filtrer par type de planning si spécifié
+        schedule_type = self.request.query_params.get('schedule_type', None)
+        if schedule_type is not None:
+            queryset = queryset.filter(schedule_type=schedule_type)
+            
         return queryset
 
 class GlobalScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):

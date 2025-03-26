@@ -17,18 +17,35 @@
                   item-title="name"
                   item-value="id"
                   label="Site"
+                  variant="outlined"
+                  prepend-inner-icon="mdi-map-marker"
                   clearable
-                  @update:model-value="loadAccessRights"
+                  @update:model-value="applyFilters"
                 ></v-select>
               </v-col>
-              <v-col cols="12" sm="4">
+              <v-col cols="12" md="4">
                 <v-select
                   v-model="filters.role"
                   :items="roles"
+                  item-title="title"
+                  item-value="value"
                   label="Rôle"
+                  variant="outlined"
+                  prepend-inner-icon="mdi-account-key"
                   clearable
-                  @update:model-value="loadAccessRights"
+                  @update:model-value="applyFilters"
                 ></v-select>
+              </v-col>
+              <v-col cols="12" md="4" class="d-flex align-center">
+                <v-btn 
+                  color="error" 
+                  variant="outlined" 
+                  @click="resetFilters"
+                  prepend-icon="mdi-refresh"
+                  class="px-4"
+                >
+                  Réinitialiser les filtres
+                </v-btn>
               </v-col>
             </v-row>
           </v-card-text>
@@ -238,6 +255,16 @@ const getRoleColor = (role: string) => {
     default:
       return 'grey'
   }
+}
+
+const applyFilters = () => {
+  loadAccessRights()
+}
+
+const resetFilters = () => {
+  filters.value.site = null
+  filters.value.role = null
+  loadAccessRights()
 }
 
 // Lifecycle hooks

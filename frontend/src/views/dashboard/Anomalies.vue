@@ -110,11 +110,14 @@
           </v-col>
           
           <v-col cols="12" md="4" class="d-flex align-center">
-            <v-btn color="primary" @click="applyFilters" class="mr-2">
-              Appliquer
-            </v-btn>
-            <v-btn color="error" variant="outlined" @click="resetFilters">
-              Réinitialiser
+            <v-btn 
+              color="error" 
+              variant="outlined" 
+              @click="resetFilters"
+              prepend-icon="mdi-refresh"
+              class="px-4"
+            >
+              Réinitialiser les filtres
             </v-btn>
           </v-col>
         </v-row>

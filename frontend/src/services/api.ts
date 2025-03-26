@@ -150,10 +150,14 @@ interface Site {
 
 interface Schedule {
   id: number;
+  site: number;
+  site_name: string;
   schedule_type: 'FIXED' | 'FREQUENCY';
-  site?: { id: number };
-  details?: ScheduleDetail[];
-  assigned_employees?: Array<{ employee: number }>;
+  details: ScheduleDetail[];
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+  assigned_employees: Array<{ employee: number }>;
 }
 
 interface ScheduleDetail {
@@ -452,13 +456,13 @@ const reportsApi = {
 // Plannings API methods
 const planningsApi = {
   // Get all plannings with pagination
-  getAllPlannings: (page = 1, perPage = 10): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
-    api.get('/sites/schedules/', { 
-      params: { 
-        page,
-        page_size: perPage 
-      }
-    }),
+  getAllPlannings: (params: { 
+    page?: number;
+    page_size?: number;
+    site?: number;
+    schedule_type?: string;
+  }): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
+    api.get('/sites/schedules/', { params }),
   
   // Get a single planning by ID
   getPlanning: (id: number): Promise<AxiosResponse<Schedule>> => 
@@ -509,8 +513,15 @@ const accessManagementApi = {
     api.put(`/sites/${siteId}/access-rights/`, convertKeysToSnakeCase(data)),
 }
 
-// Export types
-export type { Site, Schedule, Employee, Organization, ScheduleDetail }
+// Export all types and APIs
+export type { 
+  Site, 
+  Schedule, 
+  Employee, 
+  Organization, 
+  ScheduleDetail,
+  ApiResponse 
+}
 
 export { 
   sitesApi, 
@@ -523,5 +534,6 @@ export {
   planningsApi,
   accessManagementApi
 }
+
 export default api
 

@@ -44,11 +44,14 @@
                 ></v-select>
               </v-col>
               <v-col cols="12" md="4" class="d-flex align-center">
-                <v-btn color="primary" @click="loadPlannings" class="mr-2">
-                  Appliquer
-                </v-btn>
-                <v-btn color="error" variant="outlined" @click="resetFilters">
-                  Réinitialiser
+                <v-btn 
+                  color="error" 
+                  variant="outlined" 
+                  @click="resetFilters"
+                  prepend-icon="mdi-refresh"
+                  class="px-4"
+                >
+                  Réinitialiser les filtres
                 </v-btn>
               </v-col>
             </v-row>
@@ -347,14 +350,7 @@ interface ScheduleAPI {
 }
 
 // Type pour le planning avec site
-interface ScheduleWithSite {
-  id: number;
-  schedule_type: 'FIXED' | 'FREQUENCY';
-  site?: { id: number };
-  site_name?: string;
-  details?: ScheduleDetail[];
-  assigned_employees?: Array<{ employee: number }>;
-}
+type ScheduleWithSite = Schedule;
 
 // État
 const loading = ref(false)
@@ -363,7 +359,7 @@ const deleteDialog = ref(false)
 const page = ref(1)
 const itemsPerPage = ref(10)
 const totalItems = ref(0)
-const plannings = ref<Schedule[]>([])
+const plannings = ref<ScheduleWithSite[]>([])
 const sites = ref<Site[]>([])
 const siteEmployees = ref<Employee[]>([])
 
@@ -388,7 +384,7 @@ const weekDays = [
 ]
 
 const headers = [
-  { title: 'Site', key: 'site_name', align: 'start' },
+  { title: 'Site', key: 'site_name', align: 'start' as const },
   { title: 'Type', key: 'schedule_type' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
@@ -420,7 +416,7 @@ const editedItem = ref<EditingSchedule>({
   assigned_employees: []
 })
 
-const itemToDelete = ref<Schedule | null>(null)
+const itemToDelete = ref<ScheduleWithSite | null>(null)
 
 // Charger les employés d'un site
 const loadSiteEmployees = async () => {
@@ -442,11 +438,15 @@ const loadSiteEmployees = async () => {
 const loadPlannings = async () => {
   loading.value = true
   try {
-    const response = await planningsApi.getAllPlannings(page.value, itemsPerPage.value)
-    plannings.value = response.data.results.map(planning => ({
-      ...planning,
-      site_name: planning.site_name || ''  // S'assurer que site_name existe
-    }))
+    const params = {
+      page: page.value,
+      page_size: itemsPerPage.value,
+      site: filters.value.site,
+      schedule_type: filters.value.type
+    }
+    
+    const response = await planningsApi.getAllPlannings(params)
+    plannings.value = response.data.results
     totalItems.value = response.data.count
   } catch (error) {
     console.error('Erreur lors du chargement des plannings:', error)
@@ -536,20 +536,20 @@ const savePlanning = async () => {
         } else {
           // Gestion des horaires en fonction du type de journée
           const timeFields = {
-            start_time_1: null,
-            end_time_1: null,
-            start_time_2: null,
-            end_time_2: null
+            start_time_1: undefined as string | undefined,
+            end_time_1: undefined as string | undefined,
+            start_time_2: undefined as string | undefined,
+            end_time_2: undefined as string | undefined
           }
 
           if (detail.day_type === 'FULL' || detail.day_type === 'AM') {
-            timeFields.start_time_1 = detail.start_time_1 || null
-            timeFields.end_time_1 = detail.end_time_1 || null
+            timeFields.start_time_1 = detail.start_time_1 || undefined
+            timeFields.end_time_1 = detail.end_time_1 || undefined
           }
 
           if (detail.day_type === 'FULL' || detail.day_type === 'PM') {
-            timeFields.start_time_2 = detail.start_time_2 || null
-            timeFields.end_time_2 = detail.end_time_2 || null
+            timeFields.start_time_2 = detail.start_time_2 || undefined
+            timeFields.end_time_2 = detail.end_time_2 || undefined
           }
 
           return {
@@ -592,7 +592,7 @@ const deletePlanning = async () => {
   }
 }
 
-const confirmDelete = (item: Schedule) => {
+const confirmDelete = (item: ScheduleWithSite) => {
   itemToDelete.value = item
   deleteDialog.value = true
 }
