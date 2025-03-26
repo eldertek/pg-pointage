@@ -149,7 +149,7 @@
                         <v-icon>mdi-office-building</v-icon>
                       </template>
                       <v-list-item-title>Organisation</v-list-item-title>
-                      <v-list-item-subtitle>{{ selectedSite.organization }}</v-list-item-subtitle>
+                      <v-list-item-subtitle>{{ selectedSite.organization_name }}</v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item>
                       <template #prepend>
@@ -504,12 +504,12 @@
                 <v-select
                   v-model="siteForm.organization"
                   :items="organizations"
-                  label="Franchise"
+                  label="Organisation"
                   item-title="name"
                   item-value="id"
                   required
-                  :rules="[(v: number) => !!v || 'La franchise est requise']"
-                  :no-data-text="'Aucune franchise disponible'"
+                  :rules="[(v: number) => !!v || 'L\'organisation est requise']"
+                  :no-data-text="'Aucune organisation disponible'"
                 ></v-select>
               </v-col>
               <v-col cols="12">
@@ -1285,7 +1285,7 @@ export default defineComponent({
       { title: 'Nom', align: 'start', key: 'name' },
       { title: 'Adresse', align: 'start', key: 'address' },
       { title: 'ID NFC', align: 'start', key: 'nfc_id' },
-      { title: 'Franchise', align: 'start', key: 'organization_name' },
+      { title: 'Organisation', align: 'start', key: 'organization_name' },
       { title: 'Statut', align: 'center', key: 'status' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }
     ])

@@ -16,7 +16,7 @@
           </v-btn>
           <v-btn value="organizations" variant="text">
             <v-icon start>mdi-domain</v-icon>
-            Franchises
+            Organisations
           </v-btn>
         </v-btn-toggle>
       </div>
@@ -25,7 +25,7 @@
         :prepend-icon="currentView === 'users' ? 'mdi-account-plus' : 'mdi-domain-plus'"
         @click="showCreateDialog = true"
       >
-        {{ currentView === 'users' ? 'Nouvel Utilisateur' : 'Nouvelle Franchise' }}
+        {{ currentView === 'users' ? 'Nouvel Utilisateur' : 'Nouvelle Organisation' }}
       </v-btn>
     </div>
 
@@ -119,7 +119,7 @@
         </template>
       </v-data-table>
 
-      <!-- Table des franchises (uniquement pour super admin) -->
+      <!-- Table des organisations (uniquement pour super admin) -->
       <v-data-table
         v-if="currentView === 'organizations' && isSuperAdmin"
         :headers="organizationHeaders"
@@ -128,8 +128,8 @@
         :loading="loading"
         :items-per-page-options="[5, 10, 20, 50, 100]"
         :items-per-page="10"
-        :no-data-text="'Aucune franchise trouvée'"
-        :loading-text="'Chargement des franchises...'"
+        :no-data-text="'Aucune organisation trouvée'"
+        :loading-text="'Chargement des organisations...'"
         :items-per-page-text="'Lignes par page'"
         :page-text="'{0}-{1} sur {2}'"
         :footer-props="{
@@ -250,12 +250,12 @@
                   <v-select
                     v-model="userForm.organization"
                     :items="organizations"
-                    label="Franchise"
+                    label="Organisation"
                     item-title="name"
                     item-value="id"
                     autocomplete="off"
                     :disabled="userForm.role === 'SUPER_ADMIN'"
-                    :rules="[v => userForm.role === 'SUPER_ADMIN' || !!v || 'La franchise est requise']"
+                    :rules="[v => userForm.role === 'SUPER_ADMIN' || !!v || 'L\'organisation est requise']"
                   ></v-select>
                 </v-col>
                 <v-col cols="12" sm="6" v-if="userForm.role === 'EMPLOYEE'">
@@ -311,13 +311,13 @@
               </v-row>
             </template>
 
-            <!-- Formulaire franchise (uniquement pour super admin) -->
+            <!-- Formulaire organisation (uniquement pour super admin) -->
             <template v-else-if="isSuperAdmin">
               <v-row>
                 <v-col cols="12">
                   <v-text-field
                     v-model="organizationForm.name"
-                    label="Nom de la franchise"
+                    label="Nom de l'organisation"
                     required
                     :rules="[v => !!v || 'Le nom est requis']"
                   ></v-text-field>
@@ -434,7 +434,7 @@ export default {
       ]
       
       if (isSuperAdmin.value) {
-        headers.splice(3, 0, { title: 'Franchise', key: 'organization_name' })
+        headers.splice(3, 0, { title: 'Organisation', key: 'organization_name' })
       }
       
       return headers
@@ -604,7 +604,7 @@ export default {
       if (currentView.value === 'users') {
         return editedItem.value ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'
       }
-      return editedItem.value ? 'Modifier la franchise' : 'Nouvelle franchise'
+      return editedItem.value ? 'Modifier l\'organisation' : 'Nouvelle organisation'
     }
 
     const closeDialog = () => {
