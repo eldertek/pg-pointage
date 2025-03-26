@@ -414,16 +414,18 @@
                   v-model="siteForm.nfcId"
                   label="ID NFC"
                   required
-                  :prefix="'PG'"
-                  placeholder="123456"
+                  :prefix="'S'"
+                  placeholder="0001"
                   :rules="[
                     (v: string) => !!v || 'L\'ID NFC est requis',
-                    (v: string) => /^\d{6}$/.test(v) || 'L\'ID NFC doit être composé de 6 chiffres'
+                    (v: string) => /^\d{4}$/.test(v) || 'L\'ID NFC doit être composé de 4 chiffres',
+                    (v: string) => parseInt(v) > 0 && parseInt(v) < 10000 || 'L\'ID doit être entre 0001 et 9999'
                   ]"
-                  hint="Entrez uniquement les 6 chiffres, PG sera ajouté automatiquement"
+                  hint="Entrez uniquement les 4 chiffres, S sera ajouté automatiquement"
                   persistent-hint
                   @update:model-value="formatNfcId"
-                  maxlength="6"
+                  maxlength="4"
+                  :readonly="!!editedItem"
                 ></v-text-field>
               </v-col>
               <v-col cols="12">
@@ -1088,7 +1090,7 @@ interface Site {
   postal_code: string;
   city: string;
   country: string;
-  nfc_id: string;
+  nfc_id: string;  // Format: FFF-Sxxxx
   organization: number;
   organization_name?: string;
   late_margin: number;
@@ -1129,6 +1131,7 @@ interface Schedule {
 }
 
 interface ScheduleDetail {
+  id?: number;  // Add optional id field
   day_of_week: number;
   start_time_1: string;
   end_time_1: string;
@@ -1149,6 +1152,7 @@ interface Employee {
 interface Organization {
   id: number;
   name: string;
+  org_id: string;  // Ajout du champ org_id
 }
 
 interface SiteForm {
@@ -1157,7 +1161,7 @@ interface SiteForm {
   postal_code: string;
   city: string;
   country: string;
-  nfcId: string;
+  nfcId: string;  // Format: xxxx (4 chiffres uniquement)
   organization: number | null;
   late_margin: number;
   early_departure_margin: number;
@@ -1329,6 +1333,26 @@ export default defineComponent({
       is_active: true
     })
 
+    // Validation des IDs de sites
+    const validateSiteId = (siteId: string): boolean => {
+      if (!siteId || !siteId.includes('-')) return false;
+      
+      try {
+        const [orgPart, sitePart] = siteId.split('-');
+        
+        // Valider la partie organisation
+        if (!orgPart || !orgPart.match(/^\d{3}$/)) return false;
+        
+        // Valider la partie site
+        if (!sitePart || !sitePart.match(/^S\d{4}$/)) return false;
+        
+        const siteNumber = parseInt(sitePart.slice(1));
+        return siteNumber > 0 && siteNumber < 10000;
+      } catch {
+        return false;
+      }
+    };
+
     // Chargement des données
     const fetchSites = async (page: number = 1, perPage: number = itemsPerPage.value): Promise<void> => {
       try {
@@ -1406,7 +1430,7 @@ export default defineComponent({
         postal_code: site.postal_code || '',
         city: site.city || '',
         country: site.country || 'France',
-        nfcId: site.nfc_id?.replace('PG', '') || '',
+        nfcId: site.nfc_id ? site.nfc_id.split('-')[1].slice(1) : '',  // Extraire les 4 chiffres après S
         organization: site.organization || null,
         late_margin: site.late_margin || 15,
         early_departure_margin: site.early_departure_margin || 15,
@@ -1422,20 +1446,22 @@ export default defineComponent({
     }
 
     const saveSite = async (): Promise<void> => {
-      if (!form.value) return
-      const { valid } = await form.value.validate()
-      if (!valid) return
+      if (!form.value) return;
+      const { valid } = await form.value.validate();
+      if (!valid) return;
 
-      saving.value = true
+      saving.value = true;
       try {
+        const organization = organizations.value.find(org => org.id === siteForm.value.organization);
+        if (!organization || !siteForm.value.organization) throw new Error('Organisation non trouvée');
+
         const siteData = {
           name: siteForm.value.name,
           address: siteForm.value.address,
           postal_code: siteForm.value.postal_code,
           city: siteForm.value.city,
           country: siteForm.value.country,
-          nfc_id: 'PG' + siteForm.value.nfcId,
-          organization: siteForm.value.organization || undefined, // Convertir null en undefined
+          organization: siteForm.value.organization,
           late_margin: parseInt(siteForm.value.late_margin.toString()),
           early_departure_margin: parseInt(siteForm.value.early_departure_margin.toString()),
           ambiguous_margin: parseInt(siteForm.value.ambiguous_margin.toString()),
@@ -1445,21 +1471,23 @@ export default defineComponent({
           allow_offline_mode: siteForm.value.allow_offline_mode,
           max_offline_duration: parseInt(siteForm.value.max_offline_duration.toString()),
           is_active: siteForm.value.is_active
-        }
+        };
         
         if (editedItem.value) {
-          await sitesApi.updateSite(editedItem.value.id, siteData)
+          await sitesApi.updateSite(editedItem.value.id, siteData);
         } else {
-          await sitesApi.createSite(siteData)
+          const orgId = organization.org_id || '000';
+          const nfcId = `${orgId}-S${siteForm.value.nfcId.padStart(4, '0')}`;
+          await sitesApi.createSite({ ...siteData, nfc_id: nfcId });
         }
-        await fetchSites(currentPage.value)
-        closeDialog()
+        await fetchSites(currentPage.value);
+        closeDialog();
       } catch (error) {
-        console.error('Erreur lors de l\'enregistrement du site:', error)
+        console.error('Erreur lors de l\'enregistrement du site:', error);
       } finally {
-        saving.value = false
+        saving.value = false;
       }
-    }
+    };
 
     const deleteSite = async (siteId: number): Promise<void> => {
       try {
@@ -1597,13 +1625,11 @@ export default defineComponent({
     }
 
     const formatNfcId = (value: string): void => {
-      if (!value) {
-        siteForm.value.nfcId = ''
-        return
-      }
-      
+      if (!value) return
+      // Ne garder que les chiffres
       const numbers = String(value).replace(/\D/g, '')
-      siteForm.value.nfcId = numbers.substring(0, 6)
+      // Limiter à 4 chiffres
+      siteForm.value.nfcId = numbers.substring(0, 4)
     }
 
     // Méthodes pour la gestion des employés

@@ -127,7 +127,7 @@ interface Site {
   postal_code: string;
   city: string;
   country: string;
-  nfc_id: string;
+  nfc_id: string;  // Format: S0001 à S9999
   organization: number;
   organization_name?: string;
   late_margin: number;
@@ -190,6 +190,18 @@ interface Organization {
   name: string;
 }
 
+// Utilitaires pour la validation des IDs de sites
+const validateSiteId = (siteId: string): boolean => {
+  if (!siteId || siteId.length !== 5) return false;
+  if (!siteId.startsWith('S')) return false;
+  try {
+    const number = parseInt(siteId.slice(1));
+    return number > 0 && number < 10000;
+  } catch {
+    return false;
+  }
+};
+
 // Sites API methods
 const sitesApi = {
   // Get all sites with pagination
@@ -207,12 +219,18 @@ const sitesApi = {
   getSite: (id: number): Promise<AxiosResponse<Site>> => api.get(`/sites/${id}/`),
   
   // Create a new site
-  createSite: (data: Partial<Site>): Promise<AxiosResponse<Site>> => 
-    api.post('/sites/', convertKeysToSnakeCase(data)),
+  createSite: (data: Partial<Site>): Promise<AxiosResponse<Site>> => {
+    // Supprime le nfc_id s'il est fourni car il est généré côté serveur
+    const { nfc_id, ...siteData } = convertKeysToSnakeCase(data);
+    return api.post('/sites/', siteData);
+  },
   
   // Update a site
-  updateSite: (id: number, data: Partial<Site>): Promise<AxiosResponse<Site>> => 
-    api.patch(`/sites/${id}/`, convertKeysToSnakeCase(data)),
+  updateSite: (id: number, data: Partial<Site>): Promise<AxiosResponse<Site>> => {
+    // Supprime le nfc_id s'il est fourni car il ne doit pas être modifié
+    const { nfc_id, ...siteData } = convertKeysToSnakeCase(data);
+    return api.patch(`/sites/${id}/`, siteData);
+  },
   
   // Delete a site
   deleteSite: (id: number): Promise<AxiosResponse<void>> => api.delete(`/sites/${id}/`),

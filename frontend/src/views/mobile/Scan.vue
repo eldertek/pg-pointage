@@ -401,6 +401,10 @@ export default {
                 }
                 
                 if (qrData.type === 'PG_SITE' && qrData.nfc_id) {
+                  // Valider le format de l'ID
+                  if (!validateSiteId(qrData.nfc_id)) {
+                    throw new Error('Format d\'ID de site invalide')
+                  }
                   try {
                     await getCurrentPosition()
                     console.log('Position GPS obtenue au moment du scan QR:', position.value)
@@ -438,9 +442,29 @@ export default {
       }
     }
     
+    // Validation des IDs de sites
+    const validateSiteId = (siteId) => {
+      if (!siteId || siteId.length !== 5) return false;
+      if (!siteId.startsWith('S')) return false;
+      try {
+        const number = parseInt(siteId.slice(1));
+        return number > 0 && number < 10000;
+      } catch {
+        return false;
+      }
+    };
+    
     // Fonction pour traiter le résultat du scan
     const handleScanResult = async (siteId, scanMethod = 'QR_CODE') => {
       console.log('Traitement du scan pour le site:', siteId)
+      
+      // Valider le format de l'ID
+      if (!validateSiteId(siteId)) {
+        showError('Format d\'ID de site invalide')
+        scanning.value = false
+        return
+      }
+
       try {
         const result = await timesheetStore.createTimesheet({
           site_id: siteId,

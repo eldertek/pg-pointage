@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Site, Schedule, ScheduleDetail, SiteEmployee
 import logging
 from users.models import User
+from .utils import generate_site_id, validate_site_id
 
 class ScheduleDetailSerializer(serializers.ModelSerializer):
     """Serializer pour les détails de planning"""
@@ -76,5 +77,26 @@ class SiteSerializer(serializers.ModelSerializer):
                  'require_geolocation', 'geolocation_radius', 'allow_offline_mode',
                  'max_offline_duration', 'created_at', 'updated_at', 'is_active',
                  'schedules']
-        read_only_fields = ['created_at', 'updated_at', 'organization_name']
+        read_only_fields = ['created_at', 'updated_at', 'organization_name', 'nfc_id']
+
+    def validate_nfc_id(self, value):
+        """Valide le format de l'ID du site"""
+        if value and not validate_site_id(value):
+            raise serializers.ValidationError(
+                'L\'ID du site doit être au format FFF-Sxxxx'
+            )
+        return value
+
+    def create(self, validated_data):
+        """Génère automatiquement l'ID du site"""
+        if 'nfc_id' not in validated_data:
+            validated_data['nfc_id'] = generate_site_id(validated_data['organization'])
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        """Met à jour le site et régénère l'ID si l'organisation change"""
+        if 'organization' in validated_data and validated_data['organization'] != instance.organization:
+            # Si l'organisation change, générer un nouvel ID
+            validated_data['nfc_id'] = generate_site_id(validated_data['organization'])
+        return super().update(instance, validated_data)
 

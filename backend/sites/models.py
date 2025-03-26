@@ -1,5 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
+from .utils import validate_site_id
 
 class Site(models.Model):
     """Modèle pour les sites de travail"""
@@ -15,7 +17,12 @@ class Site(models.Model):
         related_name='sites',
         verbose_name=_('organisation')
     )
-    nfc_id = models.CharField(_('ID NFC'), max_length=100, unique=True)
+    nfc_id = models.CharField(
+        _('ID Site'), 
+        max_length=5,
+        unique=True,
+        help_text=_('Format: S0001 à S9999')
+    )
     qr_code = models.ImageField(_('QR Code'), upload_to='sites/qrcodes/', blank=True, null=True)
     
     # Paramètres de retard et départ anticipé
@@ -45,6 +52,16 @@ class Site(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.organization.name})"
+    
+    def clean(self):
+        """Validation personnalisée du modèle"""
+        super().clean()
+        
+        # Valider le format de l'ID du site
+        if self.nfc_id and not validate_site_id(self.nfc_id):
+            raise ValidationError({
+                'nfc_id': _('L\'ID du site doit être au format S0001 à S9999')
+            })
     
     @property
     def alert_email_list(self):

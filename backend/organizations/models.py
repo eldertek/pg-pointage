@@ -1,10 +1,17 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
 
 class Organization(models.Model):
     """Modèle pour les organisations"""
     
     name = models.CharField(_('nom'), max_length=100)
+    org_id = models.CharField(
+        _('ID Organisation'),
+        max_length=3,
+        unique=True,
+        help_text=_('ID unique de l\'organisation sur 3 chiffres')
+    )
     address = models.TextField(_('adresse'), blank=True)
     postal_code = models.CharField(_('code postal'), max_length=5, blank=True)
     city = models.CharField(_('ville'), max_length=100, blank=True)
@@ -25,5 +32,38 @@ class Organization(models.Model):
         ordering = ['name']
     
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.org_id})"
+    
+    def clean(self):
+        """Validation personnalisée du modèle"""
+        super().clean()
+        
+        # Valider le format de l'ID de l'organisation
+        if self.org_id:
+            try:
+                number = int(self.org_id)
+                if not (0 <= number <= 999):
+                    raise ValidationError({
+                        'org_id': _('L\'ID de l\'organisation doit être un nombre entre 000 et 999')
+                    })
+            except ValueError:
+                raise ValidationError({
+                    'org_id': _('L\'ID de l\'organisation doit être un nombre')
+                })
+    
+    def save(self, *args, **kwargs):
+        # Si pas d'org_id, en générer un
+        if not self.org_id and not Organization.objects.filter(id=self.id).exists():
+            # Trouver le dernier ID utilisé
+            last_org = Organization.objects.order_by('-org_id').first()
+            if last_org and last_org.org_id:
+                try:
+                    next_number = int(last_org.org_id) + 1
+                except ValueError:
+                    next_number = 1
+            else:
+                next_number = 1
+            self.org_id = f"{next_number:03d}"
+        
+        super().save(*args, **kwargs)
 

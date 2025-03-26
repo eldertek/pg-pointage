@@ -6,7 +6,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = [
-            'id', 'name', 'address', 'postal_code', 'city', 'country',
+            'id', 'name', 'org_id', 'address', 'postal_code', 'city', 'country',
             'phone', 'email', 'contact_email', 'siret', 'logo',
             'notes', 'created_at', 'updated_at', 'is_active'
         ]

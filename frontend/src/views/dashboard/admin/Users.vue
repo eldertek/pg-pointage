@@ -148,6 +148,16 @@
           </v-chip>
         </template>
 
+        <template v-slot:item.org_id="{ item }">
+          <v-chip
+            color="primary"
+            size="small"
+            variant="outlined"
+          >
+            {{ item.org_id }}
+          </v-chip>
+        </template>
+
         <template v-slot:item.actions="{ item }">
           <v-tooltip text="Modifier">
             <template v-slot:activator="{ props }">
@@ -441,6 +451,7 @@ export default {
     })
 
     const organizationHeaders = ref([
+      { title: 'ID', align: 'start', key: 'org_id' },
       { title: 'Nom', align: 'start', key: 'name' },
       { title: 'Email', key: 'contact_email' },
       { title: 'Téléphone', key: 'phone' },
