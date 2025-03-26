@@ -2,6 +2,11 @@
 
 from django.db import migrations, models
 
+def assign_unique_org_ids(apps, schema_editor):
+    Organization = apps.get_model('organizations', 'Organization')
+    for index, org in enumerate(Organization.objects.all(), start=1):
+        org.org_id = f"{index:03d}"  # Format as 3-digit number
+        org.save()
 
 class Migration(migrations.Migration):
 
@@ -10,16 +15,29 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # First add the field without unique constraint
         migrations.AddField(
             model_name="organization",
             name="org_id",
             field=models.CharField(
-                default=0,
+                default='',
+                help_text="ID unique de l'organisation sur 3 chiffres",
+                max_length=3,
+                verbose_name="ID Organisation",
+            ),
+            preserve_default=False,
+        ),
+        # Run the data migration to assign unique IDs
+        migrations.RunPython(assign_unique_org_ids),
+        # Then add the unique constraint
+        migrations.AlterField(
+            model_name="organization",
+            name="org_id",
+            field=models.CharField(
                 help_text="ID unique de l'organisation sur 3 chiffres",
                 max_length=3,
                 unique=True,
                 verbose_name="ID Organisation",
             ),
-            preserve_default=False,
         ),
     ]
