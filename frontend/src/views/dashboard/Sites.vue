@@ -73,7 +73,7 @@
               variant="text"
               size="small"
               color="#F78C48"
-              @click="deleteSite(item.id)"
+              @click="deleteSite(item)"
             >
               <v-icon>mdi-delete</v-icon>
             </v-btn>
@@ -1054,6 +1054,35 @@
       </v-card>
     </v-dialog>
 
+    <!-- Dialog de confirmation de suppression -->
+    <v-dialog v-model="showDeleteDialog" max-width="500px">
+      <v-card>
+        <v-card-title class="text-h5">Confirmation de suppression</v-card-title>
+        <v-card-text>
+          Êtes-vous sûr de vouloir supprimer ce site ? Cette action est irréversible.
+          <div class="mt-4 text-subtitle-1">
+            {{ siteToDelete?.name }}
+          </div>
+          <div class="text-caption">
+            {{ siteToDelete?.address }}<br>
+            {{ siteToDelete?.postal_code }} {{ siteToDelete?.city }}<br>
+            {{ siteToDelete?.country }}
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey" variant="text" @click="showDeleteDialog = false">Annuler</v-btn>
+          <v-btn 
+            color="error" 
+            @click="confirmDeleteSite"
+            :loading="deleting"
+          >
+            Supprimer
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Dialog pour le calendrier -->
     <v-dialog v-model="showCalendarDialog" max-width="1200px">
       <v-card>
@@ -1277,6 +1306,9 @@ export default defineComponent({
     const scheduleFormRef = ref<any>(null)
     const showCalendarDialog = ref<boolean>(false)
     const selectedScheduleForCalendar = ref<Schedule | null>(null)
+    const showDeleteDialog = ref<boolean>(false)
+    const siteToDelete = ref<Site | null>(null)
+    const deleting = ref<boolean>(false)
 
     // Formatage des données
     const formatEmployeeName = (employee: Employee): string => {
@@ -1496,12 +1528,24 @@ export default defineComponent({
       }
     };
 
-    const deleteSite = async (siteId: number): Promise<void> => {
+    const deleteSite = (site: Site): void => {
+      siteToDelete.value = site
+      showDeleteDialog.value = true
+    }
+
+    const confirmDeleteSite = async (): Promise<void> => {
+      if (!siteToDelete.value) return
+      
       try {
-        await sitesApi.deleteSite(siteId)
+        deleting.value = true
+        await sitesApi.deleteSite(siteToDelete.value.id)
         await fetchSites(currentPage.value, itemsPerPage.value)
+        showDeleteDialog.value = false
+        siteToDelete.value = null
       } catch (error) {
         console.error('Erreur lors de la suppression du site:', error)
+      } finally {
+        deleting.value = false
       }
     }
 
@@ -2029,6 +2073,9 @@ export default defineComponent({
       // États
       loading,
       saving,
+      deleting,
+      showDeleteDialog,
+      siteToDelete,
       showCreateDialog,
       showScheduleDialog,
       showEmployeeDialog,
@@ -2090,6 +2137,7 @@ export default defineComponent({
       generateQRCode,
       downloadQRCode,
       toggleSiteStatus,
+      confirmDeleteSite,
     }
   }
 })

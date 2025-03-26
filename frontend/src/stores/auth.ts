@@ -3,8 +3,46 @@ import api from "@/services/api"
 import router from "@/router"
 import { nextTick } from "vue"
 
+interface Credentials {
+  email: string;
+  password: string;
+}
+
+interface UserData {
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  [key: string]: any;
+}
+
+interface ApiError {
+  response?: {
+    status?: number;
+    statusText?: string;
+    data?: any;
+    headers?: any;
+    detail?: string;
+  };
+  message?: string;
+}
+
+interface User {
+  role: string;
+  first_name: string;
+  last_name: string;
+  organization?: any;
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  refreshToken: string | null;
+  loading: boolean;
+  error: string | null;
+}
+
 export const useAuthStore = defineStore("auth", {
-  state: () => ({
+  state: (): AuthState => ({
     user: null,
     token: localStorage.getItem("token"),
     refreshToken: localStorage.getItem("refreshToken"),
@@ -23,7 +61,7 @@ export const useAuthStore = defineStore("auth", {
   },
 
   actions: {
-    setTokens(token, refreshToken) {
+    setTokens(token: string, refreshToken: string) {
       if (!token || !refreshToken || typeof token !== 'string' || typeof refreshToken !== 'string') {
         console.error("Tentative de définir des tokens invalides:", { token, refreshToken })
         return
@@ -43,7 +81,7 @@ export const useAuthStore = defineStore("auth", {
       delete api.defaults.headers.common["Authorization"]
     },
 
-    async login(credentials) {
+    async login(credentials: Credentials) {
       // Réinitialiser l'état avant la nouvelle connexion
       this.resetStore()
       
@@ -77,16 +115,17 @@ export const useAuthStore = defineStore("auth", {
           console.error("Rôle non défini après connexion")
           throw new Error("Rôle non défini après connexion")
         }
-      } catch (error) {
-        console.error("Erreur de connexion:", error)
+      } catch (error: unknown) {
+        const apiError = error as ApiError;
+        console.error("Erreur de connexion:", apiError);
         console.error("Détails de l'erreur:", {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          headers: error.response?.headers
-        })
-        this.error = error.response?.data?.detail || "Erreur lors de la connexion"
-        throw error
+          status: apiError.response?.status,
+          statusText: apiError.response?.statusText,
+          data: apiError.response?.data,
+          headers: apiError.response?.headers
+        });
+        this.error = apiError.response?.data?.detail || "Erreur lors de la connexion";
+        throw error;
       } finally {
         this.loading = false
       }
@@ -106,11 +145,12 @@ export const useAuthStore = defineStore("auth", {
             try {
               await api.post("/users/logout/", { refresh: refreshToken })
               console.log("Déconnexion réussie côté serveur")
-            } catch (error) {
+            } catch (error: unknown) {
+              const apiError = error as ApiError;
               console.warn(
                 "Erreur lors de la déconnexion côté serveur:", 
-                error.response?.data?.error || error.message
-              )
+                apiError.response?.data?.error || apiError.message
+              );
             }
           } catch (error) {
             console.error("Erreur inattendue lors de la déconnexion:", error)
@@ -195,7 +235,7 @@ export const useAuthStore = defineStore("auth", {
       return false
     },
 
-    async forgotPassword(email) {
+    async forgotPassword(email: string) {
       try {
         await api.post("/users/reset-password/", { email })
       } catch (error) {
@@ -204,7 +244,7 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    async resetPassword(token, password) {
+    async resetPassword(token: string, password: string) {
       try {
         await api.post("/users/reset-password/confirm/", {
           token,
@@ -216,7 +256,7 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    async updateProfile(userData) {
+    async updateProfile(userData: UserData) {
       try {
         const response = await api.patch("/users/profile/", userData)
         this.user = response.data
@@ -226,10 +266,12 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    updateUser(userData) {
-      this.user = {
-        ...this.user,
-        ...userData
+    updateUser(userData: Partial<User>) {
+      if (this.user) {
+        this.user = {
+          ...this.user,
+          ...userData
+        } as User;
       }
     }
   }

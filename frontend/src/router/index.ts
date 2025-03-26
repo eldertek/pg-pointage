@@ -28,6 +28,14 @@ import History from "@/views/mobile/History.vue"
 import Profile from "@/views/mobile/Profile.vue"
 import ReportAnomaly from "@/views/mobile/ReportAnomaly.vue"
 
+// Vue Router RouteMeta extension
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean;
+    roles?: string[];
+  }
+}
+
 interface RouteMeta {
   requiresAuth?: boolean;
   roles?: string[];
@@ -81,6 +89,12 @@ const routes: RouteRecordRaw[] = [
         name: "OrganizationDetail",
         component: OrganizationDetail,
         meta: { roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "organizations/:id/edit",
+        name: "OrganizationEdit",
+        component: () => import("@/views/dashboard/admin/Users.vue"),
+        meta: { roles: ["SUPER_ADMIN"], editMode: true },
       },
       // Routes communes
       {
@@ -156,7 +170,7 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
-  const requiredRoles = to.matched.find((record) => record.meta.roles)?.meta.roles || []
+  const requiredRoles: string[] = to.matched.find((record) => record.meta.roles)?.meta.roles || []
 
   // Si la route nécessite une authentification
   if (requiresAuth) {

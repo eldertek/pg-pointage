@@ -13,9 +13,17 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         try:
             user = User.objects.get(email=attrs.get('email'))
             print(f"[DEBUG] Utilisateur trouvé: {user.username} (actif: {user.is_active})")
+            
+            # Vérifier si l'utilisateur est actif
             if not user.is_active:
                 print("[DEBUG] Échec de connexion: utilisateur inactif")
                 raise serializers.ValidationError("Ce compte est inactif.")
+            
+            # Vérifier si l'organisation est active (si l'utilisateur appartient à une organisation)
+            if user.organization and not user.organization.is_active:
+                print("[DEBUG] Échec de connexion: organisation inactive")
+                raise serializers.ValidationError("L'organisation à laquelle vous êtes rattaché est inactive.")
+                
         except User.DoesNotExist:
             print("[DEBUG] Échec de connexion: utilisateur non trouvé")
             pass  # On laisse la validation parent gérer ce cas

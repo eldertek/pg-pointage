@@ -417,18 +417,21 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { useRoute, useRouter } from 'vue-router'
 
 export default {
   name: 'AdminUsersView',
   setup() {
     const authStore = useAuthStore()
+    const route = useRoute()
+    const router = useRouter()
     const loading = ref(false)
     const saving = ref(false)
     const search = ref('')
     const showCreateDialog = ref(false)
     const form = ref(null)
     const editedItem = ref(null)
-    const currentView = ref(authStore.isSuperAdmin ? 'users' : 'users')
+    const currentView = ref(authStore.isSuperAdmin ? 'organizations' : 'users')
     const currentUser = ref(null)
     const showPasswordFields = ref(false)
     
@@ -672,6 +675,11 @@ export default {
         } else if (isSuperAdmin.value) {
           if (editedItem.value) {
             await api.put(`/organizations/${editedItem.value.id}/`, organizationForm.value)
+            // Si on est en mode édition depuis la vue de détail, on redirige vers la vue de détail
+            if (route.meta.editMode) {
+              router.push(`/dashboard/organizations/${editedItem.value.id}`)
+              return
+            }
           } else {
             await api.post('/organizations/', organizationForm.value)
           }
@@ -726,6 +734,22 @@ export default {
         fetchOrganizations()
       }
     })
+
+    // Si on est en mode édition depuis la vue de détail
+    if (route.meta.editMode && route.params.id) {
+      currentView.value = 'organizations'
+      // Charger l'organisation à éditer
+      onMounted(async () => {
+        try {
+          const response = await api.get(`/organizations/${route.params.id}/`)
+          editedItem.value = response.data
+          organizationForm.value = { ...response.data }
+          showCreateDialog.value = true
+        } catch (error) {
+          console.error('Erreur lors du chargement de l\'organisation:', error)
+        }
+      })
+    }
 
     onMounted(() => {
       fetchCurrentUser()
