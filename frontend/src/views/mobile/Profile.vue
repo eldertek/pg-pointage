@@ -7,8 +7,8 @@
           <v-avatar color="primary" size="100">
             <span class="text-h4 text-white">{{ userInitials }}</span>
           </v-avatar>
-          <h2 class="text-h5 mt-2">{{ user.first_name }} {{ user.last_name }}</h2>
-          <p class="text-subtitle-1">{{ roleLabels[user.role] || user.role }}</p>
+          <Title level="2" class="mt-2">{{ user.first_name }} {{ user.last_name }}</Title>
+          <Text>{{ roleLabels[user.role] || user.role }}</Text>
         </div>
         
         <v-list>
@@ -193,9 +193,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import api, { usersApi } from '@/services/api'
 import { formatPhoneNumber } from '@/utils/formatters'
+import { Title, Text } from '@/components/typography'
 
 export default {
   name: 'ProfileView',
+  components: {
+    Title,
+    Text
+  },
   setup() {
     const authStore = useAuthStore()
     

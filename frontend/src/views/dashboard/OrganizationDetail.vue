@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">{{ organization.name }}</h1>
+      <Title level="1">{{ organization.name }}</Title>
       <div>
         <v-btn color="#00346E" class="mr-2" prepend-icon="mdi-pencil" @click="editOrganization">
           Modifier
@@ -290,9 +290,13 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
+import { Title } from '@/components/typography'
 
 export default {
   name: 'OrganizationDetailView',
+  components: {
+    Title
+  },
   setup() {
     const route = useRoute()
     const router = useRouter()

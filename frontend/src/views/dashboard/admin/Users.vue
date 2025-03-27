@@ -2,7 +2,7 @@
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
       <div>
-        <h1 class="text-h4">{{ isSuperAdmin ? 'Gestion des accès' : 'Gestion des Employés' }}</h1>
+        <Title :level="1">{{ isSuperAdmin ? 'Gestion des accès' : 'Gestion des Employés' }}</Title>
         <v-btn-toggle
           v-if="isSuperAdmin"
           v-model="currentView"
@@ -477,7 +477,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, defineComponent } from 'vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute, useRouter } from 'vue-router'
@@ -486,6 +486,8 @@ import DataTable from '@/components/common/DataTable.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useConfirmDialog } from '@/utils/dialogs'
 import type { TableHeader, TableItem } from '@/components/common/DataTable.vue'
+import type { Title as TitleType } from '@/components/typography'
+import { Title } from '@/components/typography'
 
 interface User {
   id: number;
@@ -547,9 +549,9 @@ interface FormRef {
   reset: () => void;
 }
 
-export default {
+export default defineComponent({
   name: 'AdminUsersView',
-  components: { DataTable, ConfirmDialog },
+  components: { DataTable, ConfirmDialog, Title },
   setup() {
     const authStore = useAuthStore()
     const route = useRoute()
@@ -976,7 +978,7 @@ export default {
       totalItems
     }
   }
-}
+})
 </script>
 
 <style scoped>

@@ -1,10 +1,11 @@
 <template>
   <div>
+    <Title level="1" class="text-h4">Nouvelle organisation</Title>
+
     <div class="d-flex align-center mb-4">
       <v-btn icon class="mr-4" to="/dashboard/organizations">
         <v-icon>mdi-arrow-left</v-icon>
       </v-btn>
-      <h1 class="text-h4">Nouvelle organisation</h1>
     </div>
 
     <v-card>
@@ -176,9 +177,13 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import { Title } from '@/components/typography'
 
 export default {
-  name: 'OrganizationNewView',
+  name: 'NewOrganizationView',
+  components: {
+    Title
+  },
   setup() {
     const router = useRouter()
     const form = ref(null)

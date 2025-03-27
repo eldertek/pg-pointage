@@ -33,9 +33,9 @@
         <v-card-title>{{ selectedEvent ? selectedEvent.name : '' }}</v-card-title>
         <v-card-text>
           <div v-if="selectedEvent">
-            <p>Début: {{ formatTime(selectedEvent.start) }}</p>
-            <p>Fin: {{ formatTime(selectedEvent.end) }}</p>
-            <p>Type: {{ selectedEvent.type }}</p>
+            <Text>Début: {{ formatTime(selectedEvent.start) }}</Text>
+            <Text>Fin: {{ formatTime(selectedEvent.end) }}</Text>
+            <Text>Type: {{ selectedEvent.type }}</Text>
           </div>
         </v-card-text>
         <v-card-actions>
@@ -48,8 +48,13 @@
 </template>
 
 <script>
+import { Text } from '@/components/typography'
+
 export default {
   name: 'ScheduleCalendar',
+  components: {
+    Text
+  },
   
   props: {
     schedule: {

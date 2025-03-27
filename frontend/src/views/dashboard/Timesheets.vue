@@ -1,6 +1,8 @@
 <template>
   <div>
-    <h1 class="text-h4 mb-4" v-if="!isDetailView">Pointages</h1>
+    <div class="d-flex justify-space-between align-center mb-4">
+      <Title :level="1">Pointages</Title>
+    </div>
     
     <v-card class="mb-4" v-if="!isDetailView">
       <v-card-title>Filtres</v-card-title>
@@ -138,6 +140,7 @@
             icon="mdi-pencil"
             size="small"
             color="primary"
+            variant="text"
             class="mr-2"
             @click.stop="editTimesheet(item)"
           >
@@ -148,6 +151,7 @@
             icon="mdi-delete"
             size="small"
             color="error"
+            variant="text"
             @click.stop="confirmDelete(item)"
           >
             <v-tooltip activator="parent" location="top">Supprimer</v-tooltip>
@@ -334,9 +338,13 @@ import L from 'leaflet'
 import type { ExtendedTimesheet, Filters, SiteOption, EditingTimesheet } from '@/types/sites'
 import { EntryTypeEnum } from '@/types/api'
 import type { TableOptions } from '@/types/sites'
+import { Title } from '@/components/typography'
 
 export default {
   name: 'TimesheetsView',
+  components: {
+    Title
+  },
   props: {
     isDetailView: {
       type: Boolean,
@@ -752,6 +760,11 @@ export default {
   color: white !important;
 }
 
+:deep(.v-btn[color="warning"]) {
+  background-color: #F78C48 !important;
+  color: white !important;
+}
+
 /* Style des boutons icônes colorés */
 :deep(.v-btn--icon[color="primary"]) {
   color: #00346E !important;
@@ -763,6 +776,10 @@ export default {
 
 :deep(.v-btn--icon[color="success"]) {
   color: #00346E !important;
+}
+
+:deep(.v-btn--icon[color="warning"]) {
+  color: #F78C48 !important;
 }
 
 /* Correction des overlays et underlays */

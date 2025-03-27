@@ -2,7 +2,7 @@
   <div class="login-container">
     <v-card class="login-card">
       <v-card-title class="text-center">
-        <h1 class="text-h4 mb-2">Planète Gardiens</h1>
+        <Title level="1" class="text-h4 mb-2">Planète Gardiens</Title>
         <p class="text-subtitle-1">Connexion</p>
       </v-card-title>
       
@@ -70,9 +70,13 @@
 <script>
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { Title } from '@/components/typography'
 
 export default {
   name: 'LoginView',
+  components: {
+    Title
+  },
   setup() {
     const authStore = useAuthStore()
     const form = ref(null)

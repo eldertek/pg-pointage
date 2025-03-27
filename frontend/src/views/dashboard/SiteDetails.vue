@@ -2,7 +2,7 @@
   <div>
     <div class="d-flex align-center mb-4">
       <v-btn icon="mdi-arrow-left" variant="text" to="/dashboard/sites" class="mr-4"></v-btn>
-      <h2 class="text-h5">{{ site?.name }}</h2>
+      <Title level="2" class="text-h5">{{ site?.name }}</Title>
     </div>
 
     <v-row v-if="loading">
@@ -160,7 +160,7 @@
 
                 <v-col cols="12">
                   <v-divider class="my-4"></v-divider>
-                  <h3 class="text-h6 mb-4">Informations système</h3>
+                  <Title level="3" class="mb-4">Informations système</Title>
                   <v-list>
                     <v-list-item>
                       <template #prepend>
@@ -246,6 +246,7 @@
 <script lang="ts">
 import type { Site } from '@/types/api'
 import type { ExtendedSchedule } from '@/types/sites'
+import { Title } from '@/components/typography'
 
 // Extended Site with additional properties needed for UI
 interface ExtendedSite extends Omit<Site, 'schedules' | 'organization_name' | 'manager_name'> {

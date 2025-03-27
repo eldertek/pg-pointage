@@ -4,7 +4,7 @@
     <template v-if="user?.simplified_mobile_view">
       <v-card class="simplified-view">
         <v-card-text class="text-center">
-          <h2 class="text-h5 mb-4">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</h2>
+          <Title level="2" class="mb-4">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</Title>
           <v-btn
             color="primary"
             size="x-large"
@@ -34,8 +34,8 @@
       
       <v-card-text>
         <div class="text-center mb-6">
-          <h2 class="text-h5 mb-2">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</h2>
-          <p class="text-subtitle-1 text-medium-emphasis">{{ currentDate }}</p>
+          <Title level="2" class="mb-2">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</Title>
+          <Text>{{ currentDate }}</Text>
         </div>
         
         <v-row>
@@ -61,7 +61,7 @@
         </v-row>
         
         <div class="mt-6">
-          <h3 class="text-h6 mb-3">Derniers enregistrements</h3>
+          <Title level="3" class="mb-3">Derniers enregistrements</Title>
           <v-timeline density="compact" align="start">
             <v-timeline-item
               v-for="(timesheet, index) in recentTimesheets"
@@ -96,7 +96,7 @@
           </v-timeline>
           
           <div v-if="recentTimesheets.length === 0" class="text-center pa-4">
-            <p class="text-medium-emphasis">Aucun enregistrement récent</p>
+            <Text class="text-medium-emphasis">Aucun enregistrement récent</Text>
           </div>
           
           <div class="text-center mt-4">
@@ -112,19 +112,19 @@
         </div>
         
         <div class="mt-6">
-          <h3 class="text-h6 mb-3">Message</h3>
+          <Title level="3" class="mb-3">Message</Title>
           <v-card
             :color="stats.lateCount > 0 || stats.earlyDepartureCount > 0 ? 'warning' : 'success'"
             variant="outlined"
             class="message-card"
           >
             <v-card-text>
-              <p v-if="!stats.lateCount && !stats.earlyDepartureCount">
+              <Text v-if="!stats.lateCount && !stats.earlyDepartureCount">
                 Félicitations ! Vous n'avez aucun retard ni départ anticipé ce mois-ci.
-              </p>
-              <p v-else>
+              </Text>
+              <Text v-else>
                 Vous avez {{ stats.lateCount || 0 }} retard(s) et {{ stats.earlyDepartureCount || 0 }} départ(s) anticipé(s) ce mois-ci.
-              </p>
+              </Text>
             </v-card-text>
           </v-card>
         </div>
@@ -150,6 +150,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useTimesheetStore } from '@/stores/timesheet'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { Title, Text } from '@/components/typography'
 
 export default {
   name: 'MobileDashboard',

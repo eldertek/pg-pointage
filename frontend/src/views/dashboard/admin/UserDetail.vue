@@ -3,7 +3,7 @@
     <v-row>
       <v-col cols="12">
         <div class="d-flex align-center mb-4">
-          <h1 class="text-h4 font-weight-bold">Détails de l'utilisateur</h1>
+          <Title level="1" class="font-weight-bold">Détails de l'utilisateur</Title>
           <v-spacer></v-spacer>
           <v-btn
             color="primary"
@@ -116,6 +116,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usersApi } from '@/services/api'
+import { Title } from '@/components/typography'
 
 const route = useRoute()
 const router = useRouter()

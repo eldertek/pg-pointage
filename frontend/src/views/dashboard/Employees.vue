@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">Employés</h1>
+      <Title level="1">Employés</Title>
     </div>
 
     <!-- Message d'erreur -->
@@ -200,9 +200,13 @@
 import { ref, onMounted } from 'vue'
 import { useEmployeesStore } from '@/stores/employees'
 import { formatPhoneNumber } from '@/utils/formatters'
+import { Title } from '@/components/typography'
 
 export default {
   name: 'EmployeesView',
+  components: {
+    Title
+  },
   setup() {
     const employeesStore = useEmployeesStore()
     const form = ref(null)

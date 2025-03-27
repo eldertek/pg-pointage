@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">Sites</h1>
+      <Title level="1">Sites</Title>
       <v-btn color="#00346E" prepend-icon="mdi-plus" @click="openCreateDialog">
         Ajouter un site
       </v-btn>
@@ -96,7 +96,7 @@
     <template v-else>
       <div class="d-flex align-center mb-4">
         <v-btn icon="mdi-arrow-left" variant="text" @click="selectedSite = null" class="mr-4"></v-btn>
-        <h2 class="text-h5">{{ selectedSite.name }}</h2>
+        <Title level="2">{{ selectedSite.name }}</Title>
       </div>
 
       <v-card>
@@ -252,7 +252,7 @@
                 </v-col>
                 <v-col cols="12">
                   <v-divider class="my-4"></v-divider>
-                  <h3 class="text-h6 mb-4">Paramètres de géolocalisation</h3>
+                  <Title level="3">Paramètres de géolocalisation</Title>
                   <v-list>
                     <v-list-item>
                       <template #prepend>
@@ -279,7 +279,7 @@
                 </v-col>
                 <v-col cols="12">
                   <v-divider class="my-4"></v-divider>
-                  <h3 class="text-h6 mb-4">Paramètres de synchronisation</h3>
+                  <Title level="3">Paramètres de synchronisation</Title>
                   <v-list>
                     <v-list-item>
                       <template #prepend>
@@ -1119,6 +1119,7 @@ import type { ExtendedSchedule } from '@/types/sites'
 import { sitesApi, organizationsApi, usersApi, schedulesApi } from '@/services/api'
 import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
 import { useConfirmDialog } from '@/utils/dialogs'
+import { Title } from '@/components/typography'
 
 interface SiteForm {
   name: string;
@@ -1203,7 +1204,8 @@ const SitesView = defineComponent({
     ScheduleCalendar,
     TimesheetsView,
     AnomaliesView,
-    ReportsView
+    ReportsView,
+    Title
   },
   setup() {
     const router = useRouter()

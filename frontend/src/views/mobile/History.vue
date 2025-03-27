@@ -1,6 +1,6 @@
 <template>
   <div class="history-container">
-    <h1 class="text-h5 mb-4">Historique des enregistrements</h1>
+    <Title level="1" class="mb-4">Historique des enregistrements</Title>
     
     <v-card class="mb-4">
       <v-card-title>Filtres</v-card-title>
@@ -133,6 +133,7 @@ import { ref, onMounted } from 'vue'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { timesheetsApi, sitesApi } from '@/services/api'
+import { Title } from '@/components/typography'
 
 export default {
   name: 'HistoryView',

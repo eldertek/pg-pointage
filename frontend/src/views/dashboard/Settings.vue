@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1 class="text-h4 mb-4">Paramètres</h1>
+    <Title level="1" class="mb-4">Paramètres</Title>
     
     <v-tabs v-model="activeTab" grow>
       <v-tab value="profile">Profil</v-tab>
@@ -130,9 +130,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { usersApi } from '@/services/api'
 import { formatPhoneNumber } from '@/utils/formatters'
+import { Title } from '@/components/typography'
 
 export default {
   name: 'SettingsView',
+  components: {
+    Title
+  },
   setup() {
     const activeTab = ref('profile')
     

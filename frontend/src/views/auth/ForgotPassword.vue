@@ -1,8 +1,8 @@
 <template>
   <v-card class="auth-card">
     <v-card-title class="text-center">
-      <h2 class="text-h5 mb-2">Mot de passe oublié</h2>
-      <p class="text-subtitle-1">Réinitialiser votre mot de passe</p>
+      <Title level="2" class="mb-2">Mot de passe oublié</Title>
+      <Text>Réinitialiser votre mot de passe</Text>
     </v-card-title>
     
     <v-card-text>
@@ -62,6 +62,7 @@
 
 <script>
 import { ref } from 'vue'
+import { Title, Text } from '@/components/typography'
 
 export default {
   name: 'ForgotPasswordView',

@@ -1,8 +1,8 @@
 <template>
   <v-card class="auth-card">
     <v-card-title class="text-center">
-      <h2 class="text-h5 mb-2">Réinitialisation du mot de passe</h2>
-      <p class="text-subtitle-1">Définir un nouveau mot de passe</p>
+      <Title level="2" class="mb-2">Réinitialisation du mot de passe</Title>
+      <Text>Définir un nouveau mot de passe</Text>
     </v-card-title>
     
     <v-card-text>
@@ -77,9 +77,14 @@
 <script>
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Title, Text } from '@/components/typography'
 
 export default {
   name: 'ResetPasswordView',
+  components: {
+    Title,
+    Text
+  },
   setup() {
     const route = useRoute()
     const router = useRouter()

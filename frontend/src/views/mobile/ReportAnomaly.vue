@@ -1,6 +1,6 @@
 <template>
   <div class="report-anomaly-container">
-    <h1 class="text-h5 mb-4">Signaler une anomalie</h1>
+    <Title level="1" class="text-h5 mb-4">Signaler une anomalie</Title>
     
     <v-card>
       <v-card-title>Détails de l'anomalie</v-card-title>
@@ -98,9 +98,13 @@
 <script>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Title } from '@/components/typography'
 
 export default {
   name: 'ReportAnomalyView',
+  components: {
+    Title
+  },
   setup() {
     const router = useRouter()
     const form = ref(null)

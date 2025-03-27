@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1 class="text-h4 mb-4">Rapports</h1>
+    <Title level="1" class="mb-4">Rapports</Title>
     
     <v-row>
       <v-col cols="12" lg="4">
@@ -136,9 +136,13 @@
 import { ref, watch, onMounted, computed } from 'vue'
 import { reportsApi, sitesApi } from '@/services/api'
 import { useSitesStore } from '@/stores/sites'
+import { Title } from '@/components/typography'
 
 export default {
   name: 'ReportsView',
+  components: {
+    Title
+  },
   props: {
     siteId: {
       type: Number,

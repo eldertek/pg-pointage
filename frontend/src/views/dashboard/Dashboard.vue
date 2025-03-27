@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1 class="text-h4 mb-4">Tableau de bord</h1>
+    <Title level="1" class="mb-4">Tableau de bord</Title>
     
     <v-row>
       <v-col cols="12" md="6" lg="3">
@@ -152,6 +152,7 @@ import { ref, onMounted, computed } from 'vue'
 import type { ToastInterface } from 'vue-toastification'
 import { useToast } from 'vue-toastification'
 import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
+import { Title } from '@/components/typography'
 
 interface Stats {
   sitesCount: number
@@ -183,6 +184,9 @@ interface Anomaly {
 
 export default {
   name: 'DashboardView',
+  components: {
+    Title
+  },
   setup() {
     const toast = useToast() as ToastInterface
     const stats = ref<Stats>({

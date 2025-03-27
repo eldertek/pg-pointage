@@ -3,7 +3,7 @@
     <v-row>
       <v-col cols="12">
         <div class="d-flex align-center mb-4">
-          <h1 class="text-h4 font-weight-bold">Plannings</h1>
+          <Title :level="1" class="font-weight-bold">Plannings</Title>
           <v-spacer></v-spacer>
           <v-btn
             color="primary"
@@ -297,6 +297,7 @@ import type { Site, Employee } from '@/services/api'
 import type { Schedule as BaseSchedule, ScheduleDetail as BaseScheduleDetail } from '@/types/api'
 import { ScheduleTypeEnum, DayTypeEnum, DayOfWeekEnum } from '@/types/api'
 import type { ExtendedSchedule } from '@/types/sites'
+import { Title } from '@/components/typography'
 
 // Type avec les propriétés additionnelles pour l'édition
 interface ScheduleDetailEdit extends Partial<BaseScheduleDetail> {

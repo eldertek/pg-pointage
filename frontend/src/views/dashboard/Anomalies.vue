@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4" v-if="!isDetailView">
-      <h1 class="text-h4">Anomalies</h1>
+      <Title level="1">Anomalies</Title>
       <v-btn 
         color="warning" 
         prepend-icon="mdi-magnify-scan" 
@@ -198,9 +198,13 @@ import { ref, watch, computed } from 'vue'
 import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
 import { useToast } from 'vue-toastification'
 import { useSitesStore } from '@/stores/sites'
+import { Title } from '@/components/typography'
 
 export default {
   name: 'AnomaliesView',
+  components: {
+    Title
+  },
   props: {
     isDetailView: {
       type: Boolean,

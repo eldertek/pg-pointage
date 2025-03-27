@@ -3,7 +3,7 @@
     <v-row>
       <v-col cols="12">
         <div class="d-flex align-center mb-4">
-          <h1 class="text-h4 font-weight-bold">Gestion des accès</h1>
+          <Title level="1" class="font-weight-bold">Gestion des accès</Title>
         </div>
 
         <!-- Filtres -->
@@ -176,6 +176,7 @@ import { accessManagementApi, sitesApi } from '@/services/api'
 import type { User } from '@/types/api'
 import { RoleEnum } from '@/types/api'
 import type { Site } from '@/services/api'
+import { Title } from '@/components/typography'
 
 interface AccessRight {
   user_id: number
