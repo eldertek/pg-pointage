@@ -42,7 +42,12 @@
         <!-- Utilisateurs -->
         <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
           <template v-slot:activator="{ props }">
-            <v-list-item to="/dashboard/admin/users" active-class="primary--text" v-bind="props">
+            <v-list-item 
+              to="/dashboard/admin/users" 
+              :active="$route.meta.section === 'users' || $route.path.includes('/dashboard/organizations/')" 
+              active-class="primary--text" 
+              v-bind="props"
+            >
               <template v-slot:prepend>
                 <v-icon>mdi-account-group</v-icon>
               </template>

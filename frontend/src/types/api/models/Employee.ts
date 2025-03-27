@@ -10,4 +10,7 @@ export type Employee = {
     email: string;
     organization: number;
     formatted_name?: string;
+    full_name?: string;
+    employee_name?: string;
+    site_name?: string;
 }; 

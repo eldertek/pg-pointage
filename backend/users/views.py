@@ -1,9 +1,13 @@
 from rest_framework import status, generics, permissions, serializers
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model, logout
+from django.db.models import Count, Sum
+from django.utils import timezone
+from datetime import timedelta
 from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegisterSerializer,
     CustomTokenObtainPairSerializer
@@ -11,6 +15,7 @@ from .serializers import (
 from .models import User
 from sites.permissions import IsSiteOrganizationManager
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+from timesheets.models import Timesheet, Anomaly
 
 User = get_user_model()
 
@@ -139,4 +144,59 @@ class UserChangePasswordView(generics.GenericAPIView):
         request.user.save()
         
         return Response({'detail': 'Mot de passe changé avec succès'})
+
+class UserStatisticsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            user = User.objects.get(pk=pk)
+            
+            # Calculer la période (30 derniers jours)
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=30)
+            
+            # Récupérer les pointages
+            timesheets = Timesheet.objects.filter(
+                employee=user,
+                timestamp__range=[start_date, end_date]
+            ).order_by('timestamp')
+            
+            # Calculer le total des heures
+            total_hours = 0
+            entry_time = None
+            
+            for timesheet in timesheets:
+                if timesheet.entry_type == 'IN':
+                    entry_time = timesheet.timestamp
+                elif timesheet.entry_type == 'OUT' and entry_time:
+                    duration = timesheet.timestamp - entry_time
+                    total_hours += duration.total_seconds() / 3600  # Convertir en heures
+                    entry_time = None
+            
+            # Compter les anomalies
+            anomalies_count = Anomaly.objects.filter(
+                timesheet__employee=user,
+                timesheet__timestamp__range=[start_date, end_date]
+            ).count()
+            
+            return Response({
+                'total_hours': round(total_hours, 2),
+                'anomalies': anomalies_count,
+                'period': {
+                    'start': start_date.date(),
+                    'end': end_date.date()
+                }
+            })
+            
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Utilisateur non trouvé'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 

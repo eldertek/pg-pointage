@@ -6,6 +6,7 @@ from .models import Organization
 from .serializers import OrganizationSerializer
 from users.models import User
 from users.serializers import UserSerializer
+from timesheets.models import Anomaly
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 class OrganizationStatisticsSerializer(serializers.Serializer):
@@ -51,12 +52,22 @@ class OrganizationStatisticsView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         organization = self.get_object()
         
+        # Calculer les statistiques directement dans la vue
+        total_anomalies = Anomaly.objects.filter(
+            employee__organization=organization
+        ).count()
+        
+        pending_anomalies = Anomaly.objects.filter(
+            employee__organization=organization,
+            status='PENDING'
+        ).count()
+        
         stats = {
-            'total_employees': organization.users.count(),
+            'total_employees': User.objects.filter(organization=organization).count(),
             'total_sites': organization.sites.count(),
             'active_sites': organization.sites.filter(is_active=True).count(),
-            'total_anomalies': organization.get_total_anomalies(),
-            'pending_anomalies': organization.get_pending_anomalies()
+            'total_anomalies': total_anomalies,
+            'pending_anomalies': pending_anomalies
         }
         
         serializer = self.get_serializer(stats)

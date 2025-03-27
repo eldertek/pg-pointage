@@ -249,9 +249,10 @@
                 icon
                 variant="text"
                 size="small"
-                :to="`/dashboard/employees/${item.id}`"
+                :to="`/dashboard/admin/users/${item.id}`"
               >
                 <v-icon>mdi-eye</v-icon>
+                <v-tooltip activator="parent">Voir les détails</v-tooltip>
               </v-btn>
             </template>
           </v-data-table>
@@ -316,7 +317,7 @@ export default {
     ])
     
     const employeesHeaders = ref([
-      { title: 'Nom', align: 'start', key: 'full_name' },
+      { title: 'Nom', align: 'start', key: 'employee_name' },
       { title: 'Email', align: 'start', key: 'email' },
       { title: 'Rôle', align: 'center', key: 'role' },
       { title: 'Site', align: 'center', key: 'site_name' },

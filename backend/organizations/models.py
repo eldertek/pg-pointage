@@ -70,3 +70,18 @@ class Organization(models.Model):
         
         super().save(*args, **kwargs)
 
+    def get_total_anomalies(self):
+        """Retourne le nombre total d'anomalies pour l'organisation"""
+        from timesheets.models import TimesheetAnomaly
+        return TimesheetAnomaly.objects.filter(
+            timesheet__user__organization=self
+        ).count()
+        
+    def get_pending_anomalies(self):
+        """Retourne le nombre d'anomalies en attente pour l'organisation"""
+        from timesheets.models import TimesheetAnomaly
+        return TimesheetAnomaly.objects.filter(
+            timesheet__user__organization=self,
+            status='PENDING'
+        ).count()
+

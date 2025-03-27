@@ -361,6 +361,15 @@ const usersApi = {
   // Get all users with filters
   getAllUsers: (params: any = {}) => api.get('/users/', { params }),
   
+  // Get a single user by ID
+  getUser: (id: number) => api.get(`/users/${id}/`),
+  
+  // Create a new user
+  createUser: (data: any) => api.post('/users/register/', convertKeysToSnakeCase(data)),
+  
+  // Get user statistics
+  getUserStatistics: (id: number) => api.get(`/users/${id}/statistics/`),
+  
   // Update user profile
   updateProfile: (data: any) => {
     interface ProfileData {

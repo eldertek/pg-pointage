@@ -43,25 +43,22 @@
       </v-card-title>
 
       <!-- Table des utilisateurs -->
-      <v-data-table
+      <DataTable
         v-if="currentView === 'users' || !isSuperAdmin"
         :headers="userHeaders"
         :items="users"
         :search="search"
         :loading="loading"
-        :items-per-page-options="[5, 10, 20, 50, 100]"
-        :items-per-page="10"
         :no-data-text="'Aucun utilisateur trouvé'"
         :loading-text="'Chargement des utilisateurs...'"
-        :items-per-page-text="'Lignes par page'"
-        :page-text="'{0}-{1} sur {2}'"
-        :footer-props="{
-          'items-per-page-all-text': 'Tout',
-          'items-per-page-text': 'Lignes par page',
-          'page-text': '{0}-{1} sur {2}',
-          'items-per-page-options': [5, 10, 20, 50, 100]
-        }"
-        @click:row="(_, { item }) => editItem(item)"
+        :items-per-page="itemsPerPage"
+        :items-length="totalItems"
+        :page="page"
+        click-action="view"
+        @update:page="page = $event"
+        @update:items-per-page="itemsPerPage = $event"
+        @view-details="viewDetails"
+        @edit-item="editItem"
       >
         <template v-slot:item.fullName="{ item }">
           {{ item.first_name }} {{ item.last_name }}
@@ -161,28 +158,25 @@
             </template>
           </v-tooltip>
         </template>
-      </v-data-table>
+      </DataTable>
 
       <!-- Table des organisations (uniquement pour super admin) -->
-      <v-data-table
+      <DataTable
         v-if="currentView === 'organizations' && isSuperAdmin"
         :headers="organizationHeaders"
         :items="organizations"
         :search="search"
         :loading="loading"
-        :items-per-page-options="[5, 10, 20, 50, 100]"
-        :items-per-page="10"
         :no-data-text="'Aucune organisation trouvée'"
         :loading-text="'Chargement des organisations...'"
-        :items-per-page-text="'Lignes par page'"
-        :page-text="'{0}-{1} sur {2}'"
-        :footer-props="{
-          'items-per-page-all-text': 'Tout',
-          'items-per-page-text': 'Lignes par page',
-          'page-text': '{0}-{1} sur {2}',
-          'items-per-page-options': [5, 10, 20, 50, 100]
-        }"
-        @click:row="(_, { item }) => editItem(item)"
+        :items-per-page="itemsPerPage"
+        :items-length="totalItems"
+        :page="page"
+        click-action="view"
+        @update:page="page = $event"
+        @update:items-per-page="itemsPerPage = $event"
+        @view-details="viewDetails"
+        @edit-item="editItem"
       >
         <template v-slot:item.status="{ item }">
           <v-chip
@@ -264,7 +258,7 @@
             </template>
           </v-tooltip>
         </template>
-      </v-data-table>
+      </DataTable>
     </v-card>
 
     <!-- Dialog pour créer/éditer -->
@@ -475,6 +469,9 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Dialog de confirmation -->
+    <ConfirmDialog />
   </div>
 </template>
 
@@ -484,9 +481,13 @@ import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute, useRouter } from 'vue-router'
 import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
+import DataTable from '@/components/common/DataTable.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import { useConfirmDialog } from '@/utils/dialogs'
 
 export default {
   name: 'AdminUsersView',
+  components: { DataTable, ConfirmDialog },
   setup() {
     const authStore = useAuthStore()
     const route = useRoute()
@@ -500,6 +501,12 @@ export default {
     const currentView = ref(authStore.isSuperAdmin ? 'organizations' : 'users')
     const currentUser = ref(null)
     const showPasswordFields = ref(false)
+    const showDeactivateDialog = ref(false)
+    const deactivateItem = ref(null)
+    const deactivating = ref(false)
+    const page = ref(1)
+    const itemsPerPage = ref(10)
+    const totalItems = ref(0)
     
     const isSuperAdmin = computed(() => authStore.isSuperAdmin)
     
@@ -606,11 +613,13 @@ export default {
       try {
         const response = await api.get('/users/', {
           params: {
-            role: isSuperAdmin.value ? undefined : 'EMPLOYEE'
+            role: isSuperAdmin.value ? undefined : 'EMPLOYEE',
+            page: page.value,
+            page_size: itemsPerPage.value
           }
         })
-        console.log('Données utilisateurs reçues:', response.data)
         users.value = response.data.results || []
+        totalItems.value = response.data.count
       } catch (error) {
         console.error('Erreur lors du chargement des utilisateurs:', error)
       } finally {
@@ -621,9 +630,14 @@ export default {
     const fetchOrganizations = async () => {
       loading.value = true
       try {
-        const response = await api.get('/organizations/')
-        console.log('Données organisations reçues:', response.data)
+        const response = await api.get('/organizations/', {
+          params: {
+            page: page.value,
+            page_size: itemsPerPage.value
+          }
+        })
         organizations.value = response.data.results || []
+        totalItems.value = response.data.count
       } catch (error) {
         console.error('Erreur lors du chargement des organisations:', error)
       } finally {
@@ -655,30 +669,43 @@ export default {
     }
 
     const toggleUserStatus = async (user) => {
-      if (isCurrentUser(user)) {
-        return // Empêcher la désactivation si c'est l'utilisateur courant
-      }
-      try {
-        await api.patch(`/users/${user.id}/`, {
-          is_active: !user.is_active
-        })
-        console.log('Statut utilisateur modifié avec succès')
-        await fetchUsers()
-      } catch (error) {
-        console.error('Erreur lors de la modification du statut:', error)
-      }
+      if (isCurrentUser(user)) return
+
+      showConfirmDialog({
+        title: user.is_active ? 'Désactiver l\'utilisateur' : 'Activer l\'utilisateur',
+        message: `Êtes-vous sûr de vouloir ${user.is_active ? 'désactiver' : 'activer'} l'utilisateur "${user.first_name} ${user.last_name}" ?`,
+        confirmText: user.is_active ? 'Désactiver' : 'Activer',
+        confirmColor: user.is_active ? 'error' : 'success',
+        async onConfirm() {
+          try {
+            await api.patch(`/users/${user.id}/`, {
+              is_active: !user.is_active
+            })
+            await fetchUsers()
+          } catch (error) {
+            console.error('Erreur lors de la modification du statut:', error)
+          }
+        }
+      })
     }
 
     const toggleOrganizationStatus = async (organization) => {
-      try {
-        await api.patch(`/organizations/${organization.id}/`, {
-          is_active: !organization.is_active
-        })
-        console.log('Statut organisation modifié avec succès')
-        await fetchOrganizations()
-      } catch (error) {
-        console.error('Erreur lors de la modification du statut:', error)
-      }
+      showConfirmDialog({
+        title: organization.is_active ? 'Désactiver l\'organisation' : 'Activer l\'organisation',
+        message: `Êtes-vous sûr de vouloir ${organization.is_active ? 'désactiver' : 'activer'} l'organisation "${organization.name}" ?`,
+        confirmText: organization.is_active ? 'Désactiver' : 'Activer',
+        confirmColor: organization.is_active ? 'error' : 'success',
+        async onConfirm() {
+          try {
+            await api.patch(`/organizations/${organization.id}/`, {
+              is_active: !organization.is_active
+            })
+            await fetchOrganizations()
+          } catch (error) {
+            console.error('Erreur lors de la modification du statut:', error)
+          }
+        }
+      })
     }
 
     const getDialogTitle = () => {
@@ -720,29 +747,23 @@ export default {
           userData.username = userData.email.split('@')[0]
           
           if (editedItem.value) {
-            // En mode édition, on envoie le mot de passe uniquement s'il est renseigné
-            console.log('Données avant traitement:', userData)
+            // En mode édition
             if (!showPasswordFields.value || !userData.password) {
-              console.log('Suppression des champs mot de passe car non modifiés')
               delete userData.password
               delete userData.confirm_password
             } else {
-              console.log('Envoi du nouveau mot de passe')
               delete userData.confirm_password
             }
-            console.log('Données finales envoyées:', userData)
-            await api.put(`/users/${editedItem.value.id}/`, userData)
+            await api.patch(`/users/${editedItem.value.id}/`, userData)
           } else {
-            // En mode création, on supprime la confirmation du mot de passe
+            // En mode création
             delete userData.confirm_password
-            console.log('Données envoyées pour création:', userData)
-            await api.post('/users/', userData)
+            await api.post('/users/register/', userData)
           }
           await fetchUsers()
         } else if (isSuperAdmin.value) {
           if (editedItem.value) {
-            await api.put(`/organizations/${editedItem.value.id}/`, organizationForm.value)
-            // Si on est en mode édition depuis la vue de détail, on redirige vers la vue de détail
+            await api.patch(`/organizations/${editedItem.value.id}/`, organizationForm.value)
             if (route.meta.editMode) {
               router.push(`/dashboard/organizations/${editedItem.value.id}`)
               return
@@ -793,6 +814,14 @@ export default {
       }
     }
 
+    const viewDetails = (item) => {
+      if (currentView.value === 'organizations') {
+        router.push(`/dashboard/organizations/${item.id}`)
+      } else {
+        router.push(`/dashboard/admin/users/${item.id}`)
+      }
+    }
+
     // Surveiller les changements de vue pour recharger les données
     watch(currentView, () => {
       if (currentView.value === 'users') {
@@ -817,6 +846,8 @@ export default {
         }
       })
     }
+
+    const { showConfirmDialog } = useConfirmDialog()
 
     onMounted(() => {
       fetchCurrentUser()
@@ -856,7 +887,15 @@ export default {
       isSuperAdmin,
       availableRoles,
       formatPhoneNumber,
-      formatAddressForMaps
+      formatAddressForMaps,
+      viewDetails,
+      showDeactivateDialog,
+      deactivateItem,
+      deactivating,
+      showConfirmDialog,
+      page,
+      itemsPerPage,
+      totalItems
     }
   }
 }

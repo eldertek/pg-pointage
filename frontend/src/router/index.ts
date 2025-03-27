@@ -88,10 +88,16 @@ const routes: RouteRecordRaw[] = [
         meta: { roles: ["SUPER_ADMIN", "MANAGER"] },
       },
       {
+        path: "admin/users/:id",
+        name: "UserDetail",
+        component: () => import("@/views/dashboard/admin/UserDetail.vue"),
+        meta: { roles: ["SUPER_ADMIN", "MANAGER"] },
+      },
+      {
         path: "organizations/:id",
         name: "OrganizationDetail",
         component: OrganizationDetail,
-        meta: { roles: ["SUPER_ADMIN"], section: "sites" },
+        meta: { roles: ["SUPER_ADMIN"], section: "users" },
       },
       {
         path: "organizations/:id/edit",

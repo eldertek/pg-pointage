@@ -549,7 +549,7 @@ const savePlanning = async () => {
         }
       });
 
-    const planningData: ScheduleAPIRequest = {
+    const planningData = {
       schedule_type: editedItem.value.schedule_type,
       site: editedItem.value.site,
       details,
@@ -559,9 +559,9 @@ const savePlanning = async () => {
     };
 
     if (editedItem.value.id) {
-      await schedulesApi.updateSchedule(editedItem.value.id, planningData as any);
+      await schedulesApi.updateSchedule(editedItem.value.id, planningData);
     } else {
-      await schedulesApi.createSchedule(planningData as any);
+      await schedulesApi.createSchedule(planningData);
     }
     dialog.value = false;
     loadPlannings();
