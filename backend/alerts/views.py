@@ -3,6 +3,7 @@ from rest_framework.permissions import BasePermission
 from .models import Alert
 from .serializers import AlertSerializer
 from sites.permissions import IsSiteOrganizationManager
+from django.db import models
 
 class IsAdminOrManager(BasePermission):
     """Permission composée pour autoriser les admin ou les managers d'organisation"""
@@ -33,9 +34,14 @@ class AlertListView(generics.ListAPIView):
             
         if user.is_super_admin:
             return Alert.objects.all()
-        elif user.is_manager and user.organization:
-            return Alert.objects.filter(site__organization=user.organization)
+        elif user.is_manager:
+            # Manager voit les alertes des sites dont il est manager ou qui sont dans son organisation
+            return Alert.objects.filter(
+                models.Q(site__manager=user) |
+                models.Q(site__organization=user.organization)
+            ).distinct()
         else:
+            # Employé voit ses propres alertes
             return Alert.objects.filter(employee=user)
 
 class AlertDetailView(generics.RetrieveUpdateAPIView):

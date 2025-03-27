@@ -76,6 +76,49 @@
           </v-chip>
         </template>
 
+        <template v-slot:item.sites="{ item }">
+          <div v-if="item.role === 'MANAGER'">
+            <v-tooltip v-if="item.managed_sites && item.managed_sites.length > 0">
+              <template v-slot:activator="{ props }">
+                <v-chip
+                  color="primary"
+                  size="small"
+                  v-bind="props"
+                >
+                  {{ item.managed_sites.length }} site(s) géré(s)
+                </v-chip>
+              </template>
+              <div>Sites gérés :</div>
+              <ul>
+                <li v-for="site in item.managed_sites" :key="site.id">
+                  {{ site.name }}
+                </li>
+              </ul>
+            </v-tooltip>
+            <span v-else>Aucun site géré</span>
+          </div>
+          <div v-else-if="item.role === 'EMPLOYEE'">
+            <v-tooltip v-if="item.assigned_sites && item.assigned_sites.length > 0">
+              <template v-slot:activator="{ props }">
+                <v-chip
+                  color="success"
+                  size="small"
+                  v-bind="props"
+                >
+                  {{ item.assigned_sites.length }} site(s) assigné(s)
+                </v-chip>
+              </template>
+              <div>Sites assignés :</div>
+              <ul>
+                <li v-for="site in item.assigned_sites" :key="site.id">
+                  {{ site.name }}
+                </li>
+              </ul>
+            </v-tooltip>
+            <span v-else>Aucun site assigné</span>
+          </div>
+        </template>
+
         <template v-slot:item.is_active="{ item }">
           <v-chip
             :color="item.is_active ? 'success' : 'error'"
@@ -465,6 +508,7 @@ export default {
         { title: 'Nom', align: 'start', key: 'fullName' },
         { title: 'Courriel', key: 'email' },
         { title: 'Rôle', key: 'role', align: 'center' },
+        { title: 'Sites', key: 'sites', align: 'center' },
         { title: 'Statut', key: 'is_active', align: 'center' },
         { title: 'Actions', key: 'actions', align: 'end', sortable: false }
       ]

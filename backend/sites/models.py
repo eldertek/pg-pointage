@@ -45,7 +45,11 @@ class Site(models.Model):
     ambiguous_margin = models.PositiveIntegerField(_('marge pour cas ambigus (minutes)'), default=20)
     
     # Destinataires des alertes
-    alert_emails = models.TextField(_('emails pour alertes'), blank=True, help_text=_('Séparez les emails par des virgules'))
+    alert_emails = models.TextField(
+        _('emails pour alertes'), 
+        blank=True, 
+        help_text=_('Séparez les emails par des virgules. Les alertes seront également envoyées au manager du site.')
+    )
     
     # Paramètres de géolocalisation
     require_geolocation = models.BooleanField(_('géolocalisation requise'), default=True)
@@ -76,13 +80,22 @@ class Site(models.Model):
             raise ValidationError({
                 'nfc_id': _('L\'ID du site doit être au format FFF-Sxxxx')
             })
+        
+        # Valider que le manager appartient à la même organisation
+        if self.manager and self.organization and self.manager.organization != self.organization:
+            raise ValidationError({
+                'manager': _('Le manager doit appartenir à la même organisation que le site')
+            })
     
     @property
     def alert_email_list(self):
-        """Retourne la liste des emails pour les alertes"""
-        if not self.alert_emails:
-            return []
-        return [email.strip() for email in self.alert_emails.split(',')]
+        """Retourne la liste des emails pour les alertes, incluant le manager"""
+        emails = []
+        if self.alert_emails:
+            emails.extend([email.strip() for email in self.alert_emails.split(',')])
+        if self.manager and self.manager.email:
+            emails.append(self.manager.email)
+        return list(set(emails))  # Dédupliquer les emails
 
 
 class Schedule(models.Model):

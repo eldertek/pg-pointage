@@ -325,6 +325,14 @@ interface ScheduleAPIRequest {
   assigned_employees: Array<{ employee: number }>;
 }
 
+// Types pour les paramètres de l'API
+interface ScheduleParams {
+  page: number;
+  page_size: number;
+  site?: number;
+  schedule_type?: string;
+}
+
 // État
 const loading = ref(false)
 const dialog = ref(false)
@@ -388,32 +396,22 @@ const editedItem = ref<EditingSchedule>({
 
 const itemToDelete = ref<ExtendedSchedule | null>(null)
 
-// Charger les employés d'un site
-const loadSiteEmployees = async () => {
-  if (!editedItem.value.site) return
-  try {
-    const response = await sitesApi.getSiteEmployees(editedItem.value.site)
-    siteEmployees.value = response.data.results
-    
-    // Si un seul employé, le sélectionner automatiquement
-    if (siteEmployees.value.length === 1) {
-      editedItem.value.employee = siteEmployees.value[0].id
-    }
-  } catch (error) {
-    console.error('Erreur lors du chargement des employés:', error)
-  }
-}
-
 // Méthodes
 const loadPlannings = async () => {
   loading.value = true;
   try {
-    const params: any = {
+    const params: ScheduleParams = {
       page: page.value,
-      page_size: itemsPerPage.value,
-      site: filters.value.site,
-      schedule_type: filters.value.type
+      page_size: itemsPerPage.value
     };
+    
+    // Ajouter les filtres optionnels seulement s'ils sont définis
+    if (filters.value.site) {
+      params.site = filters.value.site;
+    }
+    if (filters.value.type) {
+      params.schedule_type = filters.value.type;
+    }
     
     const response = await schedulesApi.getAllSchedules(params);
     plannings.value = response.data.results ? 
@@ -595,6 +593,22 @@ const resetFilters = () => {
     type: undefined
   }
   loadPlannings()
+}
+
+// Charger les employés d'un site
+const loadSiteEmployees = async () => {
+  if (!editedItem.value.site) return
+  try {
+    const response = await sitesApi.getSiteEmployees(editedItem.value.site)
+    siteEmployees.value = response.data.results
+    
+    // Si un seul employé, le sélectionner automatiquement
+    if (siteEmployees.value.length === 1) {
+      editedItem.value.employee = siteEmployees.value[0].id
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement des employés:', error)
+  }
 }
 
 // Lifecycle hooks

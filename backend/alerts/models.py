@@ -46,7 +46,10 @@ class Alert(models.Model):
         choices=AlertType.choices
     )
     message = models.TextField(_('message'))
-    recipients = models.TextField(_('destinataires'), help_text=_('Séparez les emails par des virgules'))
+    recipients = models.TextField(
+        _('destinataires'), 
+        help_text=_('Séparez les emails par des virgules. Inclut automatiquement le manager du site.')
+    )
     status = models.CharField(
         _('statut'),
         max_length=20,
@@ -69,8 +72,17 @@ class Alert(models.Model):
     
     @property
     def recipient_list(self):
-        """Retourne la liste des destinataires"""
+        """Retourne la liste des destinataires, incluant le manager du site"""
+        emails = []
+        if self.recipients:
+            emails.extend([email.strip() for email in self.recipients.split(',')])
+        # Ajouter les emails du site (qui incluent déjà le manager)
+        emails.extend(self.site.alert_email_list)
+        return list(set(emails))  # Dédupliquer les emails
+    
+    def save(self, *args, **kwargs):
+        """Surcharge de la méthode save pour s'assurer que le manager est inclus dans les destinataires"""
         if not self.recipients:
-            return []
-        return [email.strip() for email in self.recipients.split(',')]
+            self.recipients = self.site.alert_emails
+        super().save(*args, **kwargs)
 

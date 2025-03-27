@@ -7,6 +7,7 @@ from .serializers import (
     SiteEmployeeSerializer
 )
 from .permissions import IsSiteOrganizationManager
+from django.db import models
 
 class IsAdminOrManager(BasePermission):
     """Permission composée pour autoriser les admin ou les managers d'organisation"""
@@ -37,13 +38,16 @@ class SiteListView(generics.ListCreateAPIView):
                 'schedules__assigned_employees',
                 'schedules__assigned_employees__employee'
             ).all()
-        # Manager voit les sites de son organisation
-        elif user.is_manager and user.organization:
+        # Manager voit les sites dont il est manager ou qui sont dans son organisation
+        elif user.is_manager:
             return Site.objects.prefetch_related(
                 'schedules',
                 'schedules__assigned_employees',
                 'schedules__assigned_employees__employee'
-            ).filter(organization=user.organization)
+            ).filter(
+                models.Q(manager=user) |
+                models.Q(organization=user.organization)
+            ).distinct()
         # Employé voit les sites auxquels il est assigné
         elif user.is_employee:
             return Site.objects.prefetch_related(
@@ -56,7 +60,10 @@ class SiteListView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         # Si l'utilisateur est un manager, associer le site à son organisation
         if self.request.user.is_manager and self.request.user.organization:
-            serializer.save(organization=self.request.user.organization)
+            serializer.save(
+                organization=self.request.user.organization,
+                manager=self.request.user  # Le manager créateur devient le manager du site
+            )
         else:
             serializer.save()
 
