@@ -176,6 +176,7 @@ export const useAuthStore = defineStore("auth", {
 
     // Nouvelle fonction pour réinitialiser complètement le store
     resetStore() {
+      // Réinitialiser l'état du store
       this.user = null
       this.token = null
       this.refreshToken = null
@@ -185,10 +186,16 @@ export const useAuthStore = defineStore("auth", {
       // Nettoyer le localStorage
       localStorage.clear()
       
-      // Nettoyer les cookies de session si présents
+      // Nettoyer les cookies de session
       document.cookie.split(";").forEach(function(c) { 
         document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
       })
+
+      // Nettoyer les en-têtes de l'API
+      delete api.defaults.headers.common["Authorization"]
+      
+      // Réinitialiser l'état de Pinia
+      this.$reset()
     },
 
     async refreshAccessToken() {

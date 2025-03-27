@@ -61,11 +61,28 @@ api.interceptors.response.use(
         headers: error.response.headers
       })
 
-      // If the error is due to an expired token (401), try to refresh it
-      if (error.response.status === 401 && error.config && !error.config.__isRetryRequest) {
-        try {
-          const refreshToken = localStorage.getItem("refreshToken")
-          if (refreshToken) {
+      // If the error is due to an expired token (401)
+      if (error.response.status === 401) {
+        // Prevent infinite loop of refresh attempts
+        if (error.config.url?.includes('/token/refresh/')) {
+          // If refresh token request fails, clear everything and redirect to login
+          localStorage.clear();
+          // Clear all cookies
+          document.cookie.split(";").forEach(function(c) { 
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
+          });
+          window.location.href = "/login";
+          return Promise.reject(error);
+        }
+
+        // Only try to refresh if we haven't already tried
+        if (!error.config.__isRetryRequest) {
+          try {
+            const refreshToken = localStorage.getItem("refreshToken")
+            if (!refreshToken) {
+              throw new Error("No refresh token available");
+            }
+
             const response = await api.post("/users/token/refresh/", {
               refresh: refreshToken
             })
@@ -76,13 +93,16 @@ api.interceptors.response.use(
             error.config.headers.Authorization = `Bearer ${newToken}`
             error.config.__isRetryRequest = true
             return api(error.config)
+          } catch (refreshError) {
+            // If refresh fails, clear everything and redirect
+            localStorage.clear();
+            // Clear all cookies
+            document.cookie.split(";").forEach(function(c) { 
+              document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
+            });
+            window.location.href = "/login";
+            return Promise.reject(refreshError)
           }
-        } catch (refreshError) {
-          // If refresh token fails, clear tokens and redirect to login
-          localStorage.removeItem("token")
-          localStorage.removeItem("refreshToken")
-          window.location.href = "/login"
-          return Promise.reject(refreshError)
         }
       }
     }
