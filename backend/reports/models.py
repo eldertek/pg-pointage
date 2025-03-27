@@ -2,16 +2,14 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 class Report(models.Model):
-    """Modèle pour les rapports générés"""
+    """Modèle pour les rapports"""
     
     class ReportType(models.TextChoices):
-        DAILY = 'DAILY', _('Journalier')
-        WEEKLY = 'WEEKLY', _('Hebdomadaire')
-        MONTHLY = 'MONTHLY', _('Mensuel')
-        CUSTOM = 'CUSTOM', _('Personnalisé')
+        TIMESHEET = 'TIMESHEET', _('Pointages')
+        ANOMALY = 'ANOMALY', _('Anomalies')
+        EMPLOYEE = 'EMPLOYEE', _('Employés')
     
     class ReportFormat(models.TextChoices):
-        CSV = 'CSV', _('CSV')
         PDF = 'PDF', _('PDF')
         EXCEL = 'EXCEL', _('Excel')
     
@@ -23,34 +21,36 @@ class Report(models.Model):
     )
     site = models.ForeignKey(
         'sites.Site',
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
+        related_name='reports',
         null=True,
         blank=True,
-        related_name='reports',
         verbose_name=_('site')
     )
-    name = models.CharField(_('nom'), max_length=100)
     report_type = models.CharField(
         _('type de rapport'),
         max_length=20,
-        choices=ReportType.choices,
-        default=ReportType.MONTHLY
+        choices=ReportType.choices
     )
     report_format = models.CharField(
-        _('format de rapport'),
-        max_length=20,
+        _('format du rapport'),
+        max_length=10,
         choices=ReportFormat.choices,
         default=ReportFormat.PDF
     )
     start_date = models.DateField(_('date de début'))
     end_date = models.DateField(_('date de fin'))
-    file = models.FileField(_('fichier'), upload_to='reports/')
-    
+    file = models.FileField(
+        _('fichier'),
+        upload_to='reports/',
+        null=True,
+        blank=True
+    )
     created_by = models.ForeignKey(
         'users.User',
         on_delete=models.SET_NULL,
         null=True,
-        related_name='generated_reports',
+        related_name='created_reports',
         verbose_name=_('créé par')
     )
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
@@ -61,5 +61,5 @@ class Report(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.name} - {self.get_report_type_display()} - {self.start_date} à {self.end_date}"
+        return f"{self.get_report_type_display()} - {self.created_at.strftime('%d/%m/%Y')}"
 

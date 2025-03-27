@@ -217,7 +217,7 @@ class EmployeeReport(models.Model):
     employee = models.ForeignKey(
         'users.User',
         on_delete=models.CASCADE,
-        related_name='reports',
+        related_name='employee_reports',
         verbose_name=_('employé')
     )
     site = models.ForeignKey(
@@ -230,7 +230,12 @@ class EmployeeReport(models.Model):
     end_date = models.DateField(_('date de fin'))
     
     # Statistiques
-    total_hours = models.DecimalField(_('heures totales'), max_digits=6, decimal_places=2, default=0)
+    total_hours = models.DecimalField(
+        _('total des heures'),
+        max_digits=5,
+        decimal_places=2,
+        default=0
+    )
     late_count = models.PositiveIntegerField(_('nombre de retards'), default=0)
     total_late_minutes = models.PositiveIntegerField(_('minutes totales de retard'), default=0)
     early_departure_count = models.PositiveIntegerField(_('nombre de départs anticipés'), default=0)
@@ -242,8 +247,8 @@ class EmployeeReport(models.Model):
     class Meta:
         verbose_name = _('rapport d\'employé')
         verbose_name_plural = _('rapports d\'employés')
-        ordering = ['-end_date']
+        ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.employee.get_full_name()} - {self.site.name} - {self.start_date} à {self.end_date}"
+        return f"Rapport de {self.employee.get_full_name()} - {self.start_date} à {self.end_date}"
 

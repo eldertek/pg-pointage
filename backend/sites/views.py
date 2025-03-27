@@ -23,13 +23,12 @@ class IsAdminOrManager(BasePermission):
 class SiteListView(generics.ListCreateAPIView):
     """Vue pour lister tous les sites et en créer de nouveaux"""
     serializer_class = SiteSerializer
-    
-    def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticated()]
-        return [IsAdminOrManager()]
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Site.objects.none()
+            
         user = self.request.user
         # Super admin voit tous les sites
         if user.is_super_admin:

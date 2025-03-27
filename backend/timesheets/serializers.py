@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import Timesheet, Anomaly, EmployeeReport
 from sites.models import Site
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 
 class TimesheetSerializer(serializers.ModelSerializer):
     """Serializer pour les pointages"""
@@ -9,14 +11,17 @@ class TimesheetSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Timesheet
-        fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
+        fields = ['id', 'employee', 'employee_name', 'site', 'site_name',
+                 'timestamp', 'entry_type', 'created_at']
+        read_only_fields = ['created_at']
     
-    def get_employee_name(self, obj):
-        return obj.employee.get_full_name() or obj.employee.username
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_employee_name(self, obj) -> str:
+        return obj.employee.get_full_name() if obj.employee else ''
     
-    def get_site_name(self, obj):
-        return obj.site.name
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_site_name(self, obj) -> str:
+        return obj.site.name if obj.site else ''
 
 class TimesheetCreateSerializer(serializers.ModelSerializer):
     """Serializer pour la création de pointages"""
@@ -24,7 +29,7 @@ class TimesheetCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Timesheet
-        fields = ['site_id', 'timestamp', 'entry_type', 'latitude', 'longitude']
+        fields = ['site_id', 'site', 'entry_type', 'timestamp']
     
     def validate_site_id(self, value):
         try:
@@ -47,19 +52,25 @@ class AnomalySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Anomaly
-        fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at', 'corrected_by', 'correction_date']
+        fields = ['id', 'employee', 'employee_name', 'site', 'site_name',
+                 'anomaly_type', 'anomaly_type_display', 'status', 'status_display',
+                 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
     
-    def get_employee_name(self, obj):
-        return obj.employee.get_full_name() or obj.employee.username
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_employee_name(self, obj) -> str:
+        return obj.employee.get_full_name() if obj.employee else ''
     
-    def get_site_name(self, obj):
-        return obj.site.name
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_site_name(self, obj) -> str:
+        return obj.site.name if obj.site else ''
     
-    def get_anomaly_type_display(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_anomaly_type_display(self, obj) -> str:
         return obj.get_anomaly_type_display()
     
-    def get_status_display(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_status_display(self, obj) -> str:
         return obj.get_status_display()
 
 class EmployeeReportSerializer(serializers.ModelSerializer):
@@ -72,9 +83,11 @@ class EmployeeReportSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['created_at']
     
-    def get_employee_name(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_employee_name(self, obj) -> str:
         return obj.employee.get_full_name() or obj.employee.username
     
-    def get_site_name(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_site_name(self, obj) -> str:
         return obj.site.name
 

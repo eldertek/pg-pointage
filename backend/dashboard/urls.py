@@ -1,9 +1,9 @@
 from django.urls import path
-from . import views
+from .views import DashboardView, RecentAnomaliesView
 
 app_name = 'dashboard'
 
 urlpatterns = [
-    path('stats/', views.get_dashboard_stats, name='stats'),
-    path('anomalies/recent/', views.get_recent_anomalies, name='recent_anomalies'),
+    path('stats/', DashboardView.as_view(), name='dashboard-stats'),
+    path('anomalies/recent/', RecentAnomaliesView.as_view(), name='recent-anomalies'),
 ] 

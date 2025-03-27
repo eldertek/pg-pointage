@@ -3,6 +3,8 @@ from .models import Site, Schedule, ScheduleDetail, SiteEmployee
 import logging
 from users.models import User
 from .utils import generate_site_id, validate_site_id
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 
 class ScheduleDetailSerializer(serializers.ModelSerializer):
     """Serializer pour les détails de planning"""
@@ -19,7 +21,8 @@ class ScheduleDetailSerializer(serializers.ModelSerializer):
             'schedule_type'
         ]
     
-    def get_day_name(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_day_name(self, obj) -> str:
         return obj.get_day_of_week_display()
 
     def validate(self, data):
@@ -85,7 +88,8 @@ class SiteEmployeeSerializer(serializers.ModelSerializer):
         fields = ['id', 'site', 'employee', 'employee_name', 'employee_organization', 'schedule', 'created_at', 'is_active']
         read_only_fields = ['created_at', 'employee_name', 'employee_organization']
     
-    def get_employee_name(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_employee_name(self, obj) -> str:
         if isinstance(obj, dict):
             # Si l'objet est un dictionnaire (données non sauvegardées)
             try:
@@ -223,7 +227,8 @@ class SiteSerializer(serializers.ModelSerializer):
                  'schedules', 'manager', 'manager_name']
         read_only_fields = ['created_at', 'updated_at', 'organization_name', 'nfc_id']
 
-    def get_manager_name(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_manager_name(self, obj) -> str:
         if obj.manager:
             return obj.manager.get_full_name() or obj.manager.username
         return None

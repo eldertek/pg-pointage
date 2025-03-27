@@ -1,99 +1,103 @@
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework import permissions, serializers
 from rest_framework.response import Response
 from django.db.models import Count
 from django.utils import timezone
-from datetime import datetime, time
+from datetime import timedelta
 from sites.models import Site
 from users.models import User
-from timesheets.models import Timesheet
-from alerts.models import Alert
+from timesheets.models import Timesheet, Anomaly
+from timesheets.serializers import AnomalySerializer
+from drf_spectacular.utils import extend_schema
 import logging
 
 logger = logging.getLogger(__name__)
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_dashboard_stats(request):
-    """
-    Get dashboard statistics including:
-    - Total active sites
-    - Total active employees
-    - Today's timesheet count
-    - Current unresolved anomalies count
-    """
-    try:
-        logger.info("Fetching dashboard statistics")
+class DashboardStatsSerializer(serializers.Serializer):
+    total_employees = serializers.IntegerField()
+    total_sites = serializers.IntegerField()
+    active_sites = serializers.IntegerField()
+    pending_anomalies = serializers.IntegerField()
+
+class DashboardView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    @extend_schema(
+        responses={200: DashboardStatsSerializer},
+        description="Obtenir les statistiques du tableau de bord"
+    )
+    def get(self, request):
+        user = request.user
         
-        # Get today's date range
-        today = timezone.now().date()
-        today_start = timezone.make_aware(datetime.combine(today, time.min))
-        today_end = timezone.make_aware(datetime.combine(today, time.max))
-        
-        # Get stats based on user's organization
-        organization = request.user.organization
+        if user.is_super_admin:
+            total_employees = User.objects.filter(is_active=True).count()
+            total_sites = Site.objects.all().count()
+            active_sites = Site.objects.filter(is_active=True).count()
+            pending_anomalies = Anomaly.objects.filter(status='PENDING').count()
+        elif user.is_manager and user.organization:
+            total_employees = User.objects.filter(
+                organization=user.organization,
+                is_active=True
+            ).count()
+            total_sites = Site.objects.filter(
+                organization=user.organization
+            ).count()
+            active_sites = Site.objects.filter(
+                organization=user.organization,
+                is_active=True
+            ).count()
+            pending_anomalies = Anomaly.objects.filter(
+                site__organization=user.organization,
+                status='PENDING'
+            ).count()
+        else:
+            total_employees = 1
+            total_sites = user.assigned_sites.count()
+            active_sites = user.assigned_sites.filter(is_active=True).count()
+            pending_anomalies = Anomaly.objects.filter(
+                employee=user,
+                status='PENDING'
+            ).count()
         
         stats = {
-            'sitesCount': Site.objects.filter(organization=organization, is_active=True).count(),
-            'employeesCount': User.objects.filter(organization=organization, is_active=True).count(),
-            'timesheetsCount': Timesheet.objects.filter(
-                site__organization=organization,
-                created_at__range=(today_start, today_end)
-            ).count(),
-            'anomaliesCount': Alert.objects.filter(
-                site__organization=organization,
-                status='pending'
-            ).count()
+            'total_employees': total_employees,
+            'total_sites': total_sites,
+            'active_sites': active_sites,
+            'pending_anomalies': pending_anomalies
         }
         
-        logger.info(f"Dashboard stats retrieved: {stats}")
-        return Response(stats)
-        
-    except Exception as e:
-        logger.error(f"Error fetching dashboard stats: {str(e)}")
-        return Response(
-            {'error': 'Une erreur est survenue lors du chargement des statistiques'},
-            status=500
-        )
+        serializer = DashboardStatsSerializer(stats)
+        return Response(serializer.data)
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_recent_anomalies(request):
-    """
-    Get the 10 most recent anomalies for the organization
-    """
-    try:
-        logger.info("Fetching recent anomalies")
+class RecentAnomaliesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    @extend_schema(
+        responses={200: AnomalySerializer(many=True)},
+        description="Obtenir les anomalies récentes"
+    )
+    def get(self, request):
+        user = request.user
         
-        organization = request.user.organization
-        recent_anomalies = Alert.objects.filter(
-            site__organization=organization
-        ).order_by('-created_at')[:10].values(
-            'id',
-            'alert_type',
-            'employee__first_name',
-            'employee__last_name',
-            'site__name',
-            'created_at',
-            'status'
-        )
+        # Récupérer les anomalies des 7 derniers jours
+        seven_days_ago = timezone.now() - timedelta(days=7)
         
-        # Format the response
-        formatted_anomalies = [{
-            'id': anomaly['id'],
-            'type': anomaly['alert_type'],
-            'employee': f"{anomaly['employee__first_name']} {anomaly['employee__last_name']}",
-            'site': anomaly['site__name'],
-            'created_at': anomaly['created_at'].isoformat(),
-            'status': anomaly['status']
-        } for anomaly in recent_anomalies]
+        if user.is_super_admin:
+            anomalies = Anomaly.objects.filter(
+                created_at__gte=seven_days_ago
+            )
+        elif user.is_manager and user.organization:
+            anomalies = Anomaly.objects.filter(
+                site__organization=user.organization,
+                created_at__gte=seven_days_ago
+            )
+        else:
+            anomalies = Anomaly.objects.filter(
+                employee=user,
+                created_at__gte=seven_days_ago
+            )
         
-        logger.info(f"Retrieved {len(formatted_anomalies)} recent anomalies")
-        return Response(formatted_anomalies)
-        
-    except Exception as e:
-        logger.error(f"Error fetching recent anomalies: {str(e)}")
-        return Response(
-            {'error': 'Une erreur est survenue lors du chargement des anomalies'},
-            status=500
-        ) 
+        # Limiter à 10 anomalies
+        anomalies = anomalies.order_by('-created_at')[:10]
+        serializer = AnomalySerializer(anomalies, many=True)
+        return Response(serializer.data) 
