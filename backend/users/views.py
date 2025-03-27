@@ -81,10 +81,22 @@ class UserListView(generics.ListAPIView):
             return User.objects.none()
             
         user = self.request.user
+        queryset = User.objects.all()
+        
+        # Filtrer par rôle si spécifié
+        role = self.request.query_params.get('role')
+        if role:
+            queryset = queryset.filter(role=role)
+        
+        # Filtrer par organisation si spécifié
+        organization = self.request.query_params.get('organization')
+        if organization:
+            queryset = queryset.filter(organization=organization)
+            
         if user.is_super_admin:
-            return User.objects.all()
+            return queryset
         elif user.is_manager and user.organization:
-            return User.objects.filter(organization=user.organization)
+            return queryset.filter(organization=user.organization)
         return User.objects.none()
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
