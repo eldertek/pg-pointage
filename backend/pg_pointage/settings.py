@@ -180,10 +180,14 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@planetegardiens.co
 
 # drf-spectacular settings
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Planète Gardiens API',
-    'DESCRIPTION': 'API pour l\'application de pointage Planète Gardiens',
+    'TITLE': 'PG Pointage API',
+    'DESCRIPTION': 'API pour la gestion des pointages',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'ENUM_NAME_OVERRIDES': {
+        'ReportType': 'reports.models.Report.ReportType',
+        'ReportFormat': 'reports.models.Report.ReportFormat',
+    },
     'COMPONENT_SPLIT_REQUEST': True,
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,

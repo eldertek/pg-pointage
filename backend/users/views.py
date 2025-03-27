@@ -1,13 +1,16 @@
-from rest_framework import status, generics, permissions
+from rest_framework import status, generics, permissions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, logout
 from .serializers import (
     UserSerializer, UserProfileSerializer, UserRegisterSerializer,
     CustomTokenObtainPairSerializer
 )
+from .models import User
+from sites.permissions import IsSiteOrganizationManager
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 User = get_user_model()
 
@@ -25,46 +28,29 @@ class UserLoginView(TokenObtainPairView):
             print(f"[DEBUG] Échec de connexion - erreur: {str(e)}")
             raise
 
-class UserLogoutView(APIView):
-    """Vue pour la déconnexion des utilisateurs"""
+class UserLogoutSerializer(serializers.Serializer):
+    """Serializer pour la déconnexion"""
+    pass
+
+class UserChangePasswordSerializer(serializers.Serializer):
+    """Serializer pour le changement de mot de passe"""
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)
+
+class UserLogoutView(generics.GenericAPIView):
+    """Vue pour la déconnexion"""
+    serializer_class = UserLogoutSerializer
     permission_classes = [permissions.IsAuthenticated]
     
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(description='Déconnexion réussie'),
+        }
+    )
     def post(self, request):
-        try:
-            refresh_token = request.data.get('refresh')
-            if not refresh_token:
-                return Response(
-                    {'error': 'Refresh token is required', 'detail': 'No refresh token provided in request'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            try:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-                print(f"[DEBUG] Token successfully blacklisted")
-                return Response(
-                    {'message': 'Successfully logged out'},
-                    status=status.HTTP_200_OK
-                )
-            except Exception as token_error:
-                print(f"[DEBUG] Token error during logout: {str(token_error)}")
-                return Response(
-                    {
-                        'error': 'Invalid refresh token',
-                        'detail': 'The provided refresh token is invalid or expired'
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-        except Exception as e:
-            print(f"[DEBUG] Unexpected error during logout: {str(e)}")
-            return Response(
-                {
-                    'error': 'Logout failed',
-                    'detail': 'An unexpected error occurred during logout'
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        logout(request)
+        return Response({'detail': 'Déconnexion réussie'})
 
 class UserRegistrationView(generics.CreateAPIView):
     """Vue pour l'enregistrement de nouveaux utilisateurs"""
@@ -80,34 +66,21 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
-class UserListView(generics.ListCreateAPIView):
-    """Vue pour lister tous les utilisateurs et en créer de nouveaux"""
+class UserListView(generics.ListAPIView):
+    """Vue pour lister les utilisateurs"""
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return User.objects.none()
+            
         user = self.request.user
-        role_filter = self.request.query_params.get('role')
-        
-        queryset = User.objects.all()
-        
-        # Filtrer par rôle si spécifié
-        if role_filter:
-            queryset = queryset.filter(role=role_filter)
-        
-        # Super admin voit tous les utilisateurs
         if user.is_super_admin:
-            return queryset
-        # Manager voit les utilisateurs de son organisation
+            return User.objects.all()
         elif user.is_manager and user.organization:
-            return queryset.filter(organization=user.organization)
-        # Les employés ne voient personne
+            return User.objects.filter(organization=user.organization)
         return User.objects.none()
-    
-    def get_permissions(self):
-        if self.request.method == 'GET':
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAdminUser()]
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Vue pour obtenir, mettre à jour et supprimer un utilisateur spécifique (admin seulement)"""
@@ -131,36 +104,39 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
         print(f"[DEBUG] Réponse: {response.status_code}")
         return response
 
-class UserChangePasswordView(APIView):
-    """Vue pour le changement de mot de passe"""
+class UserChangePasswordView(generics.GenericAPIView):
+    """Vue pour changer le mot de passe"""
+    serializer_class = UserChangePasswordSerializer
     permission_classes = [permissions.IsAuthenticated]
     
+    @extend_schema(
+        request=UserChangePasswordSerializer,
+        responses={
+            200: OpenApiResponse(description='Mot de passe changé avec succès'),
+            400: OpenApiResponse(description='Données invalides')
+        }
+    )
     def post(self, request):
-        user = request.user
-        old_password = request.data.get('old_password')
-        new_password = request.data.get('new_password')
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         
-        if not old_password or not new_password:
+        # Vérifier l'ancien mot de passe
+        if not request.user.check_password(serializer.validated_data['old_password']):
             return Response(
-                {'error': 'Les deux mots de passe sont requis'},
+                {'old_password': ['Mot de passe incorrect']},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        if not user.check_password(old_password):
+        # Vérifier que les nouveaux mots de passe correspondent
+        if serializer.validated_data['new_password'] != serializer.validated_data['confirm_password']:
             return Response(
-                {'error': 'Mot de passe actuel incorrect'},
+                {'confirm_password': ['Les mots de passe ne correspondent pas']},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validation du nouveau mot de passe
-        if len(new_password) < 8:
-            return Response(
-                {'error': 'Le nouveau mot de passe doit contenir au moins 8 caractères'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Changer le mot de passe
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save()
         
-        user.set_password(new_password)
-        user.save()
-        
-        return Response({'message': 'Mot de passe changé avec succès'})
+        return Response({'detail': 'Mot de passe changé avec succès'})
 

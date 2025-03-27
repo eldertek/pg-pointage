@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
@@ -11,8 +11,8 @@ from .serializers import (
 )
 from sites.permissions import IsSiteOrganizationManager
 from rest_framework.permissions import BasePermission
-from rest_framework.decorators import extend_schema, OpenApiResponse
-from rest_framework import serializers
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.types import OpenApiTypes
 
 class IsAdminOrManager(BasePermission):
     """Permission composée pour autoriser les admin ou les managers d'organisation"""
@@ -186,8 +186,8 @@ class ScanAnomaliesSerializer(serializers.Serializer):
     site = serializers.IntegerField(required=False)
     employee = serializers.IntegerField(required=False)
 
-class ReportGenerateSerializer(serializers.Serializer):
-    """Serializer pour la génération de rapports"""
+class TimesheetReportGenerateSerializer(serializers.Serializer):
+    """Serializer pour la génération de rapports de pointage"""
     report_type = serializers.ChoiceField(choices=['TIMESHEET', 'ANOMALY', 'EMPLOYEE'])
     report_format = serializers.ChoiceField(choices=['PDF', 'EXCEL'])
     start_date = serializers.DateField()
@@ -196,11 +196,11 @@ class ReportGenerateSerializer(serializers.Serializer):
 
 class ReportGenerateView(generics.CreateAPIView):
     """Vue pour générer un rapport"""
-    serializer_class = ReportGenerateSerializer
+    serializer_class = TimesheetReportGenerateSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     @extend_schema(
-        request=ReportGenerateSerializer,
+        request=TimesheetReportGenerateSerializer,
         responses={
             201: OpenApiResponse(description='Rapport généré avec succès'),
             400: OpenApiResponse(description='Données invalides')

@@ -35,6 +35,7 @@ import type { PatchedUserRequest } from '../models/PatchedUserRequest';
 import type { Report } from '../models/Report';
 import type { ReportGenerateRequest } from '../models/ReportGenerateRequest';
 import type { ReportRequest } from '../models/ReportRequest';
+import type { ScanAnomaliesRequest } from '../models/ScanAnomaliesRequest';
 import type { Schedule } from '../models/Schedule';
 import type { ScheduleDetail } from '../models/ScheduleDetail';
 import type { ScheduleDetailRequest } from '../models/ScheduleDetailRequest';
@@ -46,10 +47,12 @@ import type { SiteRequest } from '../models/SiteRequest';
 import type { Timesheet } from '../models/Timesheet';
 import type { TimesheetCreate } from '../models/TimesheetCreate';
 import type { TimesheetCreateRequest } from '../models/TimesheetCreateRequest';
+import type { TimesheetReportGenerateRequest } from '../models/TimesheetReportGenerateRequest';
 import type { TimesheetRequest } from '../models/TimesheetRequest';
 import type { TokenRefresh } from '../models/TokenRefresh';
 import type { TokenRefreshRequest } from '../models/TokenRefreshRequest';
 import type { User } from '../models/User';
+import type { UserChangePasswordRequest } from '../models/UserChangePasswordRequest';
 import type { UserProfile } from '../models/UserProfile';
 import type { UserProfileRequest } from '../models/UserProfileRequest';
 import type { UserRegister } from '../models/UserRegister';
@@ -1117,28 +1120,44 @@ export class V1Service {
     }
     /**
      * Vue pour générer un rapport
-     * @returns any No response body
+     * @param requestBody
+     * @returns any Rapport généré avec succès
      * @throws ApiError
      */
-    public static v1TimesheetsReportsGenerateCreate(): CancelablePromise<any> {
+    public static v1TimesheetsReportsGenerateCreate(
+        requestBody: TimesheetReportGenerateRequest,
+    ): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/timesheets/reports/generate/',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Données invalides`,
+            },
         });
     }
     /**
      * Vue pour scanner les anomalies dans les pointages existants
-     * @returns any No response body
+     * @param requestBody
+     * @returns any Scan des anomalies effectué avec succès
      * @throws ApiError
      */
-    public static v1TimesheetsScanAnomaliesCreate(): CancelablePromise<any> {
+    public static v1TimesheetsScanAnomaliesCreate(
+        requestBody?: ScanAnomaliesRequest,
+    ): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/timesheets/scan-anomalies/',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Données invalides`,
+            },
         });
     }
     /**
-     * Vue pour lister tous les utilisateurs et en créer de nouveaux
+     * Vue pour lister les utilisateurs
      * @param page A page number within the paginated result set.
      * @returns PaginatedUserList
      * @throws ApiError
@@ -1152,22 +1171,6 @@ export class V1Service {
             query: {
                 'page': page,
             },
-        });
-    }
-    /**
-     * Vue pour lister tous les utilisateurs et en créer de nouveaux
-     * @param requestBody
-     * @returns User
-     * @throws ApiError
-     */
-    public static v1UsersCreate(
-        requestBody: UserRequest,
-    ): CancelablePromise<User> {
-        return __request(OpenAPI, {
-            method: 'POST',
-            url: '/api/v1/users/',
-            body: requestBody,
-            mediaType: 'application/json',
         });
     }
     /**
@@ -1247,14 +1250,22 @@ export class V1Service {
         });
     }
     /**
-     * Vue pour le changement de mot de passe
-     * @returns any No response body
+     * Vue pour changer le mot de passe
+     * @param requestBody
+     * @returns any Mot de passe changé avec succès
      * @throws ApiError
      */
-    public static v1UsersChangePasswordCreate(): CancelablePromise<any> {
+    public static v1UsersChangePasswordCreate(
+        requestBody: UserChangePasswordRequest,
+    ): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/users/change-password/',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Données invalides`,
+            },
         });
     }
     /**
@@ -1274,8 +1285,8 @@ export class V1Service {
         });
     }
     /**
-     * Vue pour la déconnexion des utilisateurs
-     * @returns any No response body
+     * Vue pour la déconnexion
+     * @returns any Déconnexion réussie
      * @throws ApiError
      */
     public static v1UsersLogoutCreate(): CancelablePromise<any> {
@@ -1302,7 +1313,7 @@ export class V1Service {
      * @throws ApiError
      */
     public static v1UsersProfileUpdate(
-        requestBody: UserProfileRequest,
+        requestBody?: UserProfileRequest,
     ): CancelablePromise<UserProfile> {
         return __request(OpenAPI, {
             method: 'PUT',

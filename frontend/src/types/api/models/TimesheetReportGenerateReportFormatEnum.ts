@@ -4,9 +4,9 @@
 /* eslint-disable */
 /**
  * * `PDF` - PDF
- * * `EXCEL` - Excel
+ * * `EXCEL` - EXCEL
  */
-export enum ReportFormatEnum {
+export enum TimesheetReportGenerateReportFormatEnum {
     PDF = 'PDF',
     EXCEL = 'EXCEL',
 }

@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.types import OpenApiTypes
 
 User = get_user_model()
 
@@ -81,20 +83,18 @@ class UserSerializer(serializers.ModelSerializer):
         return instance
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    """Serializer pour le profil utilisateur (utilisateur connecté)"""
+    """Serializer pour le profil utilisateur"""
     organization_name = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = (
-            'id', 'username', 'email', 'first_name', 'last_name',
-            'role', 'organization', 'organization_name', 'phone_number', 'employee_id', 'scan_preference',
-            'simplified_mobile_view'
-        )
-        read_only_fields = ['id', 'role', 'organization', 'organization_name', 'employee_id']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name',
+                 'role', 'organization', 'organization_name', 'is_active']
+        read_only_fields = ['id', 'username', 'email', 'role', 'organization']
     
-    def get_organization_name(self, obj):
-        return obj.organization.name if obj.organization else None
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_organization_name(self, obj) -> str:
+        return obj.organization.name if obj.organization else ''
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     """Serializer pour l'enregistrement de nouveaux utilisateurs"""

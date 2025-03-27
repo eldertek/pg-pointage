@@ -7,7 +7,7 @@
  * * `ANOMALY` - Anomalies
  * * `EMPLOYEE` - Employés
  */
-export enum ReportTypeEnum {
+export enum ReportType {
     TIMESHEET = 'TIMESHEET',
     ANOMALY = 'ANOMALY',
     EMPLOYEE = 'EMPLOYEE',

@@ -244,129 +244,157 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted } from 'vue'
+import type { Site } from '@/types/api'
+import type { ExtendedSchedule } from '@/types/sites'
+
+// Extended Site with additional properties needed for UI
+interface ExtendedSite extends Omit<Site, 'schedules' | 'organization_name' | 'manager_name'> {
+  schedules?: ExtendedSchedule[];
+  download_qr_code?: string;
+  manager_name: string;
+  organization_name: string;
+}
+</script>
+
+<script lang="ts" setup>
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import TimesheetsView from '@/views/dashboard/Timesheets.vue'
 import AnomaliesView from '@/views/dashboard/Anomalies.vue'
 import ReportsView from '@/views/dashboard/Reports.vue'
 import { sitesApi, schedulesApi } from '@/services/api'
-import type { Site } from '@/services/api'
 import { formatAddressForMaps } from '@/utils/formatters'
 import { generateStyledQRCode } from '@/utils/qrcode'
 
-export default defineComponent({
-  name: 'SiteDetailsView',
-  components: {
-    TimesheetsView,
-    AnomaliesView,
-    ReportsView
-  },
-  setup() {
-    const route = useRoute()
-    const loading = ref(true)
-    const loadingSchedules = ref(false)
-    const activeTab = ref('details')
-    const site = ref<Site | null>(null)
+// Type guard to ensure schedule data is properly typed
+function isScheduleArray(data: unknown): data is any[] {
+  return Array.isArray(data);
+}
 
-    const schedulesHeaders = ref([
-      { title: 'Nom', align: 'start' as const, key: 'name' },
-      { title: 'Type', align: 'center' as const, key: 'type' },
-      { title: 'Heures min. quotidiennes', align: 'center' as const, key: 'min_daily_hours' },
-      { title: 'Heures min. hebdomadaires', align: 'center' as const, key: 'min_weekly_hours' },
-      { title: 'Employés assignés', align: 'center' as const, key: 'assigned_employees_count' }
-    ])
+const route = useRoute()
+const loading = ref(true)
+const loadingSchedules = ref(false)
+const activeTab = ref('details')
+const site = ref<ExtendedSite | null>(null)
 
-    const loadSiteDetails = async () => {
-      try {
-        loading.value = true
-        const siteId = route.params.id
-        
-        // Charger les détails du site
-        const siteResponse = await sitesApi.getSite(Number(siteId))
-        site.value = siteResponse.data
+const schedulesHeaders = ref([
+  { title: 'Nom', align: 'start' as const, key: 'name' },
+  { title: 'Type', align: 'center' as const, key: 'type' },
+  { title: 'Heures min. quotidiennes', align: 'center' as const, key: 'min_daily_hours' },
+  { title: 'Heures min. hebdomadaires', align: 'center' as const, key: 'min_weekly_hours' },
+  { title: 'Employés assignés', align: 'center' as const, key: 'assigned_employees_count' }
+])
 
-        // Si le site n'a pas de QR code, on le génère
-        if (site.value && !site.value.qr_code) {
-          await generateQRCode()
-        }
+const loadSiteDetails = async () => {
+  try {
+    loading.value = true
+    const siteId = route.params.id
+    
+    // Charger les détails du site
+    const siteResponse = await sitesApi.getSite(Number(siteId))
+    
+    // Créer un objet étendu avec les propriétés supplémentaires requises
+    const siteData = siteResponse.data as unknown as Site & { manager_name?: string; organization_name?: string };
+    site.value = {
+      ...siteData,
+      schedules: [],
+      download_qr_code: '',
+      manager_name: siteData.manager_name || '',
+      organization_name: siteData.organization_name || ''
+    } as ExtendedSite
 
-        // Charger les plannings
-        loadingSchedules.value = true
-        const schedulesResponse = await schedulesApi.getSchedulesBySite(Number(siteId))
-        if (site.value) {
-          site.value.schedules = schedulesResponse.data
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des détails du site:', error)
-      } finally {
-        loading.value = false
-        loadingSchedules.value = false
-      }
+    // Si le site n'a pas de QR code, on le génère
+    if (site.value && !site.value.qr_code) {
+      await generateQRCode()
     }
 
-    const generateQRCode = async () => {
-      if (!site.value) return
-      try {
-        // Générer une version sans cadre pour la prévisualisation
-        const previewQRCode = await generateStyledQRCode(site.value, {
-          width: 500,
-          height: 500,
-          qrSize: 500,
-          showFrame: false
-        })
-        
-        // Générer une version avec cadre pour le téléchargement
-        const downloadQRCode = await generateStyledQRCode(site.value, {
-          width: 500,
-          height: 700,
-          qrSize: 400,
-          showFrame: true,
-          radius: 20
-        })
-        
-        if (site.value) {
-          site.value.qr_code = previewQRCode
-          site.value.download_qr_code = downloadQRCode
-        }
-      } catch (error) {
-        console.error('Erreur lors de la génération du QR code:', error)
-      }
+    // Charger les plannings
+    loadingSchedules.value = true
+    const schedulesResponse = await schedulesApi.getSchedulesBySite(Number(siteId))
+    
+    // Adapter selon l'API - Peut retourner un array direct ou un object avec results
+    const schedulesData = 
+      'results' in schedulesResponse.data ? schedulesResponse.data.results :
+      Array.isArray(schedulesResponse.data) ? schedulesResponse.data : []
+    
+    if (site.value && isScheduleArray(schedulesData)) {
+      site.value.schedules = schedulesData.map((schedule) => ({
+        ...schedule,
+        id: schedule.id,
+        name: schedule.site_name || '',
+        min_daily_hours: 0,
+        min_weekly_hours: 0,
+        allow_early_arrival: false,
+        allow_late_departure: false,
+        early_arrival_limit: 30,
+        late_departure_limit: 30,
+        break_duration: 60,
+        min_break_start: '09:00',
+        max_break_end: '17:00',
+        frequency_hours: 0,
+        frequency_type: 'DAILY',
+        frequency_count: 1,
+        time_window: 8,
+        assigned_employees_count: 0
+      })) as ExtendedSchedule[]
     }
-
-    const downloadQRCode = async () => {
-      if (!site.value) return
-      try {
-        // Utiliser la version avec cadre pour le téléchargement
-        if (!site.value.download_qr_code) {
-          await generateQRCode()
-        }
-        
-        const link = document.createElement('a')
-        link.href = site.value.download_qr_code || ''
-        link.download = `qr-code-${site.value.name.toLowerCase().replace(/\s+/g, '-')}.png`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-      } catch (error) {
-        console.error('Erreur lors du téléchargement du QR code:', error)
-      }
-    }
-
-    onMounted(loadSiteDetails)
-
-    return {
-      route,
-      loading,
-      loadingSchedules,
-      activeTab,
-      site,
-      schedulesHeaders,
-      generateQRCode,
-      downloadQRCode,
-      formatAddressForMaps
-    }
+  } catch (error) {
+    console.error('Erreur lors du chargement des détails du site:', error)
+  } finally {
+    loading.value = false
+    loadingSchedules.value = false
   }
-})
+}
+
+const generateQRCode = async () => {
+  if (!site.value) return
+  try {
+    // Générer une version sans cadre pour la prévisualisation
+    const previewQRCode = await generateStyledQRCode(site.value, {
+      width: 500,
+      height: 500,
+      qrSize: 500,
+      showFrame: false
+    })
+    
+    // Générer une version avec cadre pour le téléchargement
+    const downloadQRCode = await generateStyledQRCode(site.value, {
+      width: 500,
+      height: 700,
+      qrSize: 400,
+      showFrame: true,
+      radius: 20
+    })
+    
+    if (site.value) {
+      site.value.qr_code = previewQRCode
+      site.value.download_qr_code = downloadQRCode
+    }
+  } catch (error) {
+    console.error('Erreur lors de la génération du QR code:', error)
+  }
+}
+
+const downloadQRCode = async () => {
+  if (!site.value) return
+  try {
+    // Utiliser la version avec cadre pour le téléchargement
+    if (!site.value.download_qr_code) {
+      await generateQRCode()
+    }
+    
+    const link = document.createElement('a')
+    link.href = site.value.download_qr_code || ''
+    link.download = `qr-code-${site.value.name.toLowerCase().replace(/\s+/g, '-')}.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  } catch (error) {
+    console.error('Erreur lors du téléchargement du QR code:', error)
+  }
+}
+
+onMounted(loadSiteDetails)
 </script>
 
 <style scoped>

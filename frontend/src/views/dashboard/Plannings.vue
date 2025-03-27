@@ -169,17 +169,17 @@
             </v-row>
 
             <!-- Planning type Fréquence -->
-            <template v-if="editedItem.schedule_type === 'FREQUENCY'">
-              <v-row v-for="day in weekDays" :key="day.value">
+            <template v-if="editedItem.schedule_type === ScheduleTypeEnum.FREQUENCY">
+              <v-row v-for="(detail, index) in editedItem.details" :key="index">
                 <v-col cols="12" sm="4">
                   <v-checkbox
-                    v-model="editedItem.details[day.value].enabled"
-                    :label="day.text"
+                    v-model="detail.enabled"
+                    :label="weekDays.find(d => d.value === detail.day_of_week)?.text || ''"
                   ></v-checkbox>
                 </v-col>
-                <v-col v-if="editedItem.details[day.value].enabled" cols="12" sm="4">
+                <v-col v-if="detail.enabled" cols="12" sm="4">
                   <v-text-field
-                    v-model="editedItem.details[day.value].frequency_duration"
+                    v-model="detail.frequency_duration"
                     type="number"
                     label="Durée (minutes)"
                     min="0"
@@ -191,21 +191,21 @@
 
             <!-- Planning type Fixe -->
             <template v-else>
-              <v-row v-for="day in weekDays" :key="day.value">
+              <v-row v-for="(detail, index) in editedItem.details" :key="index">
                 <v-col cols="12" sm="3">
                   <v-checkbox
-                    v-model="editedItem.details[day.value].enabled"
-                    :label="day.text"
+                    v-model="detail.enabled"
+                    :label="weekDays.find(d => d.value === detail.day_of_week)?.text || ''"
                   ></v-checkbox>
                 </v-col>
-                <template v-if="editedItem.details[day.value].enabled">
+                <template v-if="detail.enabled">
                   <v-col cols="12" sm="3">
                     <v-select
-                      v-model="editedItem.details[day.value].day_type"
+                      v-model="detail.day_type"
                       :items="[
-                        { text: 'Journée entière', value: 'FULL' },
-                        { text: 'Matin', value: 'AM' },
-                        { text: 'Après-midi', value: 'PM' }
+                        { text: 'Journée entière', value: DayTypeEnum.FULL },
+                        { text: 'Matin', value: DayTypeEnum.AM },
+                        { text: 'Après-midi', value: DayTypeEnum.PM }
                       ]"
                       item-title="text"
                       item-value="value"
@@ -213,34 +213,34 @@
                     ></v-select>
                   </v-col>
 
-                  <template v-if="editedItem.details[day.value].day_type === 'FULL' || editedItem.details[day.value].day_type === 'AM'">
+                  <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.AM">
                     <v-col cols="12" sm="3">
                       <v-text-field
-                        v-model="editedItem.details[day.value].start_time_1"
+                        v-model="detail.start_time_1"
                         type="time"
                         label="Début matin"
                       ></v-text-field>
                     </v-col>
                     <v-col cols="12" sm="3">
                       <v-text-field
-                        v-model="editedItem.details[day.value].end_time_1"
+                        v-model="detail.end_time_1"
                         type="time"
                         label="Fin matin"
                       ></v-text-field>
                     </v-col>
                   </template>
 
-                  <template v-if="editedItem.details[day.value].day_type === 'FULL' || editedItem.details[day.value].day_type === 'PM'">
+                  <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.PM">
                     <v-col cols="12" sm="3">
                       <v-text-field
-                        v-model="editedItem.details[day.value].start_time_2"
+                        v-model="detail.start_time_2"
                         type="time"
                         label="Début après-midi"
                       ></v-text-field>
                     </v-col>
                     <v-col cols="12" sm="3">
                       <v-text-field
-                        v-model="editedItem.details[day.value].end_time_2"
+                        v-model="detail.end_time_2"
                         type="time"
                         label="Fin après-midi"
                       ></v-text-field>
@@ -291,66 +291,39 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { planningsApi, sitesApi } from '@/services/api'
-import type { Schedule, Site, Employee, ScheduleDetail } from '@/services/api'
+import { useRoute } from 'vue-router'
+import { sitesApi, schedulesApi } from '@/services/api'
+import type { Site, Employee } from '@/services/api'
+import type { Schedule as BaseSchedule, ScheduleDetail as BaseScheduleDetail } from '@/types/api'
+import { ScheduleTypeEnum, DayTypeEnum, DayOfWeekEnum } from '@/types/api'
+import type { ExtendedSchedule } from '@/types/sites'
 
-// Type pour les détails du planning en édition
-interface ScheduleDetailEdit {
-  day_of_week: number;
-  day_type: 'FULL' | 'AM' | 'PM';
-  frequency_duration: number;
-  start_time_1: string;
-  end_time_1: string;
-  start_time_2: string;
-  end_time_2: string;
-  enabled: boolean;
-}
-
-// Type étendu pour ScheduleDetail qui inclut toutes les propriétés possibles
-interface ExtendedScheduleDetail extends ScheduleDetail {
-  day_type?: 'FULL' | 'AM' | 'PM';
+// Type avec les propriétés additionnelles pour l'édition
+interface ScheduleDetailEdit extends Partial<BaseScheduleDetail> {
+  id?: number;
+  day_type?: DayTypeEnum;
   frequency_duration?: number;
+  enabled?: boolean; // Pour la UI seulement
+  day_name?: string; // Required property from BaseScheduleDetail
 }
 
 // Type de base pour Schedule avec les propriétés supplémentaires
-interface BaseSchedule extends Omit<Schedule, 'site'> {
-  site?: { id: number };
-  tolerance_margin?: number;
-}
-
-// Type pour le planning en édition
 interface EditingSchedule {
   id: number;
-  schedule_type: 'FIXED' | 'FREQUENCY';
-  site?: number;
+  schedule_type: ScheduleTypeEnum;
+  site: number;
   employee?: number;
-  details: {
-    [key: number]: ScheduleDetailEdit;
-  };
+  details: ScheduleDetailEdit[];
   assigned_employees: Array<{ employee: number }>;
-}
-
-// Type pour les détails à envoyer à l'API
-interface ScheduleDetailAPI {
-  day_of_week: number;
-  frequency_duration?: number;
-  start_time_1?: string;
-  end_time_1?: string;
-  start_time_2?: string;
-  end_time_2?: string;
-  day_type?: 'FULL' | 'AM' | 'PM';
 }
 
 // Type pour les données à envoyer à l'API
-interface ScheduleAPI {
-  schedule_type: 'FIXED' | 'FREQUENCY';
-  site?: { id: number };
-  details: ScheduleDetailAPI[];
+interface ScheduleAPIRequest {
+  schedule_type: ScheduleTypeEnum;
+  site?: number;
+  details: Array<Partial<ScheduleDetailEdit>>;
   assigned_employees: Array<{ employee: number }>;
 }
-
-// Type pour le planning avec site
-type ScheduleWithSite = Schedule;
 
 // État
 const loading = ref(false)
@@ -359,7 +332,7 @@ const deleteDialog = ref(false)
 const page = ref(1)
 const itemsPerPage = ref(10)
 const totalItems = ref(0)
-const plannings = ref<ScheduleWithSite[]>([])
+const plannings = ref<ExtendedSchedule[]>([])
 const sites = ref<Site[]>([])
 const siteEmployees = ref<Employee[]>([])
 
@@ -390,33 +363,30 @@ const headers = [
 ]
 
 // Structure initiale pour les détails du planning
-const defaultDetails = () => {
-  const details: { [key: number]: ScheduleDetailEdit } = {}
-  weekDays.forEach(day => {
-    details[day.value] = {
-      day_of_week: day.value,
-      day_type: 'FULL',
-      frequency_duration: 0,
-      start_time_1: '',
-      end_time_1: '',
-      start_time_2: '',
-      end_time_2: '',
-      enabled: false
-    }
-  })
-  return details
+const defaultDetails = (): ScheduleDetailEdit[] => {
+  return weekDays.map(day => ({
+    id: 0,
+    day_of_week: day.value,
+    day_type: DayTypeEnum.FULL,
+    frequency_duration: 0,
+    start_time_1: '',
+    end_time_1: '',
+    start_time_2: '',
+    end_time_2: '',
+    enabled: false,
+    day_name: weekDays.find(d => d.value === day.value)?.text || ''
+  }));
 }
 
 const editedItem = ref<EditingSchedule>({
   id: 0,
-  schedule_type: 'FIXED',
-  site: undefined,
-  employee: undefined,
+  schedule_type: ScheduleTypeEnum.FIXED,
+  site: 0,
   details: defaultDetails(),
   assigned_employees: []
-})
+});
 
-const itemToDelete = ref<ScheduleWithSite | null>(null)
+const itemToDelete = ref<ExtendedSchedule | null>(null)
 
 // Charger les employés d'un site
 const loadSiteEmployees = async () => {
@@ -436,24 +406,43 @@ const loadSiteEmployees = async () => {
 
 // Méthodes
 const loadPlannings = async () => {
-  loading.value = true
+  loading.value = true;
   try {
-    const params = {
+    const params: any = {
       page: page.value,
       page_size: itemsPerPage.value,
       site: filters.value.site,
       schedule_type: filters.value.type
-    }
+    };
     
-    const response = await planningsApi.getAllPlannings(params)
-    plannings.value = response.data.results
-    totalItems.value = response.data.count
+    const response = await schedulesApi.getAllSchedules(params);
+    plannings.value = response.data.results ? 
+      (response.data.results.map(schedule => ({
+        ...schedule,
+        name: schedule.site_name,
+        min_daily_hours: 0,
+        min_weekly_hours: 0,
+        allow_early_arrival: false,
+        allow_late_departure: false,
+        early_arrival_limit: 30,
+        late_departure_limit: 30,
+        break_duration: 60,
+        min_break_start: '09:00',
+        max_break_end: '17:00',
+        frequency_hours: 0,
+        frequency_type: 'DAILY',
+        frequency_count: 1,
+        time_window: 8,
+        assigned_employees_count: 0
+      })) as unknown as ExtendedSchedule[]) :
+      [];
+    totalItems.value = response.data.count;
   } catch (error) {
-    console.error('Erreur lors du chargement des plannings:', error)
+    console.error('Erreur lors du chargement des plannings:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const loadSites = async () => {
   try {
@@ -464,54 +453,63 @@ const loadSites = async () => {
   }
 }
 
-const openDialog = (item?: ScheduleWithSite) => {
+const openDialog = (item?: ExtendedSchedule) => {
   if (item) {
     // Mode édition
-    const details: { [key: number]: ScheduleDetailEdit } = defaultDetails()
+    const details: ScheduleDetailEdit[] = defaultDetails();
     
     // Convertir les détails en objet indexé par jour
     if (item.details) {
-      item.details.forEach((detail: ScheduleDetail) => {
-        const extendedDetail = detail as ExtendedScheduleDetail
-        details[detail.day_of_week] = {
-          day_of_week: detail.day_of_week,
-          day_type: extendedDetail.day_type || 'FULL',
-          frequency_duration: extendedDetail.frequency_duration || 0,
-          start_time_1: detail.start_time_1 || '',
-          end_time_1: detail.end_time_1 || '',
-          start_time_2: detail.start_time_2 || '',
-          end_time_2: detail.end_time_2 || '',
-          enabled: true
+      item.details.forEach((detail: BaseScheduleDetail) => {
+        const idx = details.findIndex(d => d.day_of_week === detail.day_of_week);
+        if (idx >= 0) {
+          details[idx] = {
+            ...detail,
+            day_type: detail.day_type || DayTypeEnum.FULL,
+            frequency_duration: (detail as any).frequency_duration || 0,
+            enabled: true
+          };
         }
-      })
+      });
     }
 
     // Récupérer l'ID du site correctement
-    const siteId = typeof item.site === 'object' ? item.site?.id : item.site
+    const siteId = typeof item.site === 'object' && item.site && 'id' in item.site
+      ? (item.site as { id: number }).id
+      : item.site;
 
     editedItem.value = {
       id: item.id,
-      schedule_type: item.schedule_type,
-      site: siteId,
-      employee: item.assigned_employees?.[0]?.employee,
+      schedule_type: item.schedule_type || ScheduleTypeEnum.FIXED,
+      site: siteId || 0,
+      employee: item.assigned_employees_count ? 
+        (Array.isArray(item.assigned_employees_count) && item.assigned_employees_count.length > 0 ? 
+          item.assigned_employees_count[0].id : 
+          typeof item.assigned_employees_count === 'number' ? item.assigned_employees_count : undefined) : 
+        undefined,
       details,
-      assigned_employees: item.assigned_employees || []
-    }
+      assigned_employees: item.assigned_employees_count ? 
+        (Array.isArray(item.assigned_employees_count) ? 
+          item.assigned_employees_count.map(emp => ({ employee: emp.id })) : 
+          typeof item.assigned_employees_count === 'number' ? 
+            [{ employee: item.assigned_employees_count }] : 
+            []) : 
+        []
+    };
 
     // Charger les employés du site si un site est sélectionné
     if (siteId) {
-      loadSiteEmployees()
+      loadSiteEmployees();
     }
   } else {
     // Mode création
     editedItem.value = {
       id: 0,
-      schedule_type: 'FIXED',
-      site: undefined,
-      employee: undefined,
+      schedule_type: ScheduleTypeEnum.FIXED,
+      site: 0,
       details: defaultDetails(),
       assigned_employees: []
-    }
+    };
   }
   dialog.value = true
 }
@@ -519,72 +517,66 @@ const openDialog = (item?: ScheduleWithSite) => {
 const savePlanning = async () => {
   try {
     // Convertir les détails en tableau
-    const details = Object.values(editedItem.value.details)
+    const details = editedItem.value.details
       .filter(detail => detail.enabled)
       .map(detail => {
-        const baseDetail = {
+        const baseDetail: any = {
           day_of_week: detail.day_of_week,
           day_type: detail.day_type,
-          schedule_type: editedItem.value.schedule_type
-        }
+        };
 
-        if (editedItem.value.schedule_type === 'FREQUENCY') {
+        if (editedItem.value.schedule_type === ScheduleTypeEnum.FREQUENCY) {
           return {
             ...baseDetail,
             frequency_duration: detail.frequency_duration
-          }
+          };
         } else {
           // Gestion des horaires en fonction du type de journée
-          const timeFields = {
-            start_time_1: undefined as string | undefined,
-            end_time_1: undefined as string | undefined,
-            start_time_2: undefined as string | undefined,
-            end_time_2: undefined as string | undefined
+          const timeFields: { [key: string]: string | undefined } = {};
+
+          if (detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.AM) {
+            timeFields.start_time_1 = detail.start_time_1 || undefined;
+            timeFields.end_time_1 = detail.end_time_1 || undefined;
           }
 
-          if (detail.day_type === 'FULL' || detail.day_type === 'AM') {
-            timeFields.start_time_1 = detail.start_time_1 || undefined
-            timeFields.end_time_1 = detail.end_time_1 || undefined
-          }
-
-          if (detail.day_type === 'FULL' || detail.day_type === 'PM') {
-            timeFields.start_time_2 = detail.start_time_2 || undefined
-            timeFields.end_time_2 = detail.end_time_2 || undefined
+          if (detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.PM) {
+            timeFields.start_time_2 = detail.start_time_2 || undefined;
+            timeFields.end_time_2 = detail.end_time_2 || undefined;
           }
 
           return {
             ...baseDetail,
             ...timeFields
-          }
+          };
         }
-      })
+      });
 
-    const planningData = {
+    const planningData: ScheduleAPIRequest = {
       schedule_type: editedItem.value.schedule_type,
-      site: editedItem.value.site ? { id: editedItem.value.site } : undefined,
-      details: details,
+      site: editedItem.value.site,
+      details,
       assigned_employees: editedItem.value.employee 
         ? [{ employee: editedItem.value.employee }] 
         : []
-    }
+    };
 
     if (editedItem.value.id) {
-      await planningsApi.updatePlanning(editedItem.value.id, planningData)
+      await schedulesApi.updateSchedule(editedItem.value.id, planningData as any);
     } else {
-      await planningsApi.createPlanning(planningData)
+      await schedulesApi.createSchedule(planningData as any);
     }
-    dialog.value = false
-    loadPlannings()
+    dialog.value = false;
+    loadPlannings();
   } catch (error) {
-    console.error('Erreur lors de la sauvegarde du planning:', error)
+    console.error('Erreur lors de la sauvegarde du planning:', error);
   }
-}
+};
 
 const deletePlanning = async () => {
   if (!itemToDelete.value?.id) return
 
   try {
-    await planningsApi.deletePlanning(itemToDelete.value.id)
+    await schedulesApi.deleteSchedule(itemToDelete.value.id)
     deleteDialog.value = false
     loadPlannings()
   } catch (error) {
@@ -592,7 +584,7 @@ const deletePlanning = async () => {
   }
 }
 
-const confirmDelete = (item: ScheduleWithSite) => {
+const confirmDelete = (item: ExtendedSchedule) => {
   itemToDelete.value = item
   deleteDialog.value = true
 }

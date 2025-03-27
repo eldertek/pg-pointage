@@ -2,11 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ReportFormatEnum } from './ReportFormatEnum';
-import type { ReportTypeEnum } from './ReportTypeEnum';
+import type { ReportFormat } from './ReportFormat';
+import type { ReportType } from './ReportType';
 export type ReportGenerateRequest = {
-    report_type: ReportTypeEnum;
-    report_format: ReportFormatEnum;
+    report_type: ReportType;
+    report_format: ReportFormat;
     start_date: string;
     end_date: string;
     site?: number;

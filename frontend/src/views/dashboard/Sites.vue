@@ -64,7 +64,7 @@
               variant="text"
               size="small"
               color="#00346E"
-              @click="editSite(item)"
+              @click="editSite(toSite(item))"
             >
               <v-icon>mdi-pencil</v-icon>
             </v-btn>
@@ -83,7 +83,7 @@
               variant="text"
               size="small"
               color="#F78C48"
-              @click="deleteSite(item)"
+              @click="deleteSite(toSite(item))"
             >
               <v-icon>mdi-delete</v-icon>
             </v-btn>
@@ -162,7 +162,7 @@
                           color="#00346E"
                           size="small"
                           prepend-icon="mdi-download"
-                          @click="downloadQRCode(selectedSite)"
+                          @click="downloadQRCode(toSite(selectedSite))"
                           :loading="!selectedSite.qr_code"
                         >
                           Télécharger
@@ -229,7 +229,7 @@
                         <v-btn
                           color="#00346E"
                           prepend-icon="mdi-download"
-                          @click="downloadQRCode(selectedSite)"
+                          @click="downloadQRCode(toSite(selectedSite))"
                         >
                           Télécharger
                         </v-btn>
@@ -237,7 +237,7 @@
                           color="#F78C48"
                           prepend-icon="mdi-refresh"
                           class="ml-2"
-                          @click="generateQRCode(selectedSite)"
+                          @click="generateQRCode(toSite(selectedSite))"
                         >
                           Régénérer
                         </v-btn>
@@ -367,26 +367,20 @@
                 </template>
                 <template #[`item.employees`]="{ item }">
                   <div class="d-flex align-center">
-                    <div v-if="item.assigned_employees && item.assigned_employees.length > 0">
+                    <div v-if="item.assigned_employees_count && (Array.isArray(item.assigned_employees_count) ? item.assigned_employees_count.length > 0 : item.assigned_employees_count > 0)">
                       <v-chip
-                        v-for="employee in item.assigned_employees"
-                        :key="employee.employee"
+                        v-for="(count, index) in Array.isArray(item.assigned_employees_count) ? item.assigned_employees_count : [item.assigned_employees_count]"
+                        :key="index"
                         class="mr-1 mb-1"
-                        closable
-                        @click:close="unassignEmployeeFromSchedule(item.id, employee.employee)"
+                        size="small"
+                        color="primary"
                       >
-                        {{ employee.employee }}
+                        {{ typeof count === 'object' && count && 'employee_name' in count ? count.employee_name : count }}
                       </v-chip>
                     </div>
-                    <v-btn
-                      icon
-                      variant="text"
-                      size="small"
-                      color="#00346E"
-                      @click="showAssignEmployeeDialog(item)"
-                    >
-                      <v-icon>mdi-account-plus</v-icon>
-                    </v-btn>
+                    <div v-else class="text-caption text-grey">
+                      Aucun employé assigné
+                    </div>
                   </div>
                 </template>
                 <template #[`item.actions`]="{ item }">
@@ -423,7 +417,7 @@
             <!-- Onglet Timesheets -->
             <v-window-item value="timesheets">
               <TimesheetsView 
-                :site-id="selectedSite.id"
+                :site-id="selectedSite?.id"
                 :is-detail-view="true"
               ></TimesheetsView>
             </v-window-item>
@@ -431,7 +425,7 @@
             <!-- Onglet Anomalies -->
             <v-window-item value="anomalies">
               <AnomaliesView 
-                :site-id="selectedSite.id"
+                :site-id="selectedSite?.id"
                 :is-detail-view="true"
               ></AnomaliesView>
             </v-window-item>
@@ -439,7 +433,7 @@
             <!-- Onglet Rapports -->
             <v-window-item value="reports">
               <ReportsView 
-                :site-id="selectedSite.id"
+                :site-id="selectedSite?.id"
               ></ReportsView>
             </v-window-item>
           </v-window>
@@ -1154,31 +1148,17 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, watch, computed, onMounted } from 'vue'
+import { defineComponent, ref, onMounted, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import ScheduleCalendar from '@/components/ScheduleCalendar.vue'
 import TimesheetsView from '@/views/dashboard/Timesheets.vue'
 import AnomaliesView from '@/views/dashboard/Anomalies.vue'
 import ReportsView from '@/views/dashboard/Reports.vue'
-import { sitesApi, schedulesApi, organizationsApi, usersApi, anomaliesApi, reportsApi, timesheetsApi, type Site, type Schedule, type Employee, type Organization } from '@/services/api'
-import QRCode from 'qrcode'
-import type { EditingTimesheet, Filters, SiteOption, TableOptions, Timesheet } from '@/types/sites'
+import { type Site, type Organization, type Employee, ScheduleTypeEnum } from '@/types/api'
+import type { ExtendedSchedule } from '@/types/sites'
+import { sitesApi, organizationsApi, usersApi, schedulesApi } from '@/services/api'
 import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
-import { useRouter } from 'vue-router'
 
-// Interfaces
-interface WeekDay {
-  text: string;
-  value: number;
-}
-
-interface ScheduleDetail {
-  id?: number;
-  day_of_week: number;
-  start_time_1: string;
-  end_time_1: string;
-  start_time_2: string;
-  end_time_2: string;
-}
 
 interface SiteForm {
   name: string;
@@ -1232,11 +1212,6 @@ interface EmployeeForm {
   schedule: number | null;
 }
 
-interface Manager {
-  id: number;
-  name: string;
-}
-
 interface Anomaly {
   id: number;
   site_id: number;
@@ -1249,31 +1224,18 @@ interface Anomaly {
   updated_at: string;
 }
 
-interface Report {
-  id: number;
-  site_id: number;
-  type: string;
-  period_start: string;
-  period_end: string;
-  data: any;
-  created_at: string;
-  updated_at: string;
-}
 
-// Add loadingEmployees ref
-const loadingEmployees = ref<boolean>(false)
-
-// Update the Site interface to extend the API type
+// Extended Site with additional properties needed for UI
 interface ExtendedSite extends Omit<Site, 'schedules'> {
   isUpdating?: boolean;
-  timesheets?: Timesheet[];
+  timesheets?: any[]; // Changed from ExtendedTimesheet[] to any[]
   anomalies?: Anomaly[];
-  reports?: Report[];
-  schedules?: Schedule[];
-  manager_name?: string;
+  organization_name: string;  // Required to match the base type
+  schedules?: ExtendedSchedule[];
+  download_qr_code?: string;
 }
 
-export default defineComponent({
+export const SitesView = defineComponent({
   name: 'SitesView',
   components: {
     ScheduleCalendar,
@@ -1285,7 +1247,7 @@ export default defineComponent({
     const router = useRouter()
 
     // Jours de la semaine
-    const weekDays: WeekDay[] = [
+    const weekDays = [
       { text: 'Lundi', value: 1 },
       { text: 'Mardi', value: 2 },
       { text: 'Mercredi', value: 3 },
@@ -1309,16 +1271,25 @@ export default defineComponent({
     // États généraux
     const loading = ref<boolean>(true)
     const saving = ref<boolean>(false)
+    const deleting = ref<boolean>(false)
+    const loadingEmployees = ref<boolean>(false)
     const showCreateDialog = ref<boolean>(false)
     const showScheduleDialog = ref<boolean>(false)
     const showEmployeeDialog = ref<boolean>(false)
     const showAssignDialog = ref<boolean>(false)
-    const selectedSchedule = ref<Schedule | null>(null)
+    const selectedSchedule = ref<ExtendedSchedule | null>(null)
     const form = ref<any>(null)
     const valid = ref<boolean>(false)
     const editedItem = ref<ExtendedSite | null>(null)
     const organizations = ref<Organization[]>([])
-    const managers = ref<Manager[]>([])
+
+    // Define a type for our mapped manager objects
+    type MappedManager = {
+      id: number;
+      name: string;
+    }
+    const managers = ref<MappedManager[]>([])
+
     const selectedSite = ref<ExtendedSite | null>(null)
     const activeTab = ref<'details' | 'schedules' | 'timesheets' | 'anomalies' | 'reports'>('details')
     const loadingSchedules = ref<boolean>(false)
@@ -1352,10 +1323,9 @@ export default defineComponent({
     })
     const scheduleFormRef = ref<any>(null)
     const showCalendarDialog = ref<boolean>(false)
-    const selectedScheduleForCalendar = ref<Schedule | null>(null)
+    const selectedScheduleForCalendar = ref<ExtendedSchedule | null>(null)
     const showDeleteDialog = ref<boolean>(false)
     const siteToDelete = ref<Site | null>(null)
-    const deleting = ref<boolean>(false)
 
     // Formatage des données
     const formatEmployeeName = (employee: Employee): string => {
@@ -1443,7 +1413,33 @@ export default defineComponent({
           count: response.data.count,
           resultsCount: response.data.results?.length || 0
         })
-        sites.value = Array.isArray(response.data.results) ? response.data.results : []
+        
+        // Cast sites to ExtendedSite and add any missing properties
+        sites.value = Array.isArray(response.data.results) 
+          ? response.data.results.map(site => ({
+              ...site,
+              isUpdating: false,
+              schedules: site.schedules?.map(schedule => ({
+                ...schedule,
+                name: schedule.site_name || '',
+                min_daily_hours: 0,
+                min_weekly_hours: 0,
+                allow_early_arrival: false,
+                allow_late_departure: false,
+                early_arrival_limit: 30,
+                late_departure_limit: 30,
+                break_duration: 60,
+                min_break_start: '09:00',
+                max_break_end: '17:00',
+                frequency_hours: 0,
+                frequency_type: 'DAILY',
+                frequency_count: 1,
+                time_window: 8,
+                assigned_employees_count: 0
+              } as unknown as ExtendedSchedule)) as ExtendedSchedule[]
+            } as ExtendedSite))
+          : []
+        
         totalSites.value = response.data.count || 0
         currentPage.value = page
         console.log('[Sites][Data] Sites chargés avec succès:', {
@@ -1477,7 +1473,12 @@ export default defineComponent({
         loadingEmployees.value = true
         const response = await schedulesApi.getAvailableEmployees()
         
-        const assignedEmployeeIds = selectedSchedule.value?.assigned_employees?.map(emp => emp.employee) || []
+        const employeeIds = selectedSchedule.value?.assigned_employees_count || []
+        const assignedEmployeeIds: number[] = Array.isArray(employeeIds) 
+          ? (employeeIds.length > 0 && typeof employeeIds[0] === 'object' 
+              ? ((employeeIds as unknown) as { id: number; employee_name: string; }[]).map(e => e.id)
+              : (employeeIds as unknown) as number[])
+          : (typeof employeeIds === 'number' ? [employeeIds] : [])
         
         availableEmployees.value = response.data.results
           .filter((employee: Employee) => {
@@ -1542,7 +1543,30 @@ export default defineComponent({
     }
 
     const editSite = (site: Site): void => {
-      editedItem.value = site
+      // Cast site to ExtendedSite type since we're adding properties to it
+      editedItem.value = { 
+        ...site, 
+        isUpdating: false,
+        schedules: site.schedules?.map(schedule => ({
+          ...schedule,
+          name: schedule.site_name || '',
+          min_daily_hours: 0,
+          min_weekly_hours: 0,
+          allow_early_arrival: false,
+          allow_late_departure: false,
+          early_arrival_limit: 30,
+          late_departure_limit: 30,
+          break_duration: 60,
+          min_break_start: '09:00',
+          max_break_end: '17:00',
+          frequency_hours: 0,
+          frequency_type: 'DAILY',
+          frequency_count: 1,
+          time_window: 8,
+          assigned_employees_count: 0
+        } as unknown as ExtendedSchedule)) as ExtendedSchedule[]
+      } as ExtendedSite;
+      
       siteForm.value = {
         name: site.name || '',
         address: site.address || '',
@@ -1670,16 +1694,16 @@ export default defineComponent({
       showScheduleDialog.value = true
     }
 
-    const viewScheduleDetails = (schedule: Schedule): void => {
+    const viewScheduleDetails = (schedule: ExtendedSchedule): void => {
       selectedScheduleForCalendar.value = schedule
       showCalendarDialog.value = true
     }
 
-    const editSchedule = (schedule: Schedule): void => {
+    const editSchedule = (schedule: ExtendedSchedule): void => {
       selectedSchedule.value = schedule
       const defaultForm: ScheduleForm = {
         name: schedule.name,
-        schedule_type: schedule.schedule_type,
+        schedule_type: schedule.schedule_type || ScheduleTypeEnum.FIXED,
         min_daily_hours: 0,
         min_weekly_hours: 0,
         allow_early_arrival: false,
@@ -1728,12 +1752,34 @@ export default defineComponent({
       showScheduleDialog.value = true
     }
 
-    const deleteSchedule = async (schedule: Schedule): Promise<void> => {
+    const deleteSchedule = async (schedule: ExtendedSchedule): Promise<void> => {
       if (!selectedSite.value) return
       try {
         await sitesApi.deleteSchedule(selectedSite.value.id, schedule.id)
         const response = await sitesApi.getSite(selectedSite.value.id)
-        selectedSite.value = response.data
+        
+        // Transform the response to an ExtendedSite
+        selectedSite.value = {
+          ...response.data,
+          schedules: response.data.schedules?.map((schedule: any) => ({
+            ...schedule,
+            name: schedule.site_name || '',
+            min_daily_hours: 0,
+            min_weekly_hours: 0,
+            allow_early_arrival: false,
+            allow_late_departure: false,
+            early_arrival_limit: 30,
+            late_departure_limit: 30,
+            break_duration: 60,
+            min_break_start: '09:00',
+            max_break_end: '17:00',
+            frequency_hours: 0,
+            frequency_type: 'DAILY',
+            frequency_count: 1,
+            time_window: 8,
+            assigned_employees_count: 0
+          } as unknown as ExtendedSchedule)) as ExtendedSchedule[]
+        } as ExtendedSite
       } catch (error) {
         console.error('Erreur lors de la suppression du planning:', error)
       }
@@ -1801,7 +1847,7 @@ export default defineComponent({
     }
 
     // Méthodes pour la gestion des employés
-    const showAssignEmployeeDialog = (schedule: Schedule): void => {
+    const showAssignEmployeeDialog = (schedule: ExtendedSchedule): void => {
       selectedSchedule.value = schedule
       showAssignDialog.value = true
       fetchAvailableEmployees()
@@ -1813,7 +1859,27 @@ export default defineComponent({
       try {
         await schedulesApi.unassignEmployee(selectedSite.value.id, scheduleId, employeeId)
         const response = await sitesApi.getSite(selectedSite.value.id)
-        selectedSite.value = response.data
+        selectedSite.value = {
+          ...response.data,
+          schedules: response.data.schedules?.map((schedule: any) => ({
+            ...schedule,
+            name: schedule.site_name || '',
+            min_daily_hours: 0,
+            min_weekly_hours: 0,
+            allow_early_arrival: false,
+            allow_late_departure: false,
+            early_arrival_limit: 30,
+            late_departure_limit: 30,
+            break_duration: 60,
+            min_break_start: '09:00',
+            max_break_end: '17:00',
+            frequency_hours: 0,
+            frequency_type: 'DAILY',
+            frequency_count: 1,
+            time_window: 8,
+            assigned_employees_count: 0
+          } as unknown as ExtendedSchedule)) as ExtendedSchedule[]
+        } as ExtendedSite
       } catch (error) {
         console.error('Erreur lors de la désassignation de l\'employé:', error)
       }
@@ -1825,7 +1891,7 @@ export default defineComponent({
         return
       }
 
-      const selectedEmployee = availableEmployees.value.find(emp => emp.id === employeeForm.value.employee)
+      const selectedEmployee = availableEmployees.value.find((emp: Employee) => emp.id === employeeForm.value.employee)
       if (!selectedEmployee || selectedEmployee.organization !== selectedSite.value.organization) {
         console.error('L\'employé doit appartenir à la même organisation que le site')
         return
@@ -1840,7 +1906,27 @@ export default defineComponent({
         )
 
         const response = await sitesApi.getSite(selectedSite.value.id)
-        selectedSite.value = response.data
+        selectedSite.value = {
+          ...response.data,
+          schedules: response.data.schedules?.map((schedule: any) => ({
+            ...schedule,
+            name: schedule.site_name || '',
+            min_daily_hours: 0,
+            min_weekly_hours: 0,
+            allow_early_arrival: false,
+            allow_late_departure: false,
+            early_arrival_limit: 30,
+            late_departure_limit: 30,
+            break_duration: 60,
+            min_break_start: '09:00',
+            max_break_end: '17:00',
+            frequency_hours: 0,
+            frequency_type: 'DAILY',
+            frequency_count: 1,
+            time_window: 8,
+            assigned_employees_count: 0
+          } as unknown as ExtendedSchedule)) as ExtendedSchedule[]
+        } as ExtendedSite
         
         showAssignDialog.value = false
         employeeForm.value.employee = null
@@ -1917,7 +2003,27 @@ export default defineComponent({
         }
 
         const response = await sitesApi.getSite(selectedSite.value.id)
-        selectedSite.value = response.data
+        selectedSite.value = {
+          ...response.data,
+          schedules: response.data.schedules?.map((schedule: any) => ({
+            ...schedule,
+            name: schedule.site_name || '',
+            min_daily_hours: 0,
+            min_weekly_hours: 0,
+            allow_early_arrival: false,
+            allow_late_departure: false,
+            early_arrival_limit: 30,
+            late_departure_limit: 30,
+            break_duration: 60,
+            min_break_start: '09:00',
+            max_break_end: '17:00',
+            frequency_hours: 0,
+            frequency_type: 'DAILY',
+            frequency_count: 1,
+            time_window: 8,
+            assigned_employees_count: 0
+          } as unknown as ExtendedSchedule)) as ExtendedSchedule[]
+        } as ExtendedSite
         
         closeScheduleDialog()
       } catch (error: unknown) {
@@ -2027,13 +2133,12 @@ export default defineComponent({
 
         // Générer le QR code avec une zone centrale transparente pour le logo
         console.log('[Sites][QR Code][generateStyledQRCode] Génération du QR code...');
-        const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+        const qrCodeDataUrl = await generateStyledQRCode(site, {
           width: qrSize,
-          margin: 1,
-          color: {
-            dark: '#00346E',
-            light: '#FFFFFF'
-          }
+          height: height,
+          qrSize: qrSize,
+          showFrame: showFrame,
+          radius: radius
         });
         console.log('[Sites][QR Code][generateStyledQRCode] QR code généré avec succès');
 
@@ -2247,12 +2352,54 @@ export default defineComponent({
         // Mettre à jour le site dans la liste
         const index = sites.value.findIndex(s => s.id === site.id)
         if (index !== -1) {
-          sites.value[index] = updatedSite.data
+          sites.value[index] = {
+            ...updatedSite.data,
+            isUpdating: false,
+            schedules: updatedSite.data.schedules?.map((schedule: any) => ({
+              ...schedule,
+              name: schedule.site_name || '',
+              min_daily_hours: 0,
+              min_weekly_hours: 0,
+              allow_early_arrival: false,
+              allow_late_departure: false,
+              early_arrival_limit: 30,
+              late_departure_limit: 30,
+              break_duration: 60,
+              min_break_start: '09:00',
+              max_break_end: '17:00',
+              frequency_hours: 0,
+              frequency_type: 'DAILY',
+              frequency_count: 1,
+              time_window: 8,
+              assigned_employees_count: 0
+            } as unknown as ExtendedSchedule)) as ExtendedSchedule[]
+          } as ExtendedSite;
         }
         
         // Si le site est actuellement sélectionné, mettre à jour aussi selectedSite
         if (selectedSite.value?.id === site.id) {
-          selectedSite.value = updatedSite.data
+          selectedSite.value = {
+            ...updatedSite.data,
+            isUpdating: false,
+            schedules: updatedSite.data.schedules?.map((schedule: any) => ({
+              ...schedule,
+              name: schedule.site_name || '',
+              min_daily_hours: 0,
+              min_weekly_hours: 0,
+              allow_early_arrival: false,
+              allow_late_departure: false,
+              early_arrival_limit: 30,
+              late_departure_limit: 30,
+              break_duration: 60,
+              min_break_start: '09:00',
+              max_break_end: '17:00',
+              frequency_hours: 0,
+              frequency_type: 'DAILY',
+              frequency_count: 1,
+              time_window: 8,
+              assigned_employees_count: 0
+            } as unknown as ExtendedSchedule)) as ExtendedSchedule[]
+          } as ExtendedSite;
         }
       } catch (error) {
         console.error('Erreur lors de la modification du statut du site:', error)
@@ -2281,14 +2428,19 @@ export default defineComponent({
       if (!org) return ''
       return `${org.org_id}-S${siteForm.value.nfcId.padStart(4, '0')}`
     })
+
+    const toSite = (extendedSite: ExtendedSite): Site => {
+      const { schedules, isUpdating, download_qr_code, ...site } = extendedSite;
+      return site as Site;
+    };
     
     return {
       // États
       loading,
       saving,
       deleting,
+      loadingEmployees,
       showDeleteDialog,
-      siteToDelete,
       showCreateDialog,
       showScheduleDialog,
       showEmployeeDialog,
@@ -2311,6 +2463,8 @@ export default defineComponent({
       siteEmployees,
       availableEmployees,
       formatEmployeeName,
+      toSite,
+      siteToDelete,  // Add this line
 
       // Données
       headers,
@@ -2361,6 +2515,8 @@ export default defineComponent({
     }
   }
 })
+
+export default SitesView
 </script>
 
 <style scoped>

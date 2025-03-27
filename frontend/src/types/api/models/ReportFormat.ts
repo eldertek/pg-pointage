@@ -2,6 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export enum BlankEnum {
-    BLANK = '',
+/**
+ * * `PDF` - PDF
+ * * `EXCEL` - Excel
+ */
+export enum ReportFormat {
+    PDF = 'PDF',
+    EXCEL = 'EXCEL',
 }

@@ -118,7 +118,7 @@
       >
         <template v-slot:item.entry_type="{ item }">
           <v-chip
-            :color="item.entry_type === 'ARRIVAL' ? 'success' : 'info'"
+            :color="item.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'"
             size="small"
           >
             {{ getEntryTypeLabel(item.entry_type) }}
@@ -202,7 +202,7 @@
                   <v-list-item-title class="text-subtitle-2 mb-1">Type</v-list-item-title>
                   <v-list-item-subtitle>
                     <v-chip
-                      :color="selectedTimesheet.entry_type === 'ARRIVAL' ? 'success' : 'info'"
+                      :color="selectedTimesheet.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'"
                       size="small"
                     >
                       {{ getEntryTypeLabel(selectedTimesheet.entry_type) }}
@@ -331,8 +331,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useSitesStore } from '@/stores/sites'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import type { EditingTimesheet, SiteOption, TableOptions, Timesheet } from '@/types/sites'
-import type { Filters } from '@/types/sites'
+import type { ExtendedTimesheet, Filters, SiteOption, EditingTimesheet } from '@/types/sites'
+import { EntryTypeEnum } from '@/types/api'
+import type { TableOptions } from '@/types/sites'
 
 export default {
   name: 'TimesheetsView',
@@ -375,8 +376,8 @@ export default {
     
     const siteOptions = ref<SiteOption[]>([])
     const entryTypeOptions = ref([
-      { title: 'Arrivée', value: 'ARRIVAL' },
-      { title: 'Départ', value: 'DEPARTURE' }
+      { title: 'Arrivée', value: EntryTypeEnum.ARRIVAL },
+      { title: 'Départ', value: EntryTypeEnum.DEPARTURE }
     ])
     const statusOptions = ref([
       { title: 'Normal', value: 'NORMAL' },
@@ -384,7 +385,7 @@ export default {
       { title: 'Départ anticipé', value: 'EARLY_DEPARTURE' }
     ])
     
-    const timesheets = ref<Timesheet[]>([])
+    const timesheets = ref<ExtendedTimesheet[]>([])
     const currentPage = ref(1)
     const itemsPerPage = ref(10)
     const totalItems = ref(0)
@@ -392,60 +393,62 @@ export default {
     const detailDialog = ref(false)
     const editDialog = ref(false)
     const deleteDialog = ref(false)
-    const selectedTimesheet = ref<Timesheet | null>(null)
+    const selectedTimesheet = ref<ExtendedTimesheet | null>(null)
     const editingTimesheet = ref<EditingTimesheet | null>(null)
-    const timesheetToDelete = ref<Timesheet | null>(null)
+    const timesheetToDelete = ref<ExtendedTimesheet | null>(null)
     let map: L.Map | null = null
 
     const canEditTimesheet = computed(() => {
       return auth.user?.role === 'SUPER_ADMIN' || auth.user?.role === 'MANAGER'
     })
 
-    const getStatusColor = (timesheet: Timesheet): string => {
+    const getStatusColor = (timesheet: ExtendedTimesheet): string => {
       if (timesheet.is_late) return 'warning'
       if (timesheet.is_early_departure) return 'error'
       return 'success'
     }
 
-    const getStatusLabel = (timesheet: Timesheet): string => {
+    const getStatusLabel = (timesheet: ExtendedTimesheet): string => {
       if (timesheet.is_late) return `Retard (${timesheet.late_minutes} min)`
       if (timesheet.is_early_departure) return `Départ anticipé (${timesheet.early_departure_minutes} min)`
       return 'Normal'
     }
 
-    const getEntryTypeLabel = (type: 'ARRIVAL' | 'DEPARTURE'): string => {
-      return type === 'ARRIVAL' ? 'Arrivée' : 'Départ'
+    const getEntryTypeLabel = (type: EntryTypeEnum): string => {
+      return type === EntryTypeEnum.ARRIVAL ? 'Arrivée' : 'Départ'
     }
     
-    const formatTimesheet = (timesheet: Timesheet): Timesheet => {
+    const formatTimesheet = (timesheet: ExtendedTimesheet): ExtendedTimesheet => {
       try {
+        if (!timesheet.timestamp) {
+          return {
+            ...timesheet,
+            date: 'Date invalide',
+            time: '--:--'
+          }
+        }
+
         const timestamp = new Date(timesheet.timestamp)
         if (isNaN(timestamp.getTime())) {
           console.error('Date invalide dans formatTimesheet:', timesheet.timestamp)
           return {
             ...timesheet,
             date: 'Date invalide',
-            time: '--:--',
-            employee: timesheet.employee,
-            site: timesheet.site
+            time: '--:--'
           }
         }
 
         return {
           ...timesheet,
           date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
-          time: format(timestamp, 'HH:mm', { locale: fr }),
-          employee: timesheet.employee,
-          site: timesheet.site
+          time: format(timestamp, 'HH:mm', { locale: fr })
         }
       } catch (error) {
         console.error('Erreur lors du formatage du pointage:', error)
         return {
           ...timesheet,
           date: 'Erreur',
-          time: '--:--',
-          employee: timesheet.employee,
-          site: timesheet.site
+          time: '--:--'
         }
       }
     }
@@ -466,14 +469,8 @@ export default {
         const response = await timesheetsApi.getTimesheets(params)
         const results = response.data.results || []
         
-        // Store raw data for later use
-        const rawTimesheets = [...results]
-        
         // Format timesheets for display
-        timesheets.value = results.map((timesheet: Timesheet) => ({
-          ...formatTimesheet(timesheet),
-          raw: timesheet // Keep the raw data
-        }))
+        timesheets.value = results.map((timesheet: ExtendedTimesheet) => formatTimesheet(timesheet))
         
         totalItems.value = response.data.count || 0
         
@@ -515,9 +512,13 @@ export default {
       fetchTimesheets()
     }
     
-    const showDetails = (item: Timesheet): void => {
+    const showDetails = (item: ExtendedTimesheet): void => {
       try {
-        console.log('Item reçu:', item)
+        if (!item.timestamp) {
+          console.error('Timestamp manquant')
+          return
+        }
+
         const timestamp = new Date(item.timestamp)
         console.log('Timestamp original:', item.timestamp)
         console.log('Timestamp parsé:', timestamp)
@@ -530,12 +531,7 @@ export default {
         selectedTimesheet.value = {
           ...item,
           date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
-          time: format(timestamp, 'HH:mm', { locale: fr }),
-          employee: item.employee,
-          site: item.site,
-          latitude: item.latitude ? parseFloat(String(item.latitude)) : null,
-          longitude: item.longitude ? parseFloat(String(item.longitude)) : null,
-          entry_type: item.entry_type
+          time: format(timestamp, 'HH:mm', { locale: fr })
         }
         
         detailDialog.value = true
@@ -579,8 +575,13 @@ export default {
       }
     }
 
-    const editTimesheet = (item: Timesheet): void => {
+    const editTimesheet = (item: ExtendedTimesheet): void => {
       try {
+        if (!item.timestamp) {
+          console.error('Timestamp manquant pour l\'édition')
+          return
+        }
+
         const timestamp = new Date(item.timestamp)
         if (isNaN(timestamp.getTime())) {
           console.error('Date invalide pour l\'édition:', item.timestamp)
@@ -617,7 +618,7 @@ export default {
       }
     }
 
-    const confirmDelete = (item: Timesheet): void => {
+    const confirmDelete = (item: ExtendedTimesheet): void => {
       timesheetToDelete.value = item
       deleteDialog.value = true
     }
@@ -694,7 +695,8 @@ export default {
       saveTimesheet,
       confirmDelete,
       deleteTimesheet,
-      loadSites
+      loadSites,
+      EntryTypeEnum
     }
   }
 }

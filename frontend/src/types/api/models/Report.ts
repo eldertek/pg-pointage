@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ReportFormatEnum } from './ReportFormatEnum';
-import type { ReportTypeEnum } from './ReportTypeEnum';
+import type { ReportFormat } from './ReportFormat';
+import type { ReportType } from './ReportType';
 /**
  * Serializer pour les rapports
  */
@@ -13,9 +13,9 @@ export type Report = {
     readonly organization_name: string;
     site?: number | null;
     readonly site_name: string;
-    report_type: ReportTypeEnum;
+    report_type: ReportType;
     readonly report_type_display: string;
-    report_format?: ReportFormatEnum;
+    report_format?: ReportFormat;
     readonly report_format_display: string;
     start_date: string;
     end_date: string;

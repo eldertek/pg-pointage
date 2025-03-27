@@ -64,16 +64,16 @@
           >
             <!-- Utilisateur -->
             <template v-slot:item.user="{ item }">
-              {{ item.raw.user_name }}
+              {{ item.user_name }}
             </template>
 
             <!-- Rôle -->
             <template v-slot:item.role="{ item }">
               <v-chip
-                :color="getRoleColor(item.raw.role)"
+                :color="getRoleColor(item.role)"
                 size="small"
               >
-                {{ item.raw.role }}
+                {{ item.role }}
               </v-chip>
             </template>
 
@@ -81,7 +81,7 @@
             <template v-slot:item.sites="{ item }">
               <v-chip-group>
                 <v-chip
-                  v-for="site in item.raw.sites"
+                  v-for="site in item.sites"
                   :key="site.id"
                   size="small"
                   color="primary"
@@ -98,7 +98,7 @@
                 variant="text"
                 size="small"
                 color="primary"
-                @click="openDialog(item.raw)"
+                @click="openDialog(item)"
               >
                 <v-icon>mdi-pencil</v-icon>
               </v-btn>
@@ -120,14 +120,14 @@
             <v-row>
               <v-col cols="12" sm="6">
                 <v-text-field
-                  v-model="editedItem.user_name"
+                  v-model="userName"
                   label="Utilisateur"
                   disabled
                 ></v-text-field>
               </v-col>
               <v-col cols="12" sm="6">
                 <v-select
-                  v-model="editedItem.role"
+                  v-model="userRole"
                   :items="roles"
                   label="Rôle"
                   required
@@ -135,7 +135,7 @@
               </v-col>
               <v-col cols="12">
                 <v-select
-                  v-model="editedItem.sites"
+                  v-model="userSites"
                   :items="sites"
                   item-title="name"
                   item-value="id"
@@ -171,9 +171,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { accessManagementApi, sitesApi } from '@/services/api'
+import type { User } from '@/types/api'
+import { RoleEnum } from '@/types/api'
 import type { Site } from '@/services/api'
+
+interface AccessRight {
+  user_id: number
+  user_name: string
+  role: RoleEnum
+  sites: Site[]
+}
 
 // État
 const loading = ref(false)
@@ -181,19 +190,41 @@ const dialog = ref(false)
 const page = ref(1)
 const itemsPerPage = ref(10)
 const totalItems = ref(0)
-const accessRights = ref([])
+const accessRights = ref<AccessRight[]>([])
 const sites = ref<Site[]>([])
-const editedItem = ref<any>({})
+const editedItem = ref<AccessRight | null>(null)
+
+// Computed properties for form fields
+const userName = computed({
+  get: () => editedItem.value?.user_name ?? '',
+  set: (value: string) => {
+    if (editedItem.value) editedItem.value.user_name = value
+  }
+})
+
+const userRole = computed({
+  get: () => editedItem.value?.role ?? null,
+  set: (value: RoleEnum | null) => {
+    if (editedItem.value) editedItem.value.role = value as RoleEnum
+  }
+})
+
+const userSites = computed({
+  get: () => editedItem.value?.sites ?? [],
+  set: (value: Site[]) => {
+    if (editedItem.value) editedItem.value.sites = value
+  }
+})
 
 const filters = ref({
   site: null as number | null,
-  role: null as string | null,
+  role: null as RoleEnum | null,
 })
 
 const roles = [
-  { title: 'Super Admin', value: 'SUPER_ADMIN' },
-  { title: 'Manager', value: 'MANAGER' },
-  { title: 'Employé', value: 'EMPLOYEE' },
+  { title: 'Super Admin', value: RoleEnum.SUPER_ADMIN },
+  { title: 'Manager', value: RoleEnum.MANAGER },
+  { title: 'Employé', value: RoleEnum.EMPLOYEE },
 ]
 
 const headers = [
@@ -208,7 +239,12 @@ const loadAccessRights = async () => {
   loading.value = true
   try {
     const response = await accessManagementApi.getAllAccessRights(page.value, itemsPerPage.value)
-    accessRights.value = response.data.results
+    accessRights.value = response.data.results.map(result => ({
+      user_id: result.user_id,
+      user_name: result.user_name,
+      role: result.role as RoleEnum,
+      sites: result.sites,
+    }))
     totalItems.value = response.data.count
   } catch (error) {
     console.error('Erreur lors du chargement des droits d\'accès:', error)
@@ -226,16 +262,17 @@ const loadSites = async () => {
   }
 }
 
-const openDialog = (item: any) => {
+const openDialog = (item: AccessRight) => {
   editedItem.value = { ...item }
   dialog.value = true
 }
 
 const saveAccessRights = async () => {
   try {
+    if (!editedItem.value) return
     await accessManagementApi.updateUserAccessRights(editedItem.value.user_id, {
       role: editedItem.value.role,
-      sites: editedItem.value.sites,
+      sites: editedItem.value.sites.map(site => site.id),
     })
     dialog.value = false
     loadAccessRights()
@@ -244,13 +281,13 @@ const saveAccessRights = async () => {
   }
 }
 
-const getRoleColor = (role: string) => {
+const getRoleColor = (role: RoleEnum): string => {
   switch (role) {
-    case 'SUPER_ADMIN':
+    case RoleEnum.SUPER_ADMIN:
       return 'error'
-    case 'MANAGER':
+    case RoleEnum.MANAGER:
       return 'warning'
-    case 'EMPLOYEE':
+    case RoleEnum.EMPLOYEE:
       return 'success'
     default:
       return 'grey'
