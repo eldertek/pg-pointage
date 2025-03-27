@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-interface DialogState {
+export interface DialogState {
   show: boolean
   title: string
   message: string

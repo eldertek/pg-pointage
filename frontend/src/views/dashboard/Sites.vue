@@ -10,21 +10,16 @@
     <!-- Vue principale des sites -->
     <template v-if="!selectedSite">
       <v-card>
-        <v-data-table
+        <DataTable
           :headers="headers"
           :items="sites || []"
           :loading="loading"
           :items-per-page="itemsPerPage"
-          :total-items="totalSites"
-          :page.sync="currentPage"
           :no-data-text="'Aucun site trouvé'"
           :loading-text="'Chargement des sites...'"
-          :items-per-page-text="'Lignes par page'"
-          :page-text="'{0}-{1} sur {2}'"
-          :items-per-page-options="itemsPerPageOptions"
-          class="elevation-1"
           @update:options="handleTableUpdate"
-          @click:row="(_: any, { item }: any) => viewSiteDetails(item)"
+          click-action="view"
+          @view-details="(_: any, { item }: any) => viewSiteDetails(item)"
         >
           <template v-slot:item.address="{ item }">
             {{ item.address }}, {{ item.postal_code }} {{ item.city }}
@@ -35,6 +30,7 @@
               :href="formatAddressForMaps(item.address, item.postal_code, item.city, item.country)"
               target="_blank"
               color="primary"
+              data-no-row-click
             >
               <v-icon>mdi-map-marker</v-icon>
             </v-btn>
@@ -55,6 +51,7 @@
               variant="text"
               size="small"
               :to="`/dashboard/sites/${item.id}`"
+              data-no-row-click
             >
               <v-icon>mdi-eye</v-icon>
               <v-tooltip activator="parent">Voir les détails</v-tooltip>
@@ -65,6 +62,7 @@
               size="small"
               color="#00346E"
               @click="editSite(toSite(item))"
+              data-no-row-click
             >
               <v-icon>mdi-pencil</v-icon>
             </v-btn>
@@ -75,6 +73,7 @@
               :color="item.is_active ? 'error' : 'success'"
               @click="toggleSiteStatus(item)"
               :loading="item.isUpdating"
+              data-no-row-click
             >
               <v-icon>{{ item.is_active ? 'mdi-close-circle' : 'mdi-check-circle' }}</v-icon>
             </v-btn>
@@ -84,11 +83,12 @@
               size="small"
               color="#F78C48"
               @click="deleteSite(toSite(item))"
+              data-no-row-click
             >
               <v-icon>mdi-delete</v-icon>
             </v-btn>
           </template>
-        </v-data-table>
+        </DataTable>
       </v-card>
     </template>
 
@@ -1101,55 +1101,15 @@
     </v-dialog>
 
     <!-- Dialog de confirmation de suppression -->
-    <v-dialog v-model="showDeleteDialog" max-width="500px">
-      <v-card>
-        <v-card-title class="text-h5">Confirmation de suppression</v-card-title>
-        <v-card-text>
-          Êtes-vous sûr de vouloir supprimer ce site ? Cette action est irréversible.
-          <div class="mt-4 text-subtitle-1">
-            {{ siteToDelete?.name }}
-          </div>
-          <div class="text-caption">
-            {{ siteToDelete?.address }}<br>
-            {{ siteToDelete?.postal_code }} {{ siteToDelete?.city }}<br>
-            {{ siteToDelete?.country }}
-          </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="grey" variant="text" @click="showDeleteDialog = false">Annuler</v-btn>
-          <v-btn 
-            color="error" 
-            @click="confirmDeleteSite"
-            :loading="deleting"
-          >
-            Supprimer
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- Dialog pour le calendrier -->
-    <v-dialog v-model="showCalendarDialog" max-width="1200px">
-      <v-card>
-        <v-card-title class="d-flex justify-space-between align-center">
-          <span>Calendrier du planning: {{ selectedScheduleForCalendar?.name }}</span>
-          <v-btn icon="mdi-close" variant="text" @click="showCalendarDialog = false"></v-btn>
-        </v-card-title>
-        <v-card-text>
-          <schedule-calendar
-            v-if="selectedScheduleForCalendar"
-            :schedule="selectedScheduleForCalendar"
-          ></schedule-calendar>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+    <ConfirmDialog />
   </div>
 </template>
 
 <script lang="ts">
 import { defineComponent, ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import DataTable from '@/components/common/DataTable.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import ScheduleCalendar from '@/components/ScheduleCalendar.vue'
 import TimesheetsView from '@/views/dashboard/Timesheets.vue'
 import AnomaliesView from '@/views/dashboard/Anomalies.vue'
@@ -1158,7 +1118,7 @@ import { type Site, type Organization, type Employee, ScheduleTypeEnum } from '@
 import type { ExtendedSchedule } from '@/types/sites'
 import { sitesApi, organizationsApi, usersApi, schedulesApi } from '@/services/api'
 import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
-
+import { useConfirmDialog } from '@/utils/dialogs'
 
 interface SiteForm {
   name: string;
@@ -1235,9 +1195,11 @@ interface ExtendedSite extends Omit<Site, 'schedules'> {
   download_qr_code?: string;
 }
 
-export const SitesView = defineComponent({
+const SitesView = defineComponent({
   name: 'SitesView',
   components: {
+    DataTable,
+    ConfirmDialog,
     ScheduleCalendar,
     TimesheetsView,
     AnomaliesView,
@@ -1245,6 +1207,7 @@ export const SitesView = defineComponent({
   },
   setup() {
     const router = useRouter()
+    const { showConfirmDialog } = useConfirmDialog()
 
     // Jours de la semaine
     const weekDays = [
@@ -1667,24 +1630,21 @@ export const SitesView = defineComponent({
     }
 
     const deleteSite = (site: Site): void => {
-      siteToDelete.value = site
-      showDeleteDialog.value = true
-    }
-
-    const confirmDeleteSite = async (): Promise<void> => {
-      if (!siteToDelete.value) return
-      
-      try {
-        deleting.value = true
-        await sitesApi.deleteSite(siteToDelete.value.id)
-        await fetchSites(currentPage.value, itemsPerPage.value)
-        showDeleteDialog.value = false
-        siteToDelete.value = null
-      } catch (error) {
-        console.error('Erreur lors de la suppression du site:', error)
-      } finally {
-        deleting.value = false
-      }
+      showConfirmDialog({
+        title: 'Confirmation de suppression',
+        message: `Êtes-vous sûr de vouloir supprimer le site "${site.name}" ? Cette action est irréversible.`,
+        confirmText: 'Supprimer',
+        cancelText: 'Annuler',
+        confirmColor: 'error',
+        onConfirm: async () => {
+          try {
+            await sitesApi.deleteSite(site.id)
+            await fetchSites(currentPage.value, itemsPerPage.value)
+          } catch (error) {
+            console.error('Erreur lors de la suppression du site:', error)
+          }
+        }
+      })
     }
 
     // Actions sur les plannings
@@ -2464,7 +2424,7 @@ export const SitesView = defineComponent({
       availableEmployees,
       formatEmployeeName,
       toSite,
-      siteToDelete,  // Add this line
+      siteToDelete,
 
       // Données
       headers,
@@ -2494,7 +2454,7 @@ export const SitesView = defineComponent({
       unassignEmployeeFromSchedule,
       showCreateScheduleDialog,
       openCreateDialog,
-      loadManagers,  // Ajout de loadManagers ici
+      loadManagers,
 
       // Nouvelles données
       showCalendarDialog,
@@ -2508,7 +2468,6 @@ export const SitesView = defineComponent({
       generateQRCode,
       downloadQRCode,
       toggleSiteStatus,
-      confirmDeleteSite,
       nfcIdPreview,
       formatPhoneNumber,
       formatAddressForMaps

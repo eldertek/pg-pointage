@@ -21,17 +21,18 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue'
 
-interface TableHeader {
+export interface TableHeader {
   key: string
   title: string
   value?: string
   align?: 'start' | 'center' | 'end'
   sortable?: boolean
   width?: string | number
+  format?: (value: any) => string
   [key: string]: any
 }
 
-interface TableItem {
+export interface TableItem {
   [key: string]: any
 }
 

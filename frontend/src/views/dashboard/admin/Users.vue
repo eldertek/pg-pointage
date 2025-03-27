@@ -134,6 +134,7 @@
                 size="small"
                 color="primary"
                 @click="editItem(item)"
+                :disabled="isCurrentUser(item) || false"
                 v-bind="props"
               >
                 <v-icon>mdi-pencil</v-icon>
@@ -408,7 +409,7 @@
                     required
                     :rules="[v => !!v || 'Le téléphone est requis']"
                     :value="organizationForm.phone ? formatPhoneNumber(organizationForm.phone) : ''"
-                    @input="e => organizationForm.phone = e.target.value.replace(/\D/g, '')"
+                    @input="(e: Event) => organizationForm.phone = (e.target as HTMLInputElement).value.replace(/\D/g, '')"
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12" sm="6">
@@ -475,7 +476,7 @@
   </div>
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
@@ -484,6 +485,67 @@ import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
 import DataTable from '@/components/common/DataTable.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useConfirmDialog } from '@/utils/dialogs'
+import type { TableHeader, TableItem } from '@/components/common/DataTable.vue'
+
+interface User {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  username: string;
+  role: string;
+  organization: number | null;
+  is_active: boolean;
+  managed_sites?: Array<{ id: number; name: string }>;
+  assigned_sites?: Array<{ id: number; name: string }>;
+  scan_preference: string;
+  simplified_mobile_view: boolean;
+}
+
+interface Organization {
+  id: number;
+  name: string;
+  contact_email: string;
+  phone: string;
+  siret: string;
+  address: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  notes: string;
+  is_active: boolean;
+  org_id: string;
+}
+
+interface UserForm {
+  first_name: string;
+  last_name: string;
+  email: string;
+  username: string;
+  role: string;
+  organization: number | null;
+  password: string;
+  confirm_password: string;
+  scan_preference: string;
+  simplified_mobile_view: boolean;
+}
+
+interface OrganizationForm {
+  name: string;
+  contact_email: string;
+  phone: string;
+  siret: string;
+  address: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  notes: string;
+}
+
+interface FormRef {
+  validate: () => Promise<{ valid: boolean }>;
+  reset: () => void;
+}
 
 export default {
   name: 'AdminUsersView',
@@ -496,13 +558,13 @@ export default {
     const saving = ref(false)
     const search = ref('')
     const showCreateDialog = ref(false)
-    const form = ref(null)
-    const editedItem = ref(null)
+    const form = ref<FormRef | null>(null)
+    const editedItem = ref<User | Organization | null>(null)
     const currentView = ref(authStore.isSuperAdmin ? 'organizations' : 'users')
-    const currentUser = ref(null)
+    const currentUser = ref<User | null>(null)
     const showPasswordFields = ref(false)
     const showDeactivateDialog = ref(false)
-    const deactivateItem = ref(null)
+    const deactivateItem = ref<User | Organization | null>(null)
     const deactivating = ref(false)
     const page = ref(1)
     const itemsPerPage = ref(10)
@@ -511,13 +573,13 @@ export default {
     const isSuperAdmin = computed(() => authStore.isSuperAdmin)
     
     const userHeaders = computed(() => {
-      const headers = [
-        { title: 'Nom', align: 'start', key: 'fullName' },
+      const headers: TableHeader[] = [
+        { title: 'Nom', align: 'start' as const, key: 'fullName' },
         { title: 'Courriel', key: 'email' },
-        { title: 'Rôle', key: 'role', align: 'center' },
-        { title: 'Sites', key: 'sites', align: 'center' },
-        { title: 'Statut', key: 'is_active', align: 'center' },
-        { title: 'Actions', key: 'actions', align: 'end', sortable: false }
+        { title: 'Rôle', key: 'role', align: 'center' as const },
+        { title: 'Sites', key: 'sites', align: 'center' as const },
+        { title: 'Statut', key: 'is_active', align: 'center' as const },
+        { title: 'Actions', key: 'actions', align: 'end' as const, sortable: false }
       ]
       
       if (isSuperAdmin.value) {
@@ -527,21 +589,22 @@ export default {
       return headers
     })
 
-    const organizationHeaders = ref([
-      { title: 'ID', align: 'start', key: 'org_id' },
-      { title: 'Nom', align: 'start', key: 'name' },
+    const organizationHeaders = ref<TableHeader[]>([
+      { title: 'ID', align: 'start' as const, key: 'org_id' },
+      { title: 'Nom', align: 'start' as const, key: 'name' },
       { title: 'Email', key: 'contact_email' },
       { title: 'Adresse', key: 'address' },
       { title: 'Téléphone', key: 'phone', format: value => formatPhoneNumber(value) },
-      { title: 'Statut', align: 'center', key: 'status' },
-      { title: 'Actions', align: 'end', key: 'actions', sortable: false }
+      { title: 'Statut', align: 'center' as const, key: 'status' },
+      { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
     ])
 
-    const users = ref([])
-    const organizations = ref([])
-    const roles = ['SUPER_ADMIN', 'MANAGER', 'EMPLOYEE']
+    const users = ref<User[]>([])
+    const organizations = ref<Organization[]>([])
+    const roles = ['SUPER_ADMIN', 'MANAGER', 'EMPLOYEE'] as const
+    type Role = typeof roles[number]
     
-    const roleLabels = {
+    const roleLabels: Record<Role, string> = {
       'SUPER_ADMIN': 'Super Administrateur',
       'MANAGER': 'Gestionnaire',
       'EMPLOYEE': 'Employé'
@@ -553,7 +616,7 @@ export default {
       { text: 'QR Code uniquement', value: 'QR_ONLY' }
     ]
 
-    const userForm = ref({
+    const userForm = ref<UserForm>({
       first_name: '',
       last_name: '',
       email: '',
@@ -566,7 +629,7 @@ export default {
       simplified_mobile_view: false
     })
 
-    const organizationForm = ref({
+    const organizationForm = ref<OrganizationForm>({
       name: '',
       contact_email: '',
       phone: '',
@@ -579,13 +642,13 @@ export default {
     })
 
     const passwordRules = [
-      v => !showPasswordFields.value || !editedItem.value || !!v || 'Le mot de passe est requis',
-      v => !v || v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
+      (v: string) => !showPasswordFields.value || !editedItem.value || !!v || 'Le mot de passe est requis',
+      (v: string) => !v || v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
     ]
 
     const confirmPasswordRules = [
-      v => !showPasswordFields.value || !editedItem.value || !!v || 'La confirmation du mot de passe est requise',
-      v => !v || v === userForm.value.password || 'Les mots de passe ne correspondent pas'
+      (v: string) => !showPasswordFields.value || !editedItem.value || !!v || 'La confirmation du mot de passe est requise',
+      (v: string) => !v || v === userForm.value.password || 'Les mots de passe ne correspondent pas'
     ]
 
     const availableRoles = computed(() => {
@@ -595,7 +658,7 @@ export default {
       return ['EMPLOYEE'] // Les managers ne peuvent créer que des employés
     })
 
-    const getRoleColor = (role) => {
+    const getRoleColor = (role: Role) => {
       switch (role) {
         case 'SUPER_ADMIN':
           return 'purple'
@@ -654,21 +717,33 @@ export default {
       }
     }
 
-    const isCurrentUser = (user) => {
-      return currentUser.value && user.id === currentUser.value.id
+    const isCurrentUser = (user: User) => {
+      return Boolean(currentUser.value && user.id === currentUser.value.id)
     }
 
-    const editItem = (item) => {
+    const editItem = (item: User | Organization) => {
       editedItem.value = item
       if (currentView.value === 'users') {
-        userForm.value = { ...item }
+        const user = item as User
+        userForm.value = {
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+          username: user.username,
+          role: user.role,
+          organization: user.organization,
+          password: '',
+          confirm_password: '',
+          scan_preference: user.scan_preference || 'BOTH',
+          simplified_mobile_view: user.simplified_mobile_view || false
+        }
       } else {
-        organizationForm.value = { ...item }
+        organizationForm.value = { ...(item as Organization) }
       }
       showCreateDialog.value = true
     }
 
-    const toggleUserStatus = async (user) => {
+    const toggleUserStatus = async (user: User) => {
       if (isCurrentUser(user)) return
 
       showConfirmDialog({
@@ -689,7 +764,7 @@ export default {
       })
     }
 
-    const toggleOrganizationStatus = async (organization) => {
+    const toggleOrganizationStatus = async (organization: Organization) => {
       showConfirmDialog({
         title: organization.is_active ? 'Désactiver l\'organisation' : 'Activer l\'organisation',
         message: `Êtes-vous sûr de vouloir ${organization.is_active ? 'désactiver' : 'activer'} l'organisation "${organization.name}" ?`,
@@ -721,7 +796,7 @@ export default {
       resetForm()
     }
 
-    const onDialogClose = (val) => {
+    const onDialogClose = (val: boolean) => {
       if (!val) {
         editedItem.value = null
         resetForm()
@@ -738,7 +813,7 @@ export default {
         if (currentView.value === 'users' || !isSuperAdmin.value) {
           const userData = { ...userForm.value }
           // Si c'est un manager, on force l'organisation
-          if (!isSuperAdmin.value) {
+          if (!isSuperAdmin.value && authStore.user) {
             userData.organization = authStore.user.organization
             userData.role = 'EMPLOYEE'
           }
@@ -748,24 +823,26 @@ export default {
           
           if (editedItem.value) {
             // En mode édition
+            const dataToSend = { ...userData }
             if (!showPasswordFields.value || !userData.password) {
-              delete userData.password
-              delete userData.confirm_password
+              delete (dataToSend as Partial<UserForm>).password
+              delete (dataToSend as Partial<UserForm>).confirm_password
             } else {
-              delete userData.confirm_password
+              delete (dataToSend as Partial<UserForm>).confirm_password
             }
-            await api.patch(`/users/${editedItem.value.id}/`, userData)
+            await api.patch(`/users/${(editedItem.value as User).id}/`, dataToSend)
           } else {
             // En mode création
-            delete userData.confirm_password
-            await api.post('/users/register/', userData)
+            const dataToSend = { ...userData }
+            delete (dataToSend as Partial<UserForm>).confirm_password
+            await api.post('/users/register/', dataToSend)
           }
           await fetchUsers()
         } else if (isSuperAdmin.value) {
           if (editedItem.value) {
-            await api.patch(`/organizations/${editedItem.value.id}/`, organizationForm.value)
+            await api.patch(`/organizations/${(editedItem.value as Organization).id}/`, organizationForm.value)
             if (route.meta.editMode) {
-              router.push(`/dashboard/organizations/${editedItem.value.id}`)
+              router.push(`/dashboard/organizations/${(editedItem.value as Organization).id}`)
               return
             }
           } else {
@@ -792,6 +869,7 @@ export default {
           first_name: '',
           last_name: '',
           email: '',
+          username: '',
           role: '',
           organization: null,
           password: '',
@@ -814,7 +892,7 @@ export default {
       }
     }
 
-    const viewDetails = (item) => {
+    const viewDetails = (item: User | Organization) => {
       if (currentView.value === 'organizations') {
         router.push(`/dashboard/organizations/${item.id}`)
       } else {
