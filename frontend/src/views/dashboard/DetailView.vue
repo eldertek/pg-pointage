@@ -534,7 +534,8 @@ import {
   type Site,
   type Organization,
   type Employee,
-  type Schedule
+  type Schedule,
+  type SiteStatistics
 } from '@/services/api'
 
 // Types
@@ -855,6 +856,12 @@ const loadData = async () => {
       case 'site':
         const siteResponse = await sitesApi.getSite(itemId.value)
         item.value = siteResponse.data
+        const siteStats = await sitesApi.getSiteStatistics(itemId.value)
+        statistics.value = [
+          { label: 'Employés', value: siteStats.data.total_employees || 0 },
+          { label: 'Heures totales', value: siteStats.data.total_hours || 0 },
+          { label: 'Anomalies', value: siteStats.data.anomalies || 0 }
+        ]
         // Charger les employés et les plannings pour les tableaux associés
         const [employeesResponse, schedulesResponse] = await Promise.all([
           sitesApi.getSiteEmployees(itemId.value),
@@ -866,14 +873,28 @@ const loadData = async () => {
             title: 'Employés',
             items: employeesResponse.data.results,
             headers: [
-              { title: 'Nom', key: 'employee_name' },
+              { title: 'ID', key: 'id' },
+              { title: 'Nom', key: 'last_name' },
+              { title: 'Prénom', key: 'first_name' },
               { title: 'Email', key: 'email' },
               { title: 'Rôle', key: 'role' },
-              { title: 'Actions', key: 'actions' }
+              { title: 'Actions', key: 'actions', sortable: false }
             ],
-            addRoute: `/dashboard/sites/${itemId.value}/assign-employees`,
+            addRoute: undefined,
             addLabel: 'Assigner un employé',
-            noDataText: 'Aucun employé trouvé'
+            addAction: openAssignEmployeesDialog,
+            noDataText: 'Aucun employé trouvé',
+            slots: [
+              {
+                key: 'role',
+                component: 'v-chip',
+                props: (item: any) => ({
+                  color: getRoleColor(item.role),
+                  size: 'small',
+                  text: getRoleLabel(item.role)
+                })
+              }
+            ]
           },
           {
             key: 'schedules',
@@ -882,10 +903,37 @@ const loadData = async () => {
             headers: [
               { title: 'Nom', key: 'name' },
               { title: 'Type', key: 'schedule_type' },
+              { title: 'Début', key: 'start_time' },
+              { title: 'Fin', key: 'end_time' },
               { title: 'Actions', key: 'actions' }
             ],
             addRoute: `/dashboard/sites/${itemId.value}/schedules/new`,
-            addLabel: 'Ajouter un planning'
+            addLabel: 'Ajouter un planning',
+            slots: [
+              {
+                key: 'schedule_type',
+                component: 'v-chip',
+                props: (item: any) => ({
+                  color: item.schedule_type === 'FIXED' ? 'primary' : 'warning',
+                  size: 'small',
+                  text: item.schedule_type === 'FIXED' ? 'Fixe' : 'Variable'
+                })
+              },
+              {
+                key: 'start_time',
+                component: 'span',
+                props: (item: any) => ({
+                  text: format(new Date(item.start_time), 'HH:mm', { locale: fr })
+                })
+              },
+              {
+                key: 'end_time',
+                component: 'span',
+                props: (item: any) => ({
+                  text: format(new Date(item.end_time), 'HH:mm', { locale: fr })
+                })
+              }
+            ]
           }
         ]
         break

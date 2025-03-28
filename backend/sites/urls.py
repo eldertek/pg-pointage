@@ -2,12 +2,13 @@ from django.urls import path
 from .views import (
     SiteListView, SiteDetailView, ScheduleListView, ScheduleDetailView,
     ScheduleDetailListView, SiteEmployeeListView, SiteEmployeeDetailView,
-    GlobalScheduleListView, GlobalScheduleDetailView
+    GlobalScheduleListView, GlobalScheduleDetailView, SiteStatisticsView
 )
 
 urlpatterns = [
     path('', SiteListView.as_view(), name='site-list'),
     path('<int:pk>/', SiteDetailView.as_view(), name='site-detail'),
+    path('<int:pk>/statistics/', SiteStatisticsView.as_view(), name='site-statistics'),
     path('schedules/', GlobalScheduleListView.as_view(), name='global-schedule-list'),
     path('schedules/<int:pk>/', GlobalScheduleDetailView.as_view(), name='global-schedule-detail'),
     path('<int:site_pk>/schedules/', ScheduleListView.as_view(), name='schedule-list'),

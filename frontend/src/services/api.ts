@@ -168,6 +168,12 @@ interface Site {
   schedules?: Schedule[];
 }
 
+interface SiteStatistics {
+  total_employees: number;
+  total_hours: number;
+  anomalies: number;
+}
+
 interface Schedule {
   id: number;
   site: number;
@@ -246,6 +252,10 @@ const sitesApi = {
   
   // Get a single site by ID
   getSite: (id: number): Promise<AxiosResponse<Site>> => api.get(`/sites/${id}/`),
+  
+  // Get site statistics
+  getSiteStatistics: (id: number): Promise<AxiosResponse<SiteStatistics>> => 
+    api.get(`/sites/${id}/statistics/`),
   
   // Create a new site
   createSite: (data: Partial<Site>): Promise<AxiosResponse<Site>> => {
@@ -619,7 +629,8 @@ export type {
   Employee, 
   Organization, 
   ScheduleDetail,
-  ApiResponse 
+  ApiResponse,
+  SiteStatistics
 }
 
 export { 

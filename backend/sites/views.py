@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, viewsets
+from rest_framework import generics, permissions, viewsets, serializers
 from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from .models import Site, Schedule, ScheduleDetail, SiteEmployee
@@ -8,6 +8,67 @@ from .serializers import (
 )
 from .permissions import IsSiteOrganizationManager
 from django.db import models
+from django.db.models import Count, Q, F, ExpressionWrapper, fields
+from django.db.models.functions import ExtractHour, ExtractMinute
+from timesheets.models import Timesheet, Anomaly
+from users.models import User
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+from datetime import timedelta
+
+class SiteStatisticsSerializer(serializers.Serializer):
+    total_employees = serializers.IntegerField()
+    total_hours = serializers.IntegerField()
+    anomalies = serializers.IntegerField()
+
+class SiteStatisticsView(generics.RetrieveAPIView):
+    serializer_class = SiteStatisticsSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Site.objects.all()
+    
+    @extend_schema(
+        responses={200: SiteStatisticsSerializer},
+        description="Obtenir les statistiques d'un site"
+    )
+    def get(self, request, *args, **kwargs):
+        site = self.get_object()
+        
+        # Calculer les statistiques
+        total_employees = SiteEmployee.objects.filter(site=site, is_active=True).count()
+        
+        # Calculer le total des heures en utilisant les entrées/sorties
+        # On groupe les pointages par paire (entrée/sortie)
+        timesheets = Timesheet.objects.filter(
+            site=site,
+            entry_type__in=['IN', 'OUT']  # Seulement les entrées et sorties
+        ).order_by('employee', 'timestamp')
+        
+        total_hours = 0
+        current_employee = None
+        entry_time = None
+        
+        for timesheet in timesheets:
+            if timesheet.entry_type == 'IN':
+                entry_time = timesheet.timestamp
+                current_employee = timesheet.employee
+            elif timesheet.entry_type == 'OUT' and current_employee == timesheet.employee and entry_time:
+                # Calculer la durée entre l'entrée et la sortie
+                duration = timesheet.timestamp - entry_time
+                total_hours += duration.total_seconds() / 3600  # Convertir en heures
+                entry_time = None
+        
+        # Calculer le nombre d'anomalies
+        anomalies = Anomaly.objects.filter(
+            site=site
+        ).count()
+        
+        stats = {
+            'total_employees': total_employees,
+            'total_hours': int(total_hours),  # Convertir en entier pour simplifier
+            'anomalies': anomalies
+        }
+        
+        serializer = self.get_serializer(stats)
+        return Response(serializer.data)
 
 class IsAdminOrManager(BasePermission):
     """Permission composée pour autoriser les admin ou les managers d'organisation"""
@@ -207,4 +268,29 @@ class GlobalScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Schedule.objects.all()
     serializer_class = ScheduleSerializer
     permission_classes = [IsAuthenticated]
+
+class SiteUnassignedEmployeesView(generics.ListAPIView):
+    """Vue pour lister tous les employés non assignés à un site spécifique"""
+    serializer_class = 'users.serializers.UserSerializer'  # On utilise le même sérialiseur que pour les organisations
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return User.objects.none()
+            
+        site = Site.objects.get(pk=self.kwargs['pk'])
+        
+        # Récupérer les employés qui :
+        # 1. Sont dans la même organisation que le site
+        # 2. Ne sont pas déjà assignés à ce site
+        # 3. Sont actifs
+        return User.objects.filter(
+            organization=site.organization,
+            is_active=True
+        ).exclude(
+            id__in=SiteEmployee.objects.filter(
+                site=site,
+                is_active=True
+            ).values_list('employee_id', flat=True)
+        ).order_by('last_name', 'first_name')
 
