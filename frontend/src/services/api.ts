@@ -152,6 +152,7 @@ interface Site {
   organization: number;
   organization_name?: string;
   manager?: number | null;
+  manager_name?: string;
   late_margin: number;
   early_departure_margin: number;
   ambiguous_margin: number;

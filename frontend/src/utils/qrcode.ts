@@ -13,6 +13,8 @@ export const generateStyledQRCode = async (site: {
   name: string;
   nfc_id: string;
 }, options: QRCodeOptions = {}): Promise<string> => {
+  console.log('[QRCode][Generate] Début de la génération avec les données:', { site, options });
+
   const {
     width = 500,
     height = 700,
@@ -21,11 +23,16 @@ export const generateStyledQRCode = async (site: {
     radius = 20
   } = options;
 
+  console.log('[QRCode][Generate] Options configurées:', { width, height, qrSize, showFrame, radius });
+
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx) {
+    console.error('[QRCode][Generate] Impossible d\'obtenir le contexte du canvas');
     throw new Error('Could not get canvas context');
   }
+
+  console.log('[QRCode][Generate] Canvas créé avec succès');
 
   canvas.width = width;
   canvas.height = height;
@@ -42,12 +49,21 @@ export const generateStyledQRCode = async (site: {
     name: site.name
   });
 
+  console.log('[QRCode][Generate] Données QR code préparées:', qrData);
+
   try {
+    console.log('[QRCode][Generate] Chargement du logo...');
     // Charger le logo
     const logo = new Image();
     await new Promise<void>((resolve, reject) => {
-      logo.onload = () => resolve();
-      logo.onerror = (error) => reject(error);
+      logo.onload = () => {
+        console.log('[QRCode][Generate] Logo chargé avec succès');
+        resolve();
+      };
+      logo.onerror = (error) => {
+        console.error('[QRCode][Generate] Erreur lors du chargement du logo:', error);
+        reject(error);
+      };
       logo.src = '/icons/logo.png';
     });
 
@@ -57,7 +73,10 @@ export const generateStyledQRCode = async (site: {
     const logoWidth = logoSize;
     const logoHeight = logoSize / logoAspectRatio;
 
+    console.log('[QRCode][Generate] Dimensions du logo calculées:', { logoWidth, logoHeight });
+
     // Générer le QR code
+    console.log('[QRCode][Generate] Génération du QR code...');
     const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
       width: qrSize,
       margin: 1,
@@ -67,16 +86,26 @@ export const generateStyledQRCode = async (site: {
       }
     });
 
+    console.log('[QRCode][Generate] QR code généré avec succès');
+
     const qrImage = new Image();
     await new Promise<void>((resolve, reject) => {
-      qrImage.onload = () => resolve();
-      qrImage.onerror = (error) => reject(error);
+      qrImage.onload = () => {
+        console.log('[QRCode][Generate] Image QR code chargée');
+        resolve();
+      };
+      qrImage.onerror = (error) => {
+        console.error('[QRCode][Generate] Erreur lors du chargement de l\'image QR code:', error);
+        reject(error);
+      };
       qrImage.src = qrCodeDataUrl;
     });
 
     const qrX = (width - qrSize) / 2;
     const qrY = showFrame ? 50 : 0;
     ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+
+    console.log('[QRCode][Generate] QR code dessiné sur le canvas');
 
     // Dessiner le logo au centre du QR code
     const logoX = qrX + (qrSize - logoWidth) / 2;
@@ -90,6 +119,8 @@ export const generateStyledQRCode = async (site: {
 
     // Dessiner le logo
     ctx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
+
+    console.log('[QRCode][Generate] Logo dessiné sur le canvas');
 
     if (showFrame) {
       ctx.strokeStyle = '#F78C48';
@@ -146,11 +177,14 @@ export const generateStyledQRCode = async (site: {
       lines.forEach((line, index) => {
         ctx.fillText(line, width / 2, y + (index * lineHeight));
       });
+
+      console.log('[QRCode][Generate] Cadre et texte dessinés');
     }
 
+    console.log('[QRCode][Generate] Génération terminée avec succès');
     return canvas.toDataURL('image/png');
   } catch (error) {
-    console.error('Erreur lors de la génération du QR code:', error);
+    console.error('[QRCode][Generate] Erreur lors de la génération du QR code:', error);
     throw error;
   }
 }; 

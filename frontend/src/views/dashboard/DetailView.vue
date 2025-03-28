@@ -128,8 +128,8 @@
             </v-card-text>
           </v-card>
 
-          <!-- QR Code (pour les sites) -->
-          <v-card v-if="item.qr_code" class="mb-4">
+          <!-- QR Code (uniquement pour les sites) -->
+          <v-card v-if="props.type === 'site' && item.qr_code" class="qr-code-card mb-4" variant="outlined">
             <v-card-title class="d-flex align-center">
               <v-icon icon="mdi-qrcode" class="mr-2"></v-icon>
               QR Code du site
@@ -138,28 +138,40 @@
               <div class="qr-code-container">
                 <v-img
                   :src="item.qr_code"
-                  width="400"
-                  height="400"
+                  width="200"
+                  height="200"
                   class="mx-auto mb-4"
                 ></v-img>
                 <div class="d-flex gap-2">
                   <v-btn
-                    color="primary"
+                    color="#00346E"
                     prepend-icon="mdi-download"
                     @click="downloadQRCode"
+                    size="small"
                   >
                     Télécharger
                   </v-btn>
                   <v-btn
-                    v-if="type === 'site'"
-                    color="error"
+                    color="#F78C48"
                     prepend-icon="mdi-refresh"
                     @click="generateQRCode"
+                    size="small"
                   >
                     Régénérer
                   </v-btn>
                 </div>
               </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- Loader pour QR Code -->
+          <v-card v-else-if="props.type === 'site' && !item.qr_code" class="qr-code-card mb-4" variant="outlined">
+            <v-card-title class="d-flex align-center">
+              <v-icon icon="mdi-qrcode" class="mr-2"></v-icon>
+              QR Code du site
+            </v-card-title>
+            <v-card-text class="text-center">
+              <v-progress-circular indeterminate color="primary"></v-progress-circular>
             </v-card-text>
           </v-card>
         </v-col>
@@ -442,6 +454,15 @@
           </v-chip>
         </template>
       </AssignDialog>
+
+      <!-- Snackbar pour les notifications -->
+      <v-snackbar
+        v-model="snackbar.show"
+        :color="snackbar.color"
+        :timeout="3000"
+      >
+        {{ snackbar.text }}
+      </v-snackbar>
     </template>
   </v-container>
 </template>
@@ -468,6 +489,11 @@ import {
   type Schedule,
   type SiteStatistics
 } from '@/services/api'
+import TimesheetsView from '@/views/dashboard/Timesheets.vue'
+import AnomaliesView from '@/views/dashboard/Anomalies.vue'
+import ReportsView from '@/views/dashboard/Reports.vue'
+import { sitesApi as schedulesApi } from '@/services/api'
+import type { ExtendedSchedule } from '@/types/sites'
 
 // Types
 interface Field {
@@ -559,6 +585,20 @@ interface ListItem {
   [key: string]: any;
 }
 
+// Extended Site with additional properties needed for UI
+interface ExtendedSite extends Omit<Site, 'schedules' | 'organization_name' | 'manager_name'> {
+  schedules?: ExtendedSchedule[];
+  qr_code?: string;
+  download_qr_code?: string;
+  manager_name: string;
+  organization_name: string;
+}
+
+// Type guard to ensure schedule data is properly typed
+function isScheduleArray(data: unknown): data is any[] {
+  return Array.isArray(data);
+}
+
 const props = defineProps({
   type: {
     type: String,
@@ -577,7 +617,7 @@ const props = defineProps({
 
 const router = useRouter()
 const route = useRoute()
-const loading = ref(false)
+const loading = ref(true)
 const deleting = ref(false)
 const showDeleteDialog = ref(false)
 const item = ref<any>({})
@@ -599,6 +639,30 @@ const assigningSite = ref(false)
 const showAssignEmployeesDialog = ref(false)
 const showAssignSitesDialog = ref(false)
 const page = ref(1)
+
+// Ajout du snackbar
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success'
+})
+
+// Fonctions de notification
+const showSuccess = (text: string) => {
+  snackbar.value = {
+    show: true,
+    text,
+    color: 'success'
+  }
+}
+
+const showError = (text: string) => {
+  snackbar.value = {
+    show: true,
+    text,
+    color: 'error'
+  }
+}
 
 // Ajout des rôles
 const roles = [
@@ -1095,20 +1159,140 @@ const formatDetailRoute = (tableKey: string, rowItem: TableItem): string => {
   return routes[tableKey] || ''
 }
 
-const downloadQRCode = async () => {
-  if (!item.value?.qr_code) return
-  
-  const link = document.createElement('a')
-  link.href = item.value.download_qr_code || item.value.qr_code
-  link.download = `qr-code-${item.value.name.toLowerCase().replace(/\s+/g, '-')}.png`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
+const loadSiteDetails = async () => {
+  try {
+    loading.value = true
+    const siteId = route.params.id
+    console.log('[DetailView][LoadSite] Chargement des détails du site:', siteId)
+    
+    const siteResponse = await sitesApi.getSite(Number(siteId))
+    console.log('[DetailView][LoadSite] Réponse de l\'API:', siteResponse.data)
+    
+    item.value = {
+      ...siteResponse.data,
+      schedules: [],
+      download_qr_code: '',
+      manager_name: siteResponse.data.manager_name || '',
+      organization_name: siteResponse.data.organization_name || ''
+    } as ExtendedSite
+
+    // Générer le QR code immédiatement après le chargement du site
+    console.log('[DetailView][LoadSite] Tentative de génération du QR code...')
+    try {
+      await generateQRCode()
+      console.log('[DetailView][LoadSite] QR code généré avec succès')
+    } catch (qrError) {
+      console.error('[DetailView][LoadSite] Erreur lors de la génération du QR code:', qrError)
+      showError('Erreur lors de la génération du QR code')
+    }
+    
+    // Charger les statistiques et les tableaux associés
+    console.log('[DetailView][LoadSite] Chargement des statistiques et des tableaux associés')
+    try {
+      // Charger les statistiques
+      const siteStats = await sitesApi.getSiteStatistics(Number(siteId))
+      statistics.value = [
+        { label: 'Employés', value: siteStats.data.total_employees || 0 },
+        { label: 'Heures totales', value: siteStats.data.total_hours || 0 },
+        { label: 'Anomalies', value: siteStats.data.anomalies || 0 }
+      ]
+      
+      // Charger les employés et les plannings pour les tableaux associés
+      const [employeesResponse, schedulesResponse] = await Promise.all([
+        sitesApi.getSiteEmployees(Number(siteId)),
+        sitesApi.getSchedulesBySite(Number(siteId))
+      ])
+      
+      relatedTables.value = [
+        {
+          key: 'employees',
+          title: 'Employés',
+          items: employeesResponse.data.results,
+          headers: [
+            { title: 'ID', key: 'id' },
+            { title: 'Nom', key: 'last_name' },
+            { title: 'Prénom', key: 'first_name' },
+            { title: 'Email', key: 'email' },
+            { title: 'Rôle', key: 'role' },
+            { title: 'Actions', key: 'actions', sortable: false }
+          ],
+          addRoute: undefined,
+          addLabel: 'Assigner un employé',
+          addAction: openAssignEmployeesDialog,
+          noDataText: 'Aucun employé trouvé',
+          slots: [
+            {
+              key: 'role',
+              component: 'v-chip',
+              props: (item: any) => ({
+                color: getRoleColor(item.role),
+                size: 'small',
+                text: getRoleLabel(item.role)
+              })
+            }
+          ]
+        },
+        {
+          key: 'schedules',
+          title: 'Plannings',
+          items: schedulesResponse.data.results,
+          headers: [
+            { title: 'Nom', key: 'name' },
+            { title: 'Type', key: 'schedule_type' },
+            { title: 'Début', key: 'start_time' },
+            { title: 'Fin', key: 'end_time' },
+            { title: 'Actions', key: 'actions' }
+          ],
+          addRoute: `/dashboard/sites/${siteId}/schedules/new`,
+          addLabel: 'Ajouter un planning',
+          slots: [
+            {
+              key: 'schedule_type',
+              component: 'v-chip',
+              props: (item: any) => ({
+                color: item.schedule_type === 'FIXED' ? 'primary' : 'warning',
+                size: 'small',
+                text: item.schedule_type === 'FIXED' ? 'Fixe' : 'Variable'
+              })
+            },
+            {
+              key: 'start_time',
+              component: 'span',
+              props: (item: any) => ({
+                text: format(new Date(item.start_time), 'HH:mm', { locale: fr })
+              })
+            },
+            {
+              key: 'end_time',
+              component: 'span',
+              props: (item: any) => ({
+                text: format(new Date(item.end_time), 'HH:mm', { locale: fr })
+              })
+            }
+          ]
+        }
+      ]
+      console.log('[DetailView][LoadSite] Statistiques et tableaux chargés avec succès')
+    } catch (statsError) {
+      console.error('[DetailView][LoadSite] Erreur lors du chargement des statistiques et des tableaux:', statsError)
+      showError('Erreur lors du chargement des statistiques et des employés associés')
+    }
+    
+  } catch (error) {
+    console.error('[DetailView][LoadSite] Erreur:', error)
+    showError('Erreur lors du chargement des détails du site')
+  } finally {
+    loading.value = false
+  }
 }
 
 const generateQRCode = async () => {
-  if (!item.value || props.type !== 'site') return
-  
+  if (!item.value) {
+    console.error('[DetailView][QRCode] Site non défini')
+    showError('Impossible de générer le QR code : site non défini')
+    return
+  }
+
   try {
     const previewQRCode = await generateStyledQRCode(item.value, {
       width: 500,
@@ -1127,8 +1311,35 @@ const generateQRCode = async () => {
     
     item.value.qr_code = previewQRCode
     item.value.download_qr_code = downloadQRCode
+    console.log('[DetailView][QRCode] QR codes générés avec succès')
+    showSuccess('QR code généré avec succès')
   } catch (error) {
-    console.error('Erreur lors de la génération du QR code:', error)
+    console.error('[DetailView][QRCode] Erreur:', error)
+    showError('Erreur lors de la génération du QR code')
+  }
+}
+
+const downloadQRCode = async () => {
+  if (!item.value?.qr_code) {
+    console.error('[DetailView][QRCode] QR code non défini')
+    showError('QR code non disponible pour le téléchargement')
+    return
+  }
+
+  try {
+    const link = document.createElement('a')
+    link.href = item.value.download_qr_code || item.value.qr_code
+    const fileName = `qr-code-${item.value.name.toLowerCase().replace(/\s+/g, '-')}.png`
+    link.download = fileName
+    
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    console.log('[DetailView][QRCode] Téléchargement initié')
+    showSuccess('Téléchargement du QR code initié')
+  } catch (error) {
+    console.error('[DetailView][QRCode] Erreur:', error)
+    showError('Erreur lors du téléchargement du QR code')
   }
 }
 
@@ -1371,7 +1582,13 @@ watch(
       // Recharger les données
       loading.value = true
       try {
-        await loadData()
+        if (props.type === 'site') {
+          console.log('[DetailView][Watch] Appel de loadSiteDetails')
+          await loadSiteDetails()
+        } else {
+          console.log('[DetailView][Watch] Appel de loadData')
+          await loadData()
+        }
       } catch (error) {
         console.error('[DetailView][Watch] Erreur lors du rechargement des données:', error)
       } finally {
@@ -1382,7 +1599,16 @@ watch(
   { immediate: true }
 )
 
-onMounted(loadData)
+onMounted(async () => {
+  console.log('[DetailView][Mount] Composant monté')
+  if (props.type === 'site') {
+    console.log('[DetailView][Mount] Appel de loadSiteDetails')
+    await loadSiteDetails()
+  } else {
+    console.log('[DetailView][Mount] Appel de loadData')
+    await loadData()
+  }
+})
 </script>
 
 <style scoped>
