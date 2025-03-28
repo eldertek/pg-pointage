@@ -257,7 +257,22 @@
               :error-messages="formErrors.role"
             ></v-select>
           </v-col>
+          <!-- Sélection de l'organisation pour les managers et employés -->
           <v-col v-if="(editedItem as UserFormData).role !== RoleEnum.SUPER_ADMIN" cols="12" sm="6">
+            <v-select
+              v-model="(editedItem as UserFormData).organization"
+              :items="organizations"
+              item-title="name"
+              item-value="id"
+              label="Organisation"
+              required
+              :error-messages="formErrors.organization"
+              :rules="[v => !!v || 'L\'organisation est requise']"
+              no-data-text="Aucune organisation disponible"
+            ></v-select>
+          </v-col>
+          <!-- Sélection des sites uniquement pour les employés -->
+          <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
             <v-select
               v-model="(editedItem as UserFormData).sites"
               :items="sites"
@@ -807,7 +822,8 @@ onMounted(async () => {
   // Charger les données initiales
   await Promise.all([
     loadUsers(),
-    loadSites()
+    loadSites(),
+    loadOrganizations()
   ])
 
   // Si on a un ID d'édition, ouvrir le dialogue
@@ -864,6 +880,30 @@ watch(() => route.query.view, (newView) => {
     view.value = 'organizations'
   }
 }, { immediate: true })
+
+// Observateur pour le changement de rôle
+watch(() => (editedItem.value as UserFormData)?.role, (newRole: RoleEnum | undefined) => {
+  if (editedItem.value) {
+    const userData = editedItem.value as UserFormData
+    
+    // Réinitialiser les champs en fonction du rôle
+    if (newRole === RoleEnum.SUPER_ADMIN) {
+      userData.organization = null
+      userData.sites = []
+    } else if (newRole === RoleEnum.MANAGER) {
+      userData.sites = []
+      // Charger les organisations si nécessaire
+      if (organizations.value.length === 0) {
+        loadOrganizations()
+      }
+    } else if (newRole === RoleEnum.EMPLOYEE) {
+      // Charger les organisations si nécessaire
+      if (organizations.value.length === 0) {
+        loadOrganizations()
+      }
+    }
+  }
+})
 </script>
 
 <style scoped>

@@ -304,13 +304,11 @@ const headers = [
 const loadSites = async () => {
   loading.value = true
   try {
-    console.log('[Sites][Load] Chargement des sites...')
     const response = await sitesApi.getAllSites(page.value, itemsPerPage.value)
     sites.value = response.data.results || []
     totalItems.value = response.data.count || 0
-    console.log('[Sites][API] Sites chargés:', response.data)
   } catch (error) {
-    console.error('[Sites][Error] Erreur lors du chargement des sites:', error)
+    console.error('Erreur lors du chargement des sites:', error)
   } finally {
     loading.value = false
   }
@@ -325,12 +323,10 @@ const resetFilters = () => {
 
 const loadOrganizations = async () => {
   try {
-    console.log('[Sites][Load] Chargement des organisations...')
     const response = await organizationsApi.getAllOrganizations()
     organizations.value = response.data.results || []
-    console.log('[Sites][API] Organisations chargées:', response.data)
   } catch (error) {
-    console.error('[Sites][Error] Erreur lors du chargement des organisations:', error)
+    console.error('Erreur lors du chargement des organisations:', error)
   }
 }
 
@@ -343,11 +339,21 @@ const loadManagers = async () => {
   console.log('[Sites][LoadManagers] Chargement pour l\'organisation:', editedItem.value.organization)
   
   try {
-    const response = await usersApi.getAllUsers({
+    const params = {
       role: 'MANAGER',
-      organization: editedItem.value.organization
-    })
+      organization: editedItem.value.organization,
+      is_active: true
+    }
+    console.log('[Sites][LoadManagers] Paramètres de la requête:', params)
+    
+    const response = await usersApi.getAllUsers(params)
+    console.log('[Sites][API] URL de la requête:', response.config?.url)
+    console.log('[Sites][API] Paramètres de la requête:', response.config?.params)
     console.log('[Sites][API] Réponse des managers:', response.data)
+    
+    if (response.data.count === 0) {
+      console.warn('[Sites][Warning] Aucun manager trouvé pour cette organisation. Vérifiez que les managers ont bien une organisation assignée.')
+    }
     
     managers.value = response.data.results.map((manager: ApiUser) => ({
       id: manager.id,
@@ -398,6 +404,7 @@ const saveSite = async () => {
       await sitesApi.createSite(editedItem.value)
     }
     await loadSites()
+    dashboardView.value.showForm = false
   } catch (error) {
     console.error('Erreur lors de la sauvegarde:', error)
   } finally {

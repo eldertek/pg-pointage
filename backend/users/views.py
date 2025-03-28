@@ -81,30 +81,43 @@ class UserListView(generics.ListAPIView):
             return User.objects.none()
             
         user = self.request.user
-        print(f"[Users][Auth] Utilisateur connecté: {user.username} (role: {user.role})")
+        print(f"[Users][Auth] Utilisateur connecté: {user.username} (role: {user.role}, organization: {user.organization_id})")
+        print(f"[Users][Auth] Droits: is_super_admin={user.is_super_admin}, is_manager={user.is_manager}")
         
         queryset = User.objects.all()
         print(f"[Users][Count] Nombre total d'utilisateurs: {queryset.count()}")
+        print(f"[Users][Debug] Paramètres de la requête: {self.request.query_params}")
         
         # Filtrer par rôle si spécifié
         role = self.request.query_params.get('role')
         if role:
             print(f"[Users][Filter] Filtrage par rôle: {role}")
             queryset = queryset.filter(role=role)
-            print(f"[Users][Count] Après filtre rôle: {queryset.count()}")
+            print(f"[Users][Count] Après filtre rôle ({role}): {queryset.count()}")
+            print(f"[Users][Debug] Utilisateurs trouvés avec le rôle {role}:", [
+                f"{u.username} (role: {u.role}, org: {u.organization_id})" 
+                for u in queryset
+            ])
         
         # Filtrer par organisation si spécifié
         organization = self.request.query_params.get('organization')
         if organization:
             print(f"[Users][Filter] Filtrage par organisation: {organization}")
             queryset = queryset.filter(organization=organization)
-            print(f"[Users][Count] Après filtre organisation: {queryset.count()}")
+            print(f"[Users][Count] Après filtre organisation ({organization}): {queryset.count()}")
+            print(f"[Users][Debug] Utilisateurs trouvés dans l'organisation {organization}:", [
+                f"{u.username} (role: {u.role})" 
+                for u in queryset
+            ])
             
         if user.is_super_admin:
             print("[Users][Auth] Utilisateur super admin - pas de filtrage supplémentaire")
             return queryset
         elif user.is_manager and user.organization:
             print(f"[Users][Auth] Utilisateur manager - filtrage par organisation: {user.organization.id}")
+            if str(user.organization.id) != str(organization):
+                print(f"[Users][Auth] Accès refusé - L'utilisateur n'appartient pas à l'organisation demandée")
+                return User.objects.none()
             return queryset.filter(organization=user.organization)
         print("[Users][Auth] Aucun accès - retour liste vide")
         return User.objects.none()
