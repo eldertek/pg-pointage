@@ -7,7 +7,7 @@
     <v-card class="mb-4" v-if="!isDetailView">
       <v-card-title>Filtres</v-card-title>
       <v-card-text>
-        <v-row>
+        <DashboardFilters @reset="resetFilters">
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-text-field
               v-model="filters.employee"
@@ -54,9 +54,7 @@
               @update:modelValue="applyFilters"
             ></v-select>
           </v-col>
-        </v-row>
-        
-        <v-row>
+
           <v-col cols="12" md="4">
             <v-text-field
               v-model="filters.startDate"
@@ -80,19 +78,7 @@
               @update:modelValue="applyFilters"
             ></v-text-field>
           </v-col>
-          
-          <v-col cols="12" md="4" class="d-flex align-center">
-            <v-btn 
-              color="error" 
-              variant="outlined" 
-              @click="resetFilters"
-              prepend-icon="mdi-refresh"
-              class="px-4"
-            >
-              Réinitialiser les filtres
-            </v-btn>
-          </v-col>
-        </v-row>
+        </DashboardFilters>
       </v-card-text>
     </v-card>
     
@@ -326,7 +312,7 @@
   </div>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { sitesApi, timesheetsApi } from '@/services/api'
 import { format } from 'date-fns'
@@ -339,375 +325,330 @@ import type { ExtendedTimesheet, Filters, SiteOption, EditingTimesheet } from '@
 import { EntryTypeEnum } from '@/types/api'
 import type { TableOptions } from '@/types/sites'
 import { Title } from '@/components/typography'
+import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 
-export default {
-  name: 'TimesheetsView',
-  components: {
-    Title
-  },
-  props: {
-    isDetailView: {
-      type: Boolean,
-      default: false
-    },
-    siteId: {
-      type: Number,
-      default: null
-    }
-  },
-  setup(props) {
-    const auth = useAuthStore()
-    const sitesStore = useSitesStore()
-    const loading = ref(true)
-    
-    // Computed pour le site courant - priorité au siteId passé en prop
-    const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
-    
-    const headers = ref([
-      { title: 'Date', align: 'start' as const, key: 'date' },
-      { title: 'Heure', align: 'start' as const, key: 'time' },
-      { title: 'Employé', align: 'start' as const, key: 'employee' },
-      { title: 'Site', align: 'start' as const, key: 'site' },
-      { title: 'Type', align: 'center' as const, key: 'entry_type' },
-      { title: 'Statut', align: 'center' as const, key: 'status' },
-      { title: 'Actions', align: 'center' as const, key: 'actions', sortable: false }
-    ])
-    
-    const filters = ref<Filters>({
-      employee: '',
-      site: null,
-      entryType: '',
-      status: '',
-      startDate: '',
-      endDate: ''
-    })
-    
-    const siteOptions = ref<SiteOption[]>([])
-    const entryTypeOptions = ref([
-      { title: 'Arrivée', value: EntryTypeEnum.ARRIVAL },
-      { title: 'Départ', value: EntryTypeEnum.DEPARTURE }
-    ])
-    const statusOptions = ref([
-      { title: 'Normal', value: 'NORMAL' },
-      { title: 'Retard', value: 'LATE' },
-      { title: 'Départ anticipé', value: 'EARLY_DEPARTURE' }
-    ])
-    
-    const timesheets = ref<ExtendedTimesheet[]>([])
-    const currentPage = ref(1)
-    const itemsPerPage = ref(10)
-    const totalItems = ref(0)
-    
-    const detailDialog = ref(false)
-    const editDialog = ref(false)
-    const deleteDialog = ref(false)
-    const selectedTimesheet = ref<ExtendedTimesheet | null>(null)
-    const editingTimesheet = ref<EditingTimesheet | null>(null)
-    const timesheetToDelete = ref<ExtendedTimesheet | null>(null)
-    let map: L.Map | null = null
+const props = defineProps<{
+  isDetailView?: boolean
+  siteId?: number | null
+}>()
 
-    const canEditTimesheet = computed(() => {
-      return auth.user?.role === 'SUPER_ADMIN' || auth.user?.role === 'MANAGER'
-    })
+const auth = useAuthStore()
+const sitesStore = useSitesStore()
+const loading = ref(true)
 
-    const getStatusColor = (timesheet: ExtendedTimesheet): string => {
-      if (timesheet.is_late) return 'warning'
-      if (timesheet.is_early_departure) return 'error'
-      return 'success'
-    }
+// Computed pour le site courant - priorité au siteId passé en prop
+const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
 
-    const getStatusLabel = (timesheet: ExtendedTimesheet): string => {
-      if (timesheet.is_late) return `Retard (${timesheet.late_minutes} min)`
-      if (timesheet.is_early_departure) return `Départ anticipé (${timesheet.early_departure_minutes} min)`
-      return 'Normal'
-    }
+const headers = ref([
+  { title: 'Date', align: 'start' as const, key: 'date' },
+  { title: 'Heure', align: 'start' as const, key: 'time' },
+  { title: 'Employé', align: 'start' as const, key: 'employee' },
+  { title: 'Site', align: 'start' as const, key: 'site' },
+  { title: 'Type', align: 'center' as const, key: 'entry_type' },
+  { title: 'Statut', align: 'center' as const, key: 'status' },
+  { title: 'Actions', align: 'center' as const, key: 'actions', sortable: false }
+])
 
-    const getEntryTypeLabel = (type: EntryTypeEnum): string => {
-      return type === EntryTypeEnum.ARRIVAL ? 'Arrivée' : 'Départ'
-    }
-    
-    const formatTimesheet = (timesheet: ExtendedTimesheet): ExtendedTimesheet => {
-      try {
-        if (!timesheet.timestamp) {
-          return {
-            ...timesheet,
-            date: 'Date invalide',
-            time: '--:--'
-          }
-        }
+const filters = ref<Filters>({
+  employee: '',
+  site: null,
+  entryType: '',
+  status: '',
+  startDate: '',
+  endDate: ''
+})
 
-        const timestamp = new Date(timesheet.timestamp)
-        if (isNaN(timestamp.getTime())) {
-          console.error('Date invalide dans formatTimesheet:', timesheet.timestamp)
-          return {
-            ...timesheet,
-            date: 'Date invalide',
-            time: '--:--'
-          }
-        }
+const siteOptions = ref<SiteOption[]>([])
+const entryTypeOptions = ref([
+  { title: 'Arrivée', value: EntryTypeEnum.ARRIVAL },
+  { title: 'Départ', value: EntryTypeEnum.DEPARTURE }
+])
+const statusOptions = ref([
+  { title: 'Normal', value: 'NORMAL' },
+  { title: 'Retard', value: 'LATE' },
+  { title: 'Départ anticipé', value: 'EARLY_DEPARTURE' }
+])
 
-        return {
-          ...timesheet,
-          date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
-          time: format(timestamp, 'HH:mm', { locale: fr })
-        }
-      } catch (error) {
-        console.error('Erreur lors du formatage du pointage:', error)
-        return {
-          ...timesheet,
-          date: 'Erreur',
-          time: '--:--'
-        }
-      }
-    }
-    
-    const fetchTimesheets = async (options: Partial<TableOptions> = {}) => {
-      try {
-        loading.value = true
-        const params = {
-          employee_name: filters.value.employee || undefined,
-          site: currentSiteId.value || filters.value.site || undefined,
-          entry_type: filters.value.entryType || undefined,
-          start_date: filters.value.startDate || undefined,
-          end_date: filters.value.endDate || undefined,
-          page: options.page || currentPage.value,
-          page_size: options.itemsPerPage || itemsPerPage.value
-        }
-        
-        const response = await timesheetsApi.getTimesheets(params)
-        const results = response.data.results || []
-        
-        // Format timesheets for display
-        timesheets.value = results.map((timesheet: ExtendedTimesheet) => formatTimesheet(timesheet))
-        
-        totalItems.value = response.data.count || 0
-        
-        // Update pagination state
-        currentPage.value = options.page || currentPage.value
-        itemsPerPage.value = options.itemsPerPage || itemsPerPage.value
-      } catch (error) {
-        console.error('Erreur lors du chargement des pointages:', error)
-        timesheets.value = []
-        totalItems.value = 0
-      } finally {
-        loading.value = false
-      }
-    }
-    
-    const handleTableUpdate = (options: TableOptions): void => {
-      const { page, itemsPerPage: newItemsPerPage } = options
-      fetchTimesheets({ 
-        page: page,
-        itemsPerPage: newItemsPerPage
-      })
-    }
-    
-    const applyFilters = () => {
-      currentPage.value = 1 // Reset to first page when applying filters
-      fetchTimesheets()
-    }
-    
-    const resetFilters = () => {
-      filters.value = {
-        employee: '',
-        site: null,
-        entryType: '',
-        status: '',
-        startDate: '',
-        endDate: ''
-      }
-      currentPage.value = 1 // Reset to first page when resetting filters
-      fetchTimesheets()
-    }
-    
-    const showDetails = (item: ExtendedTimesheet): void => {
-      try {
-        if (!item.timestamp) {
-          console.error('Timestamp manquant')
-          return
-        }
+const timesheets = ref<ExtendedTimesheet[]>([])
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+const totalItems = ref(0)
 
-        const timestamp = new Date(item.timestamp)
-        console.log('Timestamp original:', item.timestamp)
-        console.log('Timestamp parsé:', timestamp)
-        
-        if (isNaN(timestamp.getTime())) {
-          console.error('Date invalide:', item.timestamp)
-          return
-        }
+const detailDialog = ref(false)
+const editDialog = ref(false)
+const deleteDialog = ref(false)
+const selectedTimesheet = ref<ExtendedTimesheet | null>(null)
+const editingTimesheet = ref<EditingTimesheet | null>(null)
+const timesheetToDelete = ref<ExtendedTimesheet | null>(null)
+let map: L.Map | null = null
 
-        selectedTimesheet.value = {
-          ...item,
-          date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
-          time: format(timestamp, 'HH:mm', { locale: fr })
-        }
-        
-        detailDialog.value = true
-        
-        if (selectedTimesheet.value?.latitude && selectedTimesheet.value?.longitude) {
-          setTimeout(() => {
-            try {
-              if (map) {
-                map.remove()
-                map = null
-              }
-              
-              const mapDiv = document.getElementById('mapContainer')
-              
-              if (mapDiv) {
-                mapDiv.style.height = '300px'
-                mapDiv.style.width = '100%'
-                
-                map = L.map('mapContainer').setView(
-                  [selectedTimesheet.value!.latitude!, selectedTimesheet.value!.longitude!], 
-                  15
-                )
-                
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                  attribution: '© OpenStreetMap contributors'
-                }).addTo(map)
-                
-                L.marker([selectedTimesheet.value!.latitude!, selectedTimesheet.value!.longitude!]).addTo(map)
-                
-                setTimeout(() => {
-                  map?.invalidateSize()
-                }, 100)
-              }
-            } catch (error) {
-              console.error('Erreur lors de l\'initialisation de la carte:', error)
-            }
-          }, 250)
-        }
-      } catch (error) {
-        console.error('Erreur lors de l\'affichage des détails:', error)
+const canEditTimesheet = computed(() => {
+  return auth.user?.role === 'SUPER_ADMIN' || auth.user?.role === 'MANAGER'
+})
+
+const getStatusColor = (timesheet: ExtendedTimesheet): string => {
+  if (timesheet.is_late) return 'warning'
+  if (timesheet.is_early_departure) return 'error'
+  return 'success'
+}
+
+const getStatusLabel = (timesheet: ExtendedTimesheet): string => {
+  if (timesheet.is_late) return `Retard (${timesheet.late_minutes} min)`
+  if (timesheet.is_early_departure) return `Départ anticipé (${timesheet.early_departure_minutes} min)`
+  return 'Normal'
+}
+
+const getEntryTypeLabel = (type: EntryTypeEnum): string => {
+  return type === EntryTypeEnum.ARRIVAL ? 'Arrivée' : 'Départ'
+}
+
+const formatTimesheet = (timesheet: ExtendedTimesheet): ExtendedTimesheet => {
+  try {
+    if (!timesheet.timestamp) {
+      return {
+        ...timesheet,
+        date: 'Date invalide',
+        time: '--:--'
       }
     }
 
-    const editTimesheet = (item: ExtendedTimesheet): void => {
-      try {
-        if (!item.timestamp) {
-          console.error('Timestamp manquant pour l\'édition')
-          return
-        }
-
-        const timestamp = new Date(item.timestamp)
-        if (isNaN(timestamp.getTime())) {
-          console.error('Date invalide pour l\'édition:', item.timestamp)
-          return
-        }
-
-        editingTimesheet.value = {
-          id: item.id,
-          timestamp: format(timestamp, "yyyy-MM-dd'T'HH:mm", { locale: fr }),
-          entry_type: item.entry_type,
-          correction_note: item.correction_note || ''
-        }
-        editDialog.value = true
-      } catch (error) {
-        console.error('Erreur lors de l\'initialisation de l\'édition:', error)
+    const timestamp = new Date(timesheet.timestamp)
+    if (isNaN(timestamp.getTime())) {
+      console.error('Date invalide dans formatTimesheet:', timesheet.timestamp)
+      return {
+        ...timesheet,
+        date: 'Date invalide',
+        time: '--:--'
       }
     }
 
-    const saveTimesheet = async () => {
-      try {
-        if (!editingTimesheet.value) return;
-        loading.value = true
-        await timesheetsApi.updateTimesheet(editingTimesheet.value.id, {
-          timestamp: editingTimesheet.value.timestamp,
-          entry_type: editingTimesheet.value.entry_type,
-          correction_note: editingTimesheet.value.correction_note
-        })
-        editDialog.value = false
-        await fetchTimesheets()
-      } catch (error) {
-        console.error('Erreur lors de la mise à jour du pointage:', error)
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const confirmDelete = (item: ExtendedTimesheet): void => {
-      timesheetToDelete.value = item
-      deleteDialog.value = true
-    }
-
-    const deleteTimesheet = async () => {
-      try {
-        if (!timesheetToDelete.value) return;
-        loading.value = true
-        await timesheetsApi.deleteTimesheet(timesheetToDelete.value.id)
-        deleteDialog.value = false
-        await fetchTimesheets()
-      } catch (error) {
-        console.error('Erreur lors de la suppression du pointage:', error)
-      } finally {
-        loading.value = false
-      }
-    }
-
-    // Update the watch handler to handle the computed ref value correctly
-    watch(() => currentSiteId.value, (newSiteId: number | null) => {
-      filters.value.site = newSiteId
-      currentPage.value = 1
-      fetchTimesheets()
-    })
-
-    // Ajout de la fonction pour charger les sites
-    const loadSites = async () => {
-      try {
-        const response = await sitesApi.getAllSites()
-        siteOptions.value = response.data.results.map(site => ({
-          title: site.name,
-          value: site.id
-        }))
-      } catch (error) {
-        console.error('Erreur lors du chargement des sites:', error)
-        siteOptions.value = []
-      }
-    }
-
-    onMounted(() => {
-      if (currentSiteId.value) {
-        filters.value.site = currentSiteId.value
-      }
-      loadSites() // Chargement des sites
-      fetchTimesheets()
-    })
-    
     return {
-      loading,
-      headers,
-      filters,
-      siteOptions,
-      entryTypeOptions,
-      statusOptions,
-      timesheets,
-      currentPage,
-      itemsPerPage,
-      totalItems,
-      detailDialog,
-      editDialog,
-      deleteDialog,
-      selectedTimesheet,
-      editingTimesheet,
-      canEditTimesheet,
-      currentSiteId,
-      getStatusColor,
-      getStatusLabel,
-      getEntryTypeLabel,
-      handleTableUpdate,
-      applyFilters,
-      resetFilters,
-      showDetails,
-      editTimesheet,
-      saveTimesheet,
-      confirmDelete,
-      deleteTimesheet,
-      loadSites,
-      EntryTypeEnum
+      ...timesheet,
+      date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
+      time: format(timestamp, 'HH:mm', { locale: fr })
+    }
+  } catch (error) {
+    console.error('Erreur lors du formatage du pointage:', error)
+    return {
+      ...timesheet,
+      date: 'Erreur',
+      time: '--:--'
     }
   }
 }
+
+const fetchTimesheets = async (options: Partial<TableOptions> = {}) => {
+  try {
+    loading.value = true
+    const params = {
+      employee_name: filters.value.employee || undefined,
+      site: currentSiteId.value || filters.value.site || undefined,
+      entry_type: filters.value.entryType || undefined,
+      start_date: filters.value.startDate || undefined,
+      end_date: filters.value.endDate || undefined,
+      page: options.page || currentPage.value,
+      page_size: options.itemsPerPage || itemsPerPage.value
+    }
+    
+    const response = await timesheetsApi.getTimesheets(params)
+    const results = response.data.results || []
+    
+    // Format timesheets for display
+    timesheets.value = results.map((timesheet: ExtendedTimesheet) => formatTimesheet(timesheet))
+    
+    totalItems.value = response.data.count || 0
+    
+    // Update pagination state
+    currentPage.value = options.page || currentPage.value
+    itemsPerPage.value = options.itemsPerPage || itemsPerPage.value
+  } catch (error) {
+    console.error('Erreur lors du chargement des pointages:', error)
+    timesheets.value = []
+    totalItems.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleTableUpdate = (options: TableOptions): void => {
+  const { page, itemsPerPage: newItemsPerPage } = options
+  fetchTimesheets({ 
+    page: page,
+    itemsPerPage: newItemsPerPage
+  })
+}
+
+const applyFilters = () => {
+  currentPage.value = 1 // Reset to first page when applying filters
+  fetchTimesheets()
+}
+
+const resetFilters = () => {
+  filters.value = {
+    employee: '',
+    site: null,
+    entryType: '',
+    status: '',
+    startDate: '',
+    endDate: ''
+  }
+  currentPage.value = 1 // Reset to first page when resetting filters
+  fetchTimesheets()
+}
+
+const showDetails = (item: ExtendedTimesheet): void => {
+  try {
+    if (!item.timestamp) {
+      console.error('Timestamp manquant')
+      return
+    }
+
+    const timestamp = new Date(item.timestamp)
+    console.log('Timestamp original:', item.timestamp)
+    console.log('Timestamp parsé:', timestamp)
+    
+    if (isNaN(timestamp.getTime())) {
+      console.error('Date invalide:', item.timestamp)
+      return
+    }
+
+    selectedTimesheet.value = {
+      ...item,
+      date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
+      time: format(timestamp, 'HH:mm', { locale: fr })
+    }
+    
+    detailDialog.value = true
+    
+    if (selectedTimesheet.value?.latitude && selectedTimesheet.value?.longitude) {
+      setTimeout(() => {
+        try {
+          if (map) {
+            map.remove()
+            map = null
+          }
+          
+          const mapDiv = document.getElementById('mapContainer')
+          
+          if (mapDiv) {
+            mapDiv.style.height = '300px'
+            mapDiv.style.width = '100%'
+            
+            map = L.map('mapContainer').setView(
+              [selectedTimesheet.value!.latitude!, selectedTimesheet.value!.longitude!], 
+              15
+            )
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '© OpenStreetMap contributors'
+            }).addTo(map)
+            
+            L.marker([selectedTimesheet.value!.latitude!, selectedTimesheet.value!.longitude!]).addTo(map)
+            
+            setTimeout(() => {
+              map?.invalidateSize()
+            }, 100)
+          }
+        } catch (error) {
+          console.error('Erreur lors de l\'initialisation de la carte:', error)
+        }
+      }, 250)
+    }
+  } catch (error) {
+    console.error('Erreur lors de l\'affichage des détails:', error)
+  }
+}
+
+const editTimesheet = (item: ExtendedTimesheet): void => {
+  try {
+    if (!item.timestamp) {
+      console.error('Timestamp manquant pour l\'édition')
+      return
+    }
+
+    const timestamp = new Date(item.timestamp)
+    if (isNaN(timestamp.getTime())) {
+      console.error('Date invalide pour l\'édition:', item.timestamp)
+      return
+    }
+
+    editingTimesheet.value = {
+      id: item.id,
+      timestamp: format(timestamp, "yyyy-MM-dd'T'HH:mm", { locale: fr }),
+      entry_type: item.entry_type,
+      correction_note: item.correction_note || ''
+    }
+    editDialog.value = true
+  } catch (error) {
+    console.error('Erreur lors de l\'initialisation de l\'édition:', error)
+  }
+}
+
+const saveTimesheet = async () => {
+  try {
+    if (!editingTimesheet.value) return;
+    loading.value = true
+    await timesheetsApi.updateTimesheet(editingTimesheet.value.id, {
+      timestamp: editingTimesheet.value.timestamp,
+      entry_type: editingTimesheet.value.entry_type,
+      correction_note: editingTimesheet.value.correction_note
+    })
+    editDialog.value = false
+    await fetchTimesheets()
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du pointage:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const confirmDelete = (item: ExtendedTimesheet): void => {
+  timesheetToDelete.value = item
+  deleteDialog.value = true
+}
+
+const deleteTimesheet = async () => {
+  try {
+    if (!timesheetToDelete.value) return;
+    loading.value = true
+    await timesheetsApi.deleteTimesheet(timesheetToDelete.value.id)
+    deleteDialog.value = false
+    await fetchTimesheets()
+  } catch (error) {
+    console.error('Erreur lors de la suppression du pointage:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// Update the watch handler to handle the computed ref value correctly
+watch(() => currentSiteId.value, (newSiteId: number | null) => {
+  filters.value.site = newSiteId
+  currentPage.value = 1
+  fetchTimesheets()
+})
+
+// Ajout de la fonction pour charger les sites
+const loadSites = async () => {
+  try {
+    const response = await sitesApi.getAllSites()
+    siteOptions.value = response.data.results.map(site => ({
+      title: site.name,
+      value: site.id
+    }))
+  } catch (error) {
+    console.error('Erreur lors du chargement des sites:', error)
+    siteOptions.value = []
+  }
+}
+
+onMounted(() => {
+  if (currentSiteId.value) {
+    filters.value.site = currentSiteId.value
+  }
+  loadSites() // Chargement des sites
+  fetchTimesheets()
+})
 </script>
 
 <style scoped>

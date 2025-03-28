@@ -44,7 +44,7 @@
           <template v-slot:activator="{ props }">
             <v-list-item 
               to="/dashboard/admin/users" 
-              :active="$route.meta.section === 'users' || $route.path.includes('/dashboard/organizations/')" 
+              :active="$route.meta.section === 'users' || $route.path.includes('/dashboard/organizations/') || $route.path === '/dashboard/admin/users'" 
               active-class="primary--text" 
               v-bind="props"
             >

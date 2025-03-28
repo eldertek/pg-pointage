@@ -485,10 +485,10 @@
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model="siteForm.nfcId"
-                  label="ID NFC"
+                  label="ID"
                   :rules="[
-                    (v: string) => !!v || 'L\'ID NFC est requis',
-                    (v: string) => /^\d{4}$/.test(v) || 'L\'ID NFC doit contenir 4 chiffres'
+                    (v: string) => !!v || 'L\'ID est requis',
+                    (v: string) => /^\d{4}$/.test(v) || 'L\'ID doit contenir 4 chiffres'
                   ]"
                   :hint="nfcIdPreview"
                   persistent-hint
@@ -1302,7 +1302,7 @@ const SitesView = defineComponent({
     const headers = ref([
       { title: 'Nom', align: 'start' as const, key: 'name' },
       { title: 'Adresse', align: 'start' as const, key: 'address' },
-      { title: 'ID NFC', align: 'start' as const, key: 'nfc_id' },
+      { title: 'ID', align: 'start' as const, key: 'nfc_id' },
       { title: 'Organisation', align: 'start' as const, key: 'organization_name' },
       { title: 'Statut', align: 'center' as const, key: 'status' },
       { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }

@@ -16,13 +16,13 @@
 <script setup lang="ts">
 import { typography } from '@/styles/typography';
 
-interface Props {
+export interface TextProps {
   small?: boolean;
   button?: boolean;
   className?: string;
 }
 
-withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<TextProps>(), {
   small: false,
   button: false,
   className: '',

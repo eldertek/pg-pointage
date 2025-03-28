@@ -1,0 +1,105 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Suis [typography.ts](mdc:frontend/src/styles/typography.ts) et [global.css](mdc:frontend/src/styles/global.css) pour le style.
+
+Les interfaces doivent toujours être cohérente entre elle, on doit conserver une unité.
+
+Pour les adresses, toujours utiliser le composant `AddressWithMap` qui affiche l'adresse avec une icône "mdi-map-marker" qui au clic ouvre Google Maps avec l'adresse complète. L'icône doit être placée à droite de l'adresse avec un espacement de 4px. Le lien doit être stylisé avec la couleur primaire (#00346E) et un hover en souligné.
+
+Exemple d'utilisation :
+```vue
+<AddressWithMap
+  :address="organization.address"
+  :postal-code="organization.postal_code"
+  :city="organization.city"
+  :country="organization.country"
+/>
+```
+
+Pour les tableaux de données, suivre les conventions suivantes :
+
+1. Actions :
+   - Toujours inclure les actions dans l'ordre suivant (de gauche à droite) :
+     - Voir le détail (icône "mdi-eye")
+     - Éditer (icône "mdi-pencil")
+     - Désactiver/Activer (icône "mdi-toggle-switch" ou "mdi-toggle-switch-off")
+     - Supprimer (icône "mdi-delete")
+   - Les boutons d'action doivent être de type "icon" avec variant "text"
+   - La couleur primaire (#00346E) pour les actions positives, error (#F78C48) pour la suppression
+   - Taille "small" pour tous les boutons d'action
+
+2. Navigation :
+   - Un clic sur une ligne du tableau doit rediriger vers la page de détail de l'élément
+   - Utiliser l'événement `@click:row` sur le composant `v-data-table`
+   - La redirection doit pointer vers l'URL appropriée (ex: `/dashboard/admin/users/:id` pour les utilisateurs)
+
+3. Ordre des champs :
+   L'ordre des champs doit être uniforme dans tous les tableaux et formulaires :
+   
+   a. Informations d'identification :
+      - ID (si applicable)
+      - Code/Référence (si applicable)
+      - Nom
+      - Prénom (pour les personnes)
+   
+   b. Informations de contact :
+      - Téléphone
+      - Email
+   
+   c. Informations d'adresse :
+      - Adresse
+      - Code postal
+      - Ville
+      - Pays
+   
+   d. Informations métier :
+      - Rôle/Fonction
+      - Organisation/Entreprise
+      - Sites/Emplacements
+   
+   e. Informations système :
+      - Statut (actif/inactif)
+      - Préférences utilisateur
+      - Notes/Commentaires
+   
+   f. Actions (toujours en dernière colonne)
+
+Exemple d'implémentation :
+```vue
+<v-data-table
+  @click:row="(item) => router.push(`/dashboard/admin/users/${item.id}`)"
+>
+  <template v-slot:item.actions="{ item }">
+    <v-btn
+      icon
+      variant="text"
+      size="small"
+      color="primary"
+      :to="`/dashboard/admin/users/${item.id}`"
+    >
+      <v-icon>mdi-eye</v-icon>
+    </v-btn>
+    <v-btn
+      icon
+      variant="text"
+      size="small"
+      color="primary"
+      @click="openDialog(item)"
+    >
+      <v-icon>mdi-pencil</v-icon>
+    </v-btn>
+    <v-btn
+      icon
+      variant="text"
+      size="small"
+      color="error"
+      @click="confirmDelete(item)"
+    >
+      <v-icon>mdi-delete</v-icon>
+    </v-btn>
+  </template>
+</v-data-table>
+```

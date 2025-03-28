@@ -205,6 +205,18 @@ interface Organization {
   id: number;
   name: string;
   org_id: string;
+  address?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  contact_email?: string;
+  siret?: string;
+  logo?: string | null;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  is_active?: boolean;
 }
 
 // Utilitaires pour la validation des IDs de sites
@@ -367,6 +379,12 @@ const usersApi = {
   // Create a new user
   createUser: (data: any) => api.post('/users/register/', convertKeysToSnakeCase(data)),
   
+  // Update a user
+  updateUser: (id: number, data: any) => api.patch(`/users/${id}/`, convertKeysToSnakeCase(data)),
+  
+  // Delete a user
+  deleteUser: (id: number) => api.delete(`/users/${id}/`),
+  
   // Get user statistics
   getUserStatistics: (id: number) => api.get(`/users/${id}/statistics/`),
   
@@ -424,11 +442,35 @@ const usersApi = {
 
 // Organizations API methods
 const organizationsApi = {
-  // Get all organizations
-  getAllOrganizations: () => api.get('/organizations/'),
+  // Get all organizations with pagination
+  getAllOrganizations: (params: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+  } = {}) => api.get('/organizations/', { params }),
   
   // Get a single organization by ID
-  getOrganization: (id: number) => api.get(`/organizations/${id}/`)
+  getOrganization: (id: number) => api.get(`/organizations/${id}/`),
+  
+  // Create a new organization
+  createOrganization: (data: Partial<Organization>) => 
+    api.post('/organizations/', convertKeysToSnakeCase(data)),
+  
+  // Update an organization
+  updateOrganization: (id: number, data: Partial<Organization>) => 
+    api.patch(`/organizations/${id}/`, convertKeysToSnakeCase(data)),
+  
+  // Delete an organization
+  deleteOrganization: (id: number) => 
+    api.delete(`/organizations/${id}/`),
+  
+  // Get organization users
+  getOrganizationUsers: (id: number) => 
+    api.get(`/organizations/${id}/users/`),
+  
+  // Get organization statistics
+  getOrganizationStatistics: (id: number) => 
+    api.get(`/organizations/${id}/statistics/`)
 }
 
 // Timesheets API methods

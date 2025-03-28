@@ -1,112 +1,102 @@
 <template>
-  <v-container fluid>
-    <v-row>
-      <v-col cols="12">
-        <div class="d-flex align-center mb-4">
-          <Title level="1" class="font-weight-bold">Gestion des accès</Title>
-        </div>
+  <DashboardView
+    title="Gestion des accès"
+    :saving="saving"
+  >
+    <!-- Filtres -->
+    <template #filters>
+      <DashboardFilters @reset="resetFilters">
+        <v-col cols="12" sm="4">
+          <v-select
+            v-model="filters.site"
+            :items="sites"
+            item-title="name"
+            item-value="id"
+            label="Site"
+            variant="outlined"
+            prepend-inner-icon="mdi-map-marker"
+            clearable
+            @update:model-value="applyFilters"
+          ></v-select>
+        </v-col>
+        <v-col cols="12" md="4">
+          <v-select
+            v-model="filters.role"
+            :items="roles"
+            item-title="title"
+            item-value="value"
+            label="Rôle"
+            variant="outlined"
+            prepend-inner-icon="mdi-account-key"
+            clearable
+            @update:model-value="applyFilters"
+          ></v-select>
+        </v-col>
+      </DashboardFilters>
+    </template>
 
-        <!-- Filtres -->
-        <v-card class="mb-4">
-          <v-card-text>
-            <v-row>
-              <v-col cols="12" sm="4">
-                <v-select
-                  v-model="filters.site"
-                  :items="sites"
-                  item-title="name"
-                  item-value="id"
-                  label="Site"
-                  variant="outlined"
-                  prepend-inner-icon="mdi-map-marker"
-                  clearable
-                  @update:model-value="applyFilters"
-                ></v-select>
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-select
-                  v-model="filters.role"
-                  :items="roles"
-                  item-title="title"
-                  item-value="value"
-                  label="Rôle"
-                  variant="outlined"
-                  prepend-inner-icon="mdi-account-key"
-                  clearable
-                  @update:model-value="applyFilters"
-                ></v-select>
-              </v-col>
-              <v-col cols="12" md="4" class="d-flex align-center">
-                <v-btn 
-                  color="error" 
-                  variant="outlined" 
-                  @click="resetFilters"
-                  prepend-icon="mdi-refresh"
-                  class="px-4"
-                >
-                  Réinitialiser les filtres
-                </v-btn>
-              </v-col>
-            </v-row>
-          </v-card-text>
-        </v-card>
+    <!-- Tableau des droits d'accès -->
+    <v-data-table
+      v-model:page="page"
+      :headers="headers"
+      :items="accessRights"
+      :loading="loading"
+      :items-per-page="itemsPerPage"
+      :items-length="totalItems"
+      :no-data-text="'Aucun droit d\'accès trouvé'"
+      :loading-text="'Chargement des droits d\'accès...'"
+      :items-per-page-text="'Lignes par page'"
+      :page-text="'{0}-{1} sur {2}'"
+      :items-per-page-options="[
+        { title: '5', value: 5 },
+        { title: '10', value: 10 },
+        { title: '15', value: 15 },
+        { title: 'Tout', value: -1 }
+      ]"
+      class="elevation-1"
+    >
+      <!-- Utilisateur -->
+      <template v-slot:item.user="{ item }">
+        {{ item.user_name }}
+      </template>
 
-        <!-- Tableau des droits d'accès -->
-        <v-card>
-          <v-data-table
-            v-model:page="page"
-            :headers="headers"
-            :items="accessRights"
-            :loading="loading"
-            :items-per-page="itemsPerPage"
-            :items-length="totalItems"
-            class="elevation-1"
+      <!-- Rôle -->
+      <template v-slot:item.role="{ item }">
+        <v-chip
+          :color="getRoleColor(item.role)"
+          size="small"
+        >
+          {{ item.role }}
+        </v-chip>
+      </template>
+
+      <!-- Sites autorisés -->
+      <template v-slot:item.sites="{ item }">
+        <v-chip-group>
+          <v-chip
+            v-for="site in item.sites"
+            :key="site.id"
+            size="small"
+            color="primary"
           >
-            <!-- Utilisateur -->
-            <template v-slot:item.user="{ item }">
-              {{ item.user_name }}
-            </template>
+            {{ site.name }}
+          </v-chip>
+        </v-chip-group>
+      </template>
 
-            <!-- Rôle -->
-            <template v-slot:item.role="{ item }">
-              <v-chip
-                :color="getRoleColor(item.role)"
-                size="small"
-              >
-                {{ item.role }}
-              </v-chip>
-            </template>
-
-            <!-- Sites autorisés -->
-            <template v-slot:item.sites="{ item }">
-              <v-chip-group>
-                <v-chip
-                  v-for="site in item.sites"
-                  :key="site.id"
-                  size="small"
-                  color="primary"
-                >
-                  {{ site.name }}
-                </v-chip>
-              </v-chip-group>
-            </template>
-
-            <!-- Actions -->
-            <template v-slot:item.actions="{ item }">
-              <v-btn
-                icon
-                variant="text"
-                size="small"
-                color="primary"
-                @click="openDialog(item)"
-              >
-                <v-icon>mdi-pencil</v-icon>
-              </v-btn>
-            </template>
-          </v-data-table>
-        </v-card>
-      </v-col>
-    </v-row>
+      <!-- Actions -->
+      <template v-slot:item.actions="{ item }">
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          color="primary"
+          @click="openDialog(item)"
+        >
+          <v-icon>mdi-pencil</v-icon>
+        </v-btn>
+      </template>
+    </v-data-table>
 
     <!-- Dialog pour modification des droits -->
     <v-dialog v-model="dialog" max-width="800px">
@@ -167,7 +157,7 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-  </v-container>
+  </DashboardView>
 </template>
 
 <script setup lang="ts">
@@ -177,6 +167,8 @@ import type { User } from '@/types/api'
 import { RoleEnum } from '@/types/api'
 import type { Site } from '@/services/api'
 import { Title } from '@/components/typography'
+import DashboardView from '@/components/dashboard/DashboardView.vue'
+import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 
 interface AccessRight {
   user_id: number
@@ -188,6 +180,7 @@ interface AccessRight {
 // État
 const loading = ref(false)
 const dialog = ref(false)
+const saving = ref(false)
 const page = ref(1)
 const itemsPerPage = ref(10)
 const totalItems = ref(0)
@@ -269,6 +262,7 @@ const openDialog = (item: AccessRight) => {
 }
 
 const saveAccessRights = async () => {
+  saving.value = true
   try {
     if (!editedItem.value) return
     await accessManagementApi.updateUserAccessRights(editedItem.value.user_id, {
@@ -279,6 +273,8 @@ const saveAccessRights = async () => {
     loadAccessRights()
   } catch (error) {
     console.error('Erreur lors de la sauvegarde des droits d\'accès:', error)
+  } finally {
+    saving.value = false
   }
 }
 
@@ -310,4 +306,25 @@ onMounted(() => {
   loadAccessRights()
   loadSites()
 })
-</script> 
+</script>
+
+<style scoped>
+/* Style des boutons dans le tableau */
+:deep(.v-data-table .v-btn--icon[color="primary"]) {
+  background-color: transparent !important;
+  color: #00346E !important;
+  opacity: 1 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="error"]) {
+  background-color: transparent !important;
+  color: #F78C48 !important;
+  opacity: 1 !important;
+}
+
+/* Assurer que les icônes dans les boutons sont visibles */
+:deep(.v-data-table .v-btn--icon .v-icon) {
+  opacity: 1 !important;
+  color: inherit !important;
+}
+</style> 

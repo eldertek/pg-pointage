@@ -1,1046 +1,899 @@
 <template>
-  <div>
-    <div class="d-flex justify-space-between align-center mb-4">
-      <div>
-        <Title :level="1">{{ isSuperAdmin ? 'Gestion des accès' : 'Gestion des Employés' }}</Title>
-        <v-btn-toggle
-          v-if="isSuperAdmin"
-          v-model="currentView"
-          mandatory
-          color="primary"
-          class="mt-2"
-        >
-          <v-btn value="users" variant="text">
-            <v-icon start>mdi-account-group</v-icon>
-            Utilisateurs
-          </v-btn>
-          <v-btn value="organizations" variant="text">
-            <v-icon start>mdi-domain</v-icon>
-            Organisations
-          </v-btn>
-        </v-btn-toggle>
-      </div>
-      <v-btn 
-        color="primary" 
-        :prepend-icon="currentView === 'users' ? 'mdi-account-plus' : 'mdi-domain-plus'"
-        @click="showCreateDialog = true"
+  <DashboardView
+    ref="dashboardView"
+    title="Utilisateurs"
+    :form-title="view === 'users' ? (editedItem as UserFormData)?.username ? 'Modifier utilisateur' : 'Nouvel utilisateur' : (editedItem as OrganizationFormData)?.name ? 'Modifier' : 'Nouvelle' + ' organisation'"
+    :saving="saving"
+    @save="saveUser"
+  >
+    <!-- Sous-titre -->
+    <template #subtitle>
+      <v-btn-toggle
+        v-if="isSuperAdmin"
+        v-model="view"
+        mandatory
+        class="mb-4"
       >
-        {{ currentView === 'users' ? 'Nouvel Utilisateur' : 'Nouvelle Organisation' }}
+        <v-btn value="users">Utilisateurs</v-btn>
+        <v-btn value="organizations">Organisations</v-btn>
+      </v-btn-toggle>
+    </template>
+
+    <!-- Actions -->
+    <template #actions>
+      <v-btn
+        color="primary"
+        prepend-icon="mdi-plus"
+        @click="openDialog()"
+      >
+        {{ view === 'users' ? 'Nouvel utilisateur' : 'Nouvelle organisation' }}
       </v-btn>
-    </div>
+    </template>
 
-    <v-card>
-      <v-card-title>
-        <v-text-field
-          v-model="search"
-          prepend-inner-icon="mdi-magnify"
-          label="Rechercher"
-          single-line
-          hide-details
-          variant="outlined"
-          density="compact"
-        ></v-text-field>
-      </v-card-title>
+    <!-- Filtres -->
+    <template #filters>
+      <DashboardFilters @reset="resetFilters">
+        <v-col cols="12" md="4">
+          <v-text-field
+            v-model="filters.search"
+            label="Rechercher"
+            variant="outlined"
+            prepend-inner-icon="mdi-magnify"
+            clearable
+            @update:model-value="loadUsers"
+          ></v-text-field>
+        </v-col>
+        <v-col v-if="view === 'users'" cols="12" md="4">
+          <v-select
+            v-model="filters.role"
+            :items="roles"
+            item-title="label"
+            item-value="value"
+            label="Rôle"
+            variant="outlined"
+            prepend-inner-icon="mdi-account-key"
+            clearable
+            @update:model-value="loadUsers"
+          ></v-select>
+        </v-col>
+      </DashboardFilters>
+    </template>
 
-      <!-- Table des utilisateurs -->
-      <DataTable
-        v-if="currentView === 'users' || !isSuperAdmin"
-        :headers="userHeaders"
+    <!-- Tableau des utilisateurs -->
+    <template v-if="view === 'users'">
+      <v-data-table
+        v-model:page="page"
+        :headers="headers"
         :items="users"
-        :search="search"
         :loading="loading"
-        :no-data-text="'Aucun utilisateur trouvé'"
-        :loading-text="'Chargement des utilisateurs...'"
         :items-per-page="itemsPerPage"
         :items-length="totalItems"
-        :page="page"
-        click-action="view"
-        @update:page="page = $event"
-        @update:items-per-page="itemsPerPage = $event"
-        @view-details="viewDetails"
-        @edit-item="editItem"
+        :no-data-text="'Aucun utilisateur trouvé'"
+        :loading-text="'Chargement des utilisateurs...'"
+        :items-per-page-text="'Lignes par page'"
+        :page-text="'{0}-{1} sur {2}'"
+        :items-per-page-options="[
+          { title: '5', value: 5 },
+          { title: '10', value: 10 },
+          { title: '15', value: 15 },
+          { title: 'Tout', value: -1 }
+        ]"
+        :sort-by="[{ key: 'last_name' }, { key: 'first_name' }, { key: 'role' }]"
+        class="elevation-1"
+        @click:row="handleRowClick"
       >
-        <template v-slot:item.fullName="{ item }">
-          {{ item.first_name }} {{ item.last_name }}
-        </template>
-
+        <!-- Rôle -->
         <template v-slot:item.role="{ item }">
           <v-chip
             :color="getRoleColor(item.role)"
             size="small"
           >
-            {{ item.role }}
+            {{ getRoleLabel(item.role) }}
           </v-chip>
         </template>
 
+        <!-- Sites -->
         <template v-slot:item.sites="{ item }">
-          <div v-if="item.role === 'MANAGER'">
-            <v-tooltip v-if="item.managed_sites && item.managed_sites.length > 0">
-              <template v-slot:activator="{ props }">
-                <v-chip
-                  color="primary"
-                  size="small"
-                  v-bind="props"
-                >
-                  {{ item.managed_sites.length }} site(s) géré(s)
-                </v-chip>
-              </template>
-              <div>Sites gérés :</div>
-              <ul>
-                <li v-for="site in item.managed_sites" :key="site.id">
-                  {{ site.name }}
-                </li>
-              </ul>
-            </v-tooltip>
-            <span v-else>Aucun site géré</span>
-          </div>
-          <div v-else-if="item.role === 'EMPLOYEE'">
-            <v-tooltip v-if="item.assigned_sites && item.assigned_sites.length > 0">
-              <template v-slot:activator="{ props }">
-                <v-chip
-                  color="success"
-                  size="small"
-                  v-bind="props"
-                >
-                  {{ item.assigned_sites.length }} site(s) assigné(s)
-                </v-chip>
-              </template>
-              <div>Sites assignés :</div>
-              <ul>
-                <li v-for="site in item.assigned_sites" :key="site.id">
-                  {{ site.name }}
-                </li>
-              </ul>
-            </v-tooltip>
-            <span v-else>Aucun site assigné</span>
-          </div>
-        </template>
-
-        <template v-slot:item.is_active="{ item }">
           <v-chip
-            :color="item.is_active ? 'success' : 'error'"
-            size="small"
-          >
-            {{ item.is_active ? 'Actif' : 'Inactif' }}
-          </v-chip>
-        </template>
-
-        <template v-slot:item.actions="{ item }">
-          <v-tooltip text="Modifier">
-            <template v-slot:activator="{ props }">
-              <v-btn
-                icon
-                variant="text"
-                size="small"
-                color="primary"
-                @click="editItem(item)"
-                :disabled="isCurrentUser(item) || false"
-                v-bind="props"
-              >
-                <v-icon>mdi-pencil</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-          <v-tooltip
-            :text="isCurrentUser(item) ? 'Vous ne pouvez pas désactiver votre propre compte' : item.is_active ? 'Désactiver' : 'Activer'"
-          >
-            <template v-slot:activator="{ props }">
-              <v-btn
-                icon
-                variant="text"
-                size="small"
-                :color="item.is_active ? 'error' : 'success'"
-                @click="toggleUserStatus(item)"
-                :disabled="isCurrentUser(item)"
-                v-bind="props"
-              >
-                <v-icon>{{ item.is_active ? 'mdi-account-off' : 'mdi-account-check' }}</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-        </template>
-      </DataTable>
-
-      <!-- Table des organisations (uniquement pour super admin) -->
-      <DataTable
-        v-if="currentView === 'organizations' && isSuperAdmin"
-        :headers="organizationHeaders"
-        :items="organizations"
-        :search="search"
-        :loading="loading"
-        :no-data-text="'Aucune organisation trouvée'"
-        :loading-text="'Chargement des organisations...'"
-        :items-per-page="itemsPerPage"
-        :items-length="totalItems"
-        :page="page"
-        click-action="view"
-        @update:page="page = $event"
-        @update:items-per-page="itemsPerPage = $event"
-        @view-details="viewDetails"
-        @edit-item="editItem"
-      >
-        <template v-slot:item.status="{ item }">
-          <v-chip
-            :color="item.is_active ? 'success' : 'error'"
-            size="small"
-          >
-            {{ item.is_active ? 'Active' : 'Inactive' }}
-          </v-chip>
-        </template>
-
-        <template v-slot:item.phone="{ item }">
-          {{ formatPhoneNumber(item.phone) }}
-        </template>
-
-        <template v-slot:item.org_id="{ item }">
-          <v-chip
+            v-for="site in item.sites"
+            :key="site.id"
             color="primary"
             size="small"
-            variant="outlined"
+            class="mr-1"
           >
-            {{ item.org_id }}
+            {{ site.name }}
           </v-chip>
         </template>
 
-        <template v-slot:item.address="{ item }">
-          {{ item.address }}, {{ item.postal_code }} {{ item.city }}
+        <!-- Actions -->
+        <template v-slot:item.actions="{ item }">
           <v-btn
             icon
             variant="text"
-            size="x-small"
-            :href="formatAddressForMaps(item.address, item.postal_code, item.city, item.country)"
-            target="_blank"
+            size="small"
             color="primary"
+            :to="`/dashboard/admin/users/${item.id}`"
+            @click.stop
           >
-            <v-icon>mdi-map-marker</v-icon>
+            <v-icon>mdi-eye</v-icon>
+          </v-btn>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="primary"
+            @click.stop="openDialog(item)"
+          >
+            <v-icon>mdi-pencil</v-icon>
+          </v-btn>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="error"
+            @click.stop="confirmDelete(item)"
+            :disabled="(item as ExtendedUser).id === (authStore.user as any)?.id"
+            :class="{ 'disabled-button': (item as ExtendedUser).id === (authStore.user as any)?.id }"
+          >
+            <v-icon>mdi-delete</v-icon>
           </v-btn>
         </template>
+      </v-data-table>
+    </template>
 
-        <template v-slot:item.actions="{ item }">
-          <v-tooltip text="Modifier">
-            <template v-slot:activator="{ props }">
-              <v-btn
-                icon
-                variant="text"
-                size="small"
-                color="primary"
-                @click="editItem(item)"
-                v-bind="props"
-              >
-                <v-icon>mdi-pencil</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-          <v-tooltip :text="item.is_active ? 'Désactiver' : 'Activer'">
-            <template v-slot:activator="{ props }">
-              <v-btn
-                icon
-                variant="text"
-                size="small"
-                :color="item.is_active ? 'error' : 'success'"
-                @click="toggleOrganizationStatus(item)"
-                v-bind="props"
-              >
-                <v-icon>{{ item.is_active ? 'mdi-domain-off' : 'mdi-domain' }}</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
-          <v-tooltip text="Voir les détails">
-            <template v-slot:activator="{ props }">
-              <v-btn
-                icon
-                variant="text"
-                size="small"
-                :to="`/dashboard/organizations/${item.id}`"
-                v-bind="props"
-              >
-                <v-icon>mdi-eye</v-icon>
-              </v-btn>
-            </template>
-          </v-tooltip>
+    <!-- Tableau des organisations -->
+    <template v-else>
+      <v-data-table
+        v-model:page="page"
+        :headers="organizationHeaders"
+        :items="organizations"
+        :loading="loading"
+        :items-per-page="itemsPerPage"
+        :items-length="totalItems"
+        :no-data-text="'Aucune organisation trouvée'"
+        :loading-text="'Chargement des organisations...'"
+        :items-per-page-text="'Lignes par page'"
+        :page-text="'{0}-{1} sur {2}'"
+        :items-per-page-options="[
+          { title: '5', value: 5 },
+          { title: '10', value: 10 },
+          { title: '15', value: 15 },
+          { title: 'Tout', value: -1 }
+        ]"
+        class="elevation-1"
+        @click:row="handleRowClick"
+      >
+        <!-- Adresse -->
+        <template v-slot:item.address="{ item }">
+          <AddressWithMap
+            :address="item.address"
+            :postal-code="item.postal_code"
+            :city="item.city"
+            :country="item.country"
+          />
         </template>
-      </DataTable>
-    </v-card>
 
-    <!-- Dialog pour créer/éditer -->
-    <v-dialog v-model="showCreateDialog" max-width="600px" @update:model-value="onDialogClose">
-      <v-card>
-        <v-card-title>
-          {{ getDialogTitle() }}
-        </v-card-title>
-        <v-card-text>
-          <v-form ref="form" @submit.prevent="saveItem">
-            <!-- Formulaire utilisateur -->
-            <template v-if="currentView === 'users' || !isSuperAdmin">
-              <v-row>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="userForm.first_name"
-                    label="Prénom"
-                    required
-                    autocomplete="given-name"
-                    :rules="[v => !!v || 'Le prénom est requis']"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="userForm.last_name"
-                    label="Nom"
-                    required
-                    autocomplete="family-name"
-                    :rules="[v => !!v || 'Le nom est requis']"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12">
-                  <v-text-field
-                    v-model="userForm.email"
-                    label="Email"
-                    type="email"
-                    required
-                    autocomplete="email"
-                    :rules="[
-                      v => !!v || 'L\'email est requis',
-                      v => /.+@.+\..+/.test(v) || 'L\'email doit être valide'
-                    ]"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-select
-                    v-model="userForm.role"
-                    :items="availableRoles"
-                    label="Rôle"
-                    required
-                    autocomplete="off"
-                    :rules="[v => !!v || 'Le rôle est requis']"
-                  ></v-select>
-                </v-col>
-                <v-col cols="12" sm="6" v-if="isSuperAdmin">
-                  <v-select
-                    v-model="userForm.organization"
-                    :items="organizations"
-                    label="Organisation"
-                    item-title="name"
-                    item-value="id"
-                    autocomplete="off"
-                    :disabled="userForm.role === 'SUPER_ADMIN'"
-                    :rules="[v => userForm.role === 'SUPER_ADMIN' || !!v || 'L\'organisation est requise']"
-                  ></v-select>
-                </v-col>
-                <v-col cols="12" sm="6" v-if="userForm.role === 'EMPLOYEE'">
-                  <v-select
-                    v-model="userForm.scan_preference"
-                    :items="scanPreferences"
-                    label="Méthode de scan"
-                    item-title="text"
-                    item-value="value"
-                    autocomplete="off"
-                    :rules="[v => !!v || 'La méthode de scan est requise']"
-                  ></v-select>
-                </v-col>
-                <v-col cols="12" v-if="userForm.role === 'EMPLOYEE'">
-                  <v-switch
-                    v-model="userForm.simplified_mobile_view"
-                    label="Vue mobile simplifiée"
-                    color="primary"
-                    hint="Affiche uniquement le bouton de pointage sur mobile"
-                    persistent-hint
-                  ></v-switch>
-                </v-col>
-                <!-- Champs mot de passe en création et édition -->
-                <template v-if="!editedItem || (editedItem && showPasswordFields)">
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="userForm.password"
-                      label="Mot de passe"
-                      type="password"
-                      :rules="passwordRules"
-                      autocomplete="new-password"
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="userForm.confirm_password"
-                      label="Confirmer le mot de passe"
-                      type="password"
-                      :rules="confirmPasswordRules"
-                      autocomplete="new-password"
-                    ></v-text-field>
-                  </v-col>
-                </template>
-                <v-col v-if="editedItem" cols="12">
-                  <v-btn
-                    variant="text"
-                    color="primary"
-                    @click="showPasswordFields = !showPasswordFields"
-                  >
-                    {{ showPasswordFields ? 'Annuler le changement de mot de passe' : 'Changer le mot de passe' }}
-                  </v-btn>
-                </v-col>
-              </v-row>
-            </template>
+        <!-- Actions -->
+        <template v-slot:item.actions="{ item }">
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="primary"
+            :to="`/dashboard/organizations/${item.id}`"
+            @click.stop
+          >
+            <v-icon>mdi-eye</v-icon>
+          </v-btn>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="primary"
+            @click.stop="openDialog(item)"
+          >
+            <v-icon>mdi-pencil</v-icon>
+          </v-btn>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="error"
+            @click.stop="confirmDelete(item)"
+          >
+            <v-icon>mdi-delete</v-icon>
+          </v-btn>
+        </template>
+      </v-data-table>
+    </template>
 
-            <!-- Formulaire organisation (uniquement pour super admin) -->
-            <template v-else-if="isSuperAdmin">
-              <v-row>
-                <v-col cols="12">
-                  <v-text-field
-                    v-model="organizationForm.name"
-                    label="Nom de l'organisation"
-                    required
-                    :rules="[v => !!v || 'Le nom est requis']"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12">
-                  <v-text-field
-                    v-model="organizationForm.contact_email"
-                    label="Email de contact"
-                    type="email"
-                    required
-                    :rules="[
-                      v => !!v || 'L\'email est requis',
-                      v => /.+@.+\..+/.test(v) || 'L\'email doit être valide'
-                    ]"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="organizationForm.phone"
-                    label="Téléphone"
-                    required
-                    :rules="[v => !!v || 'Le téléphone est requis']"
-                    :value="organizationForm.phone ? formatPhoneNumber(organizationForm.phone) : ''"
-                    @input="(e: Event) => organizationForm.phone = (e.target as HTMLInputElement).value.replace(/\D/g, '')"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="organizationForm.siret"
-                    label="SIRET"
-                    required
-                    :rules="[
-                      v => !!v || 'Le SIRET est requis',
-                      v => /^\d{14}$/.test(v) || 'Le SIRET doit contenir 14 chiffres'
-                    ]"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12">
-                  <v-text-field
-                    v-model="organizationForm.address"
-                    label="Adresse"
-                    required
-                    :rules="[v => !!v || 'L\'adresse est requise']"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" md="4">
-                  <v-text-field
-                    v-model="organizationForm.postal_code"
-                    label="Code postal"
-                    required
-                    :rules="[
-                      v => !!v || 'Le code postal est requis',
-                      v => /^\d{5}$/.test(v) || 'Le code postal doit contenir 5 chiffres'
-                    ]"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" md="4">
-                  <v-text-field
-                    v-model="organizationForm.city"
-                    label="Ville"
-                    required
-                    :rules="[v => !!v || 'La ville est requise']"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" md="4">
-                  <v-text-field
-                    v-model="organizationForm.country"
-                    label="Pays"
-                    required
-                    value="France"
-                    :rules="[v => !!v || 'Le pays est requis']"
-                  ></v-text-field>
-                </v-col>
-              </v-row>
-            </template>
-          </v-form>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="error" variant="text" @click="closeDialog">Annuler</v-btn>
-          <v-btn color="primary" @click="saveItem" :loading="saving">Enregistrer</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <!-- Formulaire -->
+    <template #form>
+      <DashboardForm ref="form" :errors="formErrors" @submit="saveUser">
+        <!-- Formulaire utilisateur -->
+        <template v-if="view === 'users' && editedItem">
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as UserFormData).last_name"
+              label="Nom"
+              required
+              :error-messages="formErrors.last_name"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as UserFormData).first_name"
+              label="Prénom"
+              required
+              :error-messages="formErrors.first_name"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as UserFormData).phone_number"
+              label="Téléphone"
+              required
+              :error-messages="formErrors.phone_number"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as UserFormData).email"
+              label="Email"
+              type="email"
+              required
+              :error-messages="formErrors.email"
+              @update:model-value="handleEmailChange"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-select
+              v-model="(editedItem as UserFormData).role"
+              :items="roles"
+              item-title="label"
+              item-value="value"
+              label="Rôle"
+              required
+              :error-messages="formErrors.role"
+            ></v-select>
+          </v-col>
+          <v-col v-if="(editedItem as UserFormData).role !== RoleEnum.SUPER_ADMIN" cols="12" sm="6">
+            <v-select
+              v-model="(editedItem as UserFormData).sites"
+              :items="sites"
+              item-title="name"
+              item-value="id"
+              label="Sites"
+              multiple
+              chips
+              required
+              :error-messages="formErrors.sites"
+              no-data-text="Aucun site disponible"
+            ></v-select>
+          </v-col>
+          <!-- Champ mot de passe uniquement à la création -->
+          <v-col v-if="view === 'users' && !(editedItem as UserFormData).id" cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as UserFormData).password"
+              label="Mot de passe"
+              type="password"
+              required
+              :error-messages="formErrors.password"
+              :rules="[
+                v => !!v || 'Le mot de passe est obligatoire',
+                v => (v && v.length >= 8) || 'Le mot de passe doit contenir au moins 8 caractères'
+              ]"
+            ></v-text-field>
+          </v-col>
+          <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
+            <v-select
+              v-model="(editedItem as UserFormData).scan_preference"
+              :items="[
+                { title: 'NFC et QR Code', value: ScanPreferenceEnum.BOTH },
+                { title: 'QR Code uniquement', value: ScanPreferenceEnum.QR_ONLY },
+                { title: 'NFC uniquement', value: ScanPreferenceEnum.NFC_ONLY }
+              ]"
+              label="Préférence de scan"
+              required
+              :error-messages="formErrors.scan_preference"
+            ></v-select>
+          </v-col>
+          <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
+            <v-switch
+              v-model="(editedItem as UserFormData).simplified_mobile_view"
+              label="Vue mobile simplifiée"
+              :error-messages="formErrors.simplified_mobile_view"
+            ></v-switch>
+          </v-col>
+        </template>
 
-    <!-- Dialog de confirmation -->
-    <ConfirmDialog />
-  </div>
+        <!-- Formulaire organisation -->
+        <template v-else-if="view === 'organizations' && editedItem">
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as OrganizationFormData).name"
+              label="Nom"
+              required
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as OrganizationFormData).phone"
+              label="Téléphone"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as OrganizationFormData).contact_email"
+              label="Email de contact"
+              type="email"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as OrganizationFormData).address"
+              label="Adresse"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as OrganizationFormData).postal_code"
+              label="Code postal"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as OrganizationFormData).city"
+              label="Ville"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-autocomplete
+              v-model="(editedItem as OrganizationFormData).country"
+              :items="countries"
+              item-title="title"
+              item-value="value"
+              label="Pays"
+              variant="outlined"
+              prepend-inner-icon="mdi-earth"
+              :search-input.sync="searchCountry"
+              :filter="customFilter"
+              :error-messages="formErrors.country"
+              no-data-text="Aucun pays trouvé"
+            ></v-autocomplete>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="(editedItem as OrganizationFormData).siret"
+              label="Numéro SIRET"
+              :rules="[
+                v => !v || v.length <= 14 || 'Le numéro SIRET ne peut pas dépasser 14 caractères'
+              ]"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12">
+            <v-textarea
+              v-model="(editedItem as OrganizationFormData).notes"
+              label="Notes"
+              rows="3"
+            ></v-textarea>
+          </v-col>
+          <v-col cols="12" sm="6">
+            <v-switch
+              v-model="(editedItem as OrganizationFormData).is_active"
+              label="Organisation active"
+            ></v-switch>
+          </v-col>
+        </template>
+      </DashboardForm>
+    </template>
+  </DashboardView>
 </template>
 
-<script lang="ts">
-import { ref, onMounted, watch, computed, defineComponent } from 'vue'
-import api from '@/services/api'
+<script setup lang="ts">
+import { ref, onMounted, watch, computed } from 'vue'
+import { usersApi, sitesApi, organizationsApi } from '@/services/api'
+import type { User, UserRequest } from '@/types/api'
+import type { Site } from '@/services/api'
+import { RoleEnum, ScanPreferenceEnum } from '@/types/api'
 import { useAuthStore } from '@/stores/auth'
-import { useRoute, useRouter } from 'vue-router'
-import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
-import DataTable from '@/components/common/DataTable.vue'
-import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import { useConfirmDialog } from '@/utils/dialogs'
-import type { TableHeader, TableItem } from '@/components/common/DataTable.vue'
-import type { Title as TitleType } from '@/components/typography'
-import { Title } from '@/components/typography'
+import DashboardView from '@/components/dashboard/DashboardView.vue'
+import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
+import DashboardForm from '@/components/dashboard/DashboardForm.vue'
+import AddressWithMap from '@/components/common/AddressWithMap.vue'
+import { useRouter, useRoute } from 'vue-router'
 
-interface User {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  username: string;
-  role: string;
-  organization: number | null;
-  is_active: boolean;
-  managed_sites?: Array<{ id: number; name: string }>;
-  assigned_sites?: Array<{ id: number; name: string }>;
-  scan_preference: string;
-  simplified_mobile_view: boolean;
+// Interface étendue pour les utilisateurs avec les propriétés supplémentaires
+interface ExtendedUser extends User {
+  sites?: Site[];
 }
 
+// Interface étendue pour les organisations
 interface Organization {
   id: number;
   name: string;
-  contact_email: string;
-  phone: string;
-  siret: string;
-  address: string;
-  postal_code: string;
-  city: string;
-  country: string;
-  notes: string;
-  is_active: boolean;
   org_id: string;
+  address?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  contact_email?: string;
+  siret?: string;
+  logo?: string | null;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  is_active?: boolean;
 }
 
-interface UserForm {
-  first_name: string;
-  last_name: string;
-  email: string;
-  username: string;
-  role: string;
-  organization: number | null;
-  password: string;
-  confirm_password: string;
-  scan_preference: string;
-  simplified_mobile_view: boolean;
+// Interface pour le formulaire utilisateur
+interface UserFormData extends UserRequest {
+  id?: number;
+  phone_number?: string;
+  sites?: number[];
+  password?: string;
 }
 
-interface OrganizationForm {
+// Interface pour le formulaire organisation
+interface OrganizationFormData {
+  id?: number;
   name: string;
-  contact_email: string;
-  phone: string;
-  siret: string;
-  address: string;
-  postal_code: string;
-  city: string;
-  country: string;
-  notes: string;
+  phone?: string;
+  address?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  contact_email?: string;
+  siret?: string;
+  notes?: string;
+  is_active?: boolean;
 }
 
-interface FormRef {
-  validate: () => Promise<{ valid: boolean }>;
-  reset: () => void;
-}
+const authStore = useAuthStore()
+const isSuperAdmin = computed(() => authStore.user?.role === RoleEnum.SUPER_ADMIN)
 
-export default defineComponent({
-  name: 'AdminUsersView',
-  components: { DataTable, ConfirmDialog, Title },
-  setup() {
-    const authStore = useAuthStore()
-    const route = useRoute()
-    const router = useRouter()
-    const loading = ref(false)
-    const saving = ref(false)
-    const search = ref('')
-    const showCreateDialog = ref(false)
-    const form = ref<FormRef | null>(null)
-    const editedItem = ref<User | Organization | null>(null)
-    const currentView = ref(authStore.isSuperAdmin ? 'organizations' : 'users')
-    const currentUser = ref<User | null>(null)
-    const showPasswordFields = ref(false)
-    const showDeactivateDialog = ref(false)
-    const deactivateItem = ref<User | Organization | null>(null)
-    const deactivating = ref(false)
-    const page = ref(1)
-    const itemsPerPage = ref(10)
-    const totalItems = ref(0)
-    
-    const isSuperAdmin = computed(() => authStore.isSuperAdmin)
-    
-    const userHeaders = computed(() => {
-      const headers: TableHeader[] = [
-        { title: 'Nom', align: 'start' as const, key: 'fullName' },
-        { title: 'Courriel', key: 'email' },
-        { title: 'Rôle', key: 'role', align: 'center' as const },
-        { title: 'Sites', key: 'sites', align: 'center' as const },
-        { title: 'Statut', key: 'is_active', align: 'center' as const },
-        { title: 'Actions', key: 'actions', align: 'end' as const, sortable: false }
-      ]
-      
-      if (isSuperAdmin.value) {
-        headers.splice(3, 0, { title: 'Organisation', key: 'organization_name' })
-      }
-      
-      return headers
-    })
+const props = defineProps({
+  editId: {
+    type: [String, Number],
+    default: null
+  },
+  defaultView: {
+    type: String,
+    default: 'users'
+  }
+})
 
-    const organizationHeaders = ref<TableHeader[]>([
-      { title: 'ID', align: 'start' as const, key: 'org_id' },
-      { title: 'Nom', align: 'start' as const, key: 'name' },
-      { title: 'Email', key: 'contact_email' },
-      { title: 'Adresse', key: 'address' },
-      { title: 'Téléphone', key: 'phone', format: value => formatPhoneNumber(value) },
-      { title: 'Statut', align: 'center' as const, key: 'status' },
-      { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
-    ])
+// État
+const loading = ref(false)
+const saving = ref(false)
+const page = ref(1)
+const itemsPerPage = ref(10)
+const totalItems = ref(0)
+const view = ref(props.defaultView)
+const editedItem = ref<UserFormData | OrganizationFormData | null>(null)
+const form = ref()
+const dashboardView = ref()
+const formErrors = ref<Record<string, string[]>>({})
 
-    const users = ref<User[]>([])
-    const organizations = ref<Organization[]>([])
-    const roles = ['SUPER_ADMIN', 'MANAGER', 'EMPLOYEE'] as const
-    type Role = typeof roles[number]
-    
-    const roleLabels: Record<Role, string> = {
-      'SUPER_ADMIN': 'Super Administrateur',
-      'MANAGER': 'Gestionnaire',
-      'EMPLOYEE': 'Employé'
+// Filtres
+const filters = ref({
+  search: '',
+  role: ''
+})
+
+// Données
+const users = ref<ExtendedUser[]>([])
+const organizations = ref<Organization[]>([])
+const sites = ref<Site[]>([])
+
+// En-têtes des tableaux
+const headers = [
+  { title: 'ID', key: 'id' },
+  { title: 'Nom', key: 'last_name' },
+  { title: 'Prénom', key: 'first_name' },
+  { title: 'Téléphone', key: 'phone_number' },
+  { title: 'Email', key: 'email' },
+  { title: 'Rôle', key: 'role' },
+  { title: 'Sites', key: 'sites' },
+  { title: 'Actions', key: 'actions', sortable: false }
+]
+
+const organizationHeaders = [
+  { title: 'ID', key: 'org_id' },
+  { title: 'Nom', key: 'name' },
+  { title: 'Téléphone', key: 'phone' },
+  { title: 'Email', key: 'contact_email' },
+  { title: 'Adresse', key: 'address', component: AddressWithMap },
+  { title: 'Ville', key: 'city' },
+  { title: 'Actions', key: 'actions', sortable: false }
+] as const
+
+// Rôles disponibles
+const roles = [
+  { label: 'Administrateur', value: RoleEnum.SUPER_ADMIN },
+  { label: 'Manager', value: RoleEnum.MANAGER },
+  { label: 'Employé', value: RoleEnum.EMPLOYEE }
+]
+
+// Liste des pays
+const countries = [
+  { title: 'France', value: 'France' },
+  { title: 'Belgique', value: 'Belgique' },
+  { title: 'Suisse', value: 'Suisse' },
+  { title: 'Canada', value: 'Canada' },
+  { title: 'Luxembourg', value: 'Luxembourg' },
+  { title: 'Allemagne', value: 'Allemagne' },
+  { title: 'Espagne', value: 'Espagne' },
+  { title: 'Italie', value: 'Italie' },
+  { title: 'Portugal', value: 'Portugal' },
+  { title: 'Pays-Bas', value: 'Pays-Bas' },
+  { title: 'Royaume-Uni', value: 'Royaume-Uni' },
+  { title: 'Irlande', value: 'Irlande' },
+  { title: 'Autriche', value: 'Autriche' },
+  { title: 'Suède', value: 'Suède' },
+  { title: 'Norvège', value: 'Norvège' },
+  { title: 'Danemark', value: 'Danemark' },
+  { title: 'Finlande', value: 'Finlande' },
+  { title: 'Islande', value: 'Islande' },
+  { title: 'Grèce', value: 'Grèce' },
+  { title: 'Pologne', value: 'Pologne' },
+  { title: 'République tchèque', value: 'République tchèque' },
+  { title: 'Slovaquie', value: 'Slovaquie' },
+  { title: 'Hongrie', value: 'Hongrie' },
+  { title: 'Roumanie', value: 'Roumanie' },
+  { title: 'Bulgarie', value: 'Bulgarie' },
+  { title: 'Croatie', value: 'Croatie' },
+  { title: 'Slovénie', value: 'Slovénie' },
+  { title: 'Estonie', value: 'Estonie' },
+  { title: 'Lettonie', value: 'Lettonie' },
+  { title: 'Lituanie', value: 'Lituanie' },
+  { title: 'Chypre', value: 'Chypre' },
+  { title: 'Malte', value: 'Malte' },
+  { title: 'États-Unis', value: 'États-Unis' },
+  { title: 'Japon', value: 'Japon' },
+  { title: 'Chine', value: 'Chine' },
+  { title: 'Inde', value: 'Inde' },
+  { title: 'Brésil', value: 'Brésil' },
+  { title: 'Russie', value: 'Russie' },
+  { title: 'Afrique du Sud', value: 'Afrique du Sud' },
+  { title: 'Australie', value: 'Australie' },
+  { title: 'Nouvelle-Zélande', value: 'Nouvelle-Zélande' }
+]
+
+// Méthodes
+const router = useRouter()
+const route = useRoute()
+
+const handleRowClick = (event: any, { item }: any) => {
+  if (view.value === 'users') {
+    if (item?.id) {
+      router.push(`/dashboard/admin/users/${item.id}`)
     }
+  } else {
+    if (item?.id) {
+      router.push(`/dashboard/organizations/${item.id}`)
+    }
+  }
+}
 
-    const scanPreferences = [
-      { text: 'NFC et QR Code', value: 'BOTH' },
-      { text: 'NFC uniquement', value: 'NFC_ONLY' },
-      { text: 'QR Code uniquement', value: 'QR_ONLY' }
-    ]
+const loadUsers = async () => {
+  loading.value = true
+  try {
+    const response = await usersApi.getAllUsers({
+      page: page.value,
+      page_size: itemsPerPage.value,
+      search: filters.value.search,
+      role: filters.value.role
+    })
+    users.value = response.data.results || []
+    totalItems.value = response.data.count
+  } catch (error) {
+    console.error('Erreur lors du chargement des utilisateurs:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
-    const userForm = ref<UserForm>({
+const loadOrganizations = async () => {
+  loading.value = true
+  try {
+    const response = await organizationsApi.getAllOrganizations()
+    organizations.value = response.data.results || []
+    totalItems.value = response.data.count
+  } catch (error) {
+    console.error('Erreur lors du chargement des organisations:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadSites = async () => {
+  try {
+    const response = await sitesApi.getAllSites()
+    sites.value = response.data.results || []
+  } catch (error) {
+    console.error('Erreur lors du chargement des sites:', error)
+  }
+}
+
+const resetFilters = () => {
+  filters.value = {
+    search: '',
+    role: ''
+  }
+  loadUsers()
+}
+
+const openDialog = (item?: ExtendedUser | Organization) => {
+  if (view.value === 'users') {
+    editedItem.value = item ? {
+      id: (item as ExtendedUser).id,
+      username: (item as ExtendedUser).username,
+      email: (item as ExtendedUser).email,
+      first_name: (item as ExtendedUser).first_name,
+      last_name: (item as ExtendedUser).last_name,
+      role: (item as ExtendedUser).role,
+      organization: (item as ExtendedUser).organization,
+      phone_number: (item as ExtendedUser).phone_number,
+      is_active: (item as ExtendedUser).is_active,
+      scan_preference: (item as ExtendedUser).scan_preference,
+      simplified_mobile_view: (item as ExtendedUser).simplified_mobile_view,
+      sites: (item as ExtendedUser).role === RoleEnum.SUPER_ADMIN ? undefined : (item as ExtendedUser).sites?.map(site => site.id)
+    } : {
+      username: '',
+      email: '',
       first_name: '',
       last_name: '',
-      email: '',
-      username: '',
-      role: '',
+      role: RoleEnum.EMPLOYEE,
       organization: null,
-      password: '',
-      confirm_password: '',
+      is_active: true,
       scan_preference: 'BOTH',
-      simplified_mobile_view: false
-    })
-
-    const organizationForm = ref<OrganizationForm>({
+      simplified_mobile_view: false,
+      password: ''
+    }
+  } else {
+    editedItem.value = item ? {
+      id: (item as Organization).id,
+      name: (item as Organization).name,
+      phone: (item as Organization).phone,
+      contact_email: (item as Organization).contact_email,
+      address: (item as Organization).address,
+      postal_code: (item as Organization).postal_code,
+      city: (item as Organization).city,
+      country: (item as Organization).country,
+      siret: (item as Organization).siret,
+      notes: (item as Organization).notes,
+      is_active: (item as Organization).is_active
+    } : {
       name: '',
-      contact_email: '',
       phone: '',
-      siret: '',
+      contact_email: '',
       address: '',
       postal_code: '',
       city: '',
-      country: 'France',
-      notes: ''
-    })
-
-    const passwordRules = [
-      (v: string) => !showPasswordFields.value || !editedItem.value || !!v || 'Le mot de passe est requis',
-      (v: string) => !v || v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
-    ]
-
-    const confirmPasswordRules = [
-      (v: string) => !showPasswordFields.value || !editedItem.value || !!v || 'La confirmation du mot de passe est requise',
-      (v: string) => !v || v === userForm.value.password || 'Les mots de passe ne correspondent pas'
-    ]
-
-    const availableRoles = computed(() => {
-      if (isSuperAdmin.value) {
-        return ['SUPER_ADMIN', 'MANAGER', 'EMPLOYEE']
-      }
-      return ['EMPLOYEE'] // Les managers ne peuvent créer que des employés
-    })
-
-    const getRoleColor = (role: Role) => {
-      switch (role) {
-        case 'SUPER_ADMIN':
-          return 'purple'
-        case 'MANAGER':
-          return 'primary'
-        case 'EMPLOYEE':
-          return 'success'
-        default:
-          return 'grey'
-      }
+      country: '',
+      siret: '',
+      notes: '',
+      is_active: true
     }
+  }
+  dashboardView.value.showForm = true
+}
 
-    const fetchUsers = async () => {
-      loading.value = true
-      try {
-        const response = await api.get('/users/', {
-          params: {
-            role: isSuperAdmin.value ? undefined : 'EMPLOYEE',
-            page: page.value,
-            page_size: itemsPerPage.value
-          }
-        })
-        users.value = response.data.results || []
-        totalItems.value = response.data.count
-      } catch (error) {
-        console.error('Erreur lors du chargement des utilisateurs:', error)
-      } finally {
-        loading.value = false
-      }
-    }
+const generateUsername = (email: string): string => {
+  // Prend la partie avant @ de l'email
+  let baseUsername = email.split('@')[0]
+  
+  // Supprime les caractères spéciaux et les espaces
+  baseUsername = baseUsername.replace(/[^a-zA-Z0-9]/g, '')
+  
+  // Ajoute un timestamp pour garantir l'unicité
+  const timestamp = new Date().getTime().toString().slice(-4)
+  return `${baseUsername}${timestamp}`
+}
 
-    const fetchOrganizations = async () => {
-      loading.value = true
-      try {
-        const response = await api.get('/organizations/', {
-          params: {
-            page: page.value,
-            page_size: itemsPerPage.value
-          }
-        })
-        organizations.value = response.data.results || []
-        totalItems.value = response.data.count
-      } catch (error) {
-        console.error('Erreur lors du chargement des organisations:', error)
-      } finally {
-        loading.value = false
-      }
-    }
+const handleEmailChange = (email: string) => {
+  if (!editedItem.value || view.value !== 'users') return
+  const userFormData = editedItem.value as UserFormData
+  if (!userFormData.id) {
+    userFormData.username = generateUsername(email)
+  }
+}
 
-    const fetchCurrentUser = async () => {
-      try {
-        const response = await api.get('/users/profile/')
-        currentUser.value = response.data
-      } catch (error) {
-        console.error('Erreur lors de la récupération du profil:', error)
-      }
-    }
+const saveUser = async () => {
+  if (!form.value?.validate()) return
 
-    const isCurrentUser = (user: User) => {
-      return Boolean(currentUser.value && user.id === currentUser.value.id)
-    }
-
-    const editItem = (item: User | Organization) => {
-      editedItem.value = item
-      if (currentView.value === 'users') {
-        const user = item as User
-        userForm.value = {
-          first_name: user.first_name,
-          last_name: user.last_name,
-          email: user.email,
-          username: user.username,
-          role: user.role,
-          organization: user.organization,
-          password: '',
-          confirm_password: '',
-          scan_preference: user.scan_preference || 'BOTH',
-          simplified_mobile_view: user.simplified_mobile_view || false
-        }
+  saving.value = true
+  formErrors.value = {}
+  
+  try {
+    if (view.value === 'users' && editedItem.value) {
+      const userData = editedItem.value as UserFormData
+      if (userData.id) {
+        await usersApi.updateUser(userData.id, userData)
       } else {
-        organizationForm.value = { ...(item as Organization) }
+        // Génère le nom d'utilisateur final avant la création
+        userData.username = generateUsername(userData.email)
+        await usersApi.createUser(userData)
       }
-      showCreateDialog.value = true
-    }
-
-    const toggleUserStatus = async (user: User) => {
-      if (isCurrentUser(user)) return
-
-      showConfirmDialog({
-        title: user.is_active ? 'Désactiver l\'utilisateur' : 'Activer l\'utilisateur',
-        message: `Êtes-vous sûr de vouloir ${user.is_active ? 'désactiver' : 'activer'} l'utilisateur "${user.first_name} ${user.last_name}" ?`,
-        confirmText: user.is_active ? 'Désactiver' : 'Activer',
-        confirmColor: user.is_active ? 'error' : 'success',
-        async onConfirm() {
-          try {
-            await api.patch(`/users/${user.id}/`, {
-              is_active: !user.is_active
-            })
-            await fetchUsers()
-          } catch (error) {
-            console.error('Erreur lors de la modification du statut:', error)
-          }
-        }
-      })
-    }
-
-    const toggleOrganizationStatus = async (organization: Organization) => {
-      showConfirmDialog({
-        title: organization.is_active ? 'Désactiver l\'organisation' : 'Activer l\'organisation',
-        message: `Êtes-vous sûr de vouloir ${organization.is_active ? 'désactiver' : 'activer'} l'organisation "${organization.name}" ?`,
-        confirmText: organization.is_active ? 'Désactiver' : 'Activer',
-        confirmColor: organization.is_active ? 'error' : 'success',
-        async onConfirm() {
-          try {
-            await api.patch(`/organizations/${organization.id}/`, {
-              is_active: !organization.is_active
-            })
-            await fetchOrganizations()
-          } catch (error) {
-            console.error('Erreur lors de la modification du statut:', error)
-          }
-        }
-      })
-    }
-
-    const getDialogTitle = () => {
-      if (currentView.value === 'users') {
-        return editedItem.value ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'
+    } else if (view.value === 'organizations' && editedItem.value) {
+      const orgData = editedItem.value as OrganizationFormData
+      if (orgData.id) {
+        await organizationsApi.updateOrganization(orgData.id, orgData)
+      } else {
+        await organizationsApi.createOrganization(orgData)
       }
-      return editedItem.value ? 'Modifier l\'organisation' : 'Nouvelle organisation'
+      await loadOrganizations()
     }
-
-    const closeDialog = () => {
-      showCreateDialog.value = false
-      editedItem.value = null
-      resetForm()
-    }
-
-    const onDialogClose = (val: boolean) => {
-      if (!val) {
-        editedItem.value = null
-        resetForm()
-      }
-    }
-
-    const saveItem = async () => {
-      if (!form.value) return
-      const { valid } = await form.value.validate()
-      if (!valid) return
-
-      saving.value = true
-      try {
-        if (currentView.value === 'users' || !isSuperAdmin.value) {
-          const userData = { ...userForm.value }
-          // Si c'est un manager, on force l'organisation
-          if (!isSuperAdmin.value && authStore.user) {
-            userData.organization = authStore.user.organization
-            userData.role = 'EMPLOYEE'
-          }
-          
-          // Générer le username à partir de l'email
-          userData.username = userData.email.split('@')[0]
-          
-          if (editedItem.value) {
-            // En mode édition
-            const dataToSend = { ...userData }
-            if (!showPasswordFields.value || !userData.password) {
-              delete (dataToSend as Partial<UserForm>).password
-              delete (dataToSend as Partial<UserForm>).confirm_password
-            } else {
-              delete (dataToSend as Partial<UserForm>).confirm_password
+    await loadUsers()
+    dashboardView.value.showForm = false
+  } catch (error: any) {
+    console.error('Erreur lors de la sauvegarde:', error)
+    if (error.response?.data) {
+      const processedErrors: Record<string, string[]> = {}
+      Object.entries(error.response.data).forEach(([field, messages]) => {
+        if (Array.isArray(messages)) {
+          processedErrors[field] = messages.map(message => {
+            switch (message) {
+              case "Ce champ ne peut être vide.":
+              case "Ce champ est obligatoire.":
+                return "Ce champ est obligatoire."
+              case "Un utilisateur avec ce nom d'utilisateur existe déjà.":
+                return "Ce nom d'utilisateur est déjà utilisé. Veuillez réessayer."
+              default:
+                return message
             }
-            await api.patch(`/users/${(editedItem.value as User).id}/`, dataToSend)
-          } else {
-            // En mode création
-            const dataToSend = { ...userData }
-            delete (dataToSend as Partial<UserForm>).confirm_password
-            await api.post('/users/register/', dataToSend)
-          }
-          await fetchUsers()
-        } else if (isSuperAdmin.value) {
-          if (editedItem.value) {
-            await api.patch(`/organizations/${(editedItem.value as Organization).id}/`, organizationForm.value)
-            if (route.meta.editMode) {
-              router.push(`/dashboard/organizations/${(editedItem.value as Organization).id}`)
-              return
-            }
-          } else {
-            await api.post('/organizations/', organizationForm.value)
-          }
-          await fetchOrganizations()
-        }
-        closeDialog()
-      } catch (error) {
-        console.error('Erreur lors de l\'enregistrement:', error)
-      } finally {
-        saving.value = false
-      }
-    }
-
-    const resetForm = () => {
-      if (form.value) {
-        form.value.reset()
-      }
-      showPasswordFields.value = false
-      
-      if (currentView.value === 'users') {
-        userForm.value = {
-          first_name: '',
-          last_name: '',
-          email: '',
-          username: '',
-          role: '',
-          organization: null,
-          password: '',
-          confirm_password: '',
-          scan_preference: 'BOTH',
-          simplified_mobile_view: false
-        }
-      } else {
-        organizationForm.value = {
-          name: '',
-          contact_email: '',
-          phone: '',
-          siret: '',
-          address: '',
-          postal_code: '',
-          city: '',
-          country: 'France',
-          notes: ''
-        }
-      }
-    }
-
-    const viewDetails = (item: User | Organization) => {
-      if (currentView.value === 'organizations') {
-        router.push(`/dashboard/organizations/${item.id}`)
-      } else {
-        router.push(`/dashboard/admin/users/${item.id}`)
-      }
-    }
-
-    // Surveiller les changements de vue pour recharger les données
-    watch(currentView, () => {
-      if (currentView.value === 'users') {
-        fetchUsers()
-      } else {
-        fetchOrganizations()
-      }
-    })
-
-    // Si on est en mode édition depuis la vue de détail
-    if (route.meta.editMode && route.params.id) {
-      currentView.value = 'organizations'
-      // Charger l'organisation à éditer
-      onMounted(async () => {
-        try {
-          const response = await api.get(`/organizations/${route.params.id}/`)
-          editedItem.value = response.data
-          organizationForm.value = { ...response.data }
-          showCreateDialog.value = true
-        } catch (error) {
-          console.error('Erreur lors du chargement de l\'organisation:', error)
+          })
+        } else {
+          processedErrors[field] = [messages as string]
         }
       })
+      formErrors.value = processedErrors
     }
+  } finally {
+    saving.value = false
+  }
+}
 
-    const { showConfirmDialog } = useConfirmDialog()
+const confirmDelete = (item: ExtendedUser | Organization) => {
+  if (confirm('Êtes-vous sûr de vouloir supprimer cet élément ?')) {
+    deleteUser(item)
+  }
+}
 
-    onMounted(() => {
-      fetchCurrentUser()
-      fetchUsers()
-      fetchOrganizations()
-    })
+const deleteUser = async (item: ExtendedUser | Organization) => {
+  try {
+    if (view.value === 'users') {
+      await usersApi.deleteUser((item as ExtendedUser).id)
+    } else {
+      await organizationsApi.deleteOrganization((item as Organization).id)
+    }
+    if (view.value === 'users') {
+      await loadUsers()
+    } else {
+      await loadOrganizations()
+    }
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error)
+  }
+}
 
-    return {
-      loading,
-      saving,
-      search,
-      userHeaders,
-      organizationHeaders,
-      users,
-      organizations,
-      roles,
-      roleLabels,
-      showCreateDialog,
-      form,
-      userForm,
-      organizationForm,
-      currentView,
-      getRoleColor,
-      editItem,
-      toggleUserStatus,
-      toggleOrganizationStatus,
-      saveItem,
-      getDialogTitle,
-      closeDialog,
-      onDialogClose,
-      isCurrentUser,
-      showPasswordFields,
-      passwordRules,
-      confirmPasswordRules,
-      editedItem,
-      scanPreferences,
-      isSuperAdmin,
-      availableRoles,
-      formatPhoneNumber,
-      formatAddressForMaps,
-      viewDetails,
-      showDeactivateDialog,
-      deactivateItem,
-      deactivating,
-      showConfirmDialog,
-      page,
-      itemsPerPage,
-      totalItems
+const getRoleColor = (role: RoleEnum | undefined) => {
+  if (!role) return 'grey'
+  switch (role) {
+    case RoleEnum.SUPER_ADMIN:
+      return 'error'
+    case RoleEnum.MANAGER:
+      return 'warning'
+    case RoleEnum.EMPLOYEE:
+      return 'success'
+    default:
+      return 'grey'
+  }
+}
+
+const getRoleLabel = (role: RoleEnum | undefined) => {
+  if (!role) return ''
+  const found = roles.find(r => r.value === role)
+  return found ? found.label : role
+}
+
+// Initialisation
+onMounted(async () => {
+  // Initialiser la vue
+  view.value = props.defaultView
+
+  // Charger les données initiales
+  await Promise.all([
+    loadUsers(),
+    loadSites()
+  ])
+
+  // Si on a un ID d'édition, ouvrir le dialogue
+  if (props.editId) {
+    try {
+      let response
+      if (view.value === 'organizations') {
+        response = await organizationsApi.getOrganization(Number(props.editId))
+      } else {
+        response = await usersApi.getUser(Number(props.editId))
+      }
+      openDialog(response.data)
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error)
     }
   }
 })
+
+// Observateurs
+watch(view, (newValue) => {
+  if (newValue === 'users') {
+    loadUsers()
+  } else {
+    loadOrganizations()
+  }
+})
+
+watch(page, () => {
+  if (view.value === 'users') {
+    loadUsers()
+  } else {
+    loadOrganizations()
+  }
+})
+
+watch(itemsPerPage, () => {
+  if (view.value === 'users') {
+    loadUsers()
+  } else {
+    loadOrganizations()
+  }
+})
+
+const searchCountry = ref('')
+
+const customFilter = (item: any, queryText: string) => {
+  const text = item.title.toLowerCase()
+  const query = queryText.toLowerCase()
+  return text.indexOf(query) > -1
+}
+
+watch(() => route.query.view, (newView) => {
+  if (newView === 'organizations') {
+    view.value = 'organizations'
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>
-.v-btn-toggle {
-  background-color: rgba(var(--v-theme-surface-variant), 0.08);
-  border-radius: 8px;
-}
-
-/* Styles des boutons d'action */
-:deep(.v-btn--icon) {
+/* Style des boutons dans le tableau */
+:deep(.v-data-table .v-btn--icon[color="primary"]) {
   background-color: transparent !important;
-  opacity: 1 !important;
-}
-
-:deep(.v-btn--icon .v-icon) {
-  color: inherit !important;
-  opacity: 1 !important;
-}
-
-/* Style des boutons colorés */
-:deep(.v-btn[color="primary"]) {
-  background-color: #00346E !important;
-  color: white !important;
-}
-
-:deep(.v-btn[color="error"]) {
-  background-color: #F78C48 !important;
-  color: white !important;
-}
-
-:deep(.v-btn[color="success"]) {
-  background-color: #00346E !important;
-  color: white !important;
-}
-
-/* Style des boutons icônes colorés */
-:deep(.v-btn--icon[color="primary"]) {
   color: #00346E !important;
+  opacity: 1 !important;
 }
 
-:deep(.v-btn--icon[color="error"]) {
+:deep(.v-data-table .v-btn--icon[color="error"]) {
+  background-color: transparent !important;
   color: #F78C48 !important;
-}
-
-:deep(.v-btn--icon[color="success"]) {
-  color: #00346E !important;
-}
-
-/* Correction des overlays et underlays */
-:deep(.v-btn__overlay),
-:deep(.v-btn__underlay) {
-  opacity: 0 !important;
-}
-
-/* Style des boutons dans le toggle */
-:deep(.v-btn-toggle .v-btn) {
   opacity: 1 !important;
-  color: #00346E !important;
 }
 
-:deep(.v-btn-toggle .v-btn--active) {
-  background-color: rgba(0, 52, 110, 0.1) !important;
-  color: #00346E !important;
+/* Assurer que les icônes dans les boutons sont visibles */
+:deep(.v-data-table .v-btn--icon .v-icon) {
+  opacity: 1 !important;
+  color: inherit !important;
+}
+
+/* Style pour le bouton désactivé */
+:deep(.disabled-button) {
+  opacity: 0.5 !important;
+  color: #999 !important;
+  cursor: not-allowed !important;
+}
+
+:deep(.disabled-button .v-icon) {
+  color: #999 !important;
 }
 </style> 

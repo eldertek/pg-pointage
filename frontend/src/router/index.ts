@@ -14,7 +14,7 @@ import ResetPassword from "@/views/auth/ResetPassword.vue"
 
 // Views - Dashboard (Admin/Manager)
 import Dashboard from "@/views/dashboard/Dashboard.vue"
-import OrganizationDetail from "@/views/dashboard/OrganizationDetail.vue"
+import DetailView from "@/views/dashboard/DetailView.vue"
 import Sites from "@/views/dashboard/Sites.vue"
 import Plannings from "@/views/dashboard/Plannings.vue"
 import Timesheets from "@/views/dashboard/Timesheets.vue"
@@ -85,36 +85,56 @@ const routes: RouteRecordRaw[] = [
         path: "admin/users",
         name: "Users",
         component: AdminUsers,
-        meta: { roles: ["SUPER_ADMIN", "MANAGER"] },
+        meta: { roles: ["SUPER_ADMIN", "MANAGER"], section: "users" },
       },
       {
         path: "admin/users/:id",
         name: "UserDetail",
-        component: () => import("@/views/dashboard/admin/UserDetail.vue"),
-        meta: { roles: ["SUPER_ADMIN", "MANAGER"] },
+        component: DetailView,
+        props: { type: 'user' },
+        meta: { roles: ["SUPER_ADMIN", "MANAGER"], section: "users" },
+      },
+      {
+        path: "admin/users/:id/edit",
+        name: "UserEdit",
+        component: AdminUsers,
+        props: route => ({ editId: route.params.id }),
+        meta: { roles: ["SUPER_ADMIN", "MANAGER"], section: "users", mode: "edit" },
+      },
+      {
+        path: "organizations",
+        name: "Organizations",
+        component: AdminUsers,
+        props: { defaultView: 'organizations' },
+        meta: { roles: ["SUPER_ADMIN"], section: "users" },
       },
       {
         path: "organizations/:id",
         name: "OrganizationDetail",
-        component: OrganizationDetail,
+        component: DetailView,
+        props: { type: 'organization' },
         meta: { roles: ["SUPER_ADMIN"], section: "users" },
       },
       {
         path: "organizations/:id/edit",
         name: "OrganizationEdit",
-        component: () => import("@/views/dashboard/admin/Users.vue"),
-        meta: { roles: ["SUPER_ADMIN"], editMode: true },
+        component: AdminUsers,
+        props: route => ({ editId: route.params.id, defaultView: 'organizations' }),
+        meta: { roles: ["SUPER_ADMIN"], section: "users", mode: "edit" },
       },
       // Routes communes
       {
         path: "sites",
         name: "Sites",
         component: Sites,
+        meta: { section: "sites" },
       },
       {
         path: "sites/:id",
         name: "SiteDetails",
-        component: () => import("@/views/dashboard/SiteDetails.vue"),
+        component: DetailView,
+        props: { type: 'site' },
+        meta: { section: "sites" },
       },
       {
         path: "plannings",

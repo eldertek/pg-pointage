@@ -13,12 +13,12 @@
 import { computed } from 'vue';
 import { typography } from '@/styles/typography';
 
-interface Props {
+export interface TitleProps {
   level?: 1 | 2 | 3;
   className?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<TitleProps>(), {
   level: 1,
   className: '',
 });

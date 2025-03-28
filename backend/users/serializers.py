@@ -102,7 +102,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'is_active']
+        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'is_active', 'role']
     
     def create(self, validated_data):
         validated_data['is_active'] = True  # Définir is_active à True par défaut

@@ -267,7 +267,7 @@ export default {
         nfcReader.addEventListener('reading', async ({ serialNumber }) => {
           console.log('Badge NFC détecté:', serialNumber)
           
-          // Formater l'ID NFC
+          // Formater l'ID
           let siteId = serialNumber
           if (!siteId.startsWith('PG')) {
             showError('Badge NFC invalide. Format attendu: PG suivi de 6 chiffres')

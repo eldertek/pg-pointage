@@ -8,9 +8,9 @@ class Organization(models.Model):
     name = models.CharField(_('nom'), max_length=100)
     org_id = models.CharField(
         _('ID Organisation'),
-        max_length=3,
+        max_length=4,
         unique=True,
-        help_text=_('ID unique de l\'organisation sur 3 chiffres')
+        help_text=_('ID unique de l\'organisation au format O + 3 chiffres')
     )
     address = models.TextField(_('adresse'), blank=True)
     postal_code = models.CharField(_('code postal'), max_length=5, blank=True)
@@ -40,15 +40,19 @@ class Organization(models.Model):
         
         # Valider le format de l'ID de l'organisation
         if self.org_id:
+            if not self.org_id.startswith('O'):
+                raise ValidationError({
+                    'org_id': _('L\'ID de l\'organisation doit commencer par O')
+                })
             try:
-                number = int(self.org_id)
+                number = int(self.org_id[1:])
                 if not (0 <= number <= 999):
                     raise ValidationError({
-                        'org_id': _('L\'ID de l\'organisation doit être un nombre entre 000 et 999')
+                        'org_id': _('L\'ID de l\'organisation doit être au format O + nombre entre 000 et 999')
                     })
             except ValueError:
                 raise ValidationError({
-                    'org_id': _('L\'ID de l\'organisation doit être un nombre')
+                    'org_id': _('L\'ID de l\'organisation doit être au format O + 3 chiffres')
                 })
     
     def save(self, *args, **kwargs):
@@ -59,14 +63,14 @@ class Organization(models.Model):
                 last_org = Organization.objects.select_for_update().order_by('-org_id').first()
                 if last_org and last_org.org_id:
                     try:
-                        next_number = int(last_org.org_id) + 1
+                        next_number = int(last_org.org_id[1:]) + 1
                         if next_number > 999:
                             next_number = 1
                     except ValueError:
                         next_number = 1
                 else:
                     next_number = 1
-                self.org_id = f"{next_number:03d}"
+                self.org_id = f"O{next_number:03d}"
         
         super().save(*args, **kwargs)
 

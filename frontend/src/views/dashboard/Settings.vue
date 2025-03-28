@@ -1,7 +1,5 @@
 <template>
-  <div>
-    <Title level="1" class="mb-4">Paramètres</Title>
-    
+  <DashboardView title="Paramètres">
     <v-tabs v-model="activeTab" grow>
       <v-tab value="profile">Profil</v-tab>
       <v-tab value="security">Sécurité</v-tab>
@@ -123,180 +121,145 @@
     >
       {{ snackbar.text }}
     </v-snackbar>
-  </div>
+  </DashboardView>
 </template>
 
-<script>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { usersApi } from '@/services/api'
 import { formatPhoneNumber } from '@/utils/formatters'
-import { Title } from '@/components/typography'
+import DashboardView from '@/components/dashboard/DashboardView.vue'
 
-export default {
-  name: 'SettingsView',
-  components: {
-    Title
-  },
-  setup() {
-    const activeTab = ref('profile')
-    
-    const profileForm = ref(null)
-    const passwordForm = ref(null)
-    
-    const profile = ref({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      username: ''
-    })
-    
-    const security = ref({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    })
-    
-    const saving = ref({
-      profile: false,
-      security: false
-    })
-    
-    const snackbar = ref({
-      show: false,
-      text: '',
-      color: 'success'
-    })
-    
-    const rules = {
-      required: v => !!v || 'Ce champ est requis',
-      email: v => /.+@.+\..+/.test(v) || 'Veuillez entrer un email valide',
-      minLength: v => v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères',
-      phone: v => !v || /^[0-9]{10}$/.test(v.replace(/\D/g, '')) || 'Le numéro de téléphone doit contenir 10 chiffres'
-    }
-    
-    const passwordMatchRule = computed(() => {
-      return v => v === security.value.newPassword || 'Les mots de passe ne correspondent pas'
-    })
-    
-    const loadProfileData = async () => {
-      try {
-        const response = await usersApi.getProfile()
-        profile.value = {
-          firstName: response.data.first_name,
-          lastName: response.data.last_name,
-          email: response.data.email,
-          phone: response.data.phone_number || '',
-          username: response.data.username
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement du profil:', error)
-        showError('Erreur lors du chargement des données du profil')
-      }
-    }
+const activeTab = ref('profile')
+const profileForm = ref(null)
+const passwordForm = ref(null)
 
-    onMounted(() => {
-      loadProfileData()
-    })
-    
-    const saveProfile = async () => {
-      const isValid = await profileForm.value.validate()
+const profile = ref({
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  username: ''
+})
+
+const security = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const saving = ref({
+  profile: false,
+  security: false
+})
+
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success'
+})
+
+const rules = {
+  required: v => !!v || 'Ce champ est requis',
+  email: v => /.+@.+\..+/.test(v) || 'Veuillez entrer un email valide',
+  minLength: v => v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères',
+  phone: v => !v || /^[0-9]{10}$/.test(v.replace(/\D/g, '')) || 'Le numéro de téléphone doit contenir 10 chiffres'
+}
+
+const passwordMatchRule = computed(() => {
+  return v => v === security.value.newPassword || 'Les mots de passe ne correspondent pas'
+})
+
+const loadProfileData = async () => {
+  try {
+    const response = await usersApi.getProfile()
+    profile.value = {
+      firstName: response.data.first_name,
+      lastName: response.data.last_name,
+      email: response.data.email,
+      phone: response.data.phone_number || '',
+      username: response.data.username
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement du profil:', error)
+    showError('Erreur lors du chargement des données du profil')
+  }
+}
+
+onMounted(() => {
+  loadProfileData()
+})
+
+const saveProfile = async () => {
+  const isValid = await profileForm.value.validate()
+  
+  if (isValid.valid) {
+    saving.value.profile = true
+    try {
+      await usersApi.updateProfile({
+        firstName: profile.value.firstName,
+        lastName: profile.value.lastName,
+        email: profile.value.email,
+        phone: profile.value.phone,
+        username: profile.value.username
+      })
+      showSuccess('Profil mis à jour avec succès')
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du profil:', error)
+      showError('Erreur lors de la mise à jour du profil')
+    } finally {
+      saving.value.profile = false
+    }
+  }
+}
+
+const changePassword = async () => {
+  const isValid = await passwordForm.value.validate()
+  
+  if (isValid.valid) {
+    saving.value.security = true
+    try {
+      await usersApi.changePassword({
+        currentPassword: security.value.currentPassword,
+        newPassword: security.value.newPassword
+      })
       
-      if (isValid.valid) {
-        saving.value.profile = true
-        try {
-          await usersApi.updateProfile({
-            firstName: profile.value.firstName,
-            lastName: profile.value.lastName,
-            email: profile.value.email,
-            phone: profile.value.phone,
-            username: profile.value.username
-          })
-          showSuccess('Profil mis à jour avec succès')
-        } catch (error) {
-          console.error('Erreur lors de la mise à jour du profil:', error)
-          showError('Erreur lors de la mise à jour du profil')
-        } finally {
-          saving.value.profile = false
-        }
+      security.value = {
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
       }
-    }
-    
-    const changePassword = async () => {
-      const isValid = await passwordForm.value.validate()
       
-      if (isValid.valid) {
-        saving.value.security = true
-        try {
-          await usersApi.changePassword({
-            currentPassword: security.value.currentPassword,
-            newPassword: security.value.newPassword
-          })
-          
-          security.value = {
-            currentPassword: '',
-            newPassword: '',
-            confirmPassword: ''
-          }
-          
-          showSuccess('Mot de passe changé avec succès')
-        } catch (error) {
-          console.error('Erreur lors du changement de mot de passe:', error)
-          const errorMessage = error.response?.data?.error || 'Une erreur est survenue lors du changement de mot de passe'
-          showError(errorMessage)
-        } finally {
-          saving.value.security = false
-        }
-      }
+      showSuccess('Mot de passe changé avec succès')
+    } catch (error) {
+      console.error('Erreur lors du changement de mot de passe:', error)
+      const errorMessage = error.response?.data?.error || 'Une erreur est survenue lors du changement de mot de passe'
+      showError(errorMessage)
+    } finally {
+      saving.value.security = false
     }
-    
-    const showSuccess = (text) => {
-      snackbar.value = {
-        show: true,
-        text,
-        color: 'success'
-      }
-    }
-    
-    const showError = (text) => {
-      snackbar.value = {
-        show: true,
-        text,
-        color: 'error'
-      }
-    }
-    
-    return {
-      activeTab,
-      profileForm,
-      passwordForm,
-      profile,
-      security,
-      saving,
-      snackbar,
-      rules,
-      passwordMatchRule,
-      saveProfile,
-      changePassword,
-      formatPhoneNumber
-    }
+  }
+}
+
+const showSuccess = (text: string) => {
+  snackbar.value = {
+    show: true,
+    text,
+    color: 'success'
+  }
+}
+
+const showError = (text: string) => {
+  snackbar.value = {
+    show: true,
+    text,
+    color: 'error'
   }
 }
 </script>
 
 <style scoped>
-/* Styles des boutons d'action */
-:deep(.v-btn--icon) {
-  background-color: transparent !important;
-  opacity: 1 !important;
-}
-
-:deep(.v-btn--icon .v-icon) {
-  color: inherit !important;
-  opacity: 1 !important;
-}
-
-/* Style des boutons colorés */
+/* Style des boutons */
 :deep(.v-btn[color="primary"]) {
   background-color: #00346E !important;
   color: white !important;
@@ -307,13 +270,15 @@ export default {
   color: white !important;
 }
 
-/* Style des boutons icônes colorés */
-:deep(.v-btn--icon[color="primary"]) {
-  color: #00346E !important;
+/* Style des boutons icônes */
+:deep(.v-btn--icon) {
+  background-color: transparent !important;
+  opacity: 1 !important;
 }
 
-:deep(.v-btn--icon[color="error"]) {
-  color: #F78C48 !important;
+:deep(.v-btn--icon .v-icon) {
+  color: inherit !important;
+  opacity: 1 !important;
 }
 
 /* Correction des overlays et underlays */
