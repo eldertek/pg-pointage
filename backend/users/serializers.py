@@ -95,8 +95,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                 'role', 'organization', 'organization_name', 'is_active']
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'role', 'organization', 'organization_name', 'is_active',
+            'phone_number', 'employee_id', 'scan_preference', 'simplified_mobile_view'
+        ]
         read_only_fields = ['id', 'username', 'email', 'role', 'organization']
     
     @extend_schema_field(OpenApiTypes.STR)

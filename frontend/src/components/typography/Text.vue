@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { typography } from '@/styles/typography';
+import { typography, spacing } from '@/styles/typography';
 
 export interface TextProps {
   small?: boolean;

@@ -1,6 +1,6 @@
 <template>
   <div class="history-container">
-    <Title level="1" class="mb-4">Historique des enregistrements</Title>
+    <Title :level="1" class="mb-4">Historique des enregistrements</Title>
     
     <v-card class="mb-4">
       <v-card-title>Filtres</v-card-title>
@@ -128,158 +128,158 @@
   </div>
 </template>
 
-<script>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { timesheetsApi, sitesApi } from '@/services/api'
-import { Title } from '@/components/typography'
+import { Title, Text } from '@/components/typography'
 
-export default {
-  name: 'HistoryView',
-  setup() {
-    const loading = ref(true)
-    const loadingMore = ref(false)
-    const hasMoreTimesheets = ref(true)
-    const currentPage = ref(1)
-    const perPage = ref(10)
-    
-    const filters = ref({
-      site: '',
-      type: '',
-      status: '',
-      startDate: '',
-      endDate: ''
-    })
-    
-    const siteOptions = ref([])
-    const typeOptions = ref(['Arrivée', 'Départ'])
-    const statusOptions = ref(['Normal', 'Retard', 'Départ anticipé'])
-    
-    const timesheets = ref([])
-    
-    const formatDate = (date, time) => {
-      const dateObj = new Date(`${date}T${time}`)
-      return format(dateObj, 'EEEE d MMMM yyyy à HH:mm', { locale: fr })
-    }
-    
-    const getTimesheetColor = (timesheet) => {
-      if (timesheet.is_late) return 'warning'
-      if (timesheet.is_early_departure) return 'error'
-      return timesheet.entry_type === 'ARRIVAL' ? 'success' : 'info'
-    }
-    
-    const getStatusColor = (status) => {
-      if (status === 'Normal') return 'success'
-      if (status === 'Retard') return 'warning'
-      if (status === 'Départ anticipé') return 'error'
-      return 'grey'
-    }
-    
-    const loadSites = async () => {
-      try {
-        const response = await sitesApi.getAllSites()
-        siteOptions.value = response.data.results.map(site => site.name)
-      } catch (error) {
-        console.error('Erreur lors de la récupération des sites:', error)
-      }
-    }
-    
-    const fetchTimesheets = async () => {
-      try {
-        const params = {
-          page: currentPage.value,
-          pageSize: perPage.value
-        }
+interface Timesheet {
+  id: number;
+  entry_type: 'ARRIVAL' | 'DEPARTURE';
+  timestamp: string;
+  site_name: string;
+  is_late: boolean;
+  is_early_departure: boolean;
+  late_minutes?: number;
+  early_departure_minutes?: number;
+}
 
-        // Ajouter les filtres seulement s'ils sont définis
-        if (filters.value.site) {
-          params.site = filters.value.site;
-        }
-        
-        if (filters.value.type) {
-          params.entryType = filters.value.type === 'Arrivée' ? 'ARRIVAL' : 'DEPARTURE';
-        }
-        
-        if (filters.value.startDate) {
-          params.startDate = filters.value.startDate;
-        }
-        
-        if (filters.value.endDate) {
-          params.endDate = filters.value.endDate;
-        }
-        
-        if (filters.value.status === 'Retard') {
-          params.isLate = true;
-        } else if (filters.value.status === 'Départ anticipé') {
-          params.isEarlyDeparture = true;
-        }
+interface TimesheetParams {
+  page: number;
+  pageSize: number;
+  site?: string;
+  entryType?: string;
+  startDate?: string;
+  endDate?: string;
+  isLate?: boolean;
+  isEarlyDeparture?: boolean;
+}
 
-        const response = await timesheetsApi.getTimesheets(params)
-        const data = response.data
+const loading = ref(true)
+const loadingMore = ref(false)
+const hasMoreTimesheets = ref(true)
+const currentPage = ref(1)
+const perPage = ref(10)
 
-        if (currentPage.value === 1) {
-          timesheets.value = data.results || [];
-        } else {
-          timesheets.value = [...timesheets.value, ...(data.results || [])];
-        }
+const filters = ref({
+  site: '',
+  type: '',
+  status: '',
+  startDate: '',
+  endDate: ''
+})
 
-        hasMoreTimesheets.value = data.next !== null
-      } catch (error) {
-        console.error('Erreur lors de la récupération des enregistrements:', error)
-      } finally {
-        loading.value = false
-        loadingMore.value = false
-      }
-    }
-    
-    const applyFilters = () => {
-      loading.value = true
-      currentPage.value = 1
-      fetchTimesheets()
-    }
-    
-    const resetFilters = () => {
-      filters.value = {
-        site: '',
-        type: '',
-        status: '',
-        startDate: '',
-        endDate: ''
-      }
-      applyFilters()
-    }
-    
-    const loadMoreTimesheets = () => {
-      loadingMore.value = true
-      currentPage.value++
-      fetchTimesheets()
-    }
-    
-    // Charger les données initiales
-    onMounted(async () => {
-      await loadSites()
-      fetchTimesheets()
-    })
-    
-    return {
-      loading,
-      loadingMore,
-      hasMoreTimesheets,
-      filters,
-      siteOptions,
-      typeOptions,
-      statusOptions,
-      timesheets,
-      formatDate,
-      getTimesheetColor,
-      getStatusColor,
-      applyFilters,
-      resetFilters,
-      loadMoreTimesheets
-    }
+const siteOptions = ref<string[]>([])
+const typeOptions = ref(['Arrivée', 'Départ'])
+const statusOptions = ref(['Normal', 'Retard', 'Départ anticipé'])
+
+const timesheets = ref<Timesheet[]>([])
+
+const formatDate = (date: string, time: string): string => {
+  const dateObj = new Date(`${date}T${time}`)
+  return format(dateObj, 'EEEE d MMMM yyyy à HH:mm', { locale: fr })
+}
+
+const getTimesheetColor = (timesheet: Timesheet): string => {
+  if (timesheet.is_late) return 'warning'
+  if (timesheet.is_early_departure) return 'error'
+  return timesheet.entry_type === 'ARRIVAL' ? 'success' : 'info'
+}
+
+const getStatusColor = (status: string): string => {
+  if (status === 'Normal') return 'success'
+  if (status === 'Retard') return 'warning'
+  if (status === 'Départ anticipé') return 'error'
+  return 'grey'
+}
+
+const loadSites = async () => {
+  try {
+    const response = await sitesApi.getAllSites()
+    siteOptions.value = response.data.results.map(site => site.name)
+  } catch (error) {
+    console.error('Erreur lors de la récupération des sites:', error)
   }
 }
+
+const fetchTimesheets = async () => {
+  try {
+    const params: TimesheetParams = {
+      page: currentPage.value,
+      pageSize: perPage.value
+    }
+
+    // Ajouter les filtres seulement s'ils sont définis
+    if (filters.value.site) {
+      params.site = filters.value.site
+    }
+    
+    if (filters.value.type) {
+      params.entryType = filters.value.type === 'Arrivée' ? 'ARRIVAL' : 'DEPARTURE'
+    }
+    
+    if (filters.value.startDate) {
+      params.startDate = filters.value.startDate
+    }
+    
+    if (filters.value.endDate) {
+      params.endDate = filters.value.endDate
+    }
+    
+    if (filters.value.status === 'Retard') {
+      params.isLate = true
+    } else if (filters.value.status === 'Départ anticipé') {
+      params.isEarlyDeparture = true
+    }
+
+    const response = await timesheetsApi.getTimesheets(params)
+    const data = response.data
+
+    if (currentPage.value === 1) {
+      timesheets.value = data.results || []
+    } else {
+      timesheets.value = [...timesheets.value, ...(data.results || [])]
+    }
+
+    hasMoreTimesheets.value = data.next !== null
+  } catch (error) {
+    console.error('Erreur lors de la récupération des enregistrements:', error)
+  } finally {
+    loading.value = false
+    loadingMore.value = false
+  }
+}
+
+const applyFilters = () => {
+  loading.value = true
+  currentPage.value = 1
+  fetchTimesheets()
+}
+
+const resetFilters = () => {
+  filters.value = {
+    site: '',
+    type: '',
+    status: '',
+    startDate: '',
+    endDate: ''
+  }
+  applyFilters()
+}
+
+const loadMoreTimesheets = () => {
+  loadingMore.value = true
+  currentPage.value++
+  fetchTimesheets()
+}
+
+// Charger les données initiales
+onMounted(async () => {
+  await loadSites()
+  fetchTimesheets()
+})
 </script>
 
 <style scoped>

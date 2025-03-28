@@ -4,7 +4,7 @@
     <template v-if="user?.simplified_mobile_view">
       <v-card class="simplified-view">
         <v-card-text class="text-center">
-          <Title level="2" class="mb-4">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</Title>
+          <Title :level="2" class="mb-4">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</Title>
           <v-btn
             color="primary"
             size="x-large"
@@ -34,7 +34,7 @@
       
       <v-card-text>
         <div class="text-center mb-6">
-          <Title level="2" class="mb-2">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</Title>
+          <Title :level="2" class="mb-2">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</Title>
           <Text>{{ currentDate }}</Text>
         </div>
         
@@ -61,7 +61,7 @@
         </v-row>
         
         <div class="mt-6">
-          <Title level="3" class="mb-3">Derniers enregistrements</Title>
+          <Title :level="3" class="mb-3">Derniers enregistrements</Title>
           <v-timeline density="compact" align="start">
             <v-timeline-item
               v-for="(timesheet, index) in recentTimesheets"
@@ -112,7 +112,7 @@
         </div>
         
         <div class="mt-6">
-          <Title level="3" class="mb-3">Message</Title>
+          <Title :level="3" class="mb-3">Message</Title>
           <v-card
             :color="stats.lateCount > 0 || stats.earlyDepartureCount > 0 ? 'warning' : 'success'"
             variant="outlined"
@@ -154,6 +154,10 @@ import { Title, Text } from '@/components/typography'
 
 export default {
   name: 'MobileDashboard',
+  components: {
+    Title,
+    Text
+  },
   setup() {
     const authStore = useAuthStore()
     const timesheetStore = useTimesheetStore()

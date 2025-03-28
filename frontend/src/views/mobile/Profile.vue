@@ -7,7 +7,7 @@
           <v-avatar color="primary" size="100">
             <span class="text-h4 text-white">{{ userInitials }}</span>
           </v-avatar>
-          <Title level="2" class="mt-2">{{ user.first_name }} {{ user.last_name }}</Title>
+          <Title :level="2" class="mt-2">{{ user.first_name }} {{ user.last_name }}</Title>
           <Text>{{ roleLabels[user.role] || user.role }}</Text>
         </div>
         
