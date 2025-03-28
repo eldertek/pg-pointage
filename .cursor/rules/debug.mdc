@@ -1,0 +1,66 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Règles de débogage
+
+## Format des logs
+
+Les logs doivent suivre le format suivant :
+```
+[ComponentName][Action] Message
+```
+
+Exemple :
+```
+[Sites][LoadManagers] Chargement des managers pour l'organisation: 1
+[Sites][API] Réponse reçue: { count: 2, results: [...] }
+[Sites][Error] Erreur lors du chargement des managers: Network Error
+```
+
+## Niveaux de log
+
+- INFO : Information générale
+- DEBUG : Détails techniques
+- ERROR : Erreurs
+- WARN : Avertissements
+
+## Composants
+
+Les noms des composants doivent être en PascalCase :
+- Sites
+- Users
+- Organizations
+- Timesheets
+- etc.
+
+## Actions
+
+Les actions doivent être en PascalCase et décrivent l'opération en cours :
+- Load
+- Save
+- Delete
+- Update
+- API
+- Error
+- etc.
+
+## Messages
+
+Les messages doivent être clairs et concis, en français, et inclure toutes les informations pertinentes pour le débogage.
+
+## Exemple d'implémentation
+
+```typescript
+// Frontend
+console.log('[Sites][Load] Chargement des sites...')
+console.log('[Sites][API] Réponse:', response.data)
+console.error('[Sites][Error] Erreur lors du chargement:', error)
+
+// Backend
+print("[Sites][Debug] Utilisateur connecté: admin (role: ADMIN)")
+print("[Sites][Filter] Filtrage par rôle: MANAGER")
+print("[Sites][Count] Nombre d'utilisateurs: 5")
+```

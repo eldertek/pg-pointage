@@ -15,12 +15,12 @@ import ResetPassword from "@/views/auth/ResetPassword.vue"
 // Views - Dashboard (Admin/Manager)
 import Dashboard from "@/views/dashboard/Dashboard.vue"
 import DetailView from "@/views/dashboard/DetailView.vue"
-import Sites from "@/views/dashboard/Sites.vue"
 import Plannings from "@/views/dashboard/Plannings.vue"
 import Timesheets from "@/views/dashboard/Timesheets.vue"
 import Anomalies from "@/views/dashboard/Anomalies.vue"
 import Reports from "@/views/dashboard/Reports.vue"
 import Settings from "@/views/dashboard/Settings.vue"
+import AdminSites from "@/views/dashboard/admin/Sites.vue"
 import AdminUsers from "@/views/dashboard/admin/Users.vue"
 import AccessManagement from "@/views/dashboard/admin/AccessManagement.vue"
 
@@ -126,7 +126,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: "sites",
         name: "Sites",
-        component: Sites,
+        component: AdminSites,
         meta: { section: "sites" },
       },
       {
