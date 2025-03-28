@@ -11,31 +11,38 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = User.EMAIL_FIELD
 
     def validate(self, attrs):
-        print(f"[DEBUG] CustomTokenObtainPairSerializer.validate - email: {attrs.get('email')}")
+        print(f"[Auth][Login] Tentative de connexion - email: {attrs.get('email')}")
         try:
             user = User.objects.get(email=attrs.get('email'))
-            print(f"[DEBUG] Utilisateur trouvé: {user.username} (actif: {user.is_active})")
+            print(f"[Auth][Login] Utilisateur trouvé: {user.username} (actif: {user.is_active})")
             
             # Vérifier si l'utilisateur est actif
             if not user.is_active:
-                print("[DEBUG] Échec de connexion: utilisateur inactif")
-                raise serializers.ValidationError("Ce compte est inactif.")
+                print("[Auth][Login] Échec: utilisateur inactif")
+                raise serializers.ValidationError({
+                    "error": "Ce compte est inactif. Veuillez contacter votre administrateur."
+                })
             
             # Vérifier si l'organisation est active (si l'utilisateur appartient à une organisation)
-            if user.organization and not user.organization.is_active:
-                print("[DEBUG] Échec de connexion: organisation inactive")
-                raise serializers.ValidationError("L'organisation à laquelle vous êtes rattaché est inactive.")
+            if user.organization:
+                print(f"[Auth][Login] Vérification de l'organisation: {user.organization.name} (active: {user.organization.is_active})")
+                if not user.organization.is_active:
+                    print("[Auth][Login] Échec: organisation inactive")
+                    raise serializers.ValidationError({
+                        "error": "L'organisation à laquelle vous êtes rattaché est inactive. Veuillez contacter votre administrateur."
+                    })
                 
         except User.DoesNotExist:
-            print("[DEBUG] Échec de connexion: utilisateur non trouvé")
-            pass  # On laisse la validation parent gérer ce cas
+            print("[Auth][Login] Échec: utilisateur non trouvé")
+            # On laisse la validation parent gérer ce cas
+            pass
         
         try:
             validated_data = super().validate(attrs)
-            print("[DEBUG] Validation des identifiants réussie")
+            print("[Auth][Login] Validation des identifiants réussie")
             return validated_data
         except Exception as e:
-            print(f"[DEBUG] Échec de la validation: {str(e)}")
+            print(f"[Auth][Login] Échec de la validation: {str(e)}")
             raise
 
 class UserSerializer(serializers.ModelSerializer):

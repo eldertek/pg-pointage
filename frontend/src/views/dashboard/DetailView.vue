@@ -197,7 +197,7 @@
                 { title: '15', value: 15 },
                 { title: 'Tout', value: -1 }
               ]"
-              @click:row="onTableRowClick($event, table.key)"
+              @click:row="(_: Event, rowData: any) => navigateToDetail(table.key, rowData)"
             >
               <!-- Actions -->
               <template v-slot:item.actions="{ item }">
@@ -702,8 +702,8 @@ const itemTypeLabel = computed(() => {
 const title = computed(() => {
   switch (props.type) {
     case 'user': return "Détails de l'utilisateur"
-    case 'site': return item.value?.name || 'Détails du site'
-    case 'organization': return item.value?.name || "Détails de l'organisation"
+    case 'site': return 'Détails du site'
+    case 'organization': return "Détails de l'organisation"
     default: return 'Détails'
   }
 })
@@ -895,9 +895,9 @@ const loadData = async () => {
         item.value = orgResponse.data
         const orgStats = await organizationsApi.getOrganizationStatistics(itemId.value)
         statistics.value = [
-          { label: 'Sites', value: orgStats.data.sites || 0 },
-          { label: 'Employés', value: orgStats.data.employees || 0 },
-          { label: 'Managers', value: orgStats.data.managers || 0 }
+          { label: 'Sites', value: orgStats.data.total_sites || 0 },
+          { label: 'Employés', value: orgStats.data.total_employees || 0 },
+          { label: 'Sites actifs', value: orgStats.data.active_sites || 0 }
         ]
         // Charger les sites et les employés pour les tableaux associés
         const [sitesResponse, orgEmployeesResponse] = await Promise.all([
@@ -1073,8 +1073,7 @@ const deleteItem = async () => {
   }
 }
 
-const onTableRowClick = (item: any, tableKey: string) => {
-  // Vuetify v-data-table passe l'item directement
+const handleRowClick = (tableKey: string, item: any) => {
   console.log('[DetailView][Click] Click sur une ligne:', { tableKey, item })
   
   if (!item || !item.id) {
@@ -1082,10 +1081,6 @@ const onTableRowClick = (item: any, tableKey: string) => {
     return
   }
 
-  handleRowClick(tableKey, item)
-}
-
-const handleRowClick = (tableKey: string, item: any) => {
   const routes: Record<string, string> = {
     employees: `/dashboard/admin/users/${item.id}`,
     sites: `/dashboard/sites/${item.id}`,
@@ -1343,6 +1338,32 @@ const formatEditRoute = (tableKey: string, item: TableItem): string => {
   return routes[tableKey] || ''
 }
 
+// Nouvelle fonction pour gérer le clic sur une ligne de tableau
+const navigateToDetail = (tableKey: string, rowData: any) => {
+  console.log('[DetailView][Click] Données de ligne complètes:', rowData)
+  
+  // Vuetify 3 stocke l'item original dans différents endroits selon la version
+  const item = rowData.item?.raw || rowData.item?.value || rowData.item || rowData
+  console.log('[DetailView][Click] Item extrait:', item)
+  
+  if (!item || !item.id) {
+    console.error('[DetailView][Click] Impossible de trouver l\'ID dans:', rowData)
+    return
+  }
+
+  const routes: Record<string, string> = {
+    employees: `/dashboard/admin/users/${item.id}`,
+    sites: `/dashboard/sites/${item.id}`,
+    schedules: `/dashboard/sites/${route.params.id}/schedules/${item.id}`
+  }
+  
+  const targetRoute = routes[tableKey]
+  if (targetRoute) {
+    console.log('[DetailView][Click] Navigation vers:', targetRoute)
+    router.push(targetRoute)
+  }
+}
+
 // Ajout des watchers pour la route et l'ID
 watch(
   [() => route.params.id, () => props.type],
@@ -1376,6 +1397,28 @@ onMounted(loadData)
 <style scoped>
 .white-space-pre-wrap {
   white-space: pre-wrap;
+}
+
+/* Style du bouton retour */
+:deep(.v-btn.mr-4) {
+  color: #00346E !important;
+  border: 1px solid #00346E !important;
+  margin-right: 16px !important;
+  transition: all 0.3s ease;
+}
+
+:deep(.v-btn.mr-4 .v-icon) {
+  color: #00346E !important;
+  opacity: 1 !important;
+}
+
+:deep(.v-btn.mr-4:hover) {
+  background-color: #00346E !important;
+  color: white !important;
+}
+
+:deep(.v-btn.mr-4:hover .v-icon) {
+  color: white !important;
 }
 
 .qr-code-container {
