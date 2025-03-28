@@ -397,121 +397,51 @@
         </v-card>
       </v-dialog>
 
-      <!-- Dialog pour assigner des employés à l'organisation -->
-      <v-dialog v-model="showAssignEmployeesDialog" max-width="600px">
-        <v-card>
-          <v-card-title>Assigner des employés à l'organisation</v-card-title>
-          <v-card-text>
-            <v-container>
-              <v-row>
-                <v-col cols="12">
-                  <v-autocomplete
-                    v-model="selectedEmployeeId"
-                    :items="unassignedEmployees"
-                    item-title="display_name"
-                    item-value="id"
-                    label="Sélectionner un employé"
-                    placeholder="Rechercher un employé..."
-                    return-object
-                    :loading="loadingEmployees"
-                    no-data-text="Aucun employé disponible"
-                  >
-                    <template v-slot:item="{ item, props }">
-                      <v-list-item v-bind="props">
-                        <template v-slot:prepend>
-                          <v-avatar color="primary" variant="tonal" size="small">
-                            <v-icon>mdi-account</v-icon>
-                          </v-avatar>
-                        </template>
-                        <v-list-item-title>{{ (item as any).first_name }} {{ (item as any).last_name }}</v-list-item-title>
-                        <v-list-item-subtitle>
-                          <v-chip size="x-small" :color="(item as any).role === 'MANAGER' ? 'warning' : 'success'">
-                            {{ (item as any).role === 'MANAGER' ? 'Manager' : 'Employé' }}
-                          </v-chip>
-                          {{ (item as any).email }}
-                        </v-list-item-subtitle>
-                      </v-list-item>
-                    </template>
-                  </v-autocomplete>
-                </v-col>
-              </v-row>
-            </v-container>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="grey" variant="text" @click="showAssignEmployeesDialog = false">
-              Annuler
-            </v-btn>
-            <v-btn 
-              color="primary" 
-              variant="text" 
-              @click="assignEmployeeToOrganization"
-              :disabled="!selectedEmployeeId"
-              :loading="assigningEmployee"
-            >
-              Assigner
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+      <!-- Dialog pour assigner des employés -->
+      <AssignDialog
+        v-model="showAssignEmployeesDialog"
+        title="Assigner des employés"
+        subtitle="Sélectionnez un employé à assigner"
+        :items="unassignedEmployees"
+        item-title="display_name"
+        item-icon="mdi-account"
+        label="Sélectionner un employé"
+        placeholder="Rechercher un employé..."
+        :loading="loadingEmployees"
+        :saving="assigningEmployee"
+        no-data-text="Aucun employé disponible"
+        @assign="handleAssignEmployee"
+      >
+        <template #item-subtitle="{ item }">
+          <v-chip size="x-small" :color="(item as unknown as ListItem).role === 'MANAGER' ? 'warning' : 'success'">
+            {{ (item as unknown as ListItem).role === 'MANAGER' ? 'Manager' : 'Employé' }}
+          </v-chip>
+          {{ (item as unknown as ListItem).email }}
+        </template>
+      </AssignDialog>
 
-      <!-- Dialog pour assigner des sites à l'organisation -->
-      <v-dialog v-model="showAssignSitesDialog" max-width="600px">
-        <v-card>
-          <v-card-title>Assigner des sites à l'organisation</v-card-title>
-          <v-card-text>
-            <v-container>
-              <v-row>
-                <v-col cols="12">
-                  <v-autocomplete
-                    v-model="selectedSiteId"
-                    :items="unassignedSites"
-                    item-title="name"
-                    item-value="id"
-                    label="Sélectionner un site"
-                    placeholder="Rechercher un site..."
-                    return-object
-                    :loading="loadingSites"
-                    no-data-text="Aucun site disponible"
-                  >
-                    <template v-slot:item="{ item, props }">
-                      <v-list-item v-bind="props">
-                        <template v-slot:prepend>
-                          <v-avatar color="primary" variant="tonal" size="small">
-                            <v-icon>mdi-domain</v-icon>
-                          </v-avatar>
-                        </template>
-                        <v-list-item-title>{{ (item as any).name }}</v-list-item-title>
-                        <v-list-item-subtitle>
-                          {{ (item as any).address }}, {{ (item as any).city }}
-                          <v-chip size="x-small" :color="(item as any).is_active ? 'success' : 'error'">
-                            {{ (item as any).is_active ? 'Actif' : 'Inactif' }}
-                          </v-chip>
-                        </v-list-item-subtitle>
-                      </v-list-item>
-                    </template>
-                  </v-autocomplete>
-                </v-col>
-              </v-row>
-            </v-container>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="grey" variant="text" @click="showAssignSitesDialog = false">
-              Annuler
-            </v-btn>
-            <v-btn 
-              color="primary" 
-              variant="text" 
-              @click="assignSiteToOrganization"
-              :disabled="!selectedSiteId"
-              :loading="assigningSite"
-            >
-              Assigner
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+      <!-- Dialog pour assigner des sites -->
+      <AssignDialog
+        v-model="showAssignSitesDialog"
+        title="Assigner des sites"
+        subtitle="Sélectionnez un site à assigner"
+        :items="unassignedSites"
+        item-title="name"
+        item-icon="mdi-domain"
+        label="Sélectionner un site"
+        placeholder="Rechercher un site..."
+        :loading="loadingSites"
+        :saving="assigningSite"
+        no-data-text="Aucun site disponible"
+        @assign="handleAssignSite"
+      >
+        <template #item-subtitle="{ item }">
+          {{ (item as unknown as ListItem).address }}, {{ (item as unknown as ListItem).city }}
+          <v-chip size="x-small" :color="(item as unknown as ListItem).is_active ? 'success' : 'error'">
+            {{ (item as unknown as ListItem).is_active ? 'Actif' : 'Inactif' }}
+          </v-chip>
+        </template>
+      </AssignDialog>
     </template>
   </v-container>
 </template>
@@ -521,6 +451,7 @@ import { ref, computed, onMounted, markRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
+import AssignDialog from '@/components/common/AssignDialog.vue'
 import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
 import { generateStyledQRCode } from '@/utils/qrcode'
 import { format } from 'date-fns'
@@ -612,6 +543,19 @@ interface TableItem {
 
 interface DataTableItem {
   raw: any;
+  [key: string]: any;
+}
+
+interface ListItem {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  role?: string;
+  name?: string;
+  address?: string;
+  city?: string;
+  is_active?: boolean;
   [key: string]: any;
 }
 
@@ -949,7 +893,7 @@ const loadData = async () => {
         ]
         // Charger les sites et les employés pour les tableaux associés
         const [sitesResponse, orgEmployeesResponse] = await Promise.all([
-          sitesApi.getAllSites(1, 10),
+          organizationsApi.getOrganizationSites(itemId.value, 1, 10),
           organizationsApi.getOrganizationUsers(itemId.value)
         ])
         relatedTables.value = [
@@ -1301,33 +1245,32 @@ const confirmDeleteDialogItem = async () => {
   }
 }
 
-const assignEmployeeToOrganization = async () => {
-  if (!selectedEmployeeId.value) return
+const handleAssignEmployee = async (employee: any) => {
   assigningEmployee.value = true
   try {
-    console.log('[DetailView][AssignEmployee] Assignation de l\'employé', selectedEmployeeId.value.id)
-    await organizationsApi.assignEmployee(itemId.value, selectedEmployeeId.value.id)
-    console.log('[DetailView][AssignEmployee] Employé assigné avec succès')
+    console.log('[DetailView][AssignEmployee] Mise à jour de l\'organisation de l\'employé', employee.id)
+    await usersApi.updateUser(employee.id, {
+      ...employee,
+      organization: itemId.value
+    })
+    console.log('[DetailView][AssignEmployee] Organisation mise à jour avec succès')
     await loadData()
     showAssignEmployeesDialog.value = false
-    selectedEmployeeId.value = null
   } catch (error) {
-    console.error('[DetailView][AssignEmployee] Erreur lors de l\'assignation de l\'employé:', error)
+    console.error('[DetailView][AssignEmployee] Erreur lors de la mise à jour de l\'organisation:', error)
   } finally {
     assigningEmployee.value = false
   }
 }
 
-const assignSiteToOrganization = async () => {
-  if (!selectedSiteId.value) return
+const handleAssignSite = async (site: any) => {
   assigningSite.value = true
   try {
-    console.log('[DetailView][AssignSite] Assignation du site', selectedSiteId.value.id)
-    await organizationsApi.assignSite(itemId.value, selectedSiteId.value.id)
+    console.log('[DetailView][AssignSite] Assignation du site', site.id)
+    await organizationsApi.assignSite(itemId.value, site.id)
     console.log('[DetailView][AssignSite] Site assigné avec succès')
     await loadData()
     showAssignSitesDialog.value = false
-    selectedSiteId.value = null
   } catch (error) {
     console.error('[DetailView][AssignSite] Erreur lors de l\'assignation du site:', error)
   } finally {

@@ -112,3 +112,60 @@ class OrganizationUnassignedSitesView(generics.ListAPIView):
             is_active=True
         )
 
+class OrganizationSitesView(generics.ListAPIView):
+    """Vue pour lister tous les sites d'une organisation spécifique"""
+    serializer_class = SiteSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Site.objects.none()
+            
+        organization_pk = self.kwargs.get('pk')
+        
+        # Récupérer uniquement les sites de cette organisation
+        return Site.objects.filter(
+            organization_id=organization_pk,
+            is_active=True
+        ).order_by('name')
+
+@extend_schema(
+    description="Assigner un site à une organisation",
+    responses={200: OpenApiResponse(description="Site assigné avec succès")}
+)
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def assign_site_to_organization(request, pk):
+    """Vue pour assigner un site à une organisation"""
+    try:
+        organization = Organization.objects.get(pk=pk)
+        site_id = request.data.get('site_id')
+        
+        if not site_id:
+            return Response(
+                {'error': 'L\'ID du site est requis'}, 
+                status=400
+            )
+            
+        try:
+            site = Site.objects.get(pk=site_id)
+        except Site.DoesNotExist:
+            return Response(
+                {'error': 'Site non trouvé'}, 
+                status=404
+            )
+            
+        site.organization = organization
+        site.save()
+        
+        return Response(
+            {'message': 'Site assigné avec succès'}, 
+            status=200
+        )
+        
+    except Organization.DoesNotExist:
+        return Response(
+            {'error': 'Organisation non trouvée'}, 
+            status=404
+        )
+

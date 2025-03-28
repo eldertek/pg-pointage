@@ -240,12 +240,13 @@ const validateSiteId = (siteId: string): boolean => {
 // Sites API methods
 const sitesApi = {
   // Get all sites with pagination
-  getAllSites: (page = 1, perPage = 10): Promise<AxiosResponse<ApiResponse<Site>>> => {
+  getAllSites: (page = 1, perPage = 10, params: { organization?: number } = {}): Promise<AxiosResponse<ApiResponse<Site>>> => {
     return api.get('/sites/', {
       params: {
         page,
         page_size: perPage,
-        expand: 'schedules'
+        expand: 'schedules',
+        ...params
       }
     })
   },
@@ -485,6 +486,15 @@ const organizationsApi = {
   // Get organization statistics
   getOrganizationStatistics: (id: number) => 
     api.get(`/organizations/${id}/statistics/`),
+
+  // Get organization sites
+  getOrganizationSites: (id: number, page = 1, perPage = 10) => 
+    api.get(`/organizations/${id}/sites/`, {
+      params: {
+        page,
+        page_size: perPage
+      }
+    }),
 
   // Activer/désactiver une organisation
   toggleOrganizationStatus: (id: number, isActive: boolean) => 

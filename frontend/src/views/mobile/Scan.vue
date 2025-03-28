@@ -12,10 +12,10 @@
               Choisissez votre méthode de scan ci-dessous
             </span>
             <span v-else-if="userScanPreference === 'NFC_ONLY'">
-              Appuyez sur le bouton ci-dessous pour scanner un badge NFC
+              Appuyez sur le bouton ci-dessous pour scanner
             </span>
             <span v-else>
-              Appuyez sur le bouton ci-dessous pour scanner un QR code
+              Appuyez sur le bouton ci-dessous pour scanner
             </span>
           </p>
           
@@ -31,7 +31,7 @@
               class="scan-button"
             >
               <v-icon start class="mr-3">mdi-nfc</v-icon>
-              Scanner un badge NFC
+              Scanner
             </v-btn>
 
             <!-- Bouton QR Code -->
@@ -44,7 +44,7 @@
               class="scan-button"
             >
               <v-icon start class="mr-3">mdi-qrcode-scan</v-icon>
-              Scanner un QR Code
+              Scanner
             </v-btn>
           </div>
         </div>
