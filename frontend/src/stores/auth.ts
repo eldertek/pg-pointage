@@ -27,6 +27,7 @@ interface ApiError {
 }
 
 interface User {
+  id: number;
   role: string;
   first_name: string;
   last_name: string;

@@ -52,7 +52,7 @@
         { title: 'Tout', value: -1 }
       ]"
       class="elevation-1"
-      @click:row="(item: Site) => router.push(`/dashboard/admin/sites/${item.id}`)"
+      @click:row="handleRowClick"
     >
       <!-- Adresse -->
       <template v-slot:item.address="{ item }">
@@ -88,10 +88,10 @@
           icon
           variant="text"
           size="small"
-          :color="item.is_active ? 'error' : 'success'"
+          color="warning"
           @click="toggleSiteStatus(item)"
         >
-          <v-icon>{{ item.is_active ? 'mdi-toggle-switch' : 'mdi-toggle-switch-off' }}</v-icon>
+          <v-icon>{{ item.is_active ? 'mdi-domain-off' : 'mdi-domain' }}</v-icon>
         </v-btn>
         <v-btn
           icon
@@ -441,6 +441,12 @@ const toggleSiteStatus = async (item: Site) => {
   }
 }
 
+const handleRowClick = (event: any, { item }: any) => {
+  if (item?.id) {
+    router.push(`/dashboard/sites/${item.id}`)
+  }
+}
+
 // Initialisation
 onMounted(async () => {
   await Promise.all([
@@ -473,6 +479,12 @@ watch(() => editedItem.value.organization, async (newOrgId) => {
 :deep(.v-data-table .v-btn--icon[color="primary"]) {
   background-color: transparent !important;
   color: #00346E !important;
+  opacity: 1 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="warning"]) {
+  background-color: transparent !important;
+  color: #FB8C00 !important;
   opacity: 1 !important;
 }
 

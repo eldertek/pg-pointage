@@ -437,7 +437,11 @@ const usersApi = {
       role: 'EMPLOYEE',
       is_active: true
     }
-  })
+  }),
+
+  // Activer/désactiver un utilisateur
+  toggleUserStatus: (id: number, isActive: boolean) => 
+    api.patch(`/users/${id}/`, { is_active: isActive }),
 }
 
 // Organizations API methods
@@ -470,7 +474,31 @@ const organizationsApi = {
   
   // Get organization statistics
   getOrganizationStatistics: (id: number) => 
-    api.get(`/organizations/${id}/statistics/`)
+    api.get(`/organizations/${id}/statistics/`),
+
+  // Activer/désactiver une organisation
+  toggleOrganizationStatus: (id: number, isActive: boolean) => 
+    api.patch(`/organizations/${id}/`, { is_active: isActive }),
+    
+  // Obtenir les employés qui ne sont pas encore assignés à l'organisation
+  getUnassignedEmployees: (id: number) => 
+    api.get(`/organizations/${id}/unassigned-employees/`, {
+      params: {
+        role: ['EMPLOYEE', 'MANAGER']  // Filtrer pour ne montrer que les employés et managers
+      }
+    }),
+    
+  // Obtenir les sites qui ne sont pas encore assignés à l'organisation
+  getUnassignedSites: (id: number) => 
+    api.get(`/organizations/${id}/unassigned-sites/`),
+    
+  // Assigner un employé à une organisation
+  assignEmployee: (organizationId: number, employeeId: number) => 
+    api.post(`/organizations/${organizationId}/assign-employee/`, { employee_id: employeeId }),
+    
+  // Assigner un site à une organisation
+  assignSite: (organizationId: number, siteId: number) => 
+    api.post(`/organizations/${organizationId}/assign-site/`, { site_id: siteId }),
 }
 
 // Timesheets API methods

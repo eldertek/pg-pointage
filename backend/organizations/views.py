@@ -6,6 +6,8 @@ from .models import Organization
 from .serializers import OrganizationSerializer
 from users.models import User
 from users.serializers import UserSerializer
+from sites.models import Site
+from sites.serializers import SiteSerializer
 from timesheets.models import Anomaly
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
@@ -72,4 +74,41 @@ class OrganizationStatisticsView(generics.RetrieveAPIView):
         
         serializer = self.get_serializer(stats)
         return Response(serializer.data)
+
+class OrganizationUnassignedEmployeesView(generics.ListAPIView):
+    """Vue pour lister tous les utilisateurs non assignés à une organisation spécifique"""
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return User.objects.none()
+            
+        organization_pk = self.kwargs.get('pk')
+        
+        # Récupérer les utilisateurs qui n'appartiennent pas à cette organisation
+        # et qui ont soit le rôle EMPLOYEE soit MANAGER
+        role_filter = self.request.query_params.getlist('role', ['EMPLOYEE', 'MANAGER'])
+        return User.objects.filter(
+            Q(organization__isnull=True) | ~Q(organization_id=organization_pk),
+            role__in=role_filter,
+            is_active=True
+        )
+
+class OrganizationUnassignedSitesView(generics.ListAPIView):
+    """Vue pour lister tous les sites non assignés à une organisation spécifique"""
+    serializer_class = SiteSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Site.objects.none()
+            
+        organization_pk = self.kwargs.get('pk')
+        
+        # Récupérer les sites qui n'appartiennent pas à cette organisation
+        return Site.objects.filter(
+            ~Q(organization_id=organization_pk),
+            is_active=True
+        )
 

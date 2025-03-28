@@ -112,7 +112,7 @@
             variant="text"
             size="small"
             color="primary"
-            :to="`/dashboard/admin/users/${item.id}`"
+            :to="`/dashboard/admin/users/${(item as ExtendedUser).id}`"
             @click.stop
           >
             <v-icon>mdi-eye</v-icon>
@@ -121,8 +121,8 @@
             icon
             variant="text"
             size="small"
-            color="primary"
-            @click.stop="openDialog(item)"
+            :color="(item as ExtendedUser)?.id === authStore.user?.id ? 'grey' : 'primary'"
+            @click.stop="(item as ExtendedUser)?.id === authStore.user?.id ? null : openDialog(item as ExtendedUser)"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
@@ -130,10 +130,17 @@
             icon
             variant="text"
             size="small"
-            color="error"
-            @click.stop="confirmDelete(item)"
-            :disabled="(item as ExtendedUser).id === (authStore.user as any)?.id"
-            :class="{ 'disabled-button': (item as ExtendedUser).id === (authStore.user as any)?.id }"
+            :color="(item as ExtendedUser)?.id === authStore.user?.id ? 'grey' : 'warning'"
+            @click.stop="(item as ExtendedUser)?.id === authStore.user?.id ? null : toggleStatus(item as ExtendedUser)"
+          >
+            <v-icon>{{ (item as ExtendedUser).is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+          </v-btn>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            :color="(item as ExtendedUser)?.id === authStore.user?.id ? 'grey' : 'error'"
+            @click.stop="(item as ExtendedUser)?.id === authStore.user?.id ? null : confirmDelete(item as ExtendedUser)"
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
@@ -180,7 +187,7 @@
             variant="text"
             size="small"
             color="primary"
-            :to="`/dashboard/organizations/${item.id}`"
+            :to="`/dashboard/organizations/${(item as Organization).id}`"
             @click.stop
           >
             <v-icon>mdi-eye</v-icon>
@@ -190,7 +197,7 @@
             variant="text"
             size="small"
             color="primary"
-            @click.stop="openDialog(item)"
+            @click.stop="openDialog(item as Organization)"
           >
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
@@ -198,8 +205,17 @@
             icon
             variant="text"
             size="small"
+            color="warning"
+            @click.stop="toggleStatus(item as Organization)"
+          >
+            <v-icon>{{ (item as Organization).is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+          </v-btn>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
             color="error"
-            @click.stop="confirmDelete(item)"
+            @click.stop="confirmDelete(item as Organization)"
           >
             <v-icon>mdi-delete</v-icon>
           </v-btn>
@@ -421,6 +437,8 @@ import { useRouter, useRoute } from 'vue-router'
 // Interface étendue pour les utilisateurs avec les propriétés supplémentaires
 interface ExtendedUser extends User {
   sites?: Site[];
+  id: number;
+  is_active: boolean;
 }
 
 // Interface étendue pour les organisations
@@ -439,7 +457,7 @@ interface Organization {
   notes?: string;
   created_at: string;
   updated_at: string;
-  is_active?: boolean;
+  is_active: boolean;
 }
 
 // Interface pour le formulaire utilisateur
@@ -814,6 +832,21 @@ const getRoleLabel = (role: RoleEnum | undefined) => {
   return found ? found.label : role
 }
 
+const toggleStatus = async (item: ExtendedUser | Organization) => {
+  try {
+    const newStatus = !item.is_active;
+    if (view.value === 'users') {
+      await usersApi.toggleUserStatus((item as ExtendedUser).id, newStatus);
+      await loadUsers();
+    } else {
+      await organizationsApi.toggleOrganizationStatus((item as Organization).id, newStatus);
+      await loadOrganizations();
+    }
+  } catch (error) {
+    console.error('Erreur lors du changement de statut:', error);
+  }
+}
+
 // Initialisation
 onMounted(async () => {
   // Initialiser la vue
@@ -908,16 +941,27 @@ watch(() => (editedItem.value as UserFormData)?.role, (newRole: RoleEnum | undef
 
 <style scoped>
 /* Style des boutons dans le tableau */
-:deep(.v-data-table .v-btn--icon[color="primary"]) {
+:deep(.v-data-table .v-btn--icon) {
   background-color: transparent !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="primary"]) {
   color: #00346E !important;
-  opacity: 1 !important;
 }
 
 :deep(.v-data-table .v-btn--icon[color="error"]) {
-  background-color: transparent !important;
   color: #F78C48 !important;
-  opacity: 1 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="warning"]) {
+  color: #FB8C00 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="grey"]) {
+  color: #999999 !important;
+  opacity: 0.5 !important;
+  cursor: default !important;
+  pointer-events: none !important;
 }
 
 /* Assurer que les icônes dans les boutons sont visibles */

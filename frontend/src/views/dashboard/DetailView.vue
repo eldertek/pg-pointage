@@ -12,22 +12,23 @@
       <Title :level="1" class="font-weight-bold">{{ title }}</Title>
       <v-spacer></v-spacer>
       <v-btn
-        color="primary"
+        :color="isOwnProfile ? 'grey' : 'primary'"
         prepend-icon="mdi-pencil"
-        @click="editItem"
+        @click.stop="editItem"
         class="mr-2"
+        :disabled="isOwnProfile"
       >
         Modifier
       </v-btn>
       <v-btn
         v-if="allowDelete"
-        color="error"
+        :color="isOwnProfile ? 'grey' : 'error'"
         prepend-icon="mdi-delete"
-        @click="confirmDelete"
-        :disabled="deleteButtonDisabled"
+        @click.stop="confirmDelete"
+        :disabled="isOwnProfile"
       >
         Supprimer
-        <v-tooltip activator="parent" v-if="deleteButtonDisabled">
+        <v-tooltip activator="parent" v-if="isOwnProfile">
           Vous ne pouvez pas supprimer votre propre compte
         </v-tooltip>
       </v-btn>
@@ -170,30 +171,43 @@
           <v-card-title class="d-flex justify-space-between align-center">
             <span>{{ table.title }} ({{ table.items.length }})</span>
             <v-btn
-              v-if="table.addRoute"
+              v-if="table.addLabel"
               color="primary"
               size="small"
               prepend-icon="mdi-plus-circle"
               :to="table.addRoute"
+              v-on="table.addAction ? { click: table.addAction } : {}"
             >
               {{ table.addLabel }}
             </v-btn>
           </v-card-title>
           <v-card-text>
             <v-data-table
+              v-model:page="page"
               :headers="table.headers"
               :items="table.items"
               :items-per-page="5"
               :no-data-text="table.noDataText || 'Aucune donnée'"
-              @click:row="(item: TableItem) => handleRowClick(table.key, item)"
+              :loading-text="'Chargement...'"
+              :items-per-page-text="'Lignes par page'"
+              :page-text="'{0}-{1} sur {2}'"
+              :items-per-page-options="[
+                { title: '5', value: 5 },
+                { title: '10', value: 10 },
+                { title: '15', value: 15 },
+                { title: 'Tout', value: -1 }
+              ]"
+              @click:row="onTableRowClick($event, table.key)"
             >
-              <!-- Slot pour les actions -->
-              <template v-slot:item.actions="{ item: rowItem }">
+              <!-- Actions -->
+              <template v-slot:item.actions="{ item }">
                 <v-btn
                   icon
                   variant="text"
                   size="small"
-                  :to="formatDetailRoute(table.key, rowItem)"
+                  color="primary"
+                  :to="formatDetailRoute(table.key, item)"
+                  @click.stop
                 >
                   <v-icon>mdi-eye</v-icon>
                   <v-tooltip activator="parent">Voir les détails</v-tooltip>
@@ -202,7 +216,9 @@
                   icon
                   variant="text"
                   size="small"
-                  @click="editRelatedItem(table.key, rowItem)"
+                  color="primary"
+                  :to="formatEditRoute(table.key, item)"
+                  @click.stop
                 >
                   <v-icon>mdi-pencil</v-icon>
                   <v-tooltip activator="parent">Modifier</v-tooltip>
@@ -211,8 +227,18 @@
                   icon
                   variant="text"
                   size="small"
+                  color="warning"
+                  @click.stop="handleToggleStatus(table.key, item)"
+                >
+                  <v-icon>{{ item.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+                  <v-tooltip activator="parent">{{ item.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+                </v-btn>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
                   color="error"
-                  @click="deleteRelatedItem(table.key, rowItem)"
+                  @click.stop="handleDelete(table.key, item)"
                 >
                   <v-icon>mdi-delete</v-icon>
                   <v-tooltip activator="parent">Supprimer</v-tooltip>
@@ -252,12 +278,246 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
+
+      <!-- Dialog de modification -->
+      <v-dialog v-model="showEditDialog" max-width="800px">
+        <v-card>
+          <v-card-title>
+            {{ dialogType === 'sites' ? 'Modifier le site' : 'Modifier l\'employé' }}
+          </v-card-title>
+          <v-card-text>
+            <v-form ref="dialogForm">
+              <template v-if="dialogType === 'sites'">
+                <!-- Formulaire de site -->
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="dialogItem.name"
+                      label="Nom"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="dialogItem.address"
+                      label="Adresse"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="dialogItem.postal_code"
+                      label="Code postal"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="dialogItem.city"
+                      label="Ville"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="dialogItem.country"
+                      label="Pays"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                </v-row>
+              </template>
+              <template v-else>
+                <!-- Formulaire d'employé -->
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="dialogItem.first_name"
+                      label="Prénom"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="dialogItem.last_name"
+                      label="Nom"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="dialogItem.email"
+                      label="Email"
+                      type="email"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="6">
+                    <v-select
+                      v-model="dialogItem.role"
+                      :items="roles"
+                      item-title="label"
+                      item-value="value"
+                      label="Rôle"
+                      required
+                    ></v-select>
+                  </v-col>
+                </v-row>
+              </template>
+            </v-form>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="grey" variant="text" @click="showEditDialog = false">
+              Annuler
+            </v-btn>
+            <v-btn color="primary" variant="text" @click="saveDialogItem">
+              Enregistrer
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- Dialog de confirmation de suppression -->
+      <v-dialog v-model="showDeleteConfirmDialog" max-width="400px">
+        <v-card>
+          <v-card-title>Confirmer la suppression</v-card-title>
+          <v-card-text>
+            Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="grey" variant="text" @click="showDeleteConfirmDialog = false">
+              Annuler
+            </v-btn>
+            <v-btn color="error" variant="text" @click="confirmDeleteDialogItem">
+              Supprimer
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- Dialog pour assigner des employés à l'organisation -->
+      <v-dialog v-model="showAssignEmployeesDialog" max-width="600px">
+        <v-card>
+          <v-card-title>Assigner des employés à l'organisation</v-card-title>
+          <v-card-text>
+            <v-container>
+              <v-row>
+                <v-col cols="12">
+                  <v-autocomplete
+                    v-model="selectedEmployeeId"
+                    :items="unassignedEmployees"
+                    item-title="display_name"
+                    item-value="id"
+                    label="Sélectionner un employé"
+                    placeholder="Rechercher un employé..."
+                    return-object
+                    :loading="loadingEmployees"
+                    no-data-text="Aucun employé disponible"
+                  >
+                    <template v-slot:item="{ item, props }">
+                      <v-list-item v-bind="props">
+                        <template v-slot:prepend>
+                          <v-avatar color="primary" variant="tonal" size="small">
+                            <v-icon>mdi-account</v-icon>
+                          </v-avatar>
+                        </template>
+                        <v-list-item-title>{{ (item as any).first_name }} {{ (item as any).last_name }}</v-list-item-title>
+                        <v-list-item-subtitle>
+                          <v-chip size="x-small" :color="(item as any).role === 'MANAGER' ? 'warning' : 'success'">
+                            {{ (item as any).role === 'MANAGER' ? 'Manager' : 'Employé' }}
+                          </v-chip>
+                          {{ (item as any).email }}
+                        </v-list-item-subtitle>
+                      </v-list-item>
+                    </template>
+                  </v-autocomplete>
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="grey" variant="text" @click="showAssignEmployeesDialog = false">
+              Annuler
+            </v-btn>
+            <v-btn 
+              color="primary" 
+              variant="text" 
+              @click="assignEmployeeToOrganization"
+              :disabled="!selectedEmployeeId"
+              :loading="assigningEmployee"
+            >
+              Assigner
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- Dialog pour assigner des sites à l'organisation -->
+      <v-dialog v-model="showAssignSitesDialog" max-width="600px">
+        <v-card>
+          <v-card-title>Assigner des sites à l'organisation</v-card-title>
+          <v-card-text>
+            <v-container>
+              <v-row>
+                <v-col cols="12">
+                  <v-autocomplete
+                    v-model="selectedSiteId"
+                    :items="unassignedSites"
+                    item-title="name"
+                    item-value="id"
+                    label="Sélectionner un site"
+                    placeholder="Rechercher un site..."
+                    return-object
+                    :loading="loadingSites"
+                    no-data-text="Aucun site disponible"
+                  >
+                    <template v-slot:item="{ item, props }">
+                      <v-list-item v-bind="props">
+                        <template v-slot:prepend>
+                          <v-avatar color="primary" variant="tonal" size="small">
+                            <v-icon>mdi-domain</v-icon>
+                          </v-avatar>
+                        </template>
+                        <v-list-item-title>{{ (item as any).name }}</v-list-item-title>
+                        <v-list-item-subtitle>
+                          {{ (item as any).address }}, {{ (item as any).city }}
+                          <v-chip size="x-small" :color="(item as any).is_active ? 'success' : 'error'">
+                            {{ (item as any).is_active ? 'Actif' : 'Inactif' }}
+                          </v-chip>
+                        </v-list-item-subtitle>
+                      </v-list-item>
+                    </template>
+                  </v-autocomplete>
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="grey" variant="text" @click="showAssignSitesDialog = false">
+              Annuler
+            </v-btn>
+            <v-btn 
+              color="primary" 
+              variant="text" 
+              @click="assignSiteToOrganization"
+              :disabled="!selectedSiteId"
+              :loading="assigningSite"
+            >
+              Assigner
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </template>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, markRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
@@ -266,6 +526,7 @@ import { generateStyledQRCode } from '@/utils/qrcode'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '@/stores/auth'
+import { RoleEnum } from '@/types/api'
 import { 
   sitesApi, 
   usersApi, 
@@ -340,10 +601,16 @@ interface RelatedTable {
   addLabel?: string;
   noDataText?: string;
   slots?: TableSlot[];
+  addAction?: () => void;
 }
 
 interface TableItem {
   id: number;
+  [key: string]: any;
+}
+
+interface DataTableItem {
+  raw: any;
   [key: string]: any;
 }
 
@@ -363,15 +630,63 @@ const props = defineProps({
   }
 })
 
-const route = useRoute()
 const router = useRouter()
-const loading = ref(true)
+const route = useRoute()
+const loading = ref(false)
 const deleting = ref(false)
 const showDeleteDialog = ref(false)
 const item = ref<any>({})
 const statistics = ref<Array<{ label: string; value: number }>>([])
 const relatedTables = ref<RelatedTable[]>([])
 const auth = useAuthStore()
+const showEditDialog = ref(false)
+const showDeleteConfirmDialog = ref(false)
+const dialogItem = ref<any>(null)
+const dialogType = ref<string>('')
+const selectedEmployeeId = ref<any>(null)
+const selectedSiteId = ref<any>(null)
+const unassignedEmployees = ref<any[]>([])
+const unassignedSites = ref<any[]>([])
+const loadingEmployees = ref(false)
+const loadingSites = ref(false)
+const assigningEmployee = ref(false)
+const assigningSite = ref(false)
+const showAssignEmployeesDialog = ref(false)
+const showAssignSitesDialog = ref(false)
+const page = ref(1)
+
+// Ajout des rôles
+const roles = [
+  { label: 'Super Admin', value: RoleEnum.SUPER_ADMIN },
+  { label: 'Manager', value: RoleEnum.MANAGER },
+  { label: 'Employé', value: RoleEnum.EMPLOYEE }
+]
+
+// Ajout des fonctions utilitaires
+const getRoleColor = (role: RoleEnum | undefined) => {
+  if (!role) return 'grey'
+  switch (role) {
+    case RoleEnum.SUPER_ADMIN:
+      return 'error'
+    case RoleEnum.MANAGER:
+      return 'warning'
+    case RoleEnum.EMPLOYEE:
+      return 'success'
+    default:
+      return 'grey'
+  }
+}
+
+const getRoleLabel = (role: RoleEnum | undefined) => {
+  if (!role) return ''
+  const found = roles.find(r => r.value === role)
+  return found ? found.label : role
+}
+
+// Mise à jour du type des routes
+interface RouteMap {
+  [key: string]: string;
+}
 
 // Computed properties
 const itemId = computed(() => Number(route.params.id))
@@ -463,7 +778,7 @@ const displayFields = computed((): DisplayField[] => {
           country: 'country',
           key: 'address'
         },
-        { key: 'nfc_id', label: 'ID NFC', icon: 'mdi-nfc' },
+        { key: 'nfc_id', label: 'ID', icon: 'mdi-nfc' },
         { key: 'organization_name', label: 'Organisation', icon: 'mdi-domain' },
         { key: 'manager_name', label: 'Manager', icon: 'mdi-account-tie' },
         { key: 'late_margin', label: 'Marge de retard', icon: 'mdi-clock-alert', suffix: ' minutes' },
@@ -522,9 +837,6 @@ interface GetAllSitesParams {
   organization?: number;
 }
 
-// Mise à jour du type des routes
-type RouteKey = 'user' | 'site' | 'organization'
-
 // Méthodes
 const loadData = async () => {
   loading.value = true
@@ -559,8 +871,9 @@ const loadData = async () => {
               { title: 'Rôle', key: 'role' },
               { title: 'Actions', key: 'actions' }
             ],
-            addRoute: '/dashboard/employees/new',
-            addLabel: 'Ajouter un employé'
+            addRoute: `/dashboard/sites/${itemId.value}/assign-employees`,
+            addLabel: 'Assigner un employé',
+            noDataText: 'Aucun employé trouvé'
           },
           {
             key: 'schedules',
@@ -597,27 +910,67 @@ const loadData = async () => {
             title: 'Sites',
             items: sitesResponse.data.results,
             headers: [
+              { title: 'ID', key: 'id' },
               { title: 'Nom', key: 'name' },
               { title: 'Adresse', key: 'address' },
-              { title: 'Statut', key: 'status' },
-              { title: 'Actions', key: 'actions' }
+              { title: 'Ville', key: 'city' },
+              { title: 'Statut', key: 'is_active' },
+              { title: 'Actions', key: 'actions', sortable: false }
             ],
-            addRoute: '/dashboard/sites/new',
-            addLabel: 'Ajouter un site'
+            addRoute: undefined,
+            addLabel: 'Assigner un site',
+            addAction: openAssignSitesDialog,
+            noDataText: 'Aucun site trouvé',
+            slots: [
+              {
+                key: 'address',
+                component: markRaw(AddressWithMap),
+                props: (item: any) => ({
+                  address: item.address,
+                  postal_code: item.postal_code,
+                  city: item.city,
+                  country: item.country
+                })
+              },
+              {
+                key: 'is_active',
+                component: 'v-chip',
+                props: (item: any) => ({
+                  color: item.is_active ? 'success' : 'error',
+                  size: 'small',
+                  text: item.is_active ? 'Actif' : 'Inactif'
+                })
+              }
+            ]
           },
           {
             key: 'employees',
             title: 'Employés',
             items: orgEmployeesResponse.data.results,
             headers: [
-              { title: 'Nom', key: 'employee_name' },
+              { title: 'ID', key: 'id' },
+              { title: 'Nom', key: 'last_name' },
+              { title: 'Prénom', key: 'first_name' },
               { title: 'Email', key: 'email' },
               { title: 'Rôle', key: 'role' },
               { title: 'Site', key: 'site_name' },
-              { title: 'Actions', key: 'actions' }
+              { title: 'Actions', key: 'actions', sortable: false }
             ],
-            addRoute: '/dashboard/employees/new',
-            addLabel: 'Ajouter un employé'
+            addRoute: undefined,
+            addLabel: 'Assigner un employé',
+            addAction: openAssignEmployeesDialog,
+            noDataText: 'Aucun employé trouvé',
+            slots: [
+              {
+                key: 'role',
+                component: 'v-chip',
+                props: (item: any) => ({
+                  color: getRoleColor(item.role),
+                  size: 'small',
+                  text: getRoleLabel(item.role)
+                })
+              }
+            ]
           }
         ]
         break
@@ -648,6 +1001,16 @@ const formatFieldValue = (field: Field, value: any) => {
 }
 
 const editItem = () => {
+  console.log('[DetailView][Edit] Début de la fonction editItem')
+  console.log('[DetailView][Edit] Type:', props.type, 'ID:', itemId.value)
+  console.log('[DetailView][Edit] isOwnProfile:', isOwnProfile.value)
+  
+  if (isOwnProfile.value) {
+    console.log('[DetailView][Edit] Action bloquée - profil utilisateur')
+    return
+  }
+  
+  type RouteKey = 'user' | 'site' | 'organization'
   const editRoutes: Record<RouteKey, string> = {
     user: `/dashboard/admin/users/${itemId.value}/edit`,
     site: `/dashboard/sites/${itemId.value}/edit`,
@@ -656,47 +1019,82 @@ const editItem = () => {
   
   const editRoute = editRoutes[props.type as RouteKey]
   if (editRoute) {
-    router.push(editRoute)
+    console.log('[DetailView][Edit] Redirection vers:', editRoute)
+    router.push(editRoute).catch(error => {
+      console.error('[DetailView][Edit] Erreur lors de la redirection:', error)
+    })
+  } else {
+    console.error('[DetailView][Edit] Route non trouvée pour le type:', props.type)
   }
 }
 
 const confirmDelete = () => {
+  console.log('[DetailView][Delete] Début de la fonction confirmDelete')
+  console.log('[DetailView][Delete] isOwnProfile:', isOwnProfile.value)
+  
+  if (isOwnProfile.value) {
+    console.log('[DetailView][Delete] Action bloquée - profil utilisateur')
+    return
+  }
+  
+  console.log('[DetailView][Delete] Ouverture du dialogue de confirmation')
   showDeleteDialog.value = true
 }
 
 const deleteItem = async () => {
+  console.log('[DetailView][Delete] Début de la fonction deleteItem')
+  console.log('[DetailView][Delete] Type:', props.type, 'ID:', itemId.value)
+  
   deleting.value = true
   try {
+    console.log('[DetailView][Delete] Tentative de suppression...')
     switch (props.type) {
       case 'user':
         await usersApi.deleteUser(itemId.value)
-        router.push('/dashboard/admin/users')
+        console.log('[DetailView][Delete] Utilisateur supprimé, redirection...')
+        await router.push('/dashboard/admin/users')
         break
       case 'site':
         await sitesApi.deleteSite(itemId.value)
-        router.push('/dashboard/sites')
+        console.log('[DetailView][Delete] Site supprimé, redirection...')
+        await router.push('/dashboard/sites')
         break
       case 'organization':
         await organizationsApi.deleteOrganization(itemId.value)
-        router.push('/dashboard/organizations')
+        console.log('[DetailView][Delete] Organisation supprimée, redirection...')
+        await router.push('/dashboard/organizations')
         break
     }
   } catch (error) {
-    console.error('Erreur lors de la suppression:', error)
+    console.error('[DetailView][Delete] Erreur lors de la suppression:', error)
   } finally {
     deleting.value = false
     showDeleteDialog.value = false
   }
 }
 
-const handleRowClick = (tableKey: string, rowItem: TableItem) => {
-  const routes: Record<string, string> = {
-    employees: `/dashboard/admin/users/${rowItem.id}`,
-    sites: `/dashboard/sites/${rowItem.id}`,
-    schedules: `/dashboard/sites/${route.params.id}/schedules/${rowItem.id}`
+const onTableRowClick = (item: any, tableKey: string) => {
+  // Vuetify v-data-table passe l'item directement
+  console.log('[DetailView][Click] Click sur une ligne:', { tableKey, item })
+  
+  if (!item || !item.id) {
+    console.error('[DetailView][Click] Item invalide:', item)
+    return
   }
+
+  handleRowClick(tableKey, item)
+}
+
+const handleRowClick = (tableKey: string, item: any) => {
+  const routes: Record<string, string> = {
+    employees: `/dashboard/admin/users/${item.id}`,
+    sites: `/dashboard/sites/${item.id}`,
+    schedules: `/dashboard/sites/${route.params.id}/schedules/${item.id}`
+  }
+  
   const targetRoute = routes[tableKey]
   if (targetRoute) {
+    console.log('[DetailView][Click] Navigation vers:', targetRoute)
     router.push(targetRoute)
   }
 }
@@ -784,10 +1182,193 @@ const isOwnProfile = computed(() => {
   return props.type === 'user' && (auth.user as User)?.id === itemId.value
 })
 
-// Computed pour déterminer si le bouton de suppression doit être désactivé
-const deleteButtonDisabled = computed(() => {
-  return isOwnProfile.value
-})
+// Ajout des dialogues
+const handleViewDetails = (tableKey: string, item: any) => {
+  const routes: RouteMap = {
+    sites: `/dashboard/sites/${item.id}`,
+    employees: `/dashboard/admin/users/${item.id}`
+  }
+  const route = routes[tableKey]
+  if (route) {
+    router.push(route)
+  }
+}
+
+const handleEdit = (tableKey: string, item: any) => {
+  dialogType.value = tableKey
+  dialogItem.value = { ...item }
+  showEditDialog.value = true
+}
+
+const handleToggleStatus = async (tableKey: string, item: any) => {
+  try {
+    if (tableKey === 'sites') {
+      await sitesApi.updateSite(item.id, { ...item, is_active: !item.is_active })
+    } else if (tableKey === 'employees') {
+      await usersApi.toggleUserStatus(item.id, !item.is_active)
+    }
+    await loadData()
+  } catch (error) {
+    console.error('[DetailView][ToggleStatus] Erreur lors du changement de statut:', error)
+  }
+}
+
+const handleDelete = async (tableKey: string, item: any) => {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cet élément ?')) {
+    return
+  }
+
+  try {
+    if (tableKey === 'sites') {
+      await sitesApi.deleteSite(item.id)
+    } else if (tableKey === 'employees') {
+      await usersApi.deleteUser(item.id)
+    }
+    await loadData()
+  } catch (error) {
+    console.error('[DetailView][Delete] Erreur lors de la suppression:', error)
+  }
+}
+
+const saveDialogItem = async () => {
+  try {
+    if (dialogType.value === 'sites') {
+      await sitesApi.updateSite(dialogItem.value.id, dialogItem.value)
+    } else {
+      await usersApi.updateUser(dialogItem.value.id, dialogItem.value)
+    }
+    showEditDialog.value = false
+    await loadData()
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde:', error)
+  }
+}
+
+const confirmDeleteDialogItem = async () => {
+  try {
+    if (dialogType.value === 'sites') {
+      await sitesApi.deleteSite(dialogItem.value.id)
+    } else {
+      await usersApi.deleteUser(dialogItem.value.id)
+    }
+    showDeleteConfirmDialog.value = false
+    await loadData()
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error)
+  }
+}
+
+const assignEmployeeToOrganization = async () => {
+  if (!selectedEmployeeId.value) return
+  assigningEmployee.value = true
+  try {
+    console.log('[DetailView][AssignEmployee] Assignation de l\'employé', selectedEmployeeId.value.id)
+    await organizationsApi.assignEmployee(itemId.value, selectedEmployeeId.value.id)
+    console.log('[DetailView][AssignEmployee] Employé assigné avec succès')
+    await loadData()
+    showAssignEmployeesDialog.value = false
+    selectedEmployeeId.value = null
+  } catch (error) {
+    console.error('[DetailView][AssignEmployee] Erreur lors de l\'assignation de l\'employé:', error)
+  } finally {
+    assigningEmployee.value = false
+  }
+}
+
+const assignSiteToOrganization = async () => {
+  if (!selectedSiteId.value) return
+  assigningSite.value = true
+  try {
+    console.log('[DetailView][AssignSite] Assignation du site', selectedSiteId.value.id)
+    await organizationsApi.assignSite(itemId.value, selectedSiteId.value.id)
+    console.log('[DetailView][AssignSite] Site assigné avec succès')
+    await loadData()
+    showAssignSitesDialog.value = false
+    selectedSiteId.value = null
+  } catch (error) {
+    console.error('[DetailView][AssignSite] Erreur lors de l\'assignation du site:', error)
+  } finally {
+    assigningSite.value = false
+  }
+}
+
+const loadUnassignedEmployees = async () => {
+  loadingEmployees.value = true
+  try {
+    console.log('[DetailView][LoadEmployees] Chargement des employés non assignés')
+    const response = await organizationsApi.getUnassignedEmployees(itemId.value)
+    unassignedEmployees.value = response.data.results || []
+    console.log('[DetailView][LoadEmployees] Employés chargés:', unassignedEmployees.value.length)
+  } catch (error) {
+    console.error('[DetailView][LoadEmployees] Erreur lors du chargement des employés:', error)
+    unassignedEmployees.value = []
+  } finally {
+    loadingEmployees.value = false
+  }
+}
+
+const loadUnassignedSites = async () => {
+  loadingSites.value = true
+  try {
+    console.log('[DetailView][LoadSites] Chargement des sites non assignés')
+    const response = await organizationsApi.getUnassignedSites(itemId.value)
+    unassignedSites.value = response.data.results || []
+    console.log('[DetailView][LoadSites] Sites chargés:', unassignedSites.value.length)
+  } catch (error) {
+    console.error('[DetailView][LoadSites] Erreur lors du chargement des sites:', error)
+    unassignedSites.value = []
+  } finally {
+    loadingSites.value = false
+  }
+}
+
+// Ouvrir le dialogue d'assignation des employés
+const openAssignEmployeesDialog = async () => {
+  await loadUnassignedEmployees()
+  showAssignEmployeesDialog.value = true
+}
+
+// Ouvrir le dialogue d'assignation des sites  
+const openAssignSitesDialog = async () => {
+  await loadUnassignedSites()
+  showAssignSitesDialog.value = true
+}
+
+const formatEditRoute = (tableKey: string, item: TableItem): string => {
+  const routes: Record<string, string> = {
+    employees: `/dashboard/admin/users/${item.id}/edit`,
+    sites: `/dashboard/sites/${item.id}/edit`,
+    schedules: `/dashboard/sites/${route.params.id}/schedules/${item.id}/edit`
+  }
+  return routes[tableKey] || ''
+}
+
+// Ajout des watchers pour la route et l'ID
+watch(
+  [() => route.params.id, () => props.type],
+  async ([newId, newType], [oldId, oldType]) => {
+    console.log('[DetailView][Watch] Changement de route détectée:', { newId, oldId, newType, oldType })
+    
+    if (newId !== oldId || newType !== oldType) {
+      console.log('[DetailView][Watch] Réinitialisation des données')
+      // Réinitialiser l'état
+      item.value = {}
+      statistics.value = []
+      relatedTables.value = []
+      
+      // Recharger les données
+      loading.value = true
+      try {
+        await loadData()
+      } catch (error) {
+        console.error('[DetailView][Watch] Erreur lors du rechargement des données:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+  },
+  { immediate: true }
+)
 
 onMounted(loadData)
 </script>
@@ -815,20 +1396,37 @@ onMounted(loadData)
   gap: 8px;
 }
 
-:deep(.v-btn--icon) {
+/* Style des boutons dans le tableau */
+:deep(.v-data-table .v-btn--icon) {
   background-color: transparent !important;
 }
 
-:deep(.v-btn--icon .v-icon) {
-  color: rgb(0, 52, 110) !important;
-  opacity: 1 !important;
+:deep(.v-data-table .v-btn--icon[color="primary"]) {
+  color: #00346E !important;
 }
 
-:deep(.v-list-item .v-icon) {
-  color: rgb(0, 52, 110) !important;
-  opacity: 1 !important;
+:deep(.v-data-table .v-btn--icon[color="error"]) {
+  color: #F78C48 !important;
 }
 
+:deep(.v-data-table .v-btn--icon[color="warning"]) {
+  color: #FB8C00 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="grey"]) {
+  color: #999999 !important;
+  opacity: 0.5 !important;
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+/* Assurer que les icônes dans les boutons sont visibles */
+:deep(.v-data-table .v-btn--icon .v-icon) {
+  opacity: 1 !important;
+  color: inherit !important;
+}
+
+/* Style des boutons normaux */
 :deep(.v-btn[color="primary"]) {
   background-color: #00346E !important;
   color: white !important;
@@ -837,5 +1435,13 @@ onMounted(loadData)
 :deep(.v-btn[color="error"]) {
   background-color: #F78C48 !important;
   color: white !important;
+}
+
+:deep(.v-btn[color="grey"]) {
+  background-color: #999999 !important;
+  color: white !important;
+  opacity: 0.5 !important;
+  cursor: default !important;
+  pointer-events: none !important;
 }
 </style> 
