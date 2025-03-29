@@ -149,39 +149,57 @@
 
         <!-- Planning type Fréquence -->
         <template v-if="editedItem && editedItem.schedule_type === ScheduleTypeEnum.FREQUENCY">
-          <v-col v-for="(detail, index) in editedItem.details" :key="index">
-            <v-row>
-              <v-col cols="12" sm="4">
+          <v-row>
+            <v-col cols="12">
+              <div v-for="(detail, index) in editedItem.details" :key="index" class="day-container mb-6">
                 <v-checkbox
                   v-model="detail.enabled"
                   :label="daysOfWeek.find(d => d.value === detail.day_of_week)?.label || ''"
+                  class="mb-2 day-checkbox"
+                  color="primary"
+                  hide-details
                 ></v-checkbox>
-              </v-col>
-              <v-col v-if="detail.enabled" cols="12" sm="4">
-                <v-text-field
-                  v-model="detail.frequency_duration"
-                  type="number"
-                  label="Durée (minutes)"
-                  min="0"
-                  step="1"
-                ></v-text-field>
-              </v-col>
-            </v-row>
-          </v-col>
+
+                <div v-if="detail.enabled" class="day-content pl-8">
+                  <div class="time-section">
+                    <div class="text-subtitle-2 mb-3">Durée de présence</div>
+                    <v-text-field
+                      v-model="detail.frequency_duration"
+                      type="number"
+                      label="Durée (minutes)"
+                      min="0"
+                      step="1"
+                      density="comfortable"
+                      variant="outlined"
+                      color="primary"
+                      class="flex-grow-1"
+                      hide-details
+                    >
+                      <template v-slot:append-inner>
+                        <span class="text-grey">min</span>
+                      </template>
+                    </v-text-field>
+                  </div>
+                </div>
+              </div>
+            </v-col>
+          </v-row>
         </template>
 
         <!-- Planning type Fixe -->
         <template v-else-if="editedItem">
-          <v-col v-for="(detail, index) in editedItem.details" :key="index">
-            <v-row>
-              <v-col cols="12" sm="3">
+          <v-row>
+            <v-col cols="12">
+              <div v-for="(detail, index) in editedItem.details" :key="index" class="day-container mb-6">
                 <v-checkbox
                   v-model="detail.enabled"
                   :label="daysOfWeek.find(d => d.value === detail.day_of_week)?.label || ''"
+                  class="mb-2 day-checkbox"
+                  color="primary"
+                  hide-details
                 ></v-checkbox>
-              </v-col>
-              <template v-if="detail.enabled">
-                <v-col cols="12" sm="3">
+
+                <div v-if="detail.enabled" class="day-content pl-8">
                   <v-select
                     v-model="detail.day_type"
                     :items="[
@@ -192,57 +210,153 @@
                     item-title="text"
                     item-value="value"
                     label="Type de journée"
+                    class="mb-4"
+                    density="comfortable"
+                    variant="outlined"
+                    color="primary"
                   ></v-select>
-                </v-col>
 
-                <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.AM">
-                  <v-col cols="12" sm="3">
-                    <v-text-field
-                      v-model="detail.start_time_1"
-                      type="time"
-                      label="Début matin"
-                      menu-props="{ closeOnClick: true, closeOnContentClick: true }"
-                      @click="$refs[`timeField_${index}_start_1`]?.$el.querySelector('input').click()"
-                      ref="timeField_${index}_start_1"
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="3">
-                    <v-text-field
-                      v-model="detail.end_time_1"
-                      type="time"
-                      label="Fin matin"
-                      menu-props="{ closeOnClick: true, closeOnContentClick: true }"
-                      @click="$refs[`timeField_${index}_end_1`]?.$el.querySelector('input').click()"
-                      ref="timeField_${index}_end_1"
-                    ></v-text-field>
-                  </v-col>
-                </template>
+                  <div class="d-flex gap-4">
+                    <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.AM">
+                      <div class="time-section flex-grow-1">
+                        <div class="text-subtitle-2 mb-3">Horaires du matin</div>
+                        <div class="d-flex gap-4">
+                          <v-menu
+                            v-model="detail.showStartTime1Menu"
+                            :close-on-content-click="false"
+                            location="bottom"
+                          >
+                            <template v-slot:activator="{ props }">
+                              <v-text-field
+                                v-model="detail.start_time_1"
+                                label="Début"
+                                v-bind="props"
+                                density="comfortable"
+                                variant="outlined"
+                                color="primary"
+                                class="flex-grow-1"
+                                @click:clear="detail.start_time_1 = undefined"
+                                clearable
+                                :error-messages="getTimeError(detail)"
+                                type="time"
+                              ></v-text-field>
+                            </template>
+                            <VTimePicker
+                              v-model="detail.start_time_1"
+                              format="24hr"
+                              @click:save="detail.showStartTime1Menu = false"
+                              @click:cancel="detail.showStartTime1Menu = false"
+                              ok-text="OK"
+                              cancel-text="Annuler"
+                              hide-header
+                            ></VTimePicker>
+                          </v-menu>
+                          <v-menu
+                            v-model="detail.showEndTime1Menu"
+                            :close-on-content-click="false"
+                            location="bottom"
+                          >
+                            <template v-slot:activator="{ props }">
+                              <v-text-field
+                                v-model="detail.end_time_1"
+                                label="Fin"
+                                v-bind="props"
+                                density="comfortable"
+                                variant="outlined"
+                                color="primary"
+                                class="flex-grow-1"
+                                @click:clear="detail.end_time_1 = undefined"
+                                clearable
+                                :error-messages="getTimeError(detail)"
+                                type="time"
+                              ></v-text-field>
+                            </template>
+                            <VTimePicker
+                              v-model="detail.end_time_1"
+                              format="24hr"
+                              @click:save="detail.showEndTime1Menu = false"
+                              @click:cancel="detail.showEndTime1Menu = false"
+                              ok-text="OK"
+                              cancel-text="Annuler"
+                              hide-header
+                            ></VTimePicker>
+                          </v-menu>
+                        </div>
+                      </div>
+                    </template>
 
-                <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.PM">
-                  <v-col cols="12" sm="3" :class="{ 'offset-sm-6': detail.day_type === DayTypeEnum.PM }">
-                    <v-text-field
-                      v-model="detail.start_time_2"
-                      type="time"
-                      label="Début après-midi"
-                      menu-props="{ closeOnClick: true, closeOnContentClick: true }"
-                      @click="$refs[`timeField_${index}_start_2`]?.$el.querySelector('input').click()"
-                      ref="timeField_${index}_start_2"
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="3">
-                    <v-text-field
-                      v-model="detail.end_time_2"
-                      type="time"
-                      label="Fin après-midi"
-                      menu-props="{ closeOnClick: true, closeOnContentClick: true }"
-                      @click="$refs[`timeField_${index}_end_2`]?.$el.querySelector('input').click()"
-                      ref="timeField_${index}_end_2"
-                    ></v-text-field>
-                  </v-col>
-                </template>
-              </template>
-            </v-row>
-          </v-col>
+                    <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.PM">
+                      <div class="time-section flex-grow-1">
+                        <div class="text-subtitle-2 mb-3">Horaires de l'après-midi</div>
+                        <div class="d-flex gap-4">
+                          <v-menu
+                            v-model="detail.showStartTime2Menu"
+                            :close-on-content-click="false"
+                            location="bottom"
+                          >
+                            <template v-slot:activator="{ props }">
+                              <v-text-field
+                                v-model="detail.start_time_2"
+                                label="Début"
+                                v-bind="props"
+                                density="comfortable"
+                                variant="outlined"
+                                color="primary"
+                                class="flex-grow-1"
+                                @click:clear="detail.start_time_2 = undefined"
+                                clearable
+                                :error-messages="getTimeError(detail)"
+                                type="time"
+                              ></v-text-field>
+                            </template>
+                            <VTimePicker
+                              v-model="detail.start_time_2"
+                              format="24hr"
+                              @click:save="detail.showStartTime2Menu = false"
+                              @click:cancel="detail.showStartTime2Menu = false"
+                              ok-text="OK"
+                              cancel-text="Annuler"
+                              hide-header
+                            ></VTimePicker>
+                          </v-menu>
+                          <v-menu
+                            v-model="detail.showEndTime2Menu"
+                            :close-on-content-click="false"
+                            location="bottom"
+                          >
+                            <template v-slot:activator="{ props }">
+                              <v-text-field
+                                v-model="detail.end_time_2"
+                                label="Fin"
+                                v-bind="props"
+                                density="comfortable"
+                                variant="outlined"
+                                color="primary"
+                                class="flex-grow-1"
+                                @click:clear="detail.end_time_2 = undefined"
+                                clearable
+                                :error-messages="getTimeError(detail)"
+                                type="time"
+                              ></v-text-field>
+                            </template>
+                            <VTimePicker
+                              v-model="detail.end_time_2"
+                              format="24hr"
+                              @click:save="detail.showEndTime2Menu = false"
+                              @click:cancel="detail.showEndTime2Menu = false"
+                              ok-text="OK"
+                              cancel-text="Annuler"
+                              hide-header
+                            ></VTimePicker>
+                          </v-menu>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </v-col>
+          </v-row>
         </template>
       </DashboardForm>
     </template>
@@ -262,6 +376,17 @@ import DashboardView from '@/components/dashboard/DashboardView.vue'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import { VTimePicker } from 'vuetify/labs/VTimePicker'
+import { fr } from 'vuetify/locale'
+
+// Configuration de la locale pour Vuetify
+const locale = {
+  ...fr,
+  timePicker: {
+    ...fr.timePicker,
+    select: 'Sélectionner l\'heure'
+  }
+}
 
 const route = useRoute()
 
@@ -276,6 +401,10 @@ interface ExtendedScheduleDetail {
   end_time_2?: string;
   day_type?: 'FULL' | 'AM' | 'PM';
   enabled?: boolean;
+  showStartTime1Menu?: boolean;
+  showEndTime1Menu?: boolean;
+  showStartTime2Menu?: boolean;
+  showEndTime2Menu?: boolean;
 }
 
 // Interface étendue pour les plannings avec les propriétés supplémentaires
@@ -390,7 +519,11 @@ const loadSchedules = async () => {
         start_time_2: detail.start_time_2 || undefined,
         end_time_2: detail.end_time_2 || undefined,
         day_type: detail.day_type,
-        enabled: true
+        enabled: true,
+        showStartTime1Menu: false,
+        showEndTime1Menu: false,
+        showStartTime2Menu: false,
+        showEndTime2Menu: false
       })) || []
     }))
     totalItems.value = response.data.count
@@ -441,15 +574,11 @@ const openDialog = (item?: ExtendedSchedule) => {
     site: item.site,
     employee: typeof item.employee === 'number' ? item.employee : item.employee?.id || 0,
     details: item.details.map(detail => ({
-      id: detail.id || 0,
-      day_of_week: detail.day_of_week,
-      frequency_duration: detail.frequency_duration || undefined,
-      start_time_1: detail.start_time_1 || undefined,
-      end_time_1: detail.end_time_1 || undefined,
-      start_time_2: detail.start_time_2 || undefined,
-      end_time_2: detail.end_time_2 || undefined,
-      day_type: detail.day_type,
-      enabled: detail.enabled
+      ...detail,
+      showStartTime1Menu: false,
+      showEndTime1Menu: false,
+      showStartTime2Menu: false,
+      showEndTime2Menu: false
     })),
     is_active: item.is_active,
     schedule_type: item.schedule_type,
@@ -467,7 +596,11 @@ const openDialog = (item?: ExtendedSchedule) => {
     details: daysOfWeek.map(day => ({
       day_of_week: day.value,
       enabled: false,
-      day_type: DayTypeEnum.FULL
+      day_type: DayTypeEnum.FULL,
+      showStartTime1Menu: false,
+      showEndTime1Menu: false,
+      showStartTime2Menu: false,
+      showEndTime2Menu: false
     })),
     schedule_type: ScheduleTypeEnum.FIXED,
     enabled: true,
@@ -480,6 +613,19 @@ const openDialog = (item?: ExtendedSchedule) => {
 
 const saveSchedule = async () => {
   if (!form.value?.validate()) return
+
+  // Vérifier les horaires
+  if (editedItem.value) {
+    const invalidDetails = editedItem.value.details.filter(detail => {
+      if (!detail.enabled) return false
+      return getTimeError(detail) !== null
+    })
+    
+    if (invalidDetails.length > 0) {
+      alert('Veuillez corriger les horaires invalides avant de sauvegarder')
+      return
+    }
+  }
 
   saving.value = true
   try {
@@ -529,6 +675,41 @@ const deleteSchedule = async (item: ExtendedSchedule) => {
   }
 }
 
+const validateTimeRange = (startTime: string, endTime: string): boolean => {
+  if (!startTime || !endTime) return true
+  return startTime < endTime
+}
+
+const validateDaySequence = (morningStart: string | undefined, morningEnd: string | undefined, afternoonStart: string | undefined, afternoonEnd: string | undefined): boolean => {
+  if (!morningEnd || !afternoonStart) return true
+  return morningEnd < afternoonStart
+}
+
+const getTimeError = (detail: ExtendedScheduleDetail): string | null => {
+  // Validation des horaires du matin
+  if ((detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.AM) && detail.start_time_1 && detail.end_time_1) {
+    if (!validateTimeRange(detail.start_time_1, detail.end_time_1)) {
+      return "L'heure de fin du matin doit être après l'heure de début"
+    }
+  }
+  
+  // Validation des horaires de l'après-midi
+  if ((detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.PM) && detail.start_time_2 && detail.end_time_2) {
+    if (!validateTimeRange(detail.start_time_2, detail.end_time_2)) {
+      return "L'heure de fin de l'après-midi doit être après l'heure de début"
+    }
+  }
+  
+  // Pour une journée complète, vérifier que les horaires de l'après-midi sont après ceux du matin
+  if (detail.day_type === DayTypeEnum.FULL && detail.end_time_1 && detail.start_time_2) {
+    if (!validateDaySequence(detail.start_time_1, detail.end_time_1, detail.start_time_2, detail.end_time_2)) {
+      return "Les horaires de l'après-midi doivent être après ceux du matin"
+    }
+  }
+  
+  return null
+}
+
 // Initialisation
 onMounted(async () => {
   await Promise.all([
@@ -554,6 +735,52 @@ watch(() => itemsPerPage.value, () => {
 </script>
 
 <style scoped>
+.day-container {
+  border-left: 3px solid transparent;
+  padding-left: 16px;
+  transition: all 0.3s ease;
+}
+
+.day-container:hover {
+  border-left-color: #00346E;
+}
+
+.day-checkbox :deep(.v-label) {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.day-content {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.time-section {
+  background-color: white;
+  border-radius: 6px;
+  padding: 16px;
+  min-width: 0; /* Pour éviter le débordement des champs flex */
+}
+
+.time-section + .time-section {
+  margin-left: 16px;
+}
+
+.text-subtitle-2 {
+  color: rgba(0, 0, 0, 0.6);
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+:deep(.v-checkbox) {
+  margin-top: 0;
+}
+
+:deep(.v-input__details) {
+  padding-inline-start: 0;
+}
+
 /* Style des boutons dans le tableau */
 :deep(.v-data-table .v-btn--icon[color="primary"]) {
   background-color: transparent !important;
@@ -571,5 +798,36 @@ watch(() => itemsPerPage.value, () => {
 :deep(.v-data-table .v-btn--icon .v-icon) {
   opacity: 1 !important;
   color: inherit !important;
+}
+
+:deep(.v-field__input) {
+  cursor: pointer;
+}
+
+:deep(.v-field__append-inner) {
+  cursor: pointer;
+}
+
+:deep(.time-field) {
+  cursor: pointer;
+}
+
+:deep(.time-field .v-field__input),
+:deep(.time-field .v-field__append-inner),
+:deep(.time-field .v-field__prepend-inner),
+:deep(.time-field .v-field__field) {
+  cursor: pointer;
+}
+
+:deep(.time-field input[type="time"]) {
+  cursor: pointer;
+}
+
+:deep(.time-field *) {
+  pointer-events: none;
+}
+
+:deep(.time-field input) {
+  pointer-events: auto;
 }
 </style> 
