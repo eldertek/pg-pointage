@@ -99,7 +99,7 @@
     </v-data-table>
 
     <!-- Dialog pour modification des droits -->
-    <v-dialog v-model="dialog" max-width="800px">
+    <v-dialog v-model="dialog" max-width="800px" persistent>
       <v-card>
         <v-card-title>
           <span class="text-h5">Modifier les droits d'accès</span>

@@ -3,6 +3,7 @@
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
     max-width="800px"
+    persistent
   >
     <v-card class="form-dialog">
       <div class="form-dialog-header">

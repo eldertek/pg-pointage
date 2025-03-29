@@ -4,11 +4,13 @@
 /* eslint-disable */
 /**
  * * `SUPER_ADMIN` - Super Admin
+ * * `ADMIN` - Admin
  * * `MANAGER` - Manager
  * * `EMPLOYEE` - Employé
  */
 export enum RoleEnum {
     SUPER_ADMIN = 'SUPER_ADMIN',
+    ADMIN = 'ADMIN',
     MANAGER = 'MANAGER',
     EMPLOYEE = 'EMPLOYEE',
 }

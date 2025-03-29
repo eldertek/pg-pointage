@@ -129,6 +129,13 @@
     >
       {{ snackbar.text }}
     </v-snackbar>
+
+    <!-- Dialog de confirmation -->
+    <v-dialog v-model="showDeleteConfirmDialog" max-width="400" persistent>
+      <v-card>
+        <!-- Dialog content -->
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 

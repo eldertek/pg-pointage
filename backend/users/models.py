@@ -7,6 +7,7 @@ class User(AbstractUser):
     
     class Role(models.TextChoices):
         SUPER_ADMIN = 'SUPER_ADMIN', _('Super Admin')
+        ADMIN = 'ADMIN', _('Admin')
         MANAGER = 'MANAGER', _('Manager')
         EMPLOYEE = 'EMPLOYEE', _('Employé')
     
@@ -35,13 +36,11 @@ class User(AbstractUser):
         default=False,
         help_text='Si activé, affiche uniquement le bouton de pointage sur mobile'
     )
-    organization = models.ForeignKey(
+    organizations = models.ManyToManyField(
         'organizations.Organization',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
         related_name='users',
-        verbose_name=_('organisation')
+        blank=True,
+        verbose_name=_('organisations')
     )
     phone_number = models.CharField(_('numéro de téléphone'), max_length=15, blank=True)
     is_active = models.BooleanField(_('actif'), default=True)
@@ -64,10 +63,20 @@ class User(AbstractUser):
         return self.role == self.Role.SUPER_ADMIN
     
     @property
+    def is_admin(self):
+        return self.role == self.Role.ADMIN
+    
+    @property
     def is_manager(self):
         return self.role == self.Role.MANAGER
     
     @property
     def is_employee(self):
         return self.role == self.Role.EMPLOYEE
+    
+    def has_organization_permission(self, organization):
+        """Vérifie si l'utilisateur a des permissions sur une organisation"""
+        if self.is_super_admin:
+            return True
+        return self.organizations.filter(id=organization.id).exists()
 

@@ -23,62 +23,71 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                     "error": "Ce compte est inactif. Veuillez contacter votre administrateur."
                 })
             
-            # Vérifier si l'organisation est active (si l'utilisateur appartient à une organisation)
-            if user.organization:
-                print(f"[Auth][Login] Vérification de l'organisation: {user.organization.name} (active: {user.organization.is_active})")
-                if not user.organization.is_active:
-                    print("[Auth][Login] Échec: organisation inactive")
+            # Vérifier si les organisations sont actives
+            if user.organizations.exists():
+                inactive_orgs = user.organizations.filter(is_active=False)
+                if inactive_orgs.exists():
+                    print("[Auth][Login] Échec: organisations inactives")
                     raise serializers.ValidationError({
-                        "error": "L'organisation à laquelle vous êtes rattaché est inactive. Veuillez contacter votre administrateur."
+                        "error": "Une ou plusieurs organisations auxquelles vous êtes rattaché sont inactives. Veuillez contacter votre administrateur."
                     })
                 
         except User.DoesNotExist:
             print("[Auth][Login] Échec: utilisateur non trouvé")
             # On laisse la validation parent gérer ce cas
             pass
-        
-        try:
-            validated_data = super().validate(attrs)
-            print("[Auth][Login] Validation des identifiants réussie")
-            return validated_data
-        except Exception as e:
-            print(f"[Auth][Login] Échec de la validation: {str(e)}")
-            raise
+            
+        return super().validate(attrs)
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer pour les utilisateurs (admin)"""
     password = serializers.CharField(write_only=True, required=False)
-    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    organizations_names = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = (
             'id', 'username', 'email', 'first_name', 'last_name',
-            'role', 'organization', 'phone_number', 'is_active', 'employee_id', 'date_joined', 'password', 'organization_name', 'scan_preference',
-            'simplified_mobile_view'
+            'role', 'organizations', 'organizations_names', 'phone_number', 
+            'is_active', 'employee_id', 'date_joined', 'password',
+            'scan_preference', 'simplified_mobile_view'
         )
         read_only_fields = ['date_joined']
 
-    def get_organization_name(self, obj):
-        return obj.organization.name if obj.organization else '-'
+    def get_organizations_names(self, obj):
+        return [org.name for org in obj.organizations.all()]
 
     def create(self, validated_data):
         print(f"[DEBUG] UserSerializer.create - validated_data: {validated_data}")
         password = validated_data.pop('password', None)
+        organizations = validated_data.pop('organizations', [])
+        
         # S'assurer que is_active est True par défaut
         validated_data['is_active'] = validated_data.get('is_active', True)
         user = User.objects.create_user(**validated_data)
+        
+        # Gérer le mot de passe
         if password:
             user.set_password(password)
-            user.save()
+        
+        # Gérer les organisations
+        if organizations:
+            user.organizations.set(organizations)
+        
+        user.save()
         print(f"[DEBUG] Utilisateur créé: {user.username} (actif: {user.is_active})")
         return user
 
     def update(self, instance, validated_data):
         print(f"[DEBUG] UserSerializer.update - validated_data: {validated_data}")
         password = validated_data.pop('password', None)
+        organizations = validated_data.pop('organizations', None)
+        
         if password:
             instance.set_password(password)
+        
+        if organizations is not None:
+            instance.organizations.set(organizations)
         
         if 'is_active' in validated_data:
             print(f"[DEBUG] Mise à jour is_active: {instance.is_active} -> {validated_data['is_active']}")
@@ -91,20 +100,20 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     """Serializer pour le profil utilisateur"""
-    organization_name = serializers.SerializerMethodField()
+    organizations_names = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'role', 'organization', 'organization_name', 'is_active',
+            'role', 'organizations', 'organizations_names', 'is_active',
             'phone_number', 'employee_id', 'scan_preference', 'simplified_mobile_view'
         ]
-        read_only_fields = ['id', 'username', 'email', 'role', 'organization']
+        read_only_fields = ['id', 'username', 'email', 'role', 'organizations']
     
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_organization_name(self, obj) -> str:
-        return obj.organization.name if obj.organization else ''
+    @extend_schema_field({'type': 'array', 'items': {'type': 'string'}})
+    def get_organizations_names(self, obj):
+        return [org.name for org in obj.organizations.all()]
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     """Serializer pour l'enregistrement de nouveaux utilisateurs"""

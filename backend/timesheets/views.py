@@ -26,41 +26,35 @@ class IsAdminOrManager(BasePermission):
         is_manager = IsSiteOrganizationManager().has_object_permission(request, view, obj)
         return is_admin or is_manager
 
-class TimesheetListView(generics.ListAPIView):
-    """Vue pour lister les pointages"""
+class TimesheetListView(generics.ListCreateAPIView):
+    """Vue pour lister tous les pointages et en créer de nouveaux"""
     serializer_class = TimesheetSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         user = self.request.user
-        if getattr(self, 'swagger_fake_view', False):  # Handling swagger generation
-            return Timesheet.objects.none()
-            
         if user.is_super_admin:
             return Timesheet.objects.all()
-        elif user.is_manager and user.organization:
-            return Timesheet.objects.filter(site__organization=user.organization)
+        elif user.is_admin or user.is_manager:
+            return Timesheet.objects.filter(site__organization__in=user.organizations.all())
         else:
             return Timesheet.objects.filter(employee=user)
 
-class TimesheetDetailView(generics.RetrieveUpdateAPIView):
-    """Vue pour obtenir et mettre à jour un pointage"""
+class TimesheetDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Vue pour obtenir, mettre à jour et supprimer un pointage"""
     serializer_class = TimesheetSerializer
     
     def get_permissions(self):
-        if self.request.method == 'GET':
+        if self.request.method in permissions.SAFE_METHODS:
             return [permissions.IsAuthenticated()]
         return [IsAdminOrManager()]
     
     def get_queryset(self):
         user = self.request.user
-        if getattr(self, 'swagger_fake_view', False):  # Handling swagger generation
-            return Timesheet.objects.none()
-            
         if user.is_super_admin:
             return Timesheet.objects.all()
-        elif user.is_manager and user.organization:
-            return Timesheet.objects.filter(site__organization=user.organization)
+        elif user.is_admin or user.is_manager:
+            return Timesheet.objects.filter(site__organization__in=user.organizations.all())
         else:
             return Timesheet.objects.filter(employee=user)
 
@@ -95,46 +89,35 @@ class TimesheetCreateView(generics.CreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-class AnomalyListView(generics.ListAPIView):
-    """Vue pour lister les anomalies"""
+class AnomalyListView(generics.ListCreateAPIView):
+    """Vue pour lister toutes les anomalies et en créer de nouvelles"""
     serializer_class = AnomalySerializer
-    
-    def get_permissions(self):
-        permission_classes = [permissions.IsAuthenticated]
-        if not self.request.method in permissions.SAFE_METHODS:
-            permission_classes = [IsAdminOrManager]
-        return [permission() for permission in permission_classes]
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         user = self.request.user
-        if getattr(self, 'swagger_fake_view', False):  # Handling swagger generation
-            return Anomaly.objects.none()
-            
         if user.is_super_admin:
             return Anomaly.objects.all()
-        elif user.is_manager and user.organization:
-            return Anomaly.objects.filter(site__organization=user.organization)
+        elif user.is_admin or user.is_manager:
+            return Anomaly.objects.filter(site__organization__in=user.organizations.all())
         else:
             return Anomaly.objects.filter(employee=user)
 
-class AnomalyDetailView(generics.RetrieveUpdateAPIView):
-    """Vue pour obtenir et mettre à jour une anomalie"""
+class AnomalyDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Vue pour obtenir, mettre à jour et supprimer une anomalie"""
     serializer_class = AnomalySerializer
     
     def get_permissions(self):
-        if self.request.method == 'GET':
+        if self.request.method in permissions.SAFE_METHODS:
             return [permissions.IsAuthenticated()]
         return [IsAdminOrManager()]
     
     def get_queryset(self):
         user = self.request.user
-        if getattr(self, 'swagger_fake_view', False):  # Handling swagger generation
-            return Anomaly.objects.none()
-            
         if user.is_super_admin:
             return Anomaly.objects.all()
-        elif user.is_manager and user.organization:
-            return Anomaly.objects.filter(site__organization=user.organization)
+        elif user.is_admin or user.is_manager:
+            return Anomaly.objects.filter(site__organization__in=user.organizations.all())
         else:
             return Anomaly.objects.filter(employee=user)
     

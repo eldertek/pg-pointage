@@ -254,7 +254,7 @@
     </v-dialog>
 
     <!-- Dialog d'édition -->
-    <v-dialog v-model="editDialog" max-width="500">
+    <v-dialog v-model="editDialog" max-width="500" persistent>
       <v-card v-if="editingTimesheet">
         <v-card-title>
           Modifier le pointage
@@ -296,7 +296,7 @@
     </v-dialog>
 
     <!-- Dialog de confirmation de suppression -->
-    <v-dialog v-model="deleteDialog" max-width="400">
+    <v-dialog v-model="deleteDialog" max-width="400" persistent>
       <v-card>
         <v-card-title>Confirmer la suppression</v-card-title>
         <v-card-text>
@@ -310,6 +310,7 @@
       </v-card>
     </v-dialog>
   </div>
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
@@ -326,6 +327,7 @@ import { EntryTypeEnum } from '@/types/api'
 import type { TableOptions } from '@/types/sites'
 import { Title } from '@/components/typography'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const props = defineProps<{
   isDetailView?: boolean

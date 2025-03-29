@@ -105,6 +105,22 @@
           </v-chip>
         </template>
 
+        <!-- Organizations -->
+        <template v-slot:item.organizations_names="{ item }">
+          <v-chip
+            v-for="orgName in item.organizations_names"
+            :key="orgName"
+            color="primary"
+            size="small"
+            class="mr-1"
+          >
+            {{ orgName }}
+          </v-chip>
+          <span v-if="!item.organizations_names.length" class="text-grey">
+            Aucune organisation
+          </span>
+        </template>
+
         <!-- Actions -->
         <template v-slot:item.actions="{ item }">
           <v-btn
@@ -273,17 +289,19 @@
               :error-messages="formErrors.role"
             ></v-select>
           </v-col>
-          <!-- Sélection de l'organisation pour les managers et employés -->
+          <!-- Sélection des organisations pour tous les rôles sauf Super Admin -->
           <v-col v-if="(editedItem as UserFormData).role !== RoleEnum.SUPER_ADMIN" cols="12" sm="6">
             <v-select
-              v-model="(editedItem as UserFormData).organization"
+              v-model="(editedItem as UserFormData).organizations"
               :items="organizations"
               item-title="name"
               item-value="id"
-              label="Organisation"
+              label="Organisations"
+              multiple
+              chips
               required
-              :error-messages="formErrors.organization"
-              :rules="[v => !!v || 'L\'organisation est requise']"
+              :error-messages="formErrors.organizations"
+              :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
               no-data-text="Aucune organisation disponible"
             ></v-select>
           </v-col>
@@ -419,6 +437,7 @@
       </DashboardForm>
     </template>
   </DashboardView>
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
@@ -432,13 +451,17 @@ import DashboardView from '@/components/dashboard/DashboardView.vue'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useConfirmDialog } from '@/utils/dialogs'
+import type { DialogState } from '@/utils/dialogs'
 
 // Interface étendue pour les utilisateurs avec les propriétés supplémentaires
 interface ExtendedUser extends User {
   sites?: Site[];
   id: number;
   is_active: boolean;
+  organizations: { id: number; name: string }[];
 }
 
 // Interface étendue pour les organisations
@@ -461,11 +484,11 @@ interface Organization {
 }
 
 // Interface pour le formulaire utilisateur
-interface UserFormData extends UserRequest {
+interface UserFormData extends Omit<UserRequest, 'organizations'> {
   id?: number;
   phone_number?: string;
   sites?: number[];
-  password?: string;
+  organizations: number[];
 }
 
 // Interface pour le formulaire organisation
@@ -528,6 +551,7 @@ const headers = [
   { title: 'Téléphone', key: 'phone_number' },
   { title: 'Email', key: 'email' },
   { title: 'Rôle', key: 'role' },
+  { title: 'Organisations', key: 'organizations_names', sortable: false },
   { title: 'Sites', key: 'sites' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
@@ -544,7 +568,8 @@ const organizationHeaders = [
 
 // Rôles disponibles
 const roles = [
-  { label: 'Administrateur', value: RoleEnum.SUPER_ADMIN },
+  { label: 'Super Admin', value: RoleEnum.SUPER_ADMIN },
+  { label: 'Admin', value: RoleEnum.ADMIN },
   { label: 'Manager', value: RoleEnum.MANAGER },
   { label: 'Employé', value: RoleEnum.EMPLOYEE }
 ]
@@ -597,6 +622,8 @@ const countries = [
 // Méthodes
 const router = useRouter()
 const route = useRoute()
+
+const { dialogState, handleConfirm } = useConfirmDialog()
 
 const handleRowClick = (event: any, { item }: any) => {
   if (view.value === 'users') {
@@ -667,7 +694,7 @@ const openDialog = (item?: ExtendedUser | Organization) => {
       first_name: (item as ExtendedUser).first_name,
       last_name: (item as ExtendedUser).last_name,
       role: (item as ExtendedUser).role,
-      organization: (item as ExtendedUser).organization,
+      organizations: (item as ExtendedUser).organizations.map(org => org.id),
       phone_number: (item as ExtendedUser).phone_number,
       is_active: (item as ExtendedUser).is_active,
       scan_preference: (item as ExtendedUser).scan_preference,
@@ -679,7 +706,7 @@ const openDialog = (item?: ExtendedUser | Organization) => {
       first_name: '',
       last_name: '',
       role: RoleEnum.EMPLOYEE,
-      organization: null,
+      organizations: [],
       is_active: true,
       scan_preference: 'BOTH',
       simplified_mobile_view: false,
@@ -743,12 +770,18 @@ const saveUser = async () => {
   try {
     if (view.value === 'users' && editedItem.value) {
       const userData = editedItem.value as UserFormData
+      console.log('[Users][Save] Données utilisateur:', userData)
+      
       if (userData.id) {
-        await usersApi.updateUser(userData.id, userData)
+        await usersApi.updateUser(userData.id, {
+          ...userData,
+          organizations: userData.organizations || []
+        })
       } else {
-        // Génère le nom d'utilisateur final avant la création
-        userData.username = generateUsername(userData.email)
-        await usersApi.createUser(userData)
+        await usersApi.createUser({
+          ...userData,
+          organizations: userData.organizations || []
+        })
       }
     } else if (view.value === 'organizations' && editedItem.value) {
       const orgData = editedItem.value as OrganizationFormData
@@ -762,7 +795,7 @@ const saveUser = async () => {
     await loadUsers()
     dashboardView.value.showForm = false
   } catch (error: any) {
-    console.error('Erreur lors de la sauvegarde:', error)
+    console.error('[Users][Error] Erreur lors de la sauvegarde:', error)
     if (error.response?.data) {
       const processedErrors: Record<string, string[]> = {}
       Object.entries(error.response.data).forEach(([field, messages]) => {
@@ -790,8 +823,19 @@ const saveUser = async () => {
 }
 
 const confirmDelete = (item: ExtendedUser | Organization) => {
-  if (confirm('Êtes-vous sûr de vouloir supprimer cet élément ?')) {
-    deleteUser(item)
+  const state = dialogState.value as DialogState
+  state.show = true
+  state.title = 'Confirmation de suppression'
+  state.message = `Êtes-vous sûr de vouloir supprimer ${view.value === 'users' ? 'cet utilisateur' : 'cette organisation'} ?`
+  state.confirmText = 'Supprimer'
+  state.cancelText = 'Annuler'
+  state.confirmColor = 'error'
+  state.loading = false
+  state.onConfirm = async () => {
+    state.loading = true
+    await deleteUser(item)
+    state.show = false
+    state.loading = false
   }
 }
 
@@ -812,11 +856,12 @@ const deleteUser = async (item: ExtendedUser | Organization) => {
   }
 }
 
-const getRoleColor = (role: RoleEnum | undefined) => {
-  if (!role) return 'grey'
+const getRoleColor = (role: string): string => {
   switch (role) {
     case RoleEnum.SUPER_ADMIN:
       return 'error'
+    case RoleEnum.ADMIN:
+      return 'primary'
     case RoleEnum.MANAGER:
       return 'warning'
     case RoleEnum.EMPLOYEE:
@@ -826,24 +871,38 @@ const getRoleColor = (role: RoleEnum | undefined) => {
   }
 }
 
-const getRoleLabel = (role: RoleEnum | undefined) => {
+const getRoleLabel = (role: string): string => {
   if (!role) return ''
   const found = roles.find(r => r.value === role)
   return found ? found.label : role
 }
 
 const toggleStatus = async (item: ExtendedUser | Organization) => {
-  try {
-    const newStatus = !item.is_active;
-    if (view.value === 'users') {
-      await usersApi.toggleUserStatus((item as ExtendedUser).id, newStatus);
-      await loadUsers();
-    } else {
-      await organizationsApi.toggleOrganizationStatus((item as Organization).id, newStatus);
-      await loadOrganizations();
+  const state = dialogState.value as DialogState
+  state.show = true
+  state.title = 'Confirmation de changement de statut'
+  state.message = `Êtes-vous sûr de vouloir ${item.is_active ? 'désactiver' : 'activer'} ${view.value === 'users' ? 'cet utilisateur' : 'cette organisation'} ?`
+  state.confirmText = item.is_active ? 'Désactiver' : 'Activer'
+  state.cancelText = 'Annuler'
+  state.confirmColor = 'warning'
+  state.loading = false
+  state.onConfirm = async () => {
+    state.loading = true
+    try {
+      const newStatus = !item.is_active;
+      if (view.value === 'users') {
+        await usersApi.toggleUserStatus((item as ExtendedUser).id, newStatus);
+        await loadUsers();
+      } else {
+        await organizationsApi.toggleOrganizationStatus((item as Organization).id, newStatus);
+        await loadOrganizations();
+      }
+    } catch (error) {
+      console.error('[Users][Error] Erreur lors du changement de statut:', error);
+    } finally {
+      state.show = false
+      state.loading = false
     }
-  } catch (error) {
-    console.error('Erreur lors du changement de statut:', error);
   }
 }
 
@@ -915,28 +974,32 @@ watch(() => route.query.view, (newView) => {
 }, { immediate: true })
 
 // Observateur pour le changement de rôle
-watch(() => (editedItem.value as UserFormData)?.role, (newRole: RoleEnum | undefined) => {
+watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
   if (editedItem.value) {
     const userData = editedItem.value as UserFormData
     
     // Réinitialiser les champs en fonction du rôle
     if (newRole === RoleEnum.SUPER_ADMIN) {
-      userData.organization = null
+      userData.organizations = []
       userData.sites = []
     } else if (newRole === RoleEnum.MANAGER) {
       userData.sites = []
-      // Charger les organisations si nécessaire
-      if (organizations.value.length === 0) {
-        loadOrganizations()
-      }
-    } else if (newRole === RoleEnum.EMPLOYEE) {
-      // Charger les organisations si nécessaire
-      if (organizations.value.length === 0) {
-        loadOrganizations()
-      }
     }
   }
 })
+
+// Ajouter la fonction pour vérifier si l'utilisateur peut gérer une organisation
+const canManageOrganization = (organizationId: number) => {
+  return authStore.hasOrganizationAccess(organizationId)
+}
+
+// Ajouter la fonction pour vérifier si l'utilisateur peut gérer un utilisateur
+const canManageUser = (user: ExtendedUser) => {
+  if (authStore.isSuperAdmin) return true
+  if (user.id === authStore.user?.id) return false
+  if (user.role === 'SUPER_ADMIN') return false
+  return user.organizations.some(org => authStore.hasOrganizationAccess(org.id))
+}
 </script>
 
 <style scoped>

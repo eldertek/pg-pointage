@@ -72,6 +72,7 @@
           size="small"
           color="primary"
           :to="`/dashboard/admin/sites/${item.id}`"
+          @click.stop
         >
           <v-icon>mdi-eye</v-icon>
         </v-btn>
@@ -80,7 +81,7 @@
           variant="text"
           size="small"
           color="primary"
-          @click="openDialog(item)"
+          @click.stop="openDialog(item)"
         >
           <v-icon>mdi-pencil</v-icon>
         </v-btn>
@@ -89,7 +90,7 @@
           variant="text"
           size="small"
           color="warning"
-          @click="toggleSiteStatus(item)"
+          @click.stop="toggleSiteStatus(item)"
         >
           <v-icon>{{ item.is_active ? 'mdi-domain-off' : 'mdi-domain' }}</v-icon>
         </v-btn>
@@ -98,7 +99,7 @@
           variant="text"
           size="small"
           color="error"
-          @click="confirmDelete(item)"
+          @click.stop="confirmDelete(item)"
         >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
@@ -219,6 +220,7 @@
       </DashboardForm>
     </template>
   </DashboardView>
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
@@ -230,6 +232,16 @@ import DashboardView from '@/components/dashboard/DashboardView.vue'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import { useConfirmDialog } from '@/utils/dialogs'
+import type { DialogState } from '@/utils/dialogs'
+
+const props = defineProps({
+  editId: {
+    type: [String, Number],
+    default: null
+  }
+})
 
 interface Manager {
   id: number
@@ -412,9 +424,22 @@ const saveSite = async () => {
   }
 }
 
+const { dialogState, handleConfirm } = useConfirmDialog()
+
 const confirmDelete = (item: Site) => {
-  if (confirm('Êtes-vous sûr de vouloir supprimer ce site ?')) {
-    deleteSite(item)
+  const state = dialogState.value as DialogState
+  state.show = true
+  state.title = 'Confirmation de suppression'
+  state.message = `Êtes-vous sûr de vouloir supprimer le site "${item.name}" ?`
+  state.confirmText = 'Supprimer'
+  state.cancelText = 'Annuler'
+  state.confirmColor = 'error'
+  state.loading = false
+  state.onConfirm = async () => {
+    state.loading = true
+    await deleteSite(item)
+    state.show = false
+    state.loading = false
   }
 }
 
@@ -428,16 +453,30 @@ const deleteSite = async (item: Site) => {
 }
 
 const toggleSiteStatus = async (item: Site) => {
-  try {
-    await sitesApi.updateSite(item.id, {
-      ...item,
-      is_active: !item.is_active,
-      organization: item.organization || undefined,
-      manager: item.manager || undefined
-    })
-    await loadSites()
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour du statut:', error)
+  const state = dialogState.value as DialogState
+  state.show = true
+  state.title = 'Confirmation de changement de statut'
+  state.message = `Êtes-vous sûr de vouloir ${item.is_active ? 'désactiver' : 'activer'} le site "${item.name}" ?`
+  state.confirmText = item.is_active ? 'Désactiver' : 'Activer'
+  state.cancelText = 'Annuler'
+  state.confirmColor = 'warning'
+  state.loading = false
+  state.onConfirm = async () => {
+    state.loading = true
+    try {
+      await sitesApi.updateSite(item.id, {
+        ...item,
+        is_active: !item.is_active,
+        organization: item.organization || undefined,
+        manager: item.manager || undefined
+      })
+      await loadSites()
+    } catch (error) {
+      console.error('[Sites][Error] Erreur lors de la mise à jour du statut:', error)
+    } finally {
+      state.show = false
+      state.loading = false
+    }
   }
 }
 
@@ -453,6 +492,16 @@ onMounted(async () => {
     loadSites(),
     loadOrganizations()
   ])
+
+  // Si on a un ID d'édition, charger et ouvrir le formulaire
+  if (props.editId) {
+    try {
+      const response = await sitesApi.getSite(Number(props.editId))
+      openDialog(response.data)
+    } catch (error) {
+      console.error('[Sites][Error] Erreur lors du chargement du site:', error)
+    }
+  }
 })
 
 // Observateurs

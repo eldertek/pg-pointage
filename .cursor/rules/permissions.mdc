@@ -3,3 +3,23 @@ description:
 globs: 
 alwaysApply: true
 ---
+Permissions :
+| Module                                                      | Action                                          | Super Admin | Admin | Manager | Employe |
+|-------------------------------------------------------------|-------------------------------------------------|-------------|-------|---------|---------|
+| Utilisateur                                               | Création/suppression                            | X           | X     |         |         |
+| Utilisateur                                               | Modification                                    | X           | X     | X       |         |
+| Utilisateur                                               | Consultation                                    | X           | X     | X       |         |
+| Sites                                                     | Création/suppression                            | X           | X     |         |         |
+| Sites                                                     | Modification                                    | X           | X     | X       |         |
+| Sites                                                     | Consultation                                    | X           | X     | X       | X       |
+| Plannings                                                 | Création/suppression                            | X           | X     |         |         |
+| Plannings                                                 | Modification                                    | X           | X     | X       |         |
+| Plannings                                                 | Consultation                                    | X           | X     | X       | X       |
+| Rapport                                                   | Génération                                      | X           | X     | X       |         |
+| Gestions des accès (seul le super admin vois cette vue)     | Création/suppression organisation/utilisateur   | X           |       |         |         |
+| Gestions des accès (seul le super admin vois cette vue)     | Modification organisation/utilisateur           | X           |       |         |         |
+| Gestions des accès (seul le super admin vois cette vue)     | Consultation organisation/utilisateur           | X           |       |         |         |
+| Paramètres                                                | Modification                                    | X           | X     | X       | X       |
+| Paramètres                                                | Consultation                                    | X           | X     | X       | X       |
+| Vois les information seulement sur les organisations rattachés au profil |                                             |             | X     | X       | X       |
+| Vois les information seulement sur seulement les users rattachés        |                                             |             |       | X       | X       |

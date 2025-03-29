@@ -85,37 +85,26 @@ class IsAdminOrManager(BasePermission):
 class SiteListView(generics.ListCreateAPIView):
     """Vue pour lister tous les sites et en créer de nouveaux"""
     serializer_class = SiteSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        return [IsAdminOrManager()]
     
     def get_queryset(self):
-        if getattr(self, 'swagger_fake_view', False):
-            return Site.objects.none()
-            
         user = self.request.user
-        # Super admin voit tous les sites
+        base_queryset = Site.objects.prefetch_related(
+            'schedules',
+            'schedules__assigned_employees',
+            'schedules__assigned_employees__employee'
+        )
+        
         if user.is_super_admin:
-            return Site.objects.prefetch_related(
-                'schedules',
-                'schedules__assigned_employees',
-                'schedules__assigned_employees__employee'
-            ).all()
-        # Manager voit les sites dont il est manager ou qui sont dans son organisation
-        elif user.is_manager:
-            return Site.objects.prefetch_related(
-                'schedules',
-                'schedules__assigned_employees',
-                'schedules__assigned_employees__employee'
-            ).filter(
-                models.Q(manager=user) |
-                models.Q(organization=user.organization)
-            ).distinct()
-        # Employé voit les sites auxquels il est assigné
+            return base_queryset.all()
+        elif user.is_admin or user.is_manager:
+            return base_queryset.filter(organization__in=user.organizations.all())
         elif user.is_employee:
-            return Site.objects.prefetch_related(
-                'schedules',
-                'schedules__assigned_employees',
-                'schedules__assigned_employees__employee'
-            ).filter(employees__employee=user, employees__is_active=True)
+            return base_queryset.filter(employees__employee=user, employees__is_active=True)
         return Site.objects.none()
     
     def perform_create(self, serializer):
@@ -139,24 +128,18 @@ class SiteDetailView(generics.RetrieveUpdateDestroyAPIView):
     
     def get_queryset(self):
         user = self.request.user
+        base_queryset = Site.objects.prefetch_related(
+            'schedules',
+            'schedules__assigned_employees',
+            'schedules__assigned_employees__employee'
+        )
+        
         if user.is_super_admin:
-            return Site.objects.prefetch_related(
-                'schedules',
-                'schedules__assigned_employees',
-                'schedules__assigned_employees__employee'
-            ).all()
-        elif user.is_manager and user.organization:
-            return Site.objects.prefetch_related(
-                'schedules',
-                'schedules__assigned_employees',
-                'schedules__assigned_employees__employee'
-            ).filter(organization=user.organization)
+            return base_queryset.all()
+        elif user.is_admin or user.is_manager:
+            return base_queryset.filter(organization__in=user.organizations.all())
         elif user.is_employee:
-            return Site.objects.prefetch_related(
-                'schedules',
-                'schedules__assigned_employees',
-                'schedules__assigned_employees__employee'
-            ).filter(employees__employee=user, employees__is_active=True)
+            return base_queryset.filter(employees__employee=user, employees__is_active=True)
         return Site.objects.none()
 
 class ScheduleListView(generics.ListCreateAPIView):

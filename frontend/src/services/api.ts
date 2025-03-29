@@ -389,10 +389,22 @@ const usersApi = {
   getUser: (id: number) => api.get(`/users/${id}/`),
   
   // Create a new user
-  createUser: (data: any) => api.post('/users/register/', convertKeysToSnakeCase(data)),
+  createUser: (data: any) => {
+    const userData = {
+      ...convertKeysToSnakeCase(data),
+      organizations: data.organizations
+    }
+    return api.post('/users/register/', userData)
+  },
   
   // Update a user
-  updateUser: (id: number, data: any) => api.patch(`/users/${id}/`, convertKeysToSnakeCase(data)),
+  updateUser: (id: number, data: any) => {
+    const userData = {
+      ...convertKeysToSnakeCase(data),
+      organizations: data.organizations
+    }
+    return api.patch(`/users/${id}/`, userData)
+  },
   
   // Delete a user
   deleteUser: (id: number) => api.delete(`/users/${id}/`),

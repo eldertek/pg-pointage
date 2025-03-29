@@ -8,6 +8,17 @@
       <v-app-bar-title>Planète Gardiens - Administration</v-app-bar-title>
       <v-spacer></v-spacer>
       
+      <!-- Bouton Super Admin -->
+      <v-btn
+        icon
+        :color="isSuperAdminMode ? 'warning' : 'grey'"
+        class="mr-2"
+        @click="toggleSuperAdmin"
+        v-tooltip="'Mode Super Admin'"
+      >
+        <v-icon>mdi-shield-crown</v-icon>
+      </v-btn>
+      
       <v-btn icon @click="showLogoutDialog = true">
         <v-icon>mdi-logout</v-icon>
       </v-btn>
@@ -39,8 +50,8 @@
           <span>Tableau de bord</span>
         </v-tooltip>
 
-        <!-- Utilisateurs -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+        <!-- Utilisateurs - Super Admin, Admin et Manager -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
           <template v-slot:activator="{ props }">
             <v-list-item 
               to="/dashboard/admin/users" 
@@ -57,8 +68,8 @@
           <span>Utilisateurs</span>
         </v-tooltip>
 
-        <!-- Sites -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+        <!-- Sites - Super Admin, Admin et Manager -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
           <template v-slot:activator="{ props }">
             <v-list-item 
               to="/dashboard/sites" 
@@ -75,8 +86,8 @@
           <span>Sites</span>
         </v-tooltip>
 
-        <!-- Plannings -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+        <!-- Plannings - Super Admin, Admin et Manager -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
           <template v-slot:activator="{ props }">
             <v-list-item to="/dashboard/plannings" active-class="primary--text" v-bind="props">
               <template v-slot:prepend>
@@ -88,8 +99,8 @@
           <span>Plannings</span>
         </v-tooltip>
 
-        <!-- Pointages -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+        <!-- Pointages - Super Admin, Admin et Manager -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
           <template v-slot:activator="{ props }">
             <v-list-item to="/dashboard/timesheets" active-class="primary--text" v-bind="props">
               <template v-slot:prepend>
@@ -101,8 +112,8 @@
           <span>Pointages</span>
         </v-tooltip>
 
-        <!-- Anomalies -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+        <!-- Anomalies - Super Admin, Admin et Manager -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
           <template v-slot:activator="{ props }">
             <v-list-item to="/dashboard/anomalies" active-class="primary--text" v-bind="props">
               <template v-slot:prepend>
@@ -114,8 +125,8 @@
           <span>Anomalies</span>
         </v-tooltip>
 
-        <!-- Rapports -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+        <!-- Rapports - Super Admin, Admin et Manager -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
           <template v-slot:activator="{ props }">
             <v-list-item to="/dashboard/reports" active-class="primary--text" v-bind="props">
               <template v-slot:prepend>
@@ -127,7 +138,7 @@
           <span>Rapports</span>
         </v-tooltip>
 
-        <!-- Gestion des accès -->
+        <!-- Gestion des accès - Super Admin uniquement -->
         <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin">
           <template v-slot:activator="{ props }">
             <v-list-item to="/dashboard/admin/access" active-class="primary--text" v-bind="props">
@@ -140,8 +151,8 @@
           <span>Gestion des accès</span>
         </v-tooltip>
 
-        <!-- Paramètres -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isManager || isSuperAdmin">
+        <!-- Paramètres - Super Admin, Admin et Manager -->
+        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
           <template v-slot:activator="{ props }">
             <v-list-item to="/dashboard/settings" active-class="primary--text" v-bind="props">
               <template v-slot:prepend>
@@ -176,25 +187,32 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useSitesStore } from '@/stores/sites'
 import { useDisplay } from 'vuetify'
 
 export default {
   name: 'DashboardLayout',
   setup() {
     const authStore = useAuthStore()
-    const sitesStore = useSitesStore()
     const display = useDisplay()
     const drawer = ref(true)
     const rail = ref(false)
     const showLogoutDialog = ref(false)
+    const isSuperAdminMode = ref(false)
     
-    const isSuperAdmin = computed(() => authStore.isSuperAdmin)
+    const isSuperAdmin = computed(() => isSuperAdminMode.value || authStore.isSuperAdmin)
+    const isAdmin = computed(() => authStore.isAdmin)
     const isManager = computed(() => authStore.isManager)
+    const isEmployee = computed(() => authStore.isEmployee)
+    
+    const toggleSuperAdmin = () => {
+      isSuperAdminMode.value = !isSuperAdminMode.value
+      console.log('[Auth][Debug] Mode Super Admin:', isSuperAdminMode.value ? 'Activé' : 'Désactivé')
+    }
     
     const logout = () => {
+      isSuperAdminMode.value = false
       authStore.logout()
     }
 
@@ -215,7 +233,11 @@ export default {
       rail,
       showLogoutDialog,
       isSuperAdmin,
+      isAdmin,
       isManager,
+      isEmployee,
+      isSuperAdminMode,
+      toggleSuperAdmin,
       logout,
       handleDrawerOutsideClick,
       handleListItemClick

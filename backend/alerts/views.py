@@ -17,31 +17,18 @@ class IsAdminOrManager(BasePermission):
         is_manager = IsSiteOrganizationManager().has_object_permission(request, view, obj)
         return is_admin or is_manager
 
-class AlertListView(generics.ListAPIView):
-    """Vue pour lister les alertes"""
+class AlertListView(generics.ListCreateAPIView):
+    """Vue pour lister toutes les alertes et en créer de nouvelles"""
     serializer_class = AlertSerializer
-    
-    def get_permissions(self):
-        permission_classes = [permissions.IsAuthenticated]
-        if not self.request.method in permissions.SAFE_METHODS:
-            permission_classes = [IsAdminOrManager]
-        return [permission() for permission in permission_classes]
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         user = self.request.user
-        if getattr(self, 'swagger_fake_view', False):  # Handling swagger generation
-            return Alert.objects.none()
-            
         if user.is_super_admin:
             return Alert.objects.all()
-        elif user.is_manager:
-            # Manager voit les alertes des sites dont il est manager ou qui sont dans son organisation
-            return Alert.objects.filter(
-                models.Q(site__manager=user) |
-                models.Q(site__organization=user.organization)
-            ).distinct()
+        elif user.is_admin or user.is_manager:
+            return Alert.objects.filter(site__organization__in=user.organizations.all())
         else:
-            # Employé voit ses propres alertes
             return Alert.objects.filter(employee=user)
 
 class AlertDetailView(generics.RetrieveUpdateAPIView):
@@ -57,8 +44,8 @@ class AlertDetailView(generics.RetrieveUpdateAPIView):
         user = self.request.user
         if user.is_super_admin:
             return Alert.objects.all()
-        elif user.is_manager and user.organization:
-            return Alert.objects.filter(site__organization=user.organization)
+        elif user.is_admin or user.is_manager:
+            return Alert.objects.filter(site__organization__in=user.organizations.all())
         else:
             return Alert.objects.filter(employee=user)
 

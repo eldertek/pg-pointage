@@ -19,8 +19,8 @@ class ReportListView(generics.ListCreateAPIView):
         user = self.request.user
         if user.is_super_admin:
             return Report.objects.all()
-        elif user.is_manager and user.organization:
-            return Report.objects.filter(organization=user.organization)
+        elif user.is_admin or user.is_manager:
+            return Report.objects.filter(organization__in=user.organizations.all())
         else:
             return Report.objects.filter(created_by=user)
 
@@ -33,9 +33,10 @@ class ReportDetailView(generics.RetrieveAPIView):
         user = self.request.user
         if user.is_super_admin:
             return Report.objects.all()
-        elif user.is_manager and user.organization:
-            return Report.objects.filter(organization=user.organization)
-        return Report.objects.none()
+        elif user.is_admin or user.is_manager:
+            return Report.objects.filter(organization__in=user.organizations.all())
+        else:
+            return Report.objects.filter(created_by=user)
 
 class ReportGenerateSerializer(serializers.Serializer):
     report_type = serializers.ChoiceField(choices=Report.ReportType.choices)

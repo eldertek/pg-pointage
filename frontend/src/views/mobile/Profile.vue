@@ -124,7 +124,7 @@
     </v-card>
     
     <!-- Dialogue de changement de mot de passe -->
-    <v-dialog v-model="showPasswordDialog" max-width="500">
+    <v-dialog v-model="showPasswordDialog" max-width="500" persistent>
       <v-card>
         <v-card-title>Changer mon mot de passe</v-card-title>
         <v-card-text>
@@ -225,6 +225,7 @@ export default {
     
     const roleLabels = {
       'SUPER_ADMIN': 'Super Administrateur',
+      'ADMIN': 'Administrateur',
       'MANAGER': 'Gestionnaire',
       'EMPLOYEE': 'Employé'
     }
@@ -238,6 +239,11 @@ export default {
     const userInitials = computed(() => {
       if (!user.value.first_name || !user.value.last_name) return ''
       return `${user.value.first_name.charAt(0)}${user.value.last_name.charAt(0)}`
+    })
+    
+    const userOrganizations = computed(() => {
+      if (!user.value.organizations) return []
+      return user.value.organizations.map(org => org.name).join(', ')
     })
     
     const rules = {
@@ -388,6 +394,7 @@ export default {
       simplifiedView,
       updateSimplifiedView,
       formatPhoneNumber,
+      userOrganizations,
     }
   }
 }

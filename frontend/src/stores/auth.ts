@@ -31,7 +31,7 @@ interface User {
   role: string;
   first_name: string;
   last_name: string;
-  organization?: any;
+  organizations: any[];
 }
 
 interface AuthState {
@@ -55,10 +55,16 @@ export const useAuthStore = defineStore("auth", {
     isAuthenticated: (state) => !!state.token,
     userRole: (state) => state.user?.role || null,
     isSuperAdmin: (state) => state.user?.role === "SUPER_ADMIN",
+    isAdmin: (state) => state.user?.role === "ADMIN",
     isManager: (state) => state.user?.role === "MANAGER",
     isEmployee: (state) => state.user?.role === "EMPLOYEE",
-    userOrganization: (state) => state.user?.organization || null,
-    userName: (state) => state.user ? `${state.user.first_name} ${state.user.last_name}` : null
+    userOrganizations: (state) => state.user?.organizations || [],
+    userName: (state) => state.user ? `${state.user.first_name} ${state.user.last_name}` : null,
+    hasOrganizationAccess: (state) => (organizationId: number) => {
+      if (!state.user) return false
+      if (state.user.role === "SUPER_ADMIN") return true
+      return state.user.organizations.some(org => org.id === organizationId)
+    }
   },
 
   actions: {

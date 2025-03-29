@@ -9,31 +9,22 @@ import type { ScanPreferenceEnum } from './ScanPreferenceEnum';
 /**
  * Serializer pour les utilisateurs (admin)
  */
-export type UserRequest = {
+export interface UserRequest {
     /**
      * Requis. 150 caractères maximum. Uniquement des lettres, nombres et les caractères « @ », « . », « + », « - » et « _ ».
      */
     username: string;
     email: string;
-    first_name?: string;
-    last_name?: string;
-    role?: RoleEnum;
-    organization?: number | null;
+    first_name: string;
+    last_name: string;
+    role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+    organizations: number[];
     phone_number?: string;
-    is_active?: boolean;
+    is_active: boolean;
     employee_id?: string;
-    password?: string;
-    /**
-     * Uniquement pour les employés
-     *
-     * * `BOTH` - NFC et QR Code
-     * * `NFC_ONLY` - NFC uniquement
-     * * `QR_ONLY` - QR Code uniquement
-     */
-    scan_preference?: (ScanPreferenceEnum | BlankEnum | NullEnum) | null;
-    /**
-     * Si activé, affiche uniquement le bouton de pointage sur mobile
-     */
+    scan_preference?: 'BOTH' | 'NFC_ONLY' | 'QR_ONLY';
     simplified_mobile_view?: boolean;
-};
+    password?: string;
+    sites?: number[];
+}
 

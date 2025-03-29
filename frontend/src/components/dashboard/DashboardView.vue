@@ -25,7 +25,7 @@
     </v-card>
 
     <!-- Dialog de formulaire -->
-    <v-dialog v-model="showForm" max-width="800px">
+    <v-dialog v-model="showForm" max-width="800px" persistent>
       <v-card class="form-dialog">
         <div class="form-dialog-header">
           <div class="form-dialog-title">

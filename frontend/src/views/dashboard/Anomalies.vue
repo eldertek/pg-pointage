@@ -190,6 +190,13 @@
         </template>
       </v-data-table>
     </v-card>
+
+    <!-- Dialog de confirmation -->
+    <v-dialog v-model="showDeleteDialog" max-width="400" persistent>
+      <v-card>
+        <!-- Dialog content -->
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 

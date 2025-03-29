@@ -1,5 +1,6 @@
 <template>
   <DashboardView
+    ref="dashboardView"
     title="Plannings"
     :form-title="editedItem?.id ? 'Modifier' : 'Nouveau' + ' planning'"
     :saving="saving"
@@ -200,6 +201,9 @@
                       v-model="detail.start_time_1"
                       type="time"
                       label="Début matin"
+                      menu-props="{ closeOnClick: true, closeOnContentClick: true }"
+                      @click="$refs[`timeField_${index}_start_1`]?.$el.querySelector('input').click()"
+                      ref="timeField_${index}_start_1"
                     ></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="3">
@@ -207,16 +211,22 @@
                       v-model="detail.end_time_1"
                       type="time"
                       label="Fin matin"
+                      menu-props="{ closeOnClick: true, closeOnContentClick: true }"
+                      @click="$refs[`timeField_${index}_end_1`]?.$el.querySelector('input').click()"
+                      ref="timeField_${index}_end_1"
                     ></v-text-field>
                   </v-col>
                 </template>
 
                 <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.PM">
-                  <v-col cols="12" sm="3">
+                  <v-col cols="12" sm="3" :class="{ 'offset-sm-6': detail.day_type === DayTypeEnum.PM }">
                     <v-text-field
                       v-model="detail.start_time_2"
                       type="time"
                       label="Début après-midi"
+                      menu-props="{ closeOnClick: true, closeOnContentClick: true }"
+                      @click="$refs[`timeField_${index}_start_2`]?.$el.querySelector('input').click()"
+                      ref="timeField_${index}_start_2"
                     ></v-text-field>
                   </v-col>
                   <v-col cols="12" sm="3">
@@ -224,6 +234,9 @@
                       v-model="detail.end_time_2"
                       type="time"
                       label="Fin après-midi"
+                      menu-props="{ closeOnClick: true, closeOnContentClick: true }"
+                      @click="$refs[`timeField_${index}_end_2`]?.$el.querySelector('input').click()"
+                      ref="timeField_${index}_end_2"
                     ></v-text-field>
                   </v-col>
                 </template>
@@ -234,6 +247,7 @@
       </DashboardForm>
     </template>
   </DashboardView>
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
@@ -247,6 +261,7 @@ import { useAuthStore } from '@/stores/auth'
 import DashboardView from '@/components/dashboard/DashboardView.vue'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const route = useRoute()
 
@@ -306,6 +321,7 @@ const itemsPerPage = ref(10)
 const totalItems = ref(0)
 const editedItem = ref<ScheduleFormData | null>(null)
 const form = ref()
+const dashboardView = ref()
 
 // Filtres
 const filters = ref({
@@ -448,9 +464,17 @@ const openDialog = (item?: ExtendedSchedule) => {
     late_departure_limit: 0,
     site: 0,
     employee: 0,
-    details: [],
+    details: daysOfWeek.map(day => ({
+      day_of_week: day.value,
+      enabled: false,
+      day_type: DayTypeEnum.FULL
+    })),
     schedule_type: ScheduleTypeEnum.FIXED,
-    enabled: true
+    enabled: true,
+    is_active: true
+  }
+  if (dashboardView.value) {
+    dashboardView.value.showForm = true
   }
 }
 
