@@ -136,15 +136,33 @@
         </v-col>
 
         <!-- Sélection de l'employé si plusieurs sur le site -->
-        <v-col v-if="editedItem && employees.length > 1" cols="12" sm="6">
+        <v-col v-if="editedItem && employees.length >= 0" cols="12" sm="6">
           <v-select
-            v-model="editedItem.employee"
+            v-model="editedItem.employees"
             :items="employees"
             item-title="employee_name"
             item-value="id"
-            label="Employé"
+            label="Employés"
+            multiple
+            chips
+            closable-chips
             required
-          ></v-select>
+          >
+            <template v-slot:chip="{ props, item }">
+              <v-chip
+                v-bind="props"
+                :text="item.raw.employee_name"
+                color="primary"
+                variant="outlined"
+              ></v-chip>
+            </template>
+            <template v-slot:prepend-inner>
+              <v-icon color="primary">mdi-account-multiple</v-icon>
+            </template>
+            <template v-slot:no-data>
+              <div class="pa-2 text-center">Aucun employé disponible pour ce site</div>
+            </template>
+          </v-select>
         </v-col>
 
         <!-- Planning type Fréquence -->
@@ -410,7 +428,7 @@ interface ExtendedScheduleDetail {
 // Interface étendue pour les plannings avec les propriétés supplémentaires
 interface ExtendedSchedule extends Omit<BaseSchedule, 'details'> {
   enabled?: boolean;
-  employee?: Employee;
+  employees?: Array<{ id: number }>;
   site: number;
   details: ExtendedScheduleDetail[];
 }
@@ -419,7 +437,7 @@ interface ExtendedSchedule extends Omit<BaseSchedule, 'details'> {
 interface ScheduleFormData {
   id?: number;
   site: number | undefined;
-  employee: number | undefined;
+  employees: number[];
   details: ExtendedScheduleDetail[];
   is_active?: boolean;
   schedule_type?: ScheduleTypeEnum;
@@ -540,20 +558,29 @@ const loadSites = async () => {
 
 const loadEmployees = async (siteId: number | string | undefined) => {
   try {
+    console.log('[Plannings][LoadEmployees] Début du chargement des employés pour le site:', siteId)
+    
     // Convertir siteId en nombre si c'est une chaîne
     const numericSiteId = typeof siteId === 'string' ? Number(siteId) : siteId
+    console.log('[Plannings][LoadEmployees] SiteId converti:', numericSiteId)
     
     // Vérifier que siteId est un nombre valide
-    if (!isValidSiteId(numericSiteId)) return
+    if (!isValidSiteId(numericSiteId)) {
+      console.log('[Plannings][LoadEmployees] SiteId invalide')
+      return
+    }
 
     // Si on crée un nouveau planning (pas d'ID), on utilise getSiteEmployees
     // Sinon, on utilise getScheduleEmployees
     const response = editedItem.value?.id 
       ? await schedulesApi.getScheduleEmployees(numericSiteId, editedItem.value.id)
       : await sitesApi.getSiteEmployees(numericSiteId);
+    
     employees.value = response.data.results || []
+    console.log('[Plannings][LoadEmployees] Employés chargés:', employees.value.length)
   } catch (error) {
     console.error('[Plannings][Error] Erreur lors du chargement des employés:', error)
+    employees.value = []
   }
 }
 
@@ -570,7 +597,7 @@ const openDialog = (item?: ExtendedSchedule) => {
   editedItem.value = item ? {
     id: item.id,
     site: item.site,
-    employee: typeof item.employee === 'number' ? item.employee : item.employee?.id || 0,
+    employees: item.employees?.map(e => e.id) || [],
     details: item.details.map(detail => ({
       ...detail,
       showStartTime1Menu: false,
@@ -583,7 +610,7 @@ const openDialog = (item?: ExtendedSchedule) => {
     enabled: item.enabled
   } : {
     site: undefined,
-    employee: undefined,
+    employees: [],
     details: daysOfWeek.map(day => ({
       day_of_week: day.value,
       enabled: false,
@@ -630,37 +657,18 @@ const saveSchedule = async () => {
 
   saving.value = true
   try {
-    const currentItem = editedItem.value // Stocker la référence pour éviter les vérifications multiples
-    if (!currentItem) return // Vérification supplémentaire
-    if (!currentItem.site) return // Vérification que site est défini
+    const currentItem = editedItem.value
+    if (!currentItem) return
+    if (!currentItem.site) return
 
     // Préparer les données du planning
-    interface ScheduleDataType {
-      site: number;
-      schedule_type: ScheduleTypeEnum | undefined;
-      details: {
-        id?: number;
-        day_of_week: number;
-        frequency_duration?: number;
-        start_time_1?: string;
-        end_time_1?: string;
-        start_time_2?: string;
-        end_time_2?: string;
-        day_type?: 'FULL' | 'AM' | 'PM';
-        schedule_type: ScheduleTypeEnum | undefined;
-      }[];
-      is_active: boolean | undefined;
-      enabled: boolean | undefined;
-      employee?: number;
-    }
-
-    const scheduleData: ScheduleDataType = {
+    const scheduleData = {
       site: currentItem.site,
       schedule_type: currentItem.schedule_type,
       details: currentItem.details
         .filter(detail => detail.enabled)
         .map(detail => ({
-          id: detail.id || undefined, // Envoyer undefined au lieu de 0
+          id: detail.id || undefined,
           day_of_week: detail.day_of_week,
           frequency_duration: currentItem.schedule_type === ScheduleTypeEnum.FREQUENCY ? detail.frequency_duration : undefined,
           start_time_1: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.start_time_1 : undefined,
@@ -668,21 +676,26 @@ const saveSchedule = async () => {
           start_time_2: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.start_time_2 : undefined,
           end_time_2: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.end_time_2 : undefined,
           day_type: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.day_type : undefined,
-          schedule_type: currentItem.schedule_type // Ajout du schedule_type dans les détails
+          schedule_type: currentItem.schedule_type
         })),
       is_active: currentItem.is_active,
       enabled: currentItem.enabled
     }
 
-    // Ajouter l'employee seulement s'il est valide
-    if (currentItem.employee && currentItem.employee > 0) {
-      scheduleData.employee = currentItem.employee
+    let savedSchedule
+    if (currentItem.id) {
+      savedSchedule = await schedulesApi.updateSchedule(currentItem.id, scheduleData)
+    } else {
+      savedSchedule = await schedulesApi.createSchedule(scheduleData)
     }
 
-    if (currentItem.id) {
-      await schedulesApi.updateSchedule(currentItem.id, scheduleData)
-    } else {
-      await schedulesApi.createSchedule(scheduleData)
+    // Gérer l'assignation des employés
+    if (savedSchedule?.data?.id && currentItem.employees?.length > 0) {
+      await schedulesApi.assignMultipleEmployees(
+        currentItem.site,
+        savedSchedule.data.id,
+        currentItem.employees
+      )
     }
     
     await loadSchedules()

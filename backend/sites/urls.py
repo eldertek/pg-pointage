@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     SiteListView, SiteDetailView, ScheduleListView, ScheduleDetailView,
     ScheduleDetailListView, SiteEmployeeListView, SiteEmployeeDetailView,
-    GlobalScheduleListView, GlobalScheduleDetailView, SiteStatisticsView
+    GlobalScheduleListView, GlobalScheduleDetailView, SiteStatisticsView,
+    SiteUnassignedEmployeesView
 )
 
 urlpatterns = [
@@ -16,5 +17,6 @@ urlpatterns = [
     path('<int:site_pk>/schedules/<int:schedule_pk>/details/', ScheduleDetailListView.as_view(), name='schedule-detail-list'),
     path('<int:site_pk>/employees/', SiteEmployeeListView.as_view(), name='site-employee-list'),
     path('<int:site_pk>/employees/<int:pk>/', SiteEmployeeDetailView.as_view(), name='site-employee-detail'),
+    path('<int:pk>/unassigned-employees/', SiteUnassignedEmployeesView.as_view(), name='site-unassigned-employees'),
 ]
 

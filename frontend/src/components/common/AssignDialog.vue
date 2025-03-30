@@ -37,7 +37,21 @@
                 :loading="loading"
                 :no-data-text="noDataText"
                 :item-title="getItemTitle"
-              />
+              >
+                <template v-slot:item="{ props, item }">
+                  <v-list-item v-bind="props">
+                    <template v-slot:prepend>
+                      <v-icon :icon="itemIcon" class="mr-2"></v-icon>
+                    </template>
+                    <v-list-item-title>{{ getItemTitle(item.raw) }}</v-list-item-title>
+                    <v-list-item-subtitle>
+                      <slot name="item-subtitle" :item="item.raw">
+                        {{ item.raw.email }}
+                      </slot>
+                    </v-list-item-subtitle>
+                  </v-list-item>
+                </template>
+              </v-autocomplete>
             </v-col>
           </v-row>
         </DashboardForm>
@@ -73,22 +87,20 @@ import { ref, watch, computed } from 'vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
 import { typography } from '@/styles/typography'
 
-interface ListItem {
+export interface ListItem {
+  address: any;
+  city: any;
+  is_active: any;
   id: number;
-  name: string;
-  username: string;
-  email: string;
   first_name: string;
   last_name: string;
-  role: string;
+  email: string;
   organization: number;
-  phone_number: string;
-  is_active: boolean;
-  employee_id: string;
-  date_joined: string;
-  organization_name: string;
-  scan_preference: string;
-  simplified_mobile_view: boolean;
+  employee?: number;
+  role?: string;
+  site_name?: string;
+  employee_name?: string;
+  name?: string;
 }
 
 const props = defineProps({
@@ -108,6 +120,10 @@ const props = defineProps({
     type: Array as () => ListItem[],
     required: true,
     default: () => []
+  },
+  itemIcon: {
+    type: String,
+    default: 'mdi-account'
   },
   label: {
     type: String,
@@ -136,7 +152,12 @@ const emit = defineEmits(['update:modelValue', 'assign'])
 const selectedItem = ref<ListItem | null>(null)
 const form = ref(null)
 
-const getItemTitle = (item: ListItem) => item.name
+const getItemTitle = (item: ListItem) => {
+  if (item.name) {
+    return item.name;
+  }
+  return `${item.first_name} ${item.last_name}`;
+}
 
 const handleSubmit = async () => {
   if (!selectedItem.value) return
@@ -211,6 +232,64 @@ watch(() => props.modelValue, (newValue) => {
 
 :deep(.v-divider) {
   margin: 0;
+}
+
+/* Style des éléments de la liste */
+:deep(.v-list-item) {
+  padding: 12px 16px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+:deep(.v-list-item:hover) {
+  background-color: rgba(0, 52, 110, 0.04);
+}
+
+:deep(.v-list-item-title) {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.87);
+  margin-bottom: 4px;
+}
+
+:deep(.v-list-item-subtitle) {
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+:deep(.v-list-item .v-icon) {
+  color: #00346E;
+  opacity: 0.8;
+}
+
+/* Style de l'autocomplete */
+:deep(.v-autocomplete) {
+  .v-field__input {
+    padding: 8px 12px;
+  }
+  
+  .v-field__outline {
+    border-color: rgba(0, 0, 0, 0.12);
+  }
+  
+  &:hover .v-field__outline {
+    border-color: rgba(0, 0, 0, 0.24);
+  }
+  
+  &.v-field--focused .v-field__outline {
+    border-color: #00346E;
+  }
+}
+
+/* Style des puces */
+:deep(.v-chip.v-chip--size-x-small) {
+  font-size: 0.625rem;
+  height: 20px;
+}
+
+.gap-2 {
+  gap: 8px;
 }
 
 /* Style des boutons colorés */

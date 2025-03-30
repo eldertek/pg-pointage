@@ -7,6 +7,23 @@ Suis [typography.ts](mdc:frontend/src/styles/typography.ts) et [global.css](mdc:
 
 Les interfaces doivent toujours être cohérente entre elle, on doit conserver une unité.
 
+# Cohérence des titres
+Le titre affiché dans l'en-tête de la page (layout) doit être exactement identique au libellé correspondant dans la barre de navigation.
+
+Par exemple, si un élément dans la barre de navigation s'appelle "Utilisateurs", le titre de la page doit également être "Utilisateurs" (et non pas "Liste des utilisateurs" ou "Gestion des utilisateurs").
+
+Cette règle s'applique à tous les titres de pages et assure une cohérence visuelle dans l'application.
+
+Exemples :
+- Navigation: "Sites" → Titre: "Sites"
+- Navigation: "Employés" → Titre: "Employés"
+- Navigation: "Rapports" → Titre: "Rapports"
+
+Pour les pages de détail ou de création, on peut utiliser le format suivant :
+- Page de détail : "Détails du [nom de l'élément]" (ex: "Détails du site ABC")
+- Page de création : "Nouveau [nom de l'élément]" (ex: "Nouveau site")
+- Page d'édition : "Modifier [nom de l'élément]" (ex: "Modifier le site ABC")
+
 Pour les adresses, toujours utiliser le composant `AddressWithMap` qui affiche l'adresse avec une icône "mdi-map-marker" qui au clic ouvre Google Maps avec l'adresse complète. L'icône doit être placée à droite de l'adresse avec un espacement de 4px. Le lien doit être stylisé avec la couleur primaire (#00346E) et un hover en souligné.
 
 Exemple d'utilisation :

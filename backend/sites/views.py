@@ -12,6 +12,7 @@ from django.db.models import Count, Q, F, ExpressionWrapper, fields
 from django.db.models.functions import ExtractHour, ExtractMinute
 from timesheets.models import Timesheet, Anomaly
 from users.models import User
+from users.serializers import UserSerializer
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from datetime import timedelta
 
@@ -265,7 +266,7 @@ class GlobalScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class SiteUnassignedEmployeesView(generics.ListAPIView):
     """Vue pour lister tous les employés non assignés à un site spécifique"""
-    serializer_class = 'users.serializers.UserSerializer'  # On utilise le même sérialiseur que pour les organisations
+    serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
@@ -279,7 +280,7 @@ class SiteUnassignedEmployeesView(generics.ListAPIView):
         # 2. Ne sont pas déjà assignés à ce site
         # 3. Sont actifs
         return User.objects.filter(
-            organization=site.organization,
+            organizations__in=[site.organization],
             is_active=True
         ).exclude(
             id__in=SiteEmployee.objects.filter(

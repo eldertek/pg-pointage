@@ -90,7 +90,7 @@ class OrganizationUnassignedEmployeesView(generics.ListAPIView):
         # et qui ont soit le rôle EMPLOYEE soit MANAGER
         role_filter = self.request.query_params.getlist('role', ['EMPLOYEE', 'MANAGER'])
         return User.objects.filter(
-            Q(organization__isnull=True) | ~Q(organization_id=organization_pk),
+            ~Q(organizations__id=organization_pk),
             role__in=role_filter,
             is_active=True
         )

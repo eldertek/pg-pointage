@@ -745,30 +745,72 @@
 
               <!-- Onglet Employés -->
               <v-window-item value="employees">
-                <v-data-table
-                  v-model:page="page"
-                  :headers="employeesHeaders"
-                  :items="employees"
-                  :items-per-page="5"
-                  :no-data-text="'Aucun employé trouvé'"
-                  class="elevation-1"
-                >
-                  <template v-slot:top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Employés</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
-                  </template>
-                  
-                  <template v-slot:item.role="{ item }">
-                    <v-chip
-                      :color="item.role === 'MANAGER' ? 'primary' : 'success'"
-                      size="small"
+                <v-card class="elevation-1">
+                  <v-toolbar flat>
+                    <v-toolbar-title>Employés</v-toolbar-title>
+                    <v-spacer></v-spacer>
+                    <v-btn
+                      color="primary"
+                      prepend-icon="mdi-account-plus"
+                      @click="openAssignEmployeesDialog"
                     >
-                      {{ item.role === 'MANAGER' ? 'Manager' : 'Employé' }}
-                    </v-chip>
-                  </template>
-                </v-data-table>
+                      Assigner un employé
+                    </v-btn>
+                  </v-toolbar>
+                  <v-card-text>
+                    <v-data-table
+                      v-model:page="page"
+                      :headers="employeesHeaders"
+                      :items="relatedTables.find(t => t.key === 'employees')?.items || []"
+                      :items-per-page="5"
+                      :no-data-text="'Aucun employé trouvé'"
+                      :loading-text="'Chargement...'"
+                      :items-per-page-text="'Lignes par page'"
+                      :page-text="'{0}-{1} sur {2}'"
+                      :items-per-page-options="[
+                        { title: '5', value: 5 },
+                        { title: '10', value: 10 },
+                        { title: '15', value: 15 },
+                        { title: 'Tout', value: -1 }
+                      ]"
+                      class="elevation-1"
+                      @click:row="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
+                    >
+                      <template v-slot:item.role="{ item }">
+                        <v-chip
+                          :color="item.role === 'MANAGER' ? 'primary' : 'success'"
+                          size="small"
+                        >
+                          {{ item.role === 'MANAGER' ? 'Manager' : 'Employé' }}
+                        </v-chip>
+                      </template>
+                      
+                      <template v-slot:item.actions="{ item }">
+                        <v-btn
+                          icon
+                          variant="text"
+                          size="small"
+                          color="primary"
+                          :to="`/dashboard/admin/users/${item.id}`"
+                          @click.stop
+                        >
+                          <v-icon>mdi-eye</v-icon>
+                          <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                        </v-btn>
+                        <v-btn
+                          icon
+                          variant="text"
+                          size="small"
+                          color="error"
+                          @click.stop="unassignEmployeeFromSite(item.id)"
+                        >
+                          <v-icon>mdi-account-remove</v-icon>
+                          <v-tooltip activator="parent">Retirer de l'organisation</v-tooltip>
+                        </v-btn>
+                      </template>
+                    </v-data-table>
+                  </v-card-text>
+                </v-card>
               </v-window-item>
 
               <!-- Onglet Rapports -->
@@ -1182,7 +1224,6 @@
           title="Assigner des employés"
           subtitle="Sélectionnez un employé à assigner"
           :items="unassignedEmployees"
-          item-title="display_name"
           item-icon="mdi-account"
           label="Sélectionner un employé"
           placeholder="Rechercher un employé..."
@@ -1192,10 +1233,15 @@
           @assign="handleAssignEmployee"
         >
           <template #item-subtitle="{ item }">
-            <v-chip size="x-small" :color="(item as unknown as ListItem).role === 'MANAGER' ? 'warning' : 'success'">
-              {{ (item as unknown as ListItem).role === 'MANAGER' ? 'Manager' : 'Employé' }}
-            </v-chip>
-            {{ (item as unknown as ListItem).email }}
+            <div class="d-flex align-center gap-2">
+              <v-chip
+                size="x-small"
+                :color="item.role === 'MANAGER' ? 'warning' : 'success'"
+              >
+                {{ item.role === 'MANAGER' ? 'Manager' : 'Employé' }}
+              </v-chip>
+              <span>{{ item.email }}</span>
+            </div>
           </template>
         </AssignDialog>
 
@@ -1205,7 +1251,6 @@
           title="Assigner des sites"
           subtitle="Sélectionnez un site à assigner"
           :items="unassignedSites"
-          item-title="name"
           item-icon="mdi-domain"
           label="Sélectionner un site"
           placeholder="Rechercher un site..."
@@ -1215,10 +1260,12 @@
           @assign="handleAssignSite"
         >
           <template #item-subtitle="{ item }">
-            {{ (item as unknown as ListItem).address }}, {{ (item as unknown as ListItem).city }}
-            <v-chip size="x-small" :color="(item as unknown as ListItem).is_active ? 'success' : 'error'">
-              {{ (item as unknown as ListItem).is_active ? 'Actif' : 'Inactif' }}
-            </v-chip>
+            <div class="d-flex align-center gap-2">
+              {{ item.address }}, {{ item.city }}
+              <v-chip size="x-small" :color="item.is_active ? 'success' : 'error'">
+                {{ item.is_active ? 'Actif' : 'Inactif' }}
+              </v-chip>
+            </div>
           </template>
         </AssignDialog>
 
@@ -1353,12 +1400,17 @@ interface ListItem {
   first_name?: string;
   last_name?: string;
   email?: string;
+  organization?: number;
+  employee?: number;
   role?: string;
+  site_name?: string;
+  employee_name?: string;
   name?: string;
-  address?: string;
-  city?: string;
-  is_active?: boolean;
-  [key: string]: any;
+  address: string;  // Ajout de la propriété manquante
+  city: string;     // Ajout de la propriété manquante
+  postal_code?: string;
+  country?: string;
+  is_active: boolean; // Ajout de la propriété manquante
 }
 
 // Extended Site with additional properties needed for UI
@@ -1652,6 +1704,10 @@ const loadData = async () => {
           sitesApi.getSiteEmployees(itemId.value),
           sitesApi.getSchedulesBySite(itemId.value)
         ])
+        
+        // Mettre à jour la liste des employés pour l'onglet Employés
+        employees.value = employeesResponse.data.results
+        
         relatedTables.value = [
           {
             key: 'employees',
@@ -1942,10 +1998,14 @@ const loadSiteDetails = async () => {
     const siteId = route.params.id
     
     // Charger les détails du site et les plannings en parallèle
-    const [siteResponse, schedulesResponse] = await Promise.all([
+    const [siteResponse, schedulesResponse, employeesResponse] = await Promise.all([
       sitesApi.getSite(Number(siteId)),
-      sitesApi.getSchedulesBySite(Number(siteId))
+      sitesApi.getSchedulesBySite(Number(siteId)),
+      sitesApi.getSiteEmployees(Number(siteId))
     ])
+
+    // Mettre à jour la liste des employés
+    employees.value = employeesResponse.data.results
 
     // Fusionner les données du site avec les plannings
     item.value = {
@@ -2202,16 +2262,20 @@ const confirmDeleteDialogItem = async () => {
 const handleAssignEmployee = async (employee: any) => {
   assigningEmployee.value = true
   try {
-    console.log('[DetailView][AssignEmployee] Mise à jour de l\'organisation de l\'employé', employee.id)
-    await usersApi.updateUser(employee.id, {
-      ...employee,
-      organization: itemId.value
-    })
-    console.log('[DetailView][AssignEmployee] Organisation mise à jour avec succès')
+    console.log('[DetailView][AssignEmployee] Assignation de l\'employé', employee.id, 'au site', itemId.value)
+    await sitesApi.assignEmployee(itemId.value, employee.id)
+    console.log('[DetailView][AssignEmployee] Employé assigné avec succès')
+    
+    // Recharger la liste des employés
+    const response = await sitesApi.getSiteEmployees(itemId.value)
+    employees.value = response.data.results
+    
     await loadData()
     showAssignEmployeesDialog.value = false
+    showSuccess('Employé assigné avec succès')
   } catch (error) {
-    console.error('[DetailView][AssignEmployee] Erreur lors de la mise à jour de l\'organisation:', error)
+    console.error('[DetailView][AssignEmployee] Erreur lors de l\'assignation de l\'employé:', error)
+    showError('Erreur lors de l\'assignation de l\'employé')
   } finally {
     assigningEmployee.value = false
   }
@@ -2236,8 +2300,15 @@ const loadUnassignedEmployees = async () => {
   loadingEmployees.value = true
   try {
     console.log('[DetailView][LoadEmployees] Chargement des employés non assignés')
-    const response = await organizationsApi.getUnassignedEmployees(itemId.value)
-    unassignedEmployees.value = response.data.results || []
+    // Si c'est un site, utiliser l'API des sites pour charger les employés non assignés
+    if (props.type === 'site') {
+      const response = await sitesApi.getUnassignedEmployees(itemId.value)
+      unassignedEmployees.value = response.data.results || []
+    } else {
+      // Sinon, c'est une organisation
+      const response = await organizationsApi.getUnassignedEmployees(itemId.value)
+      unassignedEmployees.value = response.data.results || []
+    }
     console.log('[DetailView][LoadEmployees] Employés chargés:', unassignedEmployees.value.length)
   } catch (error) {
     console.error('[DetailView][LoadEmployees] Erreur lors du chargement des employés:', error)
@@ -2264,13 +2335,25 @@ const loadUnassignedSites = async () => {
 
 // Ouvrir le dialogue d'assignation des employés
 const openAssignEmployeesDialog = async () => {
-  await loadUnassignedEmployees()
-  showAssignEmployeesDialog.value = true
+  console.log('[DetailView][OpenDialog] Ouverture du dialogue d\'assignation d\'employés')
+  console.log('[DetailView][OpenDialog] État du dialogue avant appel:', showAssignEmployeesDialog.value)
+  
+  try {
+    await loadUnassignedEmployees()
+    console.log('[DetailView][OpenDialog] Employés chargés:', unassignedEmployees.value)
+    console.log('[DetailView][OpenDialog] Affichage du dialogue avec', unassignedEmployees.value.length, 'employés')
+    showAssignEmployeesDialog.value = true
+    console.log('[DetailView][OpenDialog] État du dialogue après changement:', showAssignEmployeesDialog.value)
+  } catch (error) {
+    console.error('[DetailView][OpenDialog] Erreur lors de l\'ouverture du dialogue:', error)
+  }
 }
 
 // Ouvrir le dialogue d'assignation des sites  
 const openAssignSitesDialog = async () => {
+  console.log('[DetailView][OpenDialog] Ouverture du dialogue d\'assignation de sites')
   await loadUnassignedSites()
+  console.log('[DetailView][OpenDialog] Affichage du dialogue avec', unassignedSites.value.length, 'sites')
   showAssignSitesDialog.value = true
 }
 
@@ -2283,11 +2366,10 @@ const formatEditRoute = (tableKey: string, item: TableItem): string => {
   return routes[tableKey] || ''
 }
 
-// Nouvelle fonction pour gérer le clic sur une ligne de tableau
-const navigateToDetail = (tableKey: string, rowData: any) => {
+// Nouvelle fonction navigateToDetail améliorée
+const navigateToDetail = async (tableKey: string, rowData: any) => {
   console.log('[DetailView][Click] Données de ligne complètes:', rowData)
   
-  // Vuetify 3 stocke l'item original dans différents endroits selon la version
   const item = rowData.item?.raw || rowData.item?.value || rowData.item || rowData
   console.log('[DetailView][Click] Item extrait:', item)
   
@@ -2305,7 +2387,7 @@ const navigateToDetail = (tableKey: string, rowData: any) => {
   const targetRoute = routes[tableKey]
   if (targetRoute) {
     console.log('[DetailView][Click] Navigation vers:', targetRoute)
-    router.push(targetRoute)
+    await router.push(targetRoute)
   }
 }
 
@@ -2316,13 +2398,9 @@ watch(
     console.log('[DetailView][Watch] Changement de route détectée:', { newId, oldId, newType, oldType })
     
     if (newId !== oldId || newType !== oldType) {
-      console.log('[DetailView][Watch] Réinitialisation des données')
-      // Réinitialiser l'état
-      item.value = {}
-      statistics.value = []
-      relatedTables.value = []
+      console.log('[DetailView][Watch] Réinitialisation et rechargement des données')
+      resetState()
       
-      // Recharger les données
       loading.value = true
       try {
         if (props.type === 'site') {
@@ -2334,6 +2412,7 @@ watch(
         }
       } catch (error) {
         console.error('[DetailView][Watch] Erreur lors du rechargement des données:', error)
+        showError('Erreur lors du chargement des données')
       } finally {
         loading.value = false
       }
@@ -2553,9 +2632,41 @@ const employeesHeaders = ref([
   { title: 'Prénom', key: 'first_name', align: 'start' as const },
   { title: 'Email', key: 'email', align: 'start' as const },
   { title: 'Rôle', key: 'role', align: 'center' as const },
-  { title: 'Site', key: 'site_name', align: 'start' as const },
   { title: 'Actions', key: 'actions', align: 'end' as const, sortable: false }
 ])
+
+// Ajout de la fonction unassignEmployeeFromSite
+const unassignEmployeeFromSite = async (employeeId: number) => {
+  try {
+    console.log('[DetailView][UnassignEmployee] Retrait de l\'employé du site', employeeId)
+    await sitesApi.unassignEmployee(itemId.value, employeeId)
+    showSuccess('Employé retiré du site avec succès')
+    
+    // Recharger la liste des employés
+    const response = await sitesApi.getSiteEmployees(itemId.value)
+    employees.value = response.data.results
+  } catch (error) {
+    console.error('[DetailView][UnassignEmployee] Erreur lors du retrait de l\'employé:', error)
+    showError('Erreur lors du retrait de l\'employé')
+  }
+}
+
+const resetState = () => {
+  console.log('[DetailView][ResetState] Réinitialisation de l\'état')
+  item.value = {}
+  statistics.value = []
+  relatedTables.value = []
+  timesheets.value = []
+  anomalies.value = []
+  reports.value = []
+  page.value = 1
+  activeTab.value = 'details'
+  showDeleteDialog.value = false
+  showEditDialog.value = false
+  showDeleteConfirmDialog.value = false
+  showAssignEmployeesDialog.value = false
+  showAssignSitesDialog.value = false
+}
 </script>
 
 <style scoped>

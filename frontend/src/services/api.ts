@@ -306,6 +306,18 @@ const sitesApi = {
   // Get schedules by site
   getSchedulesBySite: (siteId: number): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
     api.get(`/sites/${siteId}/schedules/`),
+
+  // Obtenir les employés qui ne sont pas encore assignés au site
+  getUnassignedEmployees: (siteId: number): Promise<AxiosResponse<ApiResponse<Employee>>> => 
+    api.get(`/sites/${siteId}/unassigned-employees/`),
+
+  // Assigner un employé à un site
+  assignEmployee: (siteId: number, employeeId: number): Promise<AxiosResponse<void>> => 
+    api.post(`/sites/${siteId}/employees/`, { employee: employeeId }),
+
+  // Désassigner un employé d'un site
+  unassignEmployee: (siteId: number, employeeId: number): Promise<AxiosResponse<void>> => 
+    api.delete(`/sites/${siteId}/employees/${employeeId}/`),
 }
 
 // Schedules API methods
@@ -372,7 +384,15 @@ const schedulesApi = {
     api.delete(`/sites/${siteId}/schedules/${scheduleId}/employees/${employeeId}/`),
 
   getScheduleEmployees: (siteId: number, scheduleId: number): Promise<AxiosResponse<ApiResponse<Employee>>> =>
-    api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`)
+    api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`),
+
+  // Assigner plusieurs employés à un planning
+  assignMultipleEmployees: (siteId: number, scheduleId: number, employeeIds: number[]): Promise<AxiosResponse<void>> => 
+    api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/batch/`, { 
+      site: siteId,
+      employees: employeeIds,
+      schedule: scheduleId
+    }),
 }
 
 // Users API methods
