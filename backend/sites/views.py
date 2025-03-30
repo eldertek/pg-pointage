@@ -99,8 +99,19 @@ class SiteListView(generics.ListCreateAPIView):
             'schedules__assigned_employees__employee'
         )
         
+        # Récupérer le paramètre organizations de la requête
+        organizations = self.request.query_params.get('organizations')
+        print("[Sites][Filter] Paramètre organizations reçu:", organizations)
+        
+        if organizations:
+            # Convertir la chaîne en liste d'IDs
+            organization_ids = [int(org_id) for org_id in organizations.split(',')]
+            print("[Sites][Filter] IDs des organisations:", organization_ids)
+            base_queryset = base_queryset.filter(organization_id__in=organization_ids)
+            print("[Sites][Count] Nombre de sites après filtre:", base_queryset.count())
+        
         if user.is_super_admin:
-            return base_queryset.all()
+            return base_queryset
         elif user.is_admin or user.is_manager:
             return base_queryset.filter(organization__in=user.organizations.all())
         elif user.is_employee:

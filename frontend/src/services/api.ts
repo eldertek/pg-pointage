@@ -234,15 +234,20 @@ const validateSiteId = (siteId: string): boolean => {
 // Sites API methods
 const sitesApi = {
   // Get all sites with pagination
-  getAllSites: (page = 1, perPage = 10, params: { organization?: number } = {}): Promise<AxiosResponse<ApiResponse<Site>>> => {
-    return api.get('/sites/', {
-      params: {
-        page,
-        page_size: perPage,
-        expand: 'schedules',
-        ...params
-      }
-    })
+  getAllSites: (page = 1, perPage = 10, params: { organization?: number, organizations?: number[] } = {}): Promise<AxiosResponse<ApiResponse<Site>>> => {
+    const queryParams: Record<string, any> = {
+      page,
+      page_size: perPage,
+      expand: 'schedules',
+      ...params
+    }
+    
+    // Si organizations est fourni, le convertir en chaîne de caractères
+    if (params.organizations?.length) {
+      queryParams.organizations = params.organizations.join(',')
+    }
+    
+    return api.get('/sites/', { params: queryParams })
   },
   
   // Get a single site by ID

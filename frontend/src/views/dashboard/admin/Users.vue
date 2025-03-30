@@ -389,12 +389,15 @@ const loadOrganizations = async () => {
   }
 }
 
-const loadSites = async () => {
+const loadSites = async (organizationIds?: number[]) => {
   try {
-    const response = await sitesApi.getAllSites()
+    console.log('[Users][LoadSites] Chargement des sites pour les organisations:', organizationIds)
+    const response = await sitesApi.getAllSites(1, 100, {
+      organizations: organizationIds
+    })
     sites.value = response.data.results || []
   } catch (error) {
-    console.error('Erreur lors du chargement des sites:', error)
+    console.error('[Users][Error] Erreur lors du chargement des sites:', error)
   }
 }
 
@@ -583,7 +586,6 @@ const toggleStatus = async (item: ExtendedUser) => {
 onMounted(async () => {
   await Promise.all([
     loadUsers(),
-    loadSites(),
     loadOrganizations()
   ])
 
@@ -592,8 +594,13 @@ onMounted(async () => {
     try {
       const response = await usersApi.getUser(Number(props.editId))
       openDialog(response.data)
+      // Charger les sites pour les organisations de l'utilisateur
+      if (response.data.role === RoleEnum.EMPLOYEE && response.data.organizations) {
+        const organizationIds = response.data.organizations.map((org: any) => org.id)
+        await loadSites(organizationIds)
+      }
     } catch (error) {
-      console.error('Erreur lors du chargement des données:', error)
+      console.error('[Users][Error] Erreur lors du chargement des données:', error)
     }
   }
 })
@@ -612,6 +619,16 @@ watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
     }
   }
 })
+
+// Watcher pour les organisations sélectionnées
+watch(() => (editedItem.value as UserFormData)?.organizations, async (newOrganizations) => {
+  if (editedItem.value && (editedItem.value as UserFormData).role === RoleEnum.EMPLOYEE) {
+    const organizationIds = newOrganizations?.map(org => typeof org === 'object' ? org.id : org)
+    await loadSites(organizationIds)
+    // Réinitialiser les sites sélectionnés si les organisations changent
+    ;(editedItem.value as UserFormData).sites = []
+  }
+}, { deep: true })
 
 // Ajouter la fonction pour vérifier si l'utilisateur peut gérer un utilisateur
 const canManageUser = (user: ExtendedUser) => {
