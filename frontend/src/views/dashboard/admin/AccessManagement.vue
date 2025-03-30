@@ -1,50 +1,48 @@
 <template>
   <DashboardView
+    ref="dashboardView"
     title="Gestion des accès"
+    :form-title="(editedItem as OrganizationFormData)?.name ? 'Modifier' : 'Nouvelle' + ' organisation'"
     :saving="saving"
+    @save="saveOrganization"
   >
     <!-- Filtres -->
     <template #filters>
       <DashboardFilters @reset="resetFilters">
-        <v-col cols="12" sm="4">
-          <v-select
-            v-model="filters.site"
-            :items="sites"
-            item-title="name"
-            item-value="id"
-            label="Site"
-            variant="outlined"
-            prepend-inner-icon="mdi-map-marker"
-            clearable
-            @update:model-value="applyFilters"
-          ></v-select>
-        </v-col>
         <v-col cols="12" md="4">
-          <v-select
-            v-model="filters.role"
-            :items="roles"
-            item-title="title"
-            item-value="value"
-            label="Rôle"
+          <v-text-field
+            v-model="filters.search"
+            label="Rechercher"
             variant="outlined"
-            prepend-inner-icon="mdi-account-key"
+            prepend-inner-icon="mdi-magnify"
             clearable
-            @update:model-value="applyFilters"
-          ></v-select>
+            @update:model-value="loadOrganizations"
+          ></v-text-field>
         </v-col>
       </DashboardFilters>
     </template>
 
-    <!-- Tableau des droits d'accès -->
+    <!-- Actions -->
+    <template #actions>
+      <v-btn
+        color="primary"
+        prepend-icon="mdi-plus"
+        @click="openDialog()"
+      >
+        Nouvelle organisation
+      </v-btn>
+    </template>
+
+    <!-- Tableau des organisations -->
     <v-data-table
       v-model:page="page"
-      :headers="headers"
-      :items="accessRights"
+      :headers="organizationHeaders"
+      :items="organizations"
       :loading="loading"
       :items-per-page="itemsPerPage"
       :items-length="totalItems"
-      :no-data-text="'Aucun droit d\'accès trouvé'"
-      :loading-text="'Chargement des droits d\'accès...'"
+      :no-data-text="'Aucune organisation trouvée'"
+      :loading-text="'Chargement des organisations...'"
       :items-per-page-text="'Lignes par page'"
       :page-text="'{0}-{1} sur {2}'"
       :items-per-page-options="[
@@ -54,34 +52,16 @@
         { title: 'Tout', value: -1 }
       ]"
       class="elevation-1"
+      @click:row="handleRowClick"
     >
-      <!-- Utilisateur -->
-      <template v-slot:item.user="{ item }">
-        {{ item.user_name }}
-      </template>
-
-      <!-- Rôle -->
-      <template v-slot:item.role="{ item }">
-        <v-chip
-          :color="getRoleColor(item.role)"
-          size="small"
-        >
-          {{ item.role }}
-        </v-chip>
-      </template>
-
-      <!-- Sites autorisés -->
-      <template v-slot:item.sites="{ item }">
-        <v-chip-group>
-          <v-chip
-            v-for="site in item.sites"
-            :key="site.id"
-            size="small"
-            color="primary"
-          >
-            {{ site.name }}
-          </v-chip>
-        </v-chip-group>
+      <!-- Adresse -->
+      <template v-slot:item.address="{ item }">
+        <AddressWithMap
+          :address="item.address"
+          :postal-code="item.postal_code"
+          :city="item.city"
+          :country="item.country"
+        />
       </template>
 
       <!-- Actions -->
@@ -91,220 +71,409 @@
           variant="text"
           size="small"
           color="primary"
-          @click="openDialog(item)"
+          :to="`/dashboard/admin/access/${(item as Organization).id}`"
+          @click.stop
+        >
+          <v-icon>mdi-eye</v-icon>
+        </v-btn>
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          color="primary"
+          @click.stop="openDialog(item as Organization)"
         >
           <v-icon>mdi-pencil</v-icon>
+        </v-btn>
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          color="warning"
+          @click.stop="toggleStatus(item as Organization)"
+        >
+          <v-icon>{{ (item as Organization).is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+        </v-btn>
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          color="error"
+          @click.stop="confirmDelete(item as Organization)"
+        >
+          <v-icon>mdi-delete</v-icon>
         </v-btn>
       </template>
     </v-data-table>
 
-    <!-- Dialog pour modification des droits -->
-    <v-dialog v-model="dialog" max-width="800px" persistent>
-      <v-card>
-        <v-card-title>
-          <span class="text-h5">Modifier les droits d'accès</span>
-        </v-card-title>
-
-        <v-card-text>
-          <v-container>
-            <v-row>
-              <v-col cols="12" sm="6">
-                <v-text-field
-                  v-model="userName"
-                  label="Utilisateur"
-                  disabled
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <v-select
-                  v-model="userRole"
-                  :items="roles"
-                  label="Rôle"
-                  required
-                ></v-select>
-              </v-col>
-              <v-col cols="12">
-                <v-select
-                  v-model="userSites"
-                  :items="sites"
-                  item-title="name"
-                  item-value="id"
-                  label="Sites autorisés"
-                  multiple
-                  chips
-                ></v-select>
-              </v-col>
-            </v-row>
-          </v-container>
-        </v-card-text>
-
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn
-            color="primary"
-            variant="text"
-            @click="saveAccessRights"
-          >
-            Enregistrer
-          </v-btn>
-          <v-btn
-            color="error"
-            variant="text"
-            @click="dialog = false"
-          >
-            Annuler
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <!-- Formulaire -->
+    <template #form>
+      <DashboardForm ref="form" :errors="formErrors" @submit="saveOrganization">
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as OrganizationFormData).name"
+            label="Nom"
+            required
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as OrganizationFormData).phone"
+            label="Téléphone"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as OrganizationFormData).contact_email"
+            label="Email de contact"
+            type="email"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as OrganizationFormData).address"
+            label="Adresse"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as OrganizationFormData).postal_code"
+            label="Code postal"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as OrganizationFormData).city"
+            label="Ville"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12" sm="6">
+          <v-autocomplete
+            v-model="(editedItem as OrganizationFormData).country"
+            :items="countries"
+            item-title="title"
+            item-value="value"
+            label="Pays"
+            variant="outlined"
+            prepend-inner-icon="mdi-earth"
+            :search-input.sync="searchCountry"
+            :filter="customFilter"
+            :error-messages="formErrors.country"
+            no-data-text="Aucun pays trouvé"
+          ></v-autocomplete>
+        </v-col>
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as OrganizationFormData).siret"
+            label="Numéro SIRET"
+            :rules="[
+              v => !v || v.length <= 14 || 'Le numéro SIRET ne peut pas dépasser 14 caractères'
+            ]"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12">
+          <v-textarea
+            v-model="(editedItem as OrganizationFormData).notes"
+            label="Notes"
+            rows="3"
+          ></v-textarea>
+        </v-col>
+        <v-col cols="12" sm="6">
+          <v-switch
+            v-model="(editedItem as OrganizationFormData).is_active"
+            label="Organisation active"
+          ></v-switch>
+        </v-col>
+      </DashboardForm>
+    </template>
   </DashboardView>
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { accessManagementApi, sitesApi } from '@/services/api'
-import type { User } from '@/types/api'
-import { RoleEnum } from '@/types/api'
-import type { Site } from '@/services/api'
-import { Title } from '@/components/typography'
+import { organizationsApi } from '@/services/api'
 import DashboardView from '@/components/dashboard/DashboardView.vue'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
+import DashboardForm from '@/components/dashboard/DashboardForm.vue'
+import AddressWithMap from '@/components/common/AddressWithMap.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import { useRouter } from 'vue-router'
+import { useConfirmDialog } from '@/utils/dialogs'
+import type { DialogState } from '@/utils/dialogs'
 
-interface AccessRight {
-  user_id: number
-  user_name: string
-  role: RoleEnum
-  sites: Site[]
+// Interface pour les organisations
+interface Organization {
+  id: number;
+  name: string;
+  org_id: string;
+  address?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  contact_email?: string;
+  siret?: string;
+  logo?: string | null;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
 }
+
+// Interface pour le formulaire organisation
+interface OrganizationFormData {
+  id?: number;
+  name: string;
+  phone?: string;
+  address?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  contact_email?: string;
+  siret?: string;
+  notes?: string;
+  is_active?: boolean;
+}
+
+const props = defineProps({
+  editId: {
+    type: [String, Number],
+    default: null
+  }
+})
 
 // État
 const loading = ref(false)
-const dialog = ref(false)
 const saving = ref(false)
 const page = ref(1)
 const itemsPerPage = ref(10)
 const totalItems = ref(0)
-const accessRights = ref<AccessRight[]>([])
-const sites = ref<Site[]>([])
-const editedItem = ref<AccessRight | null>(null)
+const editedItem = ref<OrganizationFormData | null>(null)
+const form = ref()
+const dashboardView = ref()
+const formErrors = ref<Record<string, string[]>>({})
 
-// Computed properties for form fields
-const userName = computed({
-  get: () => editedItem.value?.user_name ?? '',
-  set: (value: string) => {
-    if (editedItem.value) editedItem.value.user_name = value
-  }
-})
-
-const userRole = computed({
-  get: () => editedItem.value?.role ?? null,
-  set: (value: RoleEnum | null) => {
-    if (editedItem.value) editedItem.value.role = value as RoleEnum
-  }
-})
-
-const userSites = computed({
-  get: () => editedItem.value?.sites ?? [],
-  set: (value: Site[]) => {
-    if (editedItem.value) editedItem.value.sites = value
-  }
-})
-
+// Filtres
 const filters = ref({
-  site: null as number | null,
-  role: null as RoleEnum | null,
+  search: ''
 })
 
-const roles = [
-  { title: 'Super Admin', value: RoleEnum.SUPER_ADMIN },
-  { title: 'Manager', value: RoleEnum.MANAGER },
-  { title: 'Employé', value: RoleEnum.EMPLOYEE },
-]
+// Données
+const organizations = ref<Organization[]>([])
 
-const headers = [
-  { title: 'Utilisateur', key: 'user_name' },
-  { title: 'Rôle', key: 'role' },
-  { title: 'Sites autorisés', key: 'sites' },
-  { title: 'Actions', key: 'actions', sortable: false },
+// En-têtes du tableau
+const organizationHeaders = [
+  { title: 'ID', key: 'org_id' },
+  { title: 'Nom', key: 'name' },
+  { title: 'Téléphone', key: 'phone' },
+  { title: 'Email', key: 'contact_email' },
+  { title: 'Adresse', key: 'address', component: AddressWithMap },
+  { title: 'Ville', key: 'city' },
+  { title: 'Actions', key: 'actions', sortable: false }
+] as const
+
+// Liste des pays
+const countries = [
+  { title: 'France', value: 'France' },
+  { title: 'Belgique', value: 'Belgique' },
+  { title: 'Suisse', value: 'Suisse' },
+  { title: 'Canada', value: 'Canada' },
+  { title: 'Luxembourg', value: 'Luxembourg' },
+  { title: 'Allemagne', value: 'Allemagne' },
+  { title: 'Espagne', value: 'Espagne' },
+  { title: 'Italie', value: 'Italie' },
+  { title: 'Portugal', value: 'Portugal' },
+  { title: 'Pays-Bas', value: 'Pays-Bas' },
+  { title: 'Royaume-Uni', value: 'Royaume-Uni' },
+  { title: 'Irlande', value: 'Irlande' },
+  { title: 'Autriche', value: 'Autriche' },
+  { title: 'Suède', value: 'Suède' },
+  { title: 'Norvège', value: 'Norvège' },
+  { title: 'Danemark', value: 'Danemark' },
+  { title: 'Finlande', value: 'Finlande' },
+  { title: 'Islande', value: 'Islande' },
+  { title: 'Grèce', value: 'Grèce' },
+  { title: 'Pologne', value: 'Pologne' },
+  { title: 'République tchèque', value: 'République tchèque' },
+  { title: 'Slovaquie', value: 'Slovaquie' },
+  { title: 'Hongrie', value: 'Hongrie' },
+  { title: 'Roumanie', value: 'Roumanie' },
+  { title: 'Bulgarie', value: 'Bulgarie' },
+  { title: 'Croatie', value: 'Croatie' },
+  { title: 'Slovénie', value: 'Slovénie' },
+  { title: 'Estonie', value: 'Estonie' },
+  { title: 'Lettonie', value: 'Lettonie' },
+  { title: 'Lituanie', value: 'Lituanie' },
+  { title: 'Chypre', value: 'Chypre' },
+  { title: 'Malte', value: 'Malte' },
+  { title: 'États-Unis', value: 'États-Unis' },
+  { title: 'Japon', value: 'Japon' },
+  { title: 'Chine', value: 'Chine' },
+  { title: 'Inde', value: 'Inde' },
+  { title: 'Brésil', value: 'Brésil' },
+  { title: 'Russie', value: 'Russie' },
+  { title: 'Afrique du Sud', value: 'Afrique du Sud' },
+  { title: 'Australie', value: 'Australie' },
+  { title: 'Nouvelle-Zélande', value: 'Nouvelle-Zélande' }
 ]
 
 // Méthodes
-const loadAccessRights = async () => {
+const router = useRouter()
+const { dialogState, handleConfirm } = useConfirmDialog()
+
+const handleRowClick = (event: any, { item }: any) => {
+  if (item?.id) {
+    router.push(`/dashboard/admin/access/${item.id}`)
+  }
+}
+
+const loadOrganizations = async () => {
   loading.value = true
   try {
-    const response = await accessManagementApi.getAllAccessRights(page.value, itemsPerPage.value)
-    accessRights.value = response.data.results.map(result => ({
-      user_id: result.user_id,
-      user_name: result.user_name,
-      role: result.role as RoleEnum,
-      sites: result.sites,
-    }))
+    const response = await organizationsApi.getAllOrganizations()
+    organizations.value = response.data.results || []
     totalItems.value = response.data.count
   } catch (error) {
-    console.error('Erreur lors du chargement des droits d\'accès:', error)
+    console.error('Erreur lors du chargement des organisations:', error)
   } finally {
     loading.value = false
   }
 }
 
-const loadSites = async () => {
-  try {
-    const response = await sitesApi.getAllSites()
-    sites.value = response.data.results
-  } catch (error) {
-    console.error('Erreur lors du chargement des sites:', error)
+const resetFilters = () => {
+  filters.value = {
+    search: ''
   }
+  loadOrganizations()
 }
 
-const openDialog = (item: AccessRight) => {
-  editedItem.value = { ...item }
-  dialog.value = true
+const openDialog = (item?: Organization) => {
+  editedItem.value = item ? {
+    id: item.id,
+    name: item.name,
+    phone: item.phone,
+    contact_email: item.contact_email,
+    address: item.address,
+    postal_code: item.postal_code,
+    city: item.city,
+    country: item.country,
+    siret: item.siret,
+    notes: item.notes,
+    is_active: item.is_active
+  } : {
+    name: '',
+    phone: '',
+    contact_email: '',
+    address: '',
+    postal_code: '',
+    city: '',
+    country: '',
+    siret: '',
+    notes: '',
+    is_active: true
+  }
+  dashboardView.value.showForm = true
 }
 
-const saveAccessRights = async () => {
+const saveOrganization = async () => {
+  if (!form.value?.validate()) return
+
   saving.value = true
+  formErrors.value = {}
+  
   try {
-    if (!editedItem.value) return
-    await accessManagementApi.updateUserAccessRights(editedItem.value.user_id, {
-      role: editedItem.value.role,
-      sites: editedItem.value.sites.map(site => site.id),
-    })
-    dialog.value = false
-    loadAccessRights()
-  } catch (error) {
-    console.error('Erreur lors de la sauvegarde des droits d\'accès:', error)
+    if (editedItem.value) {
+      const orgData = editedItem.value as OrganizationFormData
+      if (orgData.id) {
+        await organizationsApi.updateOrganization(orgData.id, orgData)
+      } else {
+        await organizationsApi.createOrganization(orgData)
+      }
+      await loadOrganizations()
+      dashboardView.value.showForm = false
+    }
+  } catch (error: any) {
+    console.error('Erreur lors de la sauvegarde:', error)
+    if (error.response?.data) {
+      formErrors.value = error.response.data
+    }
   } finally {
     saving.value = false
   }
 }
 
-const getRoleColor = (role: RoleEnum): string => {
-  switch (role) {
-    case RoleEnum.SUPER_ADMIN:
-      return 'error'
-    case RoleEnum.MANAGER:
-      return 'warning'
-    case RoleEnum.EMPLOYEE:
-      return 'success'
-    default:
-      return 'grey'
+const confirmDelete = (item: Organization) => {
+  const state = dialogState.value as DialogState
+  state.show = true
+  state.title = 'Confirmation de suppression'
+  state.message = 'Êtes-vous sûr de vouloir supprimer cette organisation ?'
+  state.confirmText = 'Supprimer'
+  state.cancelText = 'Annuler'
+  state.confirmColor = 'error'
+  state.loading = false
+  state.onConfirm = async () => {
+    state.loading = true
+    await deleteOrganization(item)
+    state.show = false
+    state.loading = false
   }
 }
 
-const applyFilters = () => {
-  loadAccessRights()
+const deleteOrganization = async (item: Organization) => {
+  try {
+    await organizationsApi.deleteOrganization(item.id)
+    await loadOrganizations()
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error)
+  }
 }
 
-const resetFilters = () => {
-  filters.value.site = null
-  filters.value.role = null
-  loadAccessRights()
+const toggleStatus = async (item: Organization) => {
+  const state = dialogState.value as DialogState
+  state.show = true
+  state.title = 'Confirmation de changement de statut'
+  state.message = `Êtes-vous sûr de vouloir ${item.is_active ? 'désactiver' : 'activer'} cette organisation ?`
+  state.confirmText = item.is_active ? 'Désactiver' : 'Activer'
+  state.cancelText = 'Annuler'
+  state.confirmColor = 'warning'
+  state.loading = false
+  state.onConfirm = async () => {
+    state.loading = true
+    try {
+      const newStatus = !item.is_active;
+      await organizationsApi.toggleOrganizationStatus(item.id, newStatus);
+      await loadOrganizations();
+    } catch (error) {
+      console.error('Erreur lors du changement de statut:', error);
+    } finally {
+      state.show = false
+      state.loading = false
+    }
+  }
 }
 
-// Lifecycle hooks
-onMounted(() => {
-  loadAccessRights()
-  loadSites()
+const searchCountry = ref('')
+
+const customFilter = (item: any, queryText: string) => {
+  const text = item.title.toLowerCase()
+  const query = queryText.toLowerCase()
+  return text.indexOf(query) > -1
+}
+
+// Initialisation
+onMounted(async () => {
+  await loadOrganizations()
+
+  // Si on a un ID d'édition, ouvrir le dialogue
+  if (props.editId) {
+    try {
+      const response = await organizationsApi.getOrganization(Number(props.editId))
+      openDialog(response.data)
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error)
+    }
+  }
 })
 </script>
 
@@ -319,6 +488,12 @@ onMounted(() => {
 :deep(.v-data-table .v-btn--icon[color="error"]) {
   background-color: transparent !important;
   color: #F78C48 !important;
+  opacity: 1 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="warning"]) {
+  background-color: transparent !important;
+  color: #FB8C00 !important;
   opacity: 1 !important;
 }
 

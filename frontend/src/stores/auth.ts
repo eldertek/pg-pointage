@@ -31,7 +31,11 @@ interface User {
   role: string;
   first_name: string;
   last_name: string;
-  organizations: any[];
+  organizations: {
+    id: number;
+    name: string;
+    is_active: boolean;
+  }[];
 }
 
 interface AuthState {
@@ -60,10 +64,37 @@ export const useAuthStore = defineStore("auth", {
     isEmployee: (state) => state.user?.role === "EMPLOYEE",
     userOrganizations: (state) => state.user?.organizations || [],
     userName: (state) => state.user ? `${state.user.first_name} ${state.user.last_name}` : null,
+    
+    // Nouvelles permissions pour les franchises
+    canManageOrganizations: (state) => state.user?.role === "SUPER_ADMIN",
+    canManageAdmins: (state) => state.user?.role === "SUPER_ADMIN",
+    
+    // Permission pour gérer une franchise spécifique
     hasOrganizationAccess: (state) => (organizationId: number) => {
       if (!state.user) return false
       if (state.user.role === "SUPER_ADMIN") return true
-      return state.user.organizations.some(org => org.id === organizationId)
+      return state.user.organizations.some(org => org.id === organizationId && org.is_active)
+    },
+    
+    // Permissions employé
+    canViewOwnTimesheets: (state) => !!state.user,
+    canDeclareAnomaly: (state) => !!state.user,
+    canChangePassword: (state) => !!state.user,
+    
+    // Permissions manager
+    canManageAnomalies: (state) => {
+      if (!state.user) return false
+      return ["SUPER_ADMIN", "ADMIN", "MANAGER"].includes(state.user.role)
+    },
+    
+    // Permissions admin
+    canManageOrganization: (state) => (organizationId: number) => {
+      if (!state.user) return false
+      if (state.user.role === "SUPER_ADMIN") return true
+      if (state.user.role === "ADMIN") {
+        return state.user.organizations.some(org => org.id === organizationId && org.is_active)
+      }
+      return false
     }
   },
 

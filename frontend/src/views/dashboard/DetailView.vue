@@ -42,427 +42,1195 @@
     </v-row>
 
     <template v-else>
-      <v-row>
-        <!-- Informations principales -->
-        <v-col cols="12" md="6">
-          <v-card>
-            <v-card-title>Informations générales</v-card-title>
-            <v-card-text>
-              <v-list>
-                <template v-for="(field, index) in displayFields" :key="index">
-                  <v-list-item>
-                    <template #prepend>
-                      <v-icon>{{ field.icon }}</v-icon>
-                    </template>
-                    <v-list-item-title>{{ field.label }}</v-list-item-title>
-                    <v-list-item-subtitle>
-                      <!-- Adresse avec carte -->
-                      <template v-if="field.type === 'address' && isAddressField(field)">
-                        <AddressWithMap
-                          :address="item[field.address]"
-                          :postal-code="item[field.postalCode]"
-                          :city="item[field.city]"
-                          :country="item[field.country]"
-                        />
-                      </template>
-                      
-                      <!-- Statut avec puce -->
-                      <template v-else-if="field.type === 'status'">
-                        <v-chip
-                          :color="item[field.key] ? 'success' : 'error'"
-                          size="small"
-                        >
-                          {{ item[field.key] ? field.activeLabel : field.inactiveLabel }}
-                        </v-chip>
-                      </template>
+      <!-- Vue détaillée du site avec onglets -->
+      <template v-if="props.type === 'site'">
+        <v-card>
+          <v-tabs v-model="activeTab" color="#00346E">
+            <v-tab value="details">Informations</v-tab>
+            <v-tab value="schedules">Plannings</v-tab>
+            <v-tab value="timesheets">Pointages</v-tab>
+            <v-tab value="anomalies">Anomalies</v-tab>
+            <v-tab value="reports">Rapports</v-tab>
+          </v-tabs>
 
-                      <!-- Rôle avec puce -->
-                      <template v-else-if="field.type === 'role'">
-                        <v-chip
-                          :color="item[field.key] === 'MANAGER' ? 'primary' : 'success'"
-                          size="small"
-                        >
-                          {{ item[field.key] === 'MANAGER' ? 'Manager' : 'Employé' }}
-                        </v-chip>
-                      </template>
-
-                      <!-- Valeur par défaut -->
-                      <template v-else>
-                        {{ formatFieldValue(field, item[field.key]) }}
-                      </template>
-                    </v-list-item-subtitle>
-                  </v-list-item>
-                </template>
-              </v-list>
-            </v-card-text>
-          </v-card>
-        </v-col>
-
-        <!-- Statistiques et informations complémentaires -->
-        <v-col cols="12" md="6">
-          <!-- Statistiques -->
-          <v-card class="mb-4">
-            <v-card-title>Statistiques</v-card-title>
-            <v-card-text>
-              <v-row>
-                <template v-for="(stat, index) in statistics" :key="index">
-                  <v-col :cols="12 / statistics.length" class="text-center">
-                    <div class="text-h4">{{ stat.value }}</div>
-                    <div class="text-subtitle-1">{{ stat.label }}</div>
-                  </v-col>
-                </template>
-              </v-row>
-            </v-card-text>
-          </v-card>
-
-          <!-- Logo (pour les organisations) -->
-          <v-card v-if="item.logo" class="mb-4">
-            <v-card-title>Logo</v-card-title>
-            <v-card-text class="text-center">
-              <v-img
-                :src="item.logo"
-                :alt="item.name"
-                max-width="200"
-                class="mx-auto"
-              ></v-img>
-            </v-card-text>
-          </v-card>
-
-          <!-- QR Code (uniquement pour les sites) -->
-          <v-card v-if="props.type === 'site' && item.qr_code" class="qr-code-card mb-4" variant="outlined">
-            <v-card-title class="d-flex align-center">
-              <v-icon icon="mdi-qrcode" class="mr-2"></v-icon>
-              QR Code du site
-            </v-card-title>
-            <v-card-text class="text-center">
-              <div class="qr-code-container">
-                <v-img
-                  :src="item.qr_code"
-                  width="200"
-                  height="200"
-                  class="mx-auto mb-4"
-                ></v-img>
-                <div class="d-flex gap-2">
-                  <v-btn
-                    color="#00346E"
-                    prepend-icon="mdi-download"
-                    @click="downloadQRCode"
-                    size="small"
-                  >
-                    Télécharger
-                  </v-btn>
-                  <v-btn
-                    color="#F78C48"
-                    prepend-icon="mdi-refresh"
-                    @click="generateQRCode"
-                    size="small"
-                  >
-                    Régénérer
-                  </v-btn>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-
-          <!-- Loader pour QR Code -->
-          <v-card v-else-if="props.type === 'site' && !item.qr_code" class="qr-code-card mb-4" variant="outlined">
-            <v-card-title class="d-flex align-center">
-              <v-icon icon="mdi-qrcode" class="mr-2"></v-icon>
-              QR Code du site
-            </v-card-title>
-            <v-card-text class="text-center">
-              <v-progress-circular indeterminate color="primary"></v-progress-circular>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
-
-      <!-- Tableaux de données associées -->
-      <template v-if="relatedTables.length > 0">
-        <v-card v-for="table in relatedTables" :key="table.key" class="mt-4">
-          <v-card-title class="d-flex justify-space-between align-center">
-            <span>{{ table.title }} ({{ table.items.length }})</span>
-            <v-btn
-              v-if="table.addLabel"
-              color="primary"
-              size="small"
-              prepend-icon="mdi-plus-circle"
-              :to="table.addRoute"
-              v-on="table.addAction ? { click: table.addAction } : {}"
-            >
-              {{ table.addLabel }}
-            </v-btn>
-          </v-card-title>
           <v-card-text>
-            <v-data-table
-              v-model:page="page"
-              :headers="table.headers"
-              :items="table.items"
-              :items-per-page="5"
-              :no-data-text="table.noDataText || 'Aucune donnée'"
-              :loading-text="'Chargement...'"
-              :items-per-page-text="'Lignes par page'"
-              :page-text="'{0}-{1} sur {2}'"
-              :items-per-page-options="[
-                { title: '5', value: 5 },
-                { title: '10', value: 10 },
-                { title: '15', value: 15 },
-                { title: 'Tout', value: -1 }
-              ]"
-              @click:row="(_: Event, rowData: any) => navigateToDetail(table.key, rowData)"
-            >
-              <!-- Actions -->
-              <template v-slot:item.actions="{ item }">
-                <v-btn
-                  icon
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  :to="formatDetailRoute(table.key, item)"
-                  @click.stop
-                >
-                  <v-icon>mdi-eye</v-icon>
-                  <v-tooltip activator="parent">Voir les détails</v-tooltip>
-                </v-btn>
-                <v-btn
-                  icon
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  :to="formatEditRoute(table.key, item)"
-                  @click.stop
-                >
-                  <v-icon>mdi-pencil</v-icon>
-                  <v-tooltip activator="parent">Modifier</v-tooltip>
-                </v-btn>
-                <v-btn
-                  icon
-                  variant="text"
-                  size="small"
-                  color="warning"
-                  @click.stop="handleToggleStatus(table.key, item)"
-                >
-                  <v-icon>{{ item.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
-                  <v-tooltip activator="parent">{{ item.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
-                </v-btn>
-                <v-btn
-                  icon
-                  variant="text"
-                  size="small"
-                  color="error"
-                  @click.stop="handleDelete(table.key, item)"
-                >
-                  <v-icon>mdi-delete</v-icon>
-                  <v-tooltip activator="parent">Supprimer</v-tooltip>
-                </v-btn>
-              </template>
+            <v-window v-model="activeTab">
+              <!-- Onglet Informations -->
+              <v-window-item value="details">
+                <v-card class="elevation-1">
+                  <v-toolbar flat>
+                    <v-toolbar-title>Informations</v-toolbar-title>
+                    <v-spacer></v-spacer>
+                  </v-toolbar>
+                  <v-card-text>
+                    <v-row>
+                      <v-col cols="12" md="6">
+                        <v-list>
+                          <template v-for="(field, index) in displayFields" :key="index">
+                            <v-list-item>
+                              <template #prepend>
+                                <v-icon>{{ field.icon }}</v-icon>
+                              </template>
+                              <v-list-item-title>{{ field.label }}</v-list-item-title>
+                              <v-list-item-subtitle>
+                                <!-- Adresse avec carte -->
+                                <template v-if="field.type === 'address' && isAddressField(field)">
+                                  <AddressWithMap
+                                    :address="item[field.address]"
+                                    :postal-code="item[field.postalCode]"
+                                    :city="item[field.city]"
+                                    :country="item[field.country]"
+                                  />
+                                </template>
+                                
+                                <!-- Statut avec puce -->
+                                <template v-else-if="field.type === 'status'">
+                                  <v-chip
+                                    :color="item[field.key] ? 'success' : 'error'"
+                                    size="small"
+                                  >
+                                    {{ item[field.key] ? field.activeLabel : field.inactiveLabel }}
+                                  </v-chip>
+                                </template>
 
-              <!-- Slots pour les colonnes spéciales -->
-              <template v-for="slot in table.slots" :key="slot.key" v-slot:[`item.${slot.key}`]="{ item: rowItem }">
-                <component :is="slot.component" v-bind="slot.props(rowItem)" />
-              </template>
-            </v-data-table>
+                                <!-- Rôle avec puce -->
+                                <template v-else-if="field.type === 'role'">
+                                  <v-chip
+                                    :color="item[field.key] === 'MANAGER' ? 'primary' : 'success'"
+                                    size="small"
+                                  >
+                                    {{ item[field.key] === 'MANAGER' ? 'Manager' : 'Employé' }}
+                                  </v-chip>
+                                </template>
+
+                                <!-- Valeur par défaut -->
+                                <template v-else>
+                                  {{ formatFieldValue(field, item[field.key]) }}
+                                </template>
+                              </v-list-item-subtitle>
+                            </v-list-item>
+                          </template>
+                        </v-list>
+                      </v-col>
+
+                      <v-col cols="12" md="6">
+                        <!-- QR Code -->
+                        <v-card class="qr-code-card" variant="outlined">
+                          <v-card-title class="d-flex align-center">
+                            <v-icon icon="mdi-qrcode" class="mr-2"></v-icon>
+                            QR Code du site
+                          </v-card-title>
+                          <v-card-text class="text-center">
+                            <div v-if="item.qr_code" class="qr-code-container">
+                              <v-img
+                                :src="item.qr_code"
+                                width="400"
+                                height="400"
+                                class="mx-auto mb-4"
+                              ></v-img>
+                              <div class="d-flex gap-2">
+                                <v-btn
+                                  color="#00346E"
+                                  prepend-icon="mdi-download"
+                                  @click="downloadQRCode"
+                                >
+                                  Télécharger
+                                </v-btn>
+                                <v-btn
+                                  color="#F78C48"
+                                  prepend-icon="mdi-refresh"
+                                  @click="generateQRCode"
+                                >
+                                  Régénérer
+                                </v-btn>
+                              </div>
+                            </div>
+                            <v-progress-circular
+                              v-else
+                              indeterminate
+                              color="primary"
+                            ></v-progress-circular>
+                          </v-card-text>
+                        </v-card>
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </v-card>
+              </v-window-item>
+
+              <!-- Onglet Plannings -->
+              <v-window-item value="schedules">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="schedulesHeaders"
+                  :items="item.schedules || []"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun planning trouvé'"
+                  :loading-text="'Chargement...'"
+                  :items-per-page-text="'Lignes par page'"
+                  :page-text="'{0}-{1} sur {2}'"
+                  :items-per-page-options="[
+                    { title: '5', value: 5 },
+                    { title: '10', value: 10 },
+                    { title: '15', value: 15 },
+                    { title: 'Tout', value: -1 }
+                  ]"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat class="pl-0">
+                      <v-toolbar-title>Plannings</v-toolbar-title>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.schedule_type="{ item }">
+                    <v-chip
+                      :color="(item as ScheduleWithSite).schedule_type === 'FIXED' ? 'primary' : 'warning'"
+                      size="small"
+                    >
+                      {{ (item as ScheduleWithSite).schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                    </v-chip>
+                  </template>
+
+                  <template v-slot:item.site="{ item }">
+                    {{ (item as ScheduleWithSite).site_name }}
+                  </template>
+
+                  <template v-slot:item.details="{ item }">
+                    <div v-for="detail in (item as ScheduleWithSite).details" :key="detail.id" class="mb-1">
+                      <strong>{{ getDayName(detail.day_of_week) }}:</strong>
+                      <template v-if="(item as ScheduleWithSite).schedule_type === 'FIXED'">
+                        <template v-if="detail.day_type === 'FULL'">
+                          {{ detail.start_time_1 }}-{{ detail.end_time_1 }} / {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
+                        </template>
+                        <template v-else-if="detail.day_type === 'AM'">
+                          {{ detail.start_time_1 }}-{{ detail.end_time_1 }}
+                        </template>
+                        <template v-else-if="detail.day_type === 'PM'">
+                          {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
+                        </template>
+                      </template>
+                      <template v-else>
+                        {{ detail.frequency_duration }} minutes
+                      </template>
+                    </div>
+                  </template>
+                  
+                  <template v-slot:item.actions="{ item: schedule }">
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      :to="`/dashboard/sites/${itemId}/schedules/${(schedule as Schedule).id}`"
+                      @click.stop
+                    >
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      :to="`/dashboard/sites/${itemId}/schedules/${(schedule as Schedule).id}/edit`"
+                      @click.stop
+                    >
+                      <v-icon>mdi-pencil</v-icon>
+                      <v-tooltip activator="parent">Modifier</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="handleDelete('schedules', schedule as Schedule)"
+                    >
+                      <v-icon>mdi-delete</v-icon>
+                      <v-tooltip activator="parent">Supprimer</v-tooltip>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Pointages -->
+              <v-window-item value="timesheets">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="timesheetsHeaders"
+                  :items="timesheets"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun pointage trouvé'"
+                  :loading-text="'Chargement...'"
+                  :items-per-page-text="'Lignes par page'"
+                  :page-text="'{0}-{1} sur {2}'"
+                  :items-per-page-options="[
+                    { title: '5', value: 5 },
+                    { title: '10', value: 10 },
+                    { title: '15', value: 15 },
+                    { title: 'Tout', value: -1 }
+                  ]"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Pointages</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.entry_type="{ item }">
+                    <v-chip
+                      :color="item.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
+                      size="small"
+                    >
+                      {{ item.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
+                    </v-chip>
+                  </template>
+                  
+                  <template v-slot:item.status="{ item }">
+                    <v-chip
+                      :color="getTimesheetStatusColor(item)"
+                      size="small"
+                    >
+                      {{ getTimesheetStatusLabel(item) }}
+                    </v-chip>
+                  </template>
+                  
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="showTimesheetDetails(item)"
+                    >
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Anomalies -->
+              <v-window-item value="anomalies">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="anomaliesHeaders"
+                  :items="anomalies"
+                  :items-per-page="5"
+                  :no-data-text="'Aucune anomalie trouvée'"
+                  :loading-text="'Chargement...'"
+                  :items-per-page-text="'Lignes par page'"
+                  :page-text="'{0}-{1} sur {2}'"
+                  :items-per-page-options="[
+                    { title: '5', value: 5 },
+                    { title: '10', value: 10 },
+                    { title: '15', value: 15 },
+                    { title: 'Tout', value: -1 }
+                  ]"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Anomalies</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.type="{ item }">
+                    <v-chip
+                      :color="getAnomalyTypeColor(item.anomaly_type_display)"
+                      size="small"
+                    >
+                      {{ item.anomaly_type_display }}
+                    </v-chip>
+                  </template>
+                  
+                  <template v-slot:item.status="{ item }">
+                    <v-chip
+                      :color="getAnomalyStatusColor(item.status_display)"
+                      size="small"
+                    >
+                      {{ item.status_display }}
+                    </v-chip>
+                  </template>
+                  
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn
+                      v-if="item.status === 'PENDING'"
+                      icon
+                      variant="text"
+                      size="small"
+                      color="success"
+                      @click.stop="resolveAnomaly(item.id)"
+                    >
+                      <v-icon>mdi-check</v-icon>
+                      <v-tooltip activator="parent">Résoudre</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      v-if="item.status === 'PENDING'"
+                      icon
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="ignoreAnomaly(item.id)"
+                    >
+                      <v-icon>mdi-close</v-icon>
+                      <v-tooltip activator="parent">Ignorer</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="showAnomalyDetails(item)"
+                    >
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Rapports -->
+              <v-window-item value="reports">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="reportsHeaders"
+                  :items="reports"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun rapport trouvé'"
+                  :loading-text="'Chargement...'"
+                  :items-per-page-text="'Lignes par page'"
+                  :page-text="'{0}-{1} sur {2}'"
+                  :items-per-page-options="[
+                    { title: '5', value: 5 },
+                    { title: '10', value: 10 },
+                    { title: '15', value: 15 },
+                    { title: 'Tout', value: -1 }
+                  ]"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat class="pl-0">
+                      <v-toolbar-title>Rapports</v-toolbar-title>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="downloadReport(item)"
+                    >
+                      <v-icon>mdi-download</v-icon>
+                      <v-tooltip activator="parent">Télécharger</v-tooltip>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+            </v-window>
           </v-card-text>
         </v-card>
       </template>
 
-      <!-- Dialog de confirmation de suppression -->
-      <v-dialog v-model="showDeleteDialog" max-width="400">
+      <!-- Vue détaillée de l'utilisateur avec onglets -->
+      <template v-else-if="props.type === 'user'">
         <v-card>
-          <v-card-title>Confirmer la suppression</v-card-title>
-          <v-card-text>
-            Êtes-vous sûr de vouloir supprimer {{ itemTypeLabel }} "{{ item.name }}" ?
-            Cette action est irréversible.
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="grey" variant="text" @click="showDeleteDialog = false">
-              Annuler
-            </v-btn>
-            <v-btn
-              color="error"
-              variant="text"
-              @click="deleteItem"
-              :loading="deleting"
-            >
-              Supprimer
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+          <v-tabs v-model="activeTab" color="#00346E">
+            <v-tab value="details">Informations</v-tab>
+            <v-tab value="timesheets">Pointages</v-tab>
+            <v-tab value="schedules">Plannings</v-tab>
+            <v-tab value="anomalies">Anomalies</v-tab>
+          </v-tabs>
 
-      <!-- Dialog de modification -->
-      <v-dialog v-model="showEditDialog" max-width="800px">
-        <v-card>
-          <v-card-title>
-            {{ dialogType === 'sites' ? 'Modifier le site' : 'Modifier l\'employé' }}
-          </v-card-title>
           <v-card-text>
-            <v-form ref="dialogForm">
-              <template v-if="dialogType === 'sites'">
-                <!-- Formulaire de site -->
+            <v-window v-model="activeTab">
+              <!-- Onglet Informations -->
+              <v-window-item value="details">
+                <v-card class="elevation-1">
+                  <v-toolbar flat>
+                    <v-toolbar-title>Informations</v-toolbar-title>
+                    <v-spacer></v-spacer>
+                  </v-toolbar>
+                  <v-card-text>
+                    <v-row>
+                      <v-col cols="12" md="6">
+                        <v-list>
+                          <template v-for="(field, index) in displayFields" :key="index">
+                            <v-list-item>
+                              <template #prepend>
+                                <v-icon>{{ field.icon }}</v-icon>
+                              </template>
+                              <v-list-item-title>{{ field.label }}</v-list-item-title>
+                              <v-list-item-subtitle>
+                                <template v-if="field.type === 'status'">
+                                  <v-chip
+                                    :color="item[field.key] ? 'success' : 'error'"
+                                    size="small"
+                                  >
+                                    {{ item[field.key] ? field.activeLabel : field.inactiveLabel }}
+                                  </v-chip>
+                                </template>
+                                <template v-else-if="field.type === 'role'">
+                                  <v-chip
+                                    :color="item[field.key] === 'MANAGER' ? 'primary' : 'success'"
+                                    size="small"
+                                  >
+                                    {{ item[field.key] === 'MANAGER' ? 'Manager' : 'Employé' }}
+                                  </v-chip>
+                                </template>
+                                <template v-else>
+                                  {{ formatFieldValue(field, item[field.key]) }}
+                                </template>
+                              </v-list-item-subtitle>
+                            </v-list-item>
+                          </template>
+                        </v-list>
+                      </v-col>
+                      <v-col cols="12" md="6">
+                        <v-card class="mb-4">
+                          <v-card-title>Statistiques</v-card-title>
+                          <v-card-text>
+                            <v-row>
+                              <template v-for="(stat, index) in statistics" :key="index">
+                                <v-col :cols="12 / statistics.length" class="text-center">
+                                  <div class="text-h4">{{ stat.value }}</div>
+                                  <div class="text-subtitle-1">{{ stat.label }}</div>
+                                </v-col>
+                              </template>
+                            </v-row>
+                          </v-card-text>
+                        </v-card>
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </v-card>
+              </v-window-item>
+
+              <!-- Onglet Pointages -->
+              <v-window-item value="timesheets">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="timesheetsHeaders"
+                  :items="timesheets"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun pointage trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Pointages</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.entry_type="{ item }">
+                    <v-chip
+                      :color="item.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
+                      size="small"
+                    >
+                      {{ item.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
+                    </v-chip>
+                  </template>
+                  
+                  <template v-slot:item.status="{ item }">
+                    <v-chip
+                      :color="getTimesheetStatusColor(item)"
+                      size="small"
+                    >
+                      {{ getTimesheetStatusLabel(item) }}
+                    </v-chip>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Plannings -->
+              <v-window-item value="schedules">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="schedulesHeaders"
+                  :items="item.schedules || []"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun planning trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Plannings</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.schedule_type="{ item }">
+                    <v-chip
+                      :color="(item as ScheduleWithSite).schedule_type === 'FIXED' ? 'primary' : 'warning'"
+                      size="small"
+                    >
+                      {{ (item as ScheduleWithSite).schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                    </v-chip>
+                  </template>
+
+                  <template v-slot:item.site="{ item }">
+                    {{ (item as ScheduleWithSite).site_name }}
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Anomalies -->
+              <v-window-item value="anomalies">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="anomaliesHeaders"
+                  :items="anomalies"
+                  :items-per-page="5"
+                  :no-data-text="'Aucune anomalie trouvée'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Anomalies</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.type="{ item }">
+                    <v-chip
+                      :color="getAnomalyTypeColor(item.anomaly_type_display)"
+                      size="small"
+                    >
+                      {{ item.anomaly_type_display }}
+                    </v-chip>
+                  </template>
+                  
+                  <template v-slot:item.status="{ item }">
+                    <v-chip
+                      :color="getAnomalyStatusColor(item.status_display)"
+                      size="small"
+                    >
+                      {{ item.status_display }}
+                    </v-chip>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+            </v-window>
+          </v-card-text>
+        </v-card>
+      </template>
+
+      <!-- Vue détaillée de l'organisation avec onglets -->
+      <template v-else-if="props.type === 'organization'">
+        <v-card>
+          <v-tabs v-model="activeTab" color="#00346E">
+            <v-tab value="details">Informations</v-tab>
+            <v-tab value="sites">Sites</v-tab>
+            <v-tab value="employees">Employés</v-tab>
+            <v-tab value="reports">Rapports</v-tab>
+          </v-tabs>
+
+          <v-card-text>
+            <v-window v-model="activeTab">
+              <!-- Onglet Informations -->
+              <v-window-item value="details">
+                <v-card class="elevation-1">
+                  <v-toolbar flat>
+                    <v-toolbar-title>Informations</v-toolbar-title>
+                    <v-spacer></v-spacer>
+                  </v-toolbar>
+                  <v-card-text>
+                    <v-row>
+                      <v-col cols="12" md="6">
+                        <v-list>
+                          <template v-for="(field, index) in displayFields" :key="index">
+                            <v-list-item>
+                              <template #prepend>
+                                <v-icon>{{ field.icon }}</v-icon>
+                              </template>
+                              <v-list-item-title>{{ field.label }}</v-list-item-title>
+                              <v-list-item-subtitle>
+                                <template v-if="field.type === 'address' && isAddressField(field)">
+                                  <AddressWithMap
+                                    :address="item[field.address]"
+                                    :postal-code="item[field.postalCode]"
+                                    :city="item[field.city]"
+                                    :country="item[field.country]"
+                                  />
+                                </template>
+                                <template v-else-if="field.type === 'status'">
+                                  <v-chip
+                                    :color="item[field.key] ? 'success' : 'error'"
+                                    size="small"
+                                  >
+                                    {{ item[field.key] ? field.activeLabel : field.inactiveLabel }}
+                                  </v-chip>
+                                </template>
+                                <template v-else>
+                                  {{ formatFieldValue(field, item[field.key]) }}
+                                </template>
+                              </v-list-item-subtitle>
+                            </v-list-item>
+                          </template>
+                        </v-list>
+                      </v-col>
+                      <v-col cols="12" md="6">
+                        <v-card class="mb-4" v-if="item.logo">
+                          <v-card-title>Logo</v-card-title>
+                          <v-card-text class="text-center">
+                            <v-img
+                              :src="item.logo"
+                              :alt="item.name"
+                              max-width="200"
+                              class="mx-auto"
+                            ></v-img>
+                          </v-card-text>
+                        </v-card>
+                        <v-card class="mb-4">
+                          <v-card-title>Statistiques</v-card-title>
+                          <v-card-text>
+                            <v-row>
+                              <template v-for="(stat, index) in statistics" :key="index">
+                                <v-col :cols="12 / statistics.length" class="text-center">
+                                  <div class="text-h4">{{ stat.value }}</div>
+                                  <div class="text-subtitle-1">{{ stat.label }}</div>
+                                </v-col>
+                              </template>
+                            </v-row>
+                          </v-card-text>
+                        </v-card>
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </v-card>
+              </v-window-item>
+
+              <!-- Onglet Sites -->
+              <v-window-item value="sites">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="sitesHeaders"
+                  :items="sites"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun site trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Sites</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.address="{ item }">
+                    <AddressWithMap
+                      :address="item.address"
+                      :postal-code="item.postal_code"
+                      :city="item.city"
+                      :country="item.country"
+                    />
+                  </template>
+                  
+                  <template v-slot:item.is_active="{ item }">
+                    <v-chip
+                      :color="item.is_active ? 'success' : 'error'"
+                      size="small"
+                    >
+                      {{ item.is_active ? 'Actif' : 'Inactif' }}
+                    </v-chip>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Employés -->
+              <v-window-item value="employees">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="employeesHeaders"
+                  :items="employees"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun employé trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Employés</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.role="{ item }">
+                    <v-chip
+                      :color="item.role === 'MANAGER' ? 'primary' : 'success'"
+                      size="small"
+                    >
+                      {{ item.role === 'MANAGER' ? 'Manager' : 'Employé' }}
+                    </v-chip>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Rapports -->
+              <v-window-item value="reports">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="reportsHeaders"
+                  :items="reports"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun rapport trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Rapports</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="downloadReport(item)"
+                    >
+                      <v-icon>mdi-download</v-icon>
+                      <v-tooltip activator="parent">Télécharger</v-tooltip>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+            </v-window>
+          </v-card-text>
+        </v-card>
+      </template>
+
+      <!-- Vue détaillée standard pour les autres types -->
+      <template v-else>
+        <v-row>
+          <!-- Informations principales -->
+          <v-col cols="12" md="6">
+            <v-card>
+              <v-card-title>Informations générales</v-card-title>
+              <v-card-text>
+                <v-list>
+                  <template v-for="(field, index) in displayFields" :key="index">
+                    <v-list-item>
+                      <template #prepend>
+                        <v-icon>{{ field.icon }}</v-icon>
+                      </template>
+                      <v-list-item-title>{{ field.label }}</v-list-item-title>
+                      <v-list-item-subtitle>
+                        <!-- Adresse avec carte -->
+                        <template v-if="field.type === 'address' && isAddressField(field)">
+                          <AddressWithMap
+                            :address="item[field.address]"
+                            :postal-code="item[field.postalCode]"
+                            :city="item[field.city]"
+                            :country="item[field.country]"
+                          />
+                        </template>
+                        
+                        <!-- Statut avec puce -->
+                        <template v-else-if="field.type === 'status'">
+                          <v-chip
+                            :color="item[field.key] ? 'success' : 'error'"
+                            size="small"
+                          >
+                            {{ item[field.key] ? field.activeLabel : field.inactiveLabel }}
+                          </v-chip>
+                        </template>
+
+                        <!-- Rôle avec puce -->
+                        <template v-else-if="field.type === 'role'">
+                          <v-chip
+                            :color="item[field.key] === 'MANAGER' ? 'primary' : 'success'"
+                            size="small"
+                          >
+                            {{ item[field.key] === 'MANAGER' ? 'Manager' : 'Employé' }}
+                          </v-chip>
+                        </template>
+
+                        <!-- Valeur par défaut -->
+                        <template v-else>
+                          {{ formatFieldValue(field, item[field.key]) }}
+                        </template>
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                  </template>
+                </v-list>
+              </v-card-text>
+            </v-card>
+          </v-col>
+
+          <!-- Statistiques et informations complémentaires -->
+          <v-col cols="12" md="6">
+            <!-- Statistiques -->
+            <v-card class="mb-4">
+              <v-card-title>Statistiques</v-card-title>
+              <v-card-text>
                 <v-row>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="dialogItem.name"
-                      label="Nom"
-                      required
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="dialogItem.address"
-                      label="Adresse"
-                      required
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="dialogItem.postal_code"
-                      label="Code postal"
-                      required
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="dialogItem.city"
-                      label="Ville"
-                      required
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="dialogItem.country"
-                      label="Pays"
-                      required
-                    ></v-text-field>
-                  </v-col>
+                  <template v-for="(stat, index) in statistics" :key="index">
+                    <v-col :cols="12 / statistics.length" class="text-center">
+                      <div class="text-h4">{{ stat.value }}</div>
+                      <div class="text-subtitle-1">{{ stat.label }}</div>
+                    </v-col>
+                  </template>
                 </v-row>
-              </template>
-              <template v-else>
-                <!-- Formulaire d'employé -->
-                <v-row>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="dialogItem.first_name"
-                      label="Prénom"
-                      required
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="dialogItem.last_name"
-                      label="Nom"
-                      required
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-text-field
-                      v-model="dialogItem.email"
-                      label="Email"
-                      type="email"
-                      required
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" sm="6">
-                    <v-select
-                      v-model="dialogItem.role"
-                      :items="roles"
-                      item-title="label"
-                      item-value="value"
-                      label="Rôle"
-                      required
-                    ></v-select>
-                  </v-col>
-                </v-row>
-              </template>
-            </v-form>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="grey" variant="text" @click="showEditDialog = false">
-              Annuler
-            </v-btn>
-            <v-btn color="primary" variant="text" @click="saveDialogItem">
-              Enregistrer
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+              </v-card-text>
+            </v-card>
 
-      <!-- Dialog de confirmation de suppression -->
-      <v-dialog v-model="showDeleteConfirmDialog" max-width="400px">
-        <v-card>
-          <v-card-title>Confirmer la suppression</v-card-title>
-          <v-card-text>
-            Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="grey" variant="text" @click="showDeleteConfirmDialog = false">
-              Annuler
-            </v-btn>
-            <v-btn color="error" variant="text" @click="confirmDeleteDialogItem">
-              Supprimer
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+            <!-- Logo (pour les organisations) -->
+            <v-card v-if="item.logo" class="mb-4">
+              <v-card-title>Logo</v-card-title>
+              <v-card-text class="text-center">
+                <v-img
+                  :src="item.logo"
+                  :alt="item.name"
+                  max-width="200"
+                  class="mx-auto"
+                ></v-img>
+              </v-card-text>
+            </v-card>
 
-      <!-- Dialog pour assigner des employés -->
-      <AssignDialog
-        v-model="showAssignEmployeesDialog"
-        title="Assigner des employés"
-        subtitle="Sélectionnez un employé à assigner"
-        :items="unassignedEmployees"
-        item-title="display_name"
-        item-icon="mdi-account"
-        label="Sélectionner un employé"
-        placeholder="Rechercher un employé..."
-        :loading="loadingEmployees"
-        :saving="assigningEmployee"
-        no-data-text="Aucun employé disponible"
-        @assign="handleAssignEmployee"
-      >
-        <template #item-subtitle="{ item }">
-          <v-chip size="x-small" :color="(item as unknown as ListItem).role === 'MANAGER' ? 'warning' : 'success'">
-            {{ (item as unknown as ListItem).role === 'MANAGER' ? 'Manager' : 'Employé' }}
-          </v-chip>
-          {{ (item as unknown as ListItem).email }}
+            <!-- QR Code (uniquement pour les sites) -->
+            <v-card v-if="props.type === 'site' && item.qr_code" class="qr-code-card mb-4" variant="outlined">
+              <v-card-title class="d-flex align-center">
+                <v-icon icon="mdi-qrcode" class="mr-2"></v-icon>
+                QR Code du site
+              </v-card-title>
+              <v-card-text class="text-center">
+                <div class="qr-code-container">
+                  <v-img
+                    :src="item.qr_code"
+                    width="200"
+                    height="200"
+                    class="mx-auto mb-4"
+                  ></v-img>
+                  <div class="d-flex gap-2">
+                    <v-btn
+                      color="#00346E"
+                      prepend-icon="mdi-download"
+                      @click="downloadQRCode"
+                      size="small"
+                    >
+                      Télécharger
+                    </v-btn>
+                    <v-btn
+                      color="#F78C48"
+                      prepend-icon="mdi-refresh"
+                      @click="generateQRCode"
+                      size="small"
+                    >
+                      Régénérer
+                    </v-btn>
+                  </div>
+                </div>
+              </v-card-text>
+            </v-card>
+
+            <!-- Loader pour QR Code -->
+            <v-card v-else-if="props.type === 'site' && !item.qr_code" class="qr-code-card mb-4" variant="outlined">
+              <v-card-title class="d-flex align-center">
+                <v-icon icon="mdi-qrcode" class="mr-2"></v-icon>
+                QR Code du site
+              </v-card-title>
+              <v-card-text class="text-center">
+                <v-progress-circular indeterminate color="primary"></v-progress-circular>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <!-- Tableaux de données associées -->
+        <template v-if="relatedTables.length > 0">
+          <v-card v-for="table in relatedTables" :key="table.key" class="mt-4">
+            <v-card-title class="d-flex justify-space-between align-center">
+              <span>{{ table.title }} ({{ table.items.length }})</span>
+              <v-btn
+                v-if="table.addLabel"
+                color="primary"
+                size="small"
+                prepend-icon="mdi-plus-circle"
+                :to="table.addRoute"
+                v-on="table.addAction ? { click: table.addAction } : {}"
+              >
+                {{ table.addLabel }}
+              </v-btn>
+            </v-card-title>
+            <v-card-text>
+              <v-data-table
+                v-model:page="page"
+                :headers="table.headers"
+                :items="table.items"
+                :items-per-page="5"
+                :no-data-text="table.noDataText || 'Aucune donnée'"
+                :loading-text="'Chargement...'"
+                :items-per-page-text="'Lignes par page'"
+                :page-text="'{0}-{1} sur {2}'"
+                :items-per-page-options="[
+                  { title: '5', value: 5 },
+                  { title: '10', value: 10 },
+                  { title: '15', value: 15 },
+                  { title: 'Tout', value: -1 }
+                ]"
+                @click:row="(_: Event, rowData: any) => navigateToDetail(table.key, rowData)"
+              >
+                <!-- Actions -->
+                <template v-slot:item.actions="{ item }">
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="primary"
+                    :to="formatDetailRoute(table.key, item)"
+                    @click.stop
+                  >
+                    <v-icon>mdi-eye</v-icon>
+                    <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="primary"
+                    :to="formatEditRoute(table.key, item)"
+                    @click.stop
+                  >
+                    <v-icon>mdi-pencil</v-icon>
+                    <v-tooltip activator="parent">Modifier</v-tooltip>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="warning"
+                    @click.stop="handleToggleStatus(table.key, item)"
+                  >
+                    <v-icon>{{ item.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+                    <v-tooltip activator="parent">{{ item.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="error"
+                    @click.stop="handleDelete(table.key, item)"
+                  >
+                    <v-icon>mdi-delete</v-icon>
+                    <v-tooltip activator="parent">Supprimer</v-tooltip>
+                  </v-btn>
+                </template>
+
+                <!-- Slots pour les colonnes spéciales -->
+                <template v-for="slot in table.slots" :key="slot.key" v-slot:[`item.${slot.key}`]="{ item: rowItem }">
+                  <component :is="slot.component" v-bind="slot.props(rowItem)" />
+                </template>
+              </v-data-table>
+            </v-card-text>
+          </v-card>
         </template>
-      </AssignDialog>
 
-      <!-- Dialog pour assigner des sites -->
-      <AssignDialog
-        v-model="showAssignSitesDialog"
-        title="Assigner des sites"
-        subtitle="Sélectionnez un site à assigner"
-        :items="unassignedSites"
-        item-title="name"
-        item-icon="mdi-domain"
-        label="Sélectionner un site"
-        placeholder="Rechercher un site..."
-        :loading="loadingSites"
-        :saving="assigningSite"
-        no-data-text="Aucun site disponible"
-        @assign="handleAssignSite"
-      >
-        <template #item-subtitle="{ item }">
-          {{ (item as unknown as ListItem).address }}, {{ (item as unknown as ListItem).city }}
-          <v-chip size="x-small" :color="(item as unknown as ListItem).is_active ? 'success' : 'error'">
-            {{ (item as unknown as ListItem).is_active ? 'Actif' : 'Inactif' }}
-          </v-chip>
-        </template>
-      </AssignDialog>
+        <!-- Dialog de confirmation de suppression -->
+        <v-dialog v-model="showDeleteDialog" max-width="400">
+          <v-card>
+            <v-card-title>Confirmer la suppression</v-card-title>
+            <v-card-text>
+              Êtes-vous sûr de vouloir supprimer {{ itemTypeLabel }} "{{ item.name }}" ?
+              Cette action est irréversible.
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="grey" variant="text" @click="showDeleteDialog = false">
+                Annuler
+              </v-btn>
+              <v-btn
+                color="error"
+                variant="text"
+                @click="deleteItem"
+                :loading="deleting"
+              >
+                Supprimer
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
 
-      <!-- Snackbar pour les notifications -->
-      <v-snackbar
-        v-model="snackbar.show"
-        :color="snackbar.color"
-        :timeout="3000"
-      >
-        {{ snackbar.text }}
-      </v-snackbar>
+        <!-- Dialog de modification -->
+        <v-dialog v-model="showEditDialog" max-width="800px">
+          <v-card>
+            <v-card-title>
+              {{ dialogType === 'sites' ? 'Modifier le site' : 'Modifier l\'employé' }}
+            </v-card-title>
+            <v-card-text>
+              <v-form ref="dialogForm">
+                <template v-if="dialogType === 'sites'">
+                  <!-- Formulaire de site -->
+                  <v-row>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="dialogItem.name"
+                        label="Nom"
+                        required
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="dialogItem.address"
+                        label="Adresse"
+                        required
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="dialogItem.postal_code"
+                        label="Code postal"
+                        required
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="dialogItem.city"
+                        label="Ville"
+                        required
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="dialogItem.country"
+                        label="Pays"
+                        required
+                      ></v-text-field>
+                    </v-col>
+                  </v-row>
+                </template>
+                <template v-else>
+                  <!-- Formulaire d'employé -->
+                  <v-row>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="dialogItem.first_name"
+                        label="Prénom"
+                        required
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="dialogItem.last_name"
+                        label="Nom"
+                        required
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-text-field
+                        v-model="dialogItem.email"
+                        label="Email"
+                        type="email"
+                        required
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                      <v-select
+                        v-model="dialogItem.role"
+                        :items="roles"
+                        item-title="label"
+                        item-value="value"
+                        label="Rôle"
+                        required
+                      ></v-select>
+                    </v-col>
+                  </v-row>
+                </template>
+              </v-form>
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="grey" variant="text" @click="showEditDialog = false">
+                Annuler
+              </v-btn>
+              <v-btn color="primary" variant="text" @click="saveDialogItem">
+                Enregistrer
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+
+        <!-- Dialog de confirmation de suppression -->
+        <v-dialog v-model="showDeleteConfirmDialog" max-width="400px">
+          <v-card>
+            <v-card-title>Confirmer la suppression</v-card-title>
+            <v-card-text>
+              Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn color="grey" variant="text" @click="showDeleteConfirmDialog = false">
+                Annuler
+              </v-btn>
+              <v-btn color="error" variant="text" @click="confirmDeleteDialogItem">
+                Supprimer
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+
+        <!-- Dialog pour assigner des employés -->
+        <AssignDialog
+          v-model="showAssignEmployeesDialog"
+          title="Assigner des employés"
+          subtitle="Sélectionnez un employé à assigner"
+          :items="unassignedEmployees"
+          item-title="display_name"
+          item-icon="mdi-account"
+          label="Sélectionner un employé"
+          placeholder="Rechercher un employé..."
+          :loading="loadingEmployees"
+          :saving="assigningEmployee"
+          no-data-text="Aucun employé disponible"
+          @assign="handleAssignEmployee"
+        >
+          <template #item-subtitle="{ item }">
+            <v-chip size="x-small" :color="(item as unknown as ListItem).role === 'MANAGER' ? 'warning' : 'success'">
+              {{ (item as unknown as ListItem).role === 'MANAGER' ? 'Manager' : 'Employé' }}
+            </v-chip>
+            {{ (item as unknown as ListItem).email }}
+          </template>
+        </AssignDialog>
+
+        <!-- Dialog pour assigner des sites -->
+        <AssignDialog
+          v-model="showAssignSitesDialog"
+          title="Assigner des sites"
+          subtitle="Sélectionnez un site à assigner"
+          :items="unassignedSites"
+          item-title="name"
+          item-icon="mdi-domain"
+          label="Sélectionner un site"
+          placeholder="Rechercher un site..."
+          :loading="loadingSites"
+          :saving="assigningSite"
+          no-data-text="Aucun site disponible"
+          @assign="handleAssignSite"
+        >
+          <template #item-subtitle="{ item }">
+            {{ (item as unknown as ListItem).address }}, {{ (item as unknown as ListItem).city }}
+            <v-chip size="x-small" :color="(item as unknown as ListItem).is_active ? 'success' : 'error'">
+              {{ (item as unknown as ListItem).is_active ? 'Actif' : 'Inactif' }}
+            </v-chip>
+          </template>
+        </AssignDialog>
+
+        <!-- Snackbar pour les notifications -->
+        <v-snackbar
+          v-model="snackbar.show"
+          :color="snackbar.color"
+          :timeout="3000"
+        >
+          {{ snackbar.text }}
+        </v-snackbar>
+      </template>
     </template>
   </v-container>
 </template>
@@ -473,6 +1241,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import AssignDialog from '@/components/common/AssignDialog.vue'
+import TimesheetsView from '@/views/dashboard/Timesheets.vue'
+import AnomaliesView from '@/views/dashboard/Anomalies.vue'
+import ReportsView from '@/views/dashboard/Reports.vue'
 import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
 import { generateStyledQRCode } from '@/utils/qrcode'
 import { format } from 'date-fns'
@@ -485,15 +1256,20 @@ import {
   organizationsApi,
   type Site,
   type Organization,
-  type Employee,
+  type Employee as BaseEmployee,
   type Schedule,
   type SiteStatistics
 } from '@/services/api'
-import TimesheetsView from '@/views/dashboard/Timesheets.vue'
-import AnomaliesView from '@/views/dashboard/Anomalies.vue'
-import ReportsView from '@/views/dashboard/Reports.vue'
-import { sitesApi as schedulesApi } from '@/services/api'
-import type { ExtendedSchedule } from '@/types/sites'
+
+// Interfaces étendues
+interface Employee extends BaseEmployee {
+  role?: string;
+  site_name?: string;
+}
+
+interface ScheduleWithSite extends Schedule {
+  site_name: string;
+}
 
 // Types
 interface Field {
@@ -587,7 +1363,7 @@ interface ListItem {
 
 // Extended Site with additional properties needed for UI
 interface ExtendedSite extends Omit<Site, 'schedules' | 'organization_name' | 'manager_name'> {
-  schedules?: ExtendedSchedule[];
+  schedules?: Schedule[];
   qr_code?: string;
   download_qr_code?: string;
   manager_name: string;
@@ -639,6 +1415,7 @@ const assigningSite = ref(false)
 const showAssignEmployeesDialog = ref(false)
 const showAssignSitesDialog = ref(false)
 const page = ref(1)
+const activeTab = ref('details')
 
 // Ajout du snackbar
 const snackbar = ref({
@@ -1163,31 +1940,47 @@ const loadSiteDetails = async () => {
   try {
     loading.value = true
     const siteId = route.params.id
-    console.log('[DetailView][LoadSite] Chargement des détails du site:', siteId)
     
-    const siteResponse = await sitesApi.getSite(Number(siteId))
-    console.log('[DetailView][LoadSite] Réponse de l\'API:', siteResponse.data)
-    
+    // Charger les détails du site et les plannings en parallèle
+    const [siteResponse, schedulesResponse] = await Promise.all([
+      sitesApi.getSite(Number(siteId)),
+      sitesApi.getSchedulesBySite(Number(siteId))
+    ])
+
+    // Fusionner les données du site avec les plannings
     item.value = {
       ...siteResponse.data,
-      schedules: [],
+      schedules: schedulesResponse.data.results || [],
       download_qr_code: '',
       manager_name: siteResponse.data.manager_name || '',
       organization_name: siteResponse.data.organization_name || ''
     } as ExtendedSite
 
     // Générer le QR code immédiatement après le chargement du site
-    console.log('[DetailView][LoadSite] Tentative de génération du QR code...')
     try {
-      await generateQRCode()
-      console.log('[DetailView][LoadSite] QR code généré avec succès')
+      const previewQRCode = await generateStyledQRCode(item.value, {
+        width: 500,
+        height: 500,
+        qrSize: 500,
+        showFrame: false
+      })
+      
+      const downloadQRCode = await generateStyledQRCode(item.value, {
+        width: 500,
+        height: 700,
+        qrSize: 400,
+        showFrame: true,
+        radius: 20
+      })
+      
+      item.value.qr_code = previewQRCode
+      item.value.download_qr_code = downloadQRCode
     } catch (qrError) {
       console.error('[DetailView][LoadSite] Erreur lors de la génération du QR code:', qrError)
       showError('Erreur lors de la génération du QR code')
     }
     
     // Charger les statistiques et les tableaux associés
-    console.log('[DetailView][LoadSite] Chargement des statistiques et des tableaux associés')
     try {
       // Charger les statistiques
       const siteStats = await sitesApi.getSiteStatistics(Number(siteId))
@@ -1197,11 +1990,8 @@ const loadSiteDetails = async () => {
         { label: 'Anomalies', value: siteStats.data.anomalies || 0 }
       ]
       
-      // Charger les employés et les plannings pour les tableaux associés
-      const [employeesResponse, schedulesResponse] = await Promise.all([
-        sitesApi.getSiteEmployees(Number(siteId)),
-        sitesApi.getSchedulesBySite(Number(siteId))
-      ])
+      // Charger les employés pour les tableaux associés
+      const employeesResponse = await sitesApi.getSiteEmployees(Number(siteId))
       
       relatedTables.value = [
         {
@@ -1231,55 +2021,15 @@ const loadSiteDetails = async () => {
               })
             }
           ]
-        },
-        {
-          key: 'schedules',
-          title: 'Plannings',
-          items: schedulesResponse.data.results,
-          headers: [
-            { title: 'Nom', key: 'name' },
-            { title: 'Type', key: 'schedule_type' },
-            { title: 'Début', key: 'start_time' },
-            { title: 'Fin', key: 'end_time' },
-            { title: 'Actions', key: 'actions' }
-          ],
-          addRoute: `/dashboard/sites/${siteId}/schedules/new`,
-          addLabel: 'Ajouter un planning',
-          slots: [
-            {
-              key: 'schedule_type',
-              component: 'v-chip',
-              props: (item: any) => ({
-                color: item.schedule_type === 'FIXED' ? 'primary' : 'warning',
-                size: 'small',
-                text: item.schedule_type === 'FIXED' ? 'Fixe' : 'Variable'
-              })
-            },
-            {
-              key: 'start_time',
-              component: 'span',
-              props: (item: any) => ({
-                text: format(new Date(item.start_time), 'HH:mm', { locale: fr })
-              })
-            },
-            {
-              key: 'end_time',
-              component: 'span',
-              props: (item: any) => ({
-                text: format(new Date(item.end_time), 'HH:mm', { locale: fr })
-              })
-            }
-          ]
         }
       ]
-      console.log('[DetailView][LoadSite] Statistiques et tableaux chargés avec succès')
     } catch (statsError) {
-      console.error('[DetailView][LoadSite] Erreur lors du chargement des statistiques et des tableaux:', statsError)
+      console.error('[DetailView][LoadSite] Erreur lors du chargement des statistiques:', statsError)
       showError('Erreur lors du chargement des statistiques et des employés associés')
     }
     
   } catch (error) {
-    console.error('[DetailView][LoadSite] Erreur:', error)
+    console.error('[DetailView][LoadSite] Erreur lors du chargement des détails du site:', error)
     showError('Erreur lors du chargement des détails du site')
   } finally {
     loading.value = false
@@ -1288,7 +2038,6 @@ const loadSiteDetails = async () => {
 
 const generateQRCode = async () => {
   if (!item.value) {
-    console.error('[DetailView][QRCode] Site non défini')
     showError('Impossible de générer le QR code : site non défini')
     return
   }
@@ -1311,17 +2060,13 @@ const generateQRCode = async () => {
     
     item.value.qr_code = previewQRCode
     item.value.download_qr_code = downloadQRCode
-    console.log('[DetailView][QRCode] QR codes générés avec succès')
-    showSuccess('QR code généré avec succès')
   } catch (error) {
-    console.error('[DetailView][QRCode] Erreur:', error)
     showError('Erreur lors de la génération du QR code')
   }
 }
 
 const downloadQRCode = async () => {
   if (!item.value?.qr_code) {
-    console.error('[DetailView][QRCode] QR code non défini')
     showError('QR code non disponible pour le téléchargement')
     return
   }
@@ -1335,10 +2080,8 @@ const downloadQRCode = async () => {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    console.log('[DetailView][QRCode] Téléchargement initié')
     showSuccess('Téléchargement du QR code initié')
   } catch (error) {
-    console.error('[DetailView][QRCode] Erreur:', error)
     showError('Erreur lors du téléchargement du QR code')
   }
 }
@@ -1609,11 +2352,239 @@ onMounted(async () => {
     await loadData()
   }
 })
+
+// Headers pour le tableau des plannings
+const schedulesHeaders = ref([
+  { title: 'Type', key: 'schedule_type', align: 'start' as const },
+  { title: 'Site', key: 'site_name', align: 'start' as const },
+  { title: 'Détails', key: 'details', align: 'start' as const },
+  { title: 'Actions', key: 'actions', align: 'end' as const, sortable: false }
+])
+
+interface Timesheet {
+  id: number;
+  employee: string;
+  entry_type: 'ARRIVAL' | 'DEPARTURE';
+  timestamp: string;
+  status: 'PENDING' | 'VALIDATED' | 'REJECTED';
+  status_display: string;
+}
+
+interface Anomaly {
+  id: number;
+  employee: string;
+  anomaly_type: string;
+  anomaly_type_display: string;
+  description: string;
+  status: 'PENDING' | 'RESOLVED' | 'IGNORED';
+  status_display: string;
+  created_at: string;
+}
+
+interface Report {
+  id: number;
+  name: string;
+  type: string;
+  created_at: string;
+  file_url: string;
+}
+
+const timesheetsHeaders = ref([
+  { title: 'Date', align: 'start' as const, key: 'timestamp' },
+  { title: 'Employé', align: 'start' as const, key: 'employee' },
+  { title: 'Type', align: 'center' as const, key: 'entry_type' },
+  { title: 'Statut', align: 'center' as const, key: 'status' },
+  { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
+])
+
+const anomaliesHeaders = ref([
+  { title: 'Date', align: 'start' as const, key: 'created_at' },
+  { title: 'Employé', align: 'start' as const, key: 'employee' },
+  { title: 'Type', align: 'center' as const, key: 'type' },
+  { title: 'Description', align: 'start' as const, key: 'description' },
+  { title: 'Statut', align: 'center' as const, key: 'status' },
+  { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
+])
+
+const reportsHeaders = ref([
+  { title: 'Date', align: 'start' as const, key: 'created_at' },
+  { title: 'Nom', align: 'start' as const, key: 'name' },
+  { title: 'Type', align: 'center' as const, key: 'type' },
+  { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
+])
+
+const timesheets = ref<Timesheet[]>([])
+const anomalies = ref<Anomaly[]>([])
+const reports = ref<Report[]>([])
+
+const getTimesheetStatusColor = (timesheet: Timesheet) => {
+  switch (timesheet.status) {
+    case 'VALIDATED':
+      return 'success'
+    case 'REJECTED':
+      return 'error'
+    default:
+      return 'warning'
+  }
+}
+
+const getTimesheetStatusLabel = (timesheet: Timesheet) => {
+  return timesheet.status_display
+}
+
+const getAnomalyTypeColor = (type: string) => {
+  switch (type.toLowerCase()) {
+    case 'retard':
+      return 'warning'
+    case 'absence':
+      return 'error'
+    default:
+      return 'info'
+  }
+}
+
+const getAnomalyStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'résolu':
+      return 'success'
+    case 'ignoré':
+      return 'grey'
+    default:
+      return 'warning'
+  }
+}
+
+const showTimesheetDetails = (timesheet: Timesheet) => {
+  // TODO: Implémenter l'affichage des détails du pointage
+  console.log('Afficher les détails du pointage:', timesheet)
+}
+
+const resolveAnomaly = async (anomalyId: number) => {
+  try {
+    // TODO: Implémenter la résolution de l'anomalie
+    console.log('Résoudre l\'anomalie:', anomalyId)
+    await fetchAnomalies()
+  } catch (error) {
+    console.error('Erreur lors de la résolution de l\'anomalie:', error)
+  }
+}
+
+const ignoreAnomaly = async (anomalyId: number) => {
+  try {
+    // TODO: Implémenter l'ignorance de l'anomalie
+    console.log('Ignorer l\'anomalie:', anomalyId)
+    await fetchAnomalies()
+  } catch (error) {
+    console.error('Erreur lors de l\'ignorance de l\'anomalie:', error)
+  }
+}
+
+const showAnomalyDetails = (anomaly: Anomaly) => {
+  // TODO: Implémenter l'affichage des détails de l'anomalie
+  console.log('Afficher les détails de l\'anomalie:', anomaly)
+}
+
+const downloadReport = (report: Report) => {
+  // TODO: Implémenter le téléchargement du rapport
+  console.log('Télécharger le rapport:', report)
+}
+
+const exportReport = () => {
+  // TODO: Implémenter l'exportation du rapport
+  console.log('Exporter le rapport')
+}
+
+const fetchTimesheets = async () => {
+  try {
+    // TODO: Implémenter la récupération des pointages
+    timesheets.value = []
+  } catch (error) {
+    console.error('Erreur lors de la récupération des pointages:', error)
+  }
+}
+
+const fetchAnomalies = async () => {
+  try {
+    // TODO: Implémenter la récupération des anomalies
+    anomalies.value = []
+  } catch (error) {
+    console.error('Erreur lors de la récupération des anomalies:', error)
+  }
+}
+
+const fetchReports = async () => {
+  try {
+    // TODO: Implémenter la récupération des rapports
+    reports.value = []
+  } catch (error) {
+    console.error('Erreur lors de la récupération des rapports:', error)
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([
+    fetchTimesheets(),
+    fetchAnomalies(),
+    fetchReports()
+  ])
+})
+
+// Fonction pour obtenir le nom du jour
+const getDayName = (dayOfWeek: number): string => {
+  const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+  return days[dayOfWeek]
+}
+
+// Ajout des refs pour les tableaux de données
+const sites = ref<Site[]>([])
+const employees = ref<Employee[]>([])
+
+// Headers pour les tableaux
+const sitesHeaders = ref([
+  { title: 'Nom', key: 'name', align: 'start' as const },
+  { title: 'Adresse', key: 'address', align: 'start' as const },
+  { title: 'Ville', key: 'city', align: 'start' as const },
+  { title: 'Statut', key: 'is_active', align: 'center' as const },
+  { title: 'Actions', key: 'actions', align: 'end' as const, sortable: false }
+])
+
+const employeesHeaders = ref([
+  { title: 'Nom', key: 'last_name', align: 'start' as const },
+  { title: 'Prénom', key: 'first_name', align: 'start' as const },
+  { title: 'Email', key: 'email', align: 'start' as const },
+  { title: 'Rôle', key: 'role', align: 'center' as const },
+  { title: 'Site', key: 'site_name', align: 'start' as const },
+  { title: 'Actions', key: 'actions', align: 'end' as const, sortable: false }
+])
 </script>
 
 <style scoped>
 .white-space-pre-wrap {
   white-space: pre-wrap;
+}
+
+/* Style des icônes dans la liste */
+:deep(.v-list-item) {
+  padding: 12px 16px;
+}
+
+:deep(.v-list-item .v-icon) {
+  color: #00346E !important;
+  margin-right: 12px;
+  font-size: 20px;
+}
+
+:deep(.v-list-item-title) {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.87);
+  margin-bottom: 4px;
+}
+
+:deep(.v-list-item-subtitle) {
+  font-size: 1rem;
+  color: rgba(0, 0, 0, 0.87);
+  font-weight: 400;
 }
 
 /* Style du bouton retour */
@@ -1638,6 +2609,27 @@ onMounted(async () => {
   color: white !important;
 }
 
+/* Style des onglets */
+:deep(.v-tabs) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+:deep(.v-tab) {
+  text-transform: none !important;
+  font-weight: 500 !important;
+  letter-spacing: normal !important;
+}
+
+:deep(.v-tab--selected) {
+  color: #00346E !important;
+}
+
+:deep(.v-tab:hover) {
+  color: #00346E !important;
+  opacity: 0.8;
+}
+
+/* Style du QR code */
 .qr-code-container {
   display: flex;
   flex-direction: column;
@@ -1703,5 +2695,46 @@ onMounted(async () => {
   opacity: 0.5 !important;
   cursor: default !important;
   pointer-events: none !important;
+}
+
+/* Style des puces */
+:deep(.v-chip) {
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+}
+
+:deep(.v-chip.v-chip--size-small) {
+  font-size: 0.75rem !important;
+}
+
+/* Style des cartes */
+:deep(.v-card-title) {
+  font-size: 1.25rem !important;
+  font-weight: 500 !important;
+  padding: 16px !important;
+}
+
+:deep(.v-card-text) {
+  padding: 16px !important;
+}
+
+/* Style des listes */
+:deep(.v-list) {
+  padding: 8px 0;
+  background-color: transparent;
+}
+
+:deep(.v-list-item) {
+  margin-bottom: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+:deep(.v-list-item:hover) {
+  background-color: rgba(0, 52, 110, 0.04);
+}
+
+:deep(.v-list-item:last-child) {
+  margin-bottom: 0;
 }
 </style> 

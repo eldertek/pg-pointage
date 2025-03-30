@@ -73,6 +73,18 @@ class ScheduleDetailSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     'Les horaires ne doivent pas être définis pour un planning fréquence'
                 )
+            
+            # Validation de la durée en minutes
+            frequency_duration = data.get('frequency_duration')
+            if frequency_duration is not None:
+                if frequency_duration < 0:
+                    raise serializers.ValidationError({
+                        'frequency_duration': 'La durée ne peut pas être négative'
+                    })
+                if frequency_duration > 1440:  # 24h * 60min
+                    raise serializers.ValidationError({
+                        'frequency_duration': 'La durée ne peut pas dépasser 24 heures (1440 minutes)'
+                    })
         
         # Supprimer le schedule_type des données avant la création
         data.pop('schedule_type', None)

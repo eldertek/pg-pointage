@@ -204,8 +204,8 @@
                     v-model="detail.day_type"
                     :items="[
                       { text: 'Journée entière', value: DayTypeEnum.FULL },
-                      { text: 'Matin', value: DayTypeEnum.AM },
-                      { text: 'Après-midi', value: DayTypeEnum.PM }
+                      { text: 'Matin uniquement', value: DayTypeEnum.AM },
+                      { text: 'Après-midi uniquement', value: DayTypeEnum.PM }
                     ]"
                     item-title="text"
                     item-value="value"
@@ -411,28 +411,15 @@ interface ExtendedScheduleDetail {
 interface ExtendedSchedule extends Omit<BaseSchedule, 'details'> {
   enabled?: boolean;
   employee?: Employee;
-  name: string;
-  min_daily_hours: number;
-  min_weekly_hours: number;
-  allow_early_arrival: boolean;
-  allow_late_departure: boolean;
-  early_arrival_limit: number;
-  late_departure_limit: number;
+  site: number;
   details: ExtendedScheduleDetail[];
 }
 
 // Interface pour le formulaire de planning
 interface ScheduleFormData {
   id?: number;
-  name: string;
-  min_daily_hours: number;
-  min_weekly_hours: number;
-  allow_early_arrival: boolean;
-  allow_late_departure: boolean;
-  early_arrival_limit: number;
-  late_departure_limit: number;
-  site: number;
-  employee: number;
+  site: number | undefined;
+  employee: number | undefined;
   details: ExtendedScheduleDetail[];
   is_active?: boolean;
   schedule_type?: ScheduleTypeEnum;
@@ -455,8 +442,8 @@ const dashboardView = ref()
 // Filtres
 const filters = ref({
   search: '',
-  site: '',
-  type: ''
+  site: undefined as string | number | undefined,
+  type: undefined as string | undefined
 })
 
 // Données
@@ -466,9 +453,8 @@ const employees = ref<Employee[]>([])
 
 // En-têtes des tableaux
 const headers = [
-  { title: 'Nom', key: 'name' },
-  { title: 'Site', key: 'site' },
-  { title: 'Employé', key: 'employee' },
+  { title: 'Site', key: 'site_name' },
+  { title: 'Employé', key: 'employee_name' },
   { title: 'Type', key: 'schedule_type' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
@@ -486,9 +472,18 @@ const daysOfWeek = [
 
 // Types de planning
 const scheduleTypes = [
-  { label: 'Fixe', value: ScheduleTypeEnum.FIXED },
-  { label: 'Fréquence', value: ScheduleTypeEnum.FREQUENCY }
+  { title: 'Fixe', value: ScheduleTypeEnum.FIXED },
+  { title: 'Fréquence', value: ScheduleTypeEnum.FREQUENCY }
 ]
+
+// Fonction de garde de type pour vérifier qu'un siteId est valide
+function isValidSiteId(siteId: number | string | undefined): siteId is number {
+  if (typeof siteId === 'string') {
+    const numericSiteId = Number(siteId)
+    return !isNaN(numericSiteId) && numericSiteId > 0
+  }
+  return typeof siteId === 'number' && siteId > 0
+}
 
 // Méthodes
 const loadSchedules = async () => {
@@ -543,20 +538,30 @@ const loadSites = async () => {
   }
 }
 
-const loadEmployees = async (siteId: number) => {
+const loadEmployees = async (siteId: number | string | undefined) => {
   try {
-    const response = await schedulesApi.getScheduleEmployees(siteId, 0)
+    // Convertir siteId en nombre si c'est une chaîne
+    const numericSiteId = typeof siteId === 'string' ? Number(siteId) : siteId
+    
+    // Vérifier que siteId est un nombre valide
+    if (!isValidSiteId(numericSiteId)) return
+
+    // Si on crée un nouveau planning (pas d'ID), on utilise getSiteEmployees
+    // Sinon, on utilise getScheduleEmployees
+    const response = editedItem.value?.id 
+      ? await schedulesApi.getScheduleEmployees(numericSiteId, editedItem.value.id)
+      : await sitesApi.getSiteEmployees(numericSiteId);
     employees.value = response.data.results || []
   } catch (error) {
-    console.error('Erreur lors du chargement des employés:', error)
+    console.error('[Plannings][Error] Erreur lors du chargement des employés:', error)
   }
 }
 
 const resetFilters = () => {
   filters.value = {
     search: '',
-    site: '',
-    type: ''
+    site: undefined,
+    type: undefined
   }
   loadSchedules()
 }
@@ -564,13 +569,6 @@ const resetFilters = () => {
 const openDialog = (item?: ExtendedSchedule) => {
   editedItem.value = item ? {
     id: item.id,
-    name: item.name,
-    min_daily_hours: item.min_daily_hours,
-    min_weekly_hours: item.min_weekly_hours,
-    allow_early_arrival: item.allow_early_arrival,
-    allow_late_departure: item.allow_late_departure,
-    early_arrival_limit: item.early_arrival_limit,
-    late_departure_limit: item.late_departure_limit,
     site: item.site,
     employee: typeof item.employee === 'number' ? item.employee : item.employee?.id || 0,
     details: item.details.map(detail => ({
@@ -584,15 +582,8 @@ const openDialog = (item?: ExtendedSchedule) => {
     schedule_type: item.schedule_type,
     enabled: item.enabled
   } : {
-    name: '',
-    min_daily_hours: 0,
-    min_weekly_hours: 0,
-    allow_early_arrival: false,
-    allow_late_departure: false,
-    early_arrival_limit: 0,
-    late_departure_limit: 0,
-    site: 0,
-    employee: 0,
+    site: undefined,
+    employee: undefined,
     details: daysOfWeek.map(day => ({
       day_of_week: day.value,
       enabled: false,
@@ -606,6 +597,13 @@ const openDialog = (item?: ExtendedSchedule) => {
     enabled: true,
     is_active: true
   }
+
+  const currentItem = editedItem.value
+  // Si un site est sélectionné, charger les employés
+  if (currentItem?.site) {
+    loadEmployees(currentItem.site)
+  }
+
   if (dashboardView.value) {
     dashboardView.value.showForm = true
   }
@@ -615,42 +613,84 @@ const saveSchedule = async () => {
   if (!form.value?.validate()) return
 
   // Vérifier les horaires
-  if (editedItem.value) {
-    const invalidDetails = editedItem.value.details.filter(detail => {
-      if (!detail.enabled) return false
+  if (!editedItem.value) return
+
+  const invalidDetails = editedItem.value.details.filter(detail => {
+    if (!detail.enabled) return false
+    if (editedItem.value?.schedule_type === ScheduleTypeEnum.FIXED) {
       return getTimeError(detail) !== null
-    })
-    
-    if (invalidDetails.length > 0) {
-      alert('Veuillez corriger les horaires invalides avant de sauvegarder')
-      return
     }
+    return false
+  })
+  
+  if (invalidDetails.length > 0) {
+    alert('Veuillez corriger les horaires invalides avant de sauvegarder')
+    return
   }
 
   saving.value = true
   try {
-    if (editedItem.value) {
-      const scheduleData = {
-        site: editedItem.value.site,
-        schedule_type: editedItem.value.schedule_type,
-        details: editedItem.value.details.map(detail => ({
-          id: detail.id || 0,
+    const currentItem = editedItem.value // Stocker la référence pour éviter les vérifications multiples
+    if (!currentItem) return // Vérification supplémentaire
+    if (!currentItem.site) return // Vérification que site est défini
+
+    // Préparer les données du planning
+    interface ScheduleDataType {
+      site: number;
+      schedule_type: ScheduleTypeEnum | undefined;
+      details: {
+        id?: number;
+        day_of_week: number;
+        frequency_duration?: number;
+        start_time_1?: string;
+        end_time_1?: string;
+        start_time_2?: string;
+        end_time_2?: string;
+        day_type?: 'FULL' | 'AM' | 'PM';
+        schedule_type: ScheduleTypeEnum | undefined;
+      }[];
+      is_active: boolean | undefined;
+      enabled: boolean | undefined;
+      employee?: number;
+    }
+
+    const scheduleData: ScheduleDataType = {
+      site: currentItem.site,
+      schedule_type: currentItem.schedule_type,
+      details: currentItem.details
+        .filter(detail => detail.enabled)
+        .map(detail => ({
+          id: detail.id || undefined, // Envoyer undefined au lieu de 0
           day_of_week: detail.day_of_week,
-          frequency_duration: detail.frequency_duration || undefined,
-          start_time_1: detail.start_time_1 || undefined,
-          end_time_1: detail.end_time_1 || undefined,
-          start_time_2: detail.start_time_2 || undefined,
-          end_time_2: detail.end_time_2 || undefined,
-          day_type: detail.day_type
+          frequency_duration: currentItem.schedule_type === ScheduleTypeEnum.FREQUENCY ? detail.frequency_duration : undefined,
+          start_time_1: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.start_time_1 : undefined,
+          end_time_1: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.end_time_1 : undefined,
+          start_time_2: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.start_time_2 : undefined,
+          end_time_2: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.end_time_2 : undefined,
+          day_type: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.day_type : undefined,
+          schedule_type: currentItem.schedule_type // Ajout du schedule_type dans les détails
         })),
-        is_active: editedItem.value.is_active,
-        enabled: editedItem.value.enabled
-      }
+      is_active: currentItem.is_active,
+      enabled: currentItem.enabled
+    }
+
+    // Ajouter l'employee seulement s'il est valide
+    if (currentItem.employee && currentItem.employee > 0) {
+      scheduleData.employee = currentItem.employee
+    }
+
+    if (currentItem.id) {
+      await schedulesApi.updateSchedule(currentItem.id, scheduleData)
+    } else {
       await schedulesApi.createSchedule(scheduleData)
     }
+    
     await loadSchedules()
+    if (dashboardView.value) {
+      dashboardView.value.showForm = false
+    }
   } catch (error) {
-    console.error('Erreur lors de la sauvegarde:', error)
+    console.error('[Plannings][Error] Erreur lors de la sauvegarde:', error)
   } finally {
     saving.value = false
   }
@@ -720,8 +760,9 @@ onMounted(async () => {
 
 // Observateurs
 watch(() => filters.value.site, (newValue) => {
-  if (newValue) {
-    loadEmployees(Number(newValue))
+  const numericValue = typeof newValue === 'string' ? Number(newValue) : newValue
+  if (isValidSiteId(numericValue)) {
+    loadEmployees(numericValue)
   }
 })
 

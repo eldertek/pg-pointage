@@ -16,13 +16,6 @@ api.interceptors.request.use(
     const token = localStorage.getItem("token")
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
-      console.log("Ajout du token à la requête:", {
-        url: config.url || '',
-        method: config.method,
-        baseURL: config.baseURL || '',
-        fullURL: (config.baseURL || '') + (config.url || ''),
-        token: token.substring(0, 10) + "..."
-      })
 
       // Ajouter des logs pour les données envoyées
       if (config.data) {

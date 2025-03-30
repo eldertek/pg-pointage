@@ -65,3 +65,48 @@ class IsSiteOrganizationManager(permissions.BasePermission):
             request.user.has_organization_permission(site.organization)
         )
 
+class IsFranchiseAdmin(permissions.BasePermission):
+    """
+    Permission personnalisée pour les administrateurs de franchise.
+    Seuls les super admins peuvent créer des franchises et des admins.
+    Les admins peuvent gérer leurs franchises assignées.
+    """
+    
+    def has_permission(self, request, view):
+        # Seuls les super admins peuvent créer des franchises
+        if request.method == 'POST':
+            return request.user.is_super_admin
+            
+        # Les admins peuvent voir et modifier leurs franchises assignées
+        return (
+            request.user.is_authenticated and 
+            (request.user.is_super_admin or request.user.is_admin)
+        )
+    
+    def has_object_permission(self, request, view, obj):
+        # Super admin a tous les droits
+        if request.user.is_super_admin:
+            return True
+            
+        # Les admins peuvent gérer uniquement leurs franchises assignées
+        if request.user.is_admin:
+            return request.user.has_organization_permission(obj.id)
+            
+        return False
+
+class IsEmployeeOwner(permissions.BasePermission):
+    """
+    Permission pour les employés sur leurs propres données.
+    Permet aux employés de :
+    - Consulter leurs pointages
+    - Consulter leurs statistiques
+    - Déclarer une anomalie
+    - Changer leur mot de passe
+    """
+    
+    def has_object_permission(self, request, view, obj):
+        # Vérifier si l'objet appartient à l'utilisateur
+        if hasattr(obj, 'user'):
+            return obj.user == request.user
+        return obj == request.user
+

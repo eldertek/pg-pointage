@@ -8,17 +8,6 @@
       <v-app-bar-title>Planète Gardiens - Administration</v-app-bar-title>
       <v-spacer></v-spacer>
       
-      <!-- Bouton Super Admin -->
-      <v-btn
-        icon
-        :color="isSuperAdminMode ? 'warning' : 'grey'"
-        class="mr-2"
-        @click="toggleSuperAdmin"
-        v-tooltip="'Mode Super Admin'"
-      >
-        <v-icon>mdi-shield-crown</v-icon>
-      </v-btn>
-      
       <v-btn icon @click="showLogoutDialog = true">
         <v-icon>mdi-logout</v-icon>
       </v-btn>
@@ -55,7 +44,7 @@
           <template v-slot:activator="{ props }">
             <v-list-item 
               to="/dashboard/admin/users" 
-              :active="$route.meta.section === 'users' || $route.path.includes('/dashboard/organizations/') || $route.path === '/dashboard/admin/users'" 
+              :active="$route.meta.section === 'users' || $route.path === '/dashboard/admin/users'" 
               active-class="primary--text" 
               v-bind="props"
             >
@@ -141,9 +130,14 @@
         <!-- Gestion des accès - Super Admin uniquement -->
         <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin">
           <template v-slot:activator="{ props }">
-            <v-list-item to="/dashboard/admin/access" active-class="primary--text" v-bind="props">
+            <v-list-item 
+              to="/dashboard/admin/access" 
+              :active="$route.path.includes('/dashboard/admin/access')"
+              active-class="primary--text" 
+              v-bind="props"
+            >
               <template v-slot:prepend>
-                <v-icon>mdi-account-cog</v-icon>
+                <v-icon>mdi-domain</v-icon>
               </template>
               <v-list-item-title>Gestion des accès</v-list-item-title>
             </v-list-item>

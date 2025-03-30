@@ -40,7 +40,7 @@ class OrganizationUsersView(generics.ListAPIView):
             return User.objects.none()
             
         organization_pk = self.kwargs.get('pk')
-        return User.objects.filter(organization_id=organization_pk)
+        return User.objects.filter(organizations__id=organization_pk)
 
 class OrganizationStatisticsView(generics.RetrieveAPIView):
     serializer_class = OrganizationStatisticsSerializer
@@ -56,16 +56,16 @@ class OrganizationStatisticsView(generics.RetrieveAPIView):
         
         # Calculer les statistiques directement dans la vue
         total_anomalies = Anomaly.objects.filter(
-            employee__organization=organization
+            site__organization=organization
         ).count()
         
         pending_anomalies = Anomaly.objects.filter(
-            employee__organization=organization,
+            site__organization=organization,
             status='PENDING'
         ).count()
         
         stats = {
-            'total_employees': User.objects.filter(organization=organization).count(),
+            'total_employees': User.objects.filter(organizations=organization).count(),
             'total_sites': organization.sites.count(),
             'active_sites': organization.sites.filter(is_active=True).count(),
             'total_anomalies': total_anomalies,
