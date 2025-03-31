@@ -47,8 +47,9 @@
         <v-card>
           <v-tabs v-model="activeTab" color="#00346E">
             <v-tab value="details">Informations</v-tab>
-            <v-tab value="schedules">Plannings</v-tab>
-            <v-tab value="timesheets">Pointages</v-tab>
+            <v-tab value="employees">Employés</v-tab>
+            <v-tab value="plannings">Plannings</v-tab>
+            <v-tab value="pointages">Pointages</v-tab>
             <v-tab value="anomalies">Anomalies</v-tab>
             <v-tab value="reports">Rapports</v-tab>
           </v-tabs>
@@ -157,12 +158,63 @@
                   </v-card-text>
                 </v-card>
               </v-window-item>
-
-              <!-- Onglet Plannings -->
-              <v-window-item value="schedules">
+              <v-window-item value="employees">
                 <v-data-table
                   v-model:page="page"
-                  :headers="schedulesHeaders"
+                  :headers="employeesHeaders"
+                  :items="employees"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun employé trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Employés</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  <template v-slot:item.is_active="{ item }">
+                    <v-chip
+                      :color="item.is_active ? 'success' : 'error'"
+                      size="small"
+                    >
+                      {{ item.is_active ? 'Actif' : 'Inactif' }}
+                    </v-chip>
+                  </template>
+                  <template v-slot:item.created_at="{ item }">
+                    {{ formatDate(item.created_at) }}
+                  </template>
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      :to="`/dashboard/admin/users/${item.employee}`"
+                      @click.stop
+                    >
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="unassignEmployeeFromSite(item.id)"
+                    >
+                      <v-icon>mdi-account-remove</v-icon>
+                      <v-tooltip activator="parent">Retirer du site</v-tooltip>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Plannings -->
+              <v-window-item value="plannings">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="planningsHeaders"
                   :items="item.schedules || []"
                   :items-per-page="5"
                   :no-data-text="'Aucun planning trouvé'"
@@ -254,10 +306,10 @@
               </v-window-item>
 
               <!-- Onglet Pointages -->
-              <v-window-item value="timesheets">
+              <v-window-item value="pointages">
                 <v-data-table
                   v-model:page="page"
-                  :headers="timesheetsHeaders"
+                  :headers="pointagesHeaders"
                   :items="timesheets"
                   :items-per-page="5"
                   :no-data-text="'Aucun pointage trouvé'"
@@ -442,9 +494,11 @@
         <v-card>
           <v-tabs v-model="activeTab" color="#00346E">
             <v-tab value="details">Informations</v-tab>
-            <v-tab value="timesheets">Pointages</v-tab>
-            <v-tab value="schedules">Plannings</v-tab>
+            <v-tab value="sites">Sites</v-tab>
+            <v-tab value="plannings">Plannings</v-tab>
+            <v-tab value="pointages">Pointages</v-tab>
             <v-tab value="anomalies">Anomalies</v-tab>
+            <v-tab value="reports">Rapports</v-tab>
           </v-tabs>
 
           <v-card-text>
@@ -511,8 +565,69 @@
                 </v-card>
               </v-window-item>
 
+              <!-- Nouvel onglet Employés -->
+              <v-window-item value="employees">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="employeesHeaders"
+                  :items="employees"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun employé trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Employés</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                      <v-btn
+                        color="primary"
+                        prepend-icon="mdi-account-plus"
+                        @click="openAssignEmployeesDialog"
+                      >
+                        Assigner un employé
+                      </v-btn>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.is_active="{ item }">
+                    <v-chip
+                      :color="item.is_active ? 'success' : 'error'"
+                      size="small"
+                    >
+                      {{ item.is_active ? 'Actif' : 'Inactif' }}
+                    </v-chip>
+                  </template>
+                  <template v-slot:item.created_at="{ item }">
+                    {{ formatDate(item.created_at) }}
+                  </template>
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      :to="`/dashboard/admin/users/${item.employee}`"
+                      @click.stop
+                    >
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="unassignEmployeeFromSite(item.id)"
+                    >
+                      <v-icon>mdi-account-remove</v-icon>
+                      <v-tooltip activator="parent">Retirer du site</v-tooltip>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
               <!-- Onglet Pointages -->
-              <v-window-item value="timesheets">
+              <v-window-item value="pointages">
                 <v-data-table
                   v-model:page="page"
                   :headers="timesheetsHeaders"
@@ -549,7 +664,7 @@
               </v-window-item>
 
               <!-- Onglet Plannings -->
-              <v-window-item value="schedules">
+              <v-window-item value="plannings">
                 <v-data-table
                   v-model:page="page"
                   :headers="schedulesHeaders"
@@ -613,6 +728,38 @@
                     >
                       {{ item.status_display }}
                     </v-chip>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Rapports -->
+              <v-window-item value="reports">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="reportsHeaders"
+                  :items="reports"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun rapport trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Rapports</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="downloadReport(item)"
+                    >
+                      <v-icon>mdi-download</v-icon>
+                      <v-tooltip activator="parent">Télécharger</v-tooltip>
+                    </v-btn>
                   </template>
                 </v-data-table>
               </v-window-item>
@@ -776,15 +923,17 @@
                       class="elevation-1"
                       @click:row="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
                     >
-                      <template v-slot:item.role="{ item }">
+                      <template v-slot:item.is_active="{ item }">
                         <v-chip
-                          :color="item.role === 'MANAGER' ? 'primary' : 'success'"
+                          :color="item.is_active ? 'success' : 'error'"
                           size="small"
                         >
-                          {{ item.role === 'MANAGER' ? 'Manager' : 'Employé' }}
+                          {{ item.is_active ? 'Actif' : 'Inactif' }}
                         </v-chip>
                       </template>
-                      
+                      <template v-slot:item.created_at="{ item }">
+                        {{ formatDate(item.created_at) }}
+                      </template>
                       <template v-slot:item.actions="{ item }">
                         <v-btn
                           icon
@@ -805,7 +954,7 @@
                           @click.stop="unassignEmployeeFromSite(item.id)"
                         >
                           <v-icon>mdi-account-remove</v-icon>
-                          <v-tooltip activator="parent">Retirer de l'organisation</v-tooltip>
+                          <v-tooltip activator="parent">Retirer du site</v-tooltip>
                         </v-btn>
                       </template>
                     </v-data-table>
@@ -1314,6 +1463,26 @@ interface Employee extends BaseEmployee {
   site_name?: string;
 }
 
+interface ApiSiteEmployee {
+  id: number;
+  site: number;
+  employee: number;
+  employee_name: string;
+  schedule: number | null;
+  created_at: string;
+  is_active: boolean;
+}
+
+interface SiteEmployee {
+  id: number;
+  site: number;
+  employee: number;
+  employee_name: string;
+  schedule: number | null;
+  created_at: string;
+  is_active: boolean;
+}
+
 interface ScheduleWithSite extends Schedule {
   site_name: string;
 }
@@ -1711,19 +1880,34 @@ const loadData = async () => {
         ])
         
         // Mettre à jour la liste des employés pour l'onglet Employés
-        employees.value = employeesResponse.data.results
+        employees.value = (employeesResponse.data.results as unknown as ApiSiteEmployee[]).map(employee => ({
+          id: employee.id,
+          site: employee.site,
+          employee: employee.employee,
+          employee_name: employee.employee_name,
+          schedule: employee.schedule,
+          created_at: employee.created_at,
+          is_active: employee.is_active
+        }))
         
         relatedTables.value = [
           {
             key: 'employees',
             title: 'Employés',
-            items: employeesResponse.data.results,
+            items: (employeesResponse.data.results as unknown as ApiSiteEmployee[]).map(employee => ({
+              id: employee.id,
+              site: employee.site,
+              employee: employee.employee,
+              employee_name: employee.employee_name,
+              schedule: employee.schedule,
+              created_at: employee.created_at,
+              is_active: employee.is_active
+            })),
             headers: [
               { title: 'ID', key: 'id' },
-              { title: 'Nom', key: 'last_name' },
-              { title: 'Prénom', key: 'first_name' },
-              { title: 'Email', key: 'email' },
-              { title: 'Rôle', key: 'role' },
+              { title: 'Nom', key: 'employee_name' },
+              { title: 'Date d\'ajout', key: 'created_at' },
+              { title: 'Statut', key: 'is_active' },
               { title: 'Actions', key: 'actions', sortable: false }
             ],
             addRoute: undefined,
@@ -1840,14 +2024,20 @@ const loadData = async () => {
           {
             key: 'employees',
             title: 'Employés',
-            items: orgEmployeesResponse.data.results,
+            items: orgEmployeesResponse.data.results.map((employee: ApiSiteEmployee) => ({
+              id: employee.id,
+              site: employee.site,
+              employee: employee.employee,
+              employee_name: employee.employee_name,
+              schedule: employee.schedule,
+              created_at: employee.created_at,
+              is_active: employee.is_active
+            })),
             headers: [
               { title: 'ID', key: 'id' },
-              { title: 'Nom', key: 'last_name' },
-              { title: 'Prénom', key: 'first_name' },
-              { title: 'Email', key: 'email' },
-              { title: 'Rôle', key: 'role' },
-              { title: 'Site', key: 'site_name' },
+              { title: 'Nom', key: 'employee_name' },
+              { title: 'Date d\'ajout', key: 'created_at' },
+              { title: 'Statut', key: 'is_active' },
               { title: 'Actions', key: 'actions', sortable: false }
             ],
             addRoute: undefined,
@@ -2002,7 +2192,7 @@ const loadSiteDetails = async () => {
     loading.value = true
     const siteId = route.params.id
     
-    // Charger les détails du site et les plannings en parallèle
+    // Charger les détails du site, les plannings et les employés en parallèle
     const [siteResponse, schedulesResponse, employeesResponse] = await Promise.all([
       sitesApi.getSite(Number(siteId)),
       sitesApi.getSchedulesBySite(Number(siteId)),
@@ -2010,7 +2200,15 @@ const loadSiteDetails = async () => {
     ])
 
     // Mettre à jour la liste des employés
-    employees.value = employeesResponse.data.results
+    employees.value = (employeesResponse.data.results as unknown as ApiSiteEmployee[]).map(employee => ({
+      id: employee.id,
+      site: employee.site,
+      employee: employee.employee,
+      employee_name: employee.employee_name,
+      schedule: employee.schedule,
+      created_at: employee.created_at,
+      is_active: employee.is_active
+    }))
 
     // Fusionner les données du site avec les plannings
     item.value = {
@@ -2062,13 +2260,20 @@ const loadSiteDetails = async () => {
         {
           key: 'employees',
           title: 'Employés',
-          items: employeesResponse.data.results,
+          items: (employeesResponse.data.results as unknown as ApiSiteEmployee[]).map(employee => ({
+            id: employee.id,
+            site: employee.site,
+            employee: employee.employee,
+            employee_name: employee.employee_name,
+            schedule: employee.schedule,
+            created_at: employee.created_at,
+            is_active: employee.is_active
+          })),
           headers: [
             { title: 'ID', key: 'id' },
-            { title: 'Nom', key: 'last_name' },
-            { title: 'Prénom', key: 'first_name' },
-            { title: 'Email', key: 'email' },
-            { title: 'Rôle', key: 'role' },
+            { title: 'Nom', key: 'employee_name' },
+            { title: 'Date d\'ajout', key: 'created_at' },
+            { title: 'Statut', key: 'is_active' },
             { title: 'Actions', key: 'actions', sortable: false }
           ],
           addRoute: undefined,
@@ -2273,7 +2478,15 @@ const handleAssignEmployee = async (employee: any) => {
     
     // Recharger la liste des employés
     const response = await sitesApi.getSiteEmployees(itemId.value)
-    employees.value = response.data.results
+    employees.value = (response.data.results as unknown as ApiSiteEmployee[]).map(employee => ({
+      id: employee.id,
+      site: employee.site,
+      employee: employee.employee,
+      employee_name: employee.employee_name,
+      schedule: employee.schedule,
+      created_at: employee.created_at,
+      is_active: employee.is_active
+    }))
     
     await loadData()
     showAssignEmployeesDialog.value = false
@@ -2490,29 +2703,6 @@ interface Report {
   file_url: string;
 }
 
-const timesheetsHeaders = ref([
-  { title: 'Date', align: 'start' as const, key: 'timestamp' },
-  { title: 'Employé', align: 'start' as const, key: 'employee' },
-  { title: 'Type', align: 'center' as const, key: 'entry_type' },
-  { title: 'Statut', align: 'center' as const, key: 'status' },
-  { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
-])
-
-const anomaliesHeaders = ref([
-  { title: 'Date', align: 'start' as const, key: 'created_at' },
-  { title: 'Employé', align: 'start' as const, key: 'employee' },
-  { title: 'Type', align: 'center' as const, key: 'type' },
-  { title: 'Description', align: 'start' as const, key: 'description' },
-  { title: 'Statut', align: 'center' as const, key: 'status' },
-  { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
-])
-
-const reportsHeaders = ref([
-  { title: 'Date', align: 'start' as const, key: 'created_at' },
-  { title: 'Nom', align: 'start' as const, key: 'name' },
-  { title: 'Type', align: 'center' as const, key: 'type' },
-  { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
-])
 
 const getTimesheetStatusColor = (timesheet: Timesheet) => {
   switch (timesheet.status) {
@@ -2634,23 +2824,56 @@ const getDayName = (dayOfWeek: number): string => {
 
 // Ajout des refs pour les tableaux de données
 const sites = ref<Site[]>([])
-const employees = ref<Employee[]>([])
+const employees = ref<SiteEmployee[]>([])
 
 // Headers pour les tableaux
-const sitesHeaders = ref([
-  { title: 'Nom', key: 'name', align: 'start' as const },
-  { title: 'Adresse', key: 'address', align: 'start' as const },
-  { title: 'Ville', key: 'city', align: 'start' as const },
-  { title: 'Statut', key: 'is_active', align: 'center' as const },
-  { title: 'Actions', key: 'actions', align: 'end' as const, sortable: false }
-])
+type TableAlignment = 'start' | 'center' | 'end';
 
 const employeesHeaders = ref([
-  { title: 'Nom', key: 'last_name', align: 'start' as const },
-  { title: 'Prénom', key: 'first_name', align: 'start' as const },
-  { title: 'Email', key: 'email', align: 'start' as const },
-  { title: 'Rôle', key: 'role', align: 'center' as const },
-  { title: 'Actions', key: 'actions', align: 'end' as const, sortable: false }
+  { title: 'ID', key: 'employee', align: 'start' as TableAlignment },
+  { title: 'Nom', key: 'employee_name', align: 'start' as TableAlignment },
+  { title: 'Date d\'ajout', key: 'created_at', align: 'start' as TableAlignment },
+  { title: 'Statut', key: 'is_active', align: 'center' as TableAlignment },
+  { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
+])
+
+const sitesHeaders = ref([
+  { title: 'ID', key: 'id', align: 'start' as TableAlignment },
+  { title: 'Nom', key: 'name', align: 'start' as TableAlignment },
+  { title: 'Adresse', key: 'address', align: 'start' as TableAlignment },
+  { title: 'Statut', key: 'is_active', align: 'center' as TableAlignment },
+  { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
+])
+
+const planningsHeaders = ref([
+  { title: 'Type', key: 'schedule_type', align: 'start' as TableAlignment },
+  { title: 'Site', key: 'site_name', align: 'start' as TableAlignment },
+  { title: 'Détails', key: 'details', align: 'start' as TableAlignment },
+  { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
+])
+
+const pointagesHeaders = ref([
+  { title: 'Date', key: 'timestamp', align: 'start' as TableAlignment },
+  { title: 'Employé', key: 'employee', align: 'start' as TableAlignment },
+  { title: 'Type', key: 'entry_type', align: 'center' as TableAlignment },
+  { title: 'Statut', key: 'status', align: 'center' as TableAlignment },
+  { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
+])
+
+const anomaliesHeaders = ref([
+  { title: 'Date', key: 'created_at', align: 'start' as TableAlignment },
+  { title: 'Employé', key: 'employee', align: 'start' as TableAlignment },
+  { title: 'Type', key: 'type', align: 'center' as TableAlignment },
+  { title: 'Description', key: 'description', align: 'start' as TableAlignment },
+  { title: 'Statut', key: 'status', align: 'center' as TableAlignment },
+  { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
+])
+
+const reportsHeaders = ref([
+  { title: 'Date', key: 'created_at', align: 'start' as TableAlignment },
+  { title: 'Nom', key: 'name', align: 'start' as TableAlignment },
+  { title: 'Type', key: 'type', align: 'center' as TableAlignment },
+  { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
 ])
 
 // Ajout de la fonction unassignEmployeeFromSite
@@ -2662,12 +2885,32 @@ const unassignEmployeeFromSite = async (employeeId: number) => {
     
     // Recharger la liste des employés
     const response = await sitesApi.getSiteEmployees(itemId.value)
-    employees.value = response.data.results
+    employees.value = (response.data.results as unknown as ApiSiteEmployee[]).map(employee => ({
+      id: employee.id,
+      site: employee.site,
+      employee: employee.employee,
+      employee_name: employee.employee_name,
+      schedule: employee.schedule,
+      created_at: employee.created_at,
+      is_active: employee.is_active
+    }))
   } catch (error) {
     console.error('[DetailView][UnassignEmployee] Erreur lors du retrait de l\'employé:', error)
     showError('Erreur lors du retrait de l\'employé')
   }
 }
+
+const formatDate = (dateString: string): string => {
+  return format(new Date(dateString), 'dd/MM/yyyy HH:mm', { locale: fr })
+}
+
+const timesheetsHeaders = ref([
+  { title: 'Date', key: 'date', align: 'start' as TableAlignment },
+  { title: 'Employé', key: 'employee', align: 'start' as TableAlignment },
+  { title: 'Type', key: 'entry_type', align: 'center' as TableAlignment },
+  { title: 'Statut', key: 'status', align: 'center' as TableAlignment },
+  { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
+])
 </script>
 
 <style scoped>

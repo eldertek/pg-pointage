@@ -162,3 +162,111 @@ Exemple d'implémentation :
   </template>
 </v-data-table>
 ```
+
+# Uniformité des vues de détail
+
+## Ordre des onglets
+L'ordre des onglets doit être cohérent à travers toutes les vues de détail. Voici l'ordre standard à respecter :
+
+1. Informations (toujours en premier)
+2. Employés (si applicable)
+3. Sites (si applicable)
+4. Plannings (si applicable)
+5. Pointages (si applicable)
+6. Anomalies (si applicable)
+7. Rapports (toujours en dernier si présent)
+
+## Structure des onglets
+
+### Onglet Informations
+- Toujours divisé en deux colonnes sur desktop
+- Colonne gauche : informations principales dans une liste
+- Colonne droite : 
+  - Statistiques (si disponibles)
+  - QR Code (pour les sites)
+  - Logo (pour les organisations)
+
+### Onglet Employés/Sites
+- Tableau avec les colonnes standards :
+  - ID
+  - Nom
+  - Date d'ajout
+  - Statut (avec puce colorée)
+  - Actions
+
+### Onglet Plannings
+- Type (Fixe/Fréquence)
+- Site
+- Détails
+- Actions
+
+### Onglet Pointages
+- Date
+- Employé
+- Type (Arrivée/Départ)
+- Statut
+- Actions
+
+### Onglet Anomalies
+- Date
+- Employé
+- Type
+- Description
+- Statut
+- Actions
+
+### Onglet Rapports
+- Date
+- Nom
+- Type
+- Actions
+
+## Actions standards
+Les actions doivent toujours apparaître dans cet ordre :
+1. Voir les détails (icône "mdi-eye")
+2. Modifier (icône "mdi-pencil")
+3. Activer/Désactiver (icône "mdi-domain"/"mdi-domain-off")
+4. Supprimer (icône "mdi-delete")
+
+## Couleurs des statuts
+- Actif/Validé : success (#4CAF50)
+- Inactif : error (#F44336)
+- En attente : warning (#FB8C00)
+- Ignoré : grey (#9E9E9E)
+
+## Boutons d'action
+- Primary : #00346E (actions positives comme voir détails, modifier)
+- Warning : #FB8C00 (actions de basculement comme activer/désactiver)
+- Error : #F78C48 (actions destructives comme supprimer)
+- Grey : #999999 (actions désactivées)
+
+## Espacement et mise en page
+- Marges entre les sections : 16px (mb-4)
+- Padding interne des cartes : 16px
+- Espacement entre les colonnes : 16px (gap-4)
+- Hauteur des lignes de tableau : 48px
+
+## Responsive
+- Passage en une colonne sur mobile (< 960px)
+- Tableaux avec défilement horizontal sur mobile
+- Boutons d'action regroupés dans un menu sur mobile
+
+## Statistiques
+Les statistiques doivent être présentées de manière uniforme :
+- Valeur en grand (text-h4)
+- Label en dessous (text-subtitle-1)
+- Répartition égale de l'espace entre les statistiques
+- Maximum 4 statistiques par ligne
+
+## Messages standards
+- "Aucun [élément] trouvé" pour les tableaux vides
+- "Chargement..." pour les états de chargement
+- "[n] lignes par page" pour la pagination
+- "{0}-{1} sur {2}" pour l'indication de page
+
+## Tooltips
+Chaque action doit avoir un tooltip explicatif :
+- "Voir les détails"
+- "Modifier"
+- "Activer"/"Désactiver"
+- "Supprimer"
