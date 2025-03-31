@@ -67,6 +67,34 @@
       ]"
       class="elevation-1"
     >
+      <!-- Site -->
+      <template v-slot:item.site_name="{ item }">
+        {{ item.site_name }}
+      </template>
+
+      <!-- Employés -->
+      <template v-slot:item.employees="{ item }">
+        <v-chip-group>
+          <v-chip
+            v-for="employee in item.assigned_employees"
+            :key="employee.id"
+            size="small"
+            color="primary"
+            variant="outlined"
+          >
+            {{ employee.employee_name }}
+          </v-chip>
+          <v-chip
+            v-if="!item.assigned_employees?.length"
+            size="small"
+            color="grey"
+            variant="outlined"
+          >
+            Aucun employé
+          </v-chip>
+        </v-chip-group>
+      </template>
+
       <!-- Type de planning -->
       <template v-slot:item.schedule_type="{ item }">
         <v-chip
@@ -75,11 +103,6 @@
         >
           {{ item.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
         </v-chip>
-      </template>
-
-      <!-- Site -->
-      <template v-slot:item.site_name="{ item }">
-        {{ item.site_name }}
       </template>
 
       <!-- Actions -->
@@ -108,98 +131,114 @@
     <!-- Formulaire -->
     <template #form>
       <DashboardForm ref="form" @submit="saveSchedule">
-        <v-col cols="12" sm="6">
-          <v-select
-            v-if="editedItem"
-            v-model="editedItem.schedule_type"
-            :items="[
-              { title: 'Fixe', value: 'FIXED' },
-              { title: 'Fréquence', value: 'FREQUENCY' }
-            ]"
-            item-title="title"
-            item-value="value"
-            label="Type de planning"
-            required
-          ></v-select>
-        </v-col>
-        <v-col cols="12" sm="6">
-          <v-select
-            v-if="editedItem"
-            v-model="editedItem.site"
-            :items="sites"
-            item-title="name"
-            item-value="id"
-            label="Site"
-            required
-            @update:model-value="loadEmployees"
-          ></v-select>
-        </v-col>
-
-        <!-- Sélection de l'employé si plusieurs sur le site -->
-        <v-col v-if="editedItem && employees.length >= 0" cols="12" sm="6">
-          <v-select
-            v-model="editedItem.employees"
-            :items="employees"
-            item-title="employee_name"
-            item-value="id"
-            label="Employés"
-            multiple
-            chips
-            closable-chips
-            required
-          >
-            <template v-slot:chip="{ props, item }">
-              <v-chip
-                v-bind="props"
-                :text="item.raw.employee_name"
-                color="primary"
-                variant="outlined"
-              ></v-chip>
-            </template>
-            <template v-slot:prepend-inner>
-              <v-icon color="primary">mdi-account-multiple</v-icon>
-            </template>
-            <template v-slot:no-data>
-              <div class="pa-2 text-center">Aucun employé disponible pour ce site</div>
-            </template>
-          </v-select>
-        </v-col>
+        <!-- Première ligne : Type de planning, Site, Employés -->
+        <v-row class="mb-6">
+          <v-col cols="12" sm="4">
+            <v-select
+              v-if="editedItem"
+              v-model="editedItem.schedule_type"
+              :items="[
+                { title: 'Fixe', value: 'FIXED' },
+                { title: 'Fréquence', value: 'FREQUENCY' }
+              ]"
+              item-title="title"
+              item-value="value"
+              label="Type de planning"
+              required
+              density="comfortable"
+              variant="outlined"
+            ></v-select>
+          </v-col>
+          <v-col cols="12" sm="4">
+            <v-select
+              v-if="editedItem"
+              v-model="editedItem.site"
+              :items="sites"
+              item-title="name"
+              item-value="id"
+              label="Site"
+              required
+              density="comfortable"
+              variant="outlined"
+              @update:model-value="loadEmployees"
+            ></v-select>
+          </v-col>
+          <v-col cols="12" sm="4">
+            <v-select
+              v-if="editedItem && employees.length >= 0"
+              v-model="editedItem.employees"
+              :items="employees"
+              item-title="employee_name"
+              item-value="id"
+              label="Employés"
+              multiple
+              chips
+              closable-chips
+              required
+              density="comfortable"
+              variant="outlined"
+            >
+              <template v-slot:chip="{ props, item }">
+                <v-chip
+                  v-bind="props"
+                  :text="item.raw.employee_name"
+                  color="primary"
+                  variant="outlined"
+                ></v-chip>
+              </template>
+              <template v-slot:no-data>
+                <div class="pa-2 text-center">Aucun employé disponible pour ce site</div>
+              </template>
+            </v-select>
+          </v-col>
+        </v-row>
 
         <!-- Planning type Fréquence -->
         <template v-if="editedItem && editedItem.schedule_type === ScheduleTypeEnum.FREQUENCY">
           <v-row>
             <v-col cols="12">
-              <div v-for="(detail, index) in editedItem.details" :key="index" class="day-container mb-6">
-                <v-checkbox
-                  v-model="detail.enabled"
-                  :label="daysOfWeek.find(d => d.value === detail.day_of_week)?.label || ''"
-                  class="mb-2 day-checkbox"
-                  color="primary"
-                  hide-details
-                ></v-checkbox>
+              <v-card variant="outlined" class="pa-4">
+                <v-card-title class="text-subtitle-1 mb-4">Sélectionnez les jours et définissez la durée de présence</v-card-title>
+                <div v-for="(detail, index) in editedItem.details" :key="index" class="day-container mb-4">
+                  <v-checkbox
+                    v-model="detail.enabled"
+                    :label="daysOfWeek.find(d => d.value === detail.day_of_week)?.label || ''"
+                    class="mb-2 day-checkbox"
+                    color="primary"
+                    hide-details
+                  ></v-checkbox>
 
-                <div v-if="detail.enabled" class="day-content pl-8">
-                  <div class="time-section">
-                    <div class="text-subtitle-2 mb-3">Durée de présence</div>
-                    <v-text-field
-                      v-model="detail.frequency_duration"
-                      type="number"
-                      label="Durée (minutes)"
-                      min="0"
-                      step="1"
-                      density="comfortable"
-                      variant="outlined"
-                      color="primary"
-                      class="flex-grow-1"
-                      hide-details
-                    >
-                      <template v-slot:append-inner>
-                        <span class="text-grey">min</span>
-                      </template>
-                    </v-text-field>
+                  <div v-if="detail.enabled" class="day-content pl-8">
+                    <div class="time-section">
+                      <div class="text-subtitle-2 mb-3">Durée de présence</div>
+                      <v-text-field
+                        v-model="detail.frequency_duration"
+                        type="number"
+                        label="Durée (minutes)"
+                        min="0"
+                        step="1"
+                        density="comfortable"
+                        variant="outlined"
+                        color="primary"
+                        class="flex-grow-1"
+                        hide-details
+                      >
+                        <template v-slot:append-inner>
+                          <span class="text-grey">min</span>
+                        </template>
+                      </v-text-field>
+                    </div>
                   </div>
                 </div>
-              </div>
+                <v-alert
+                  v-if="!editedItem.details.some(d => d.enabled)"
+                  type="info"
+                  variant="tonal"
+                  class="mt-4"
+                >
+                  Veuillez sélectionner au moins un jour et définir sa durée de présence
+                </v-alert>
+              </v-card>
             </v-col>
           </v-row>
         </template>
@@ -208,171 +247,182 @@
         <template v-else-if="editedItem">
           <v-row>
             <v-col cols="12">
-              <div v-for="(detail, index) in editedItem.details" :key="index" class="day-container mb-6">
-                <v-checkbox
-                  v-model="detail.enabled"
-                  :label="daysOfWeek.find(d => d.value === detail.day_of_week)?.label || ''"
-                  class="mb-2 day-checkbox"
-                  color="primary"
-                  hide-details
-                ></v-checkbox>
-
-                <div v-if="detail.enabled" class="day-content pl-8">
-                  <v-select
-                    v-model="detail.day_type"
-                    :items="[
-                      { text: 'Journée entière', value: DayTypeEnum.FULL },
-                      { text: 'Matin uniquement', value: DayTypeEnum.AM },
-                      { text: 'Après-midi uniquement', value: DayTypeEnum.PM }
-                    ]"
-                    item-title="text"
-                    item-value="value"
-                    label="Type de journée"
-                    class="mb-4"
-                    density="comfortable"
-                    variant="outlined"
+              <v-card variant="outlined" class="pa-4">
+                <v-card-title class="text-subtitle-1 mb-4">Sélectionnez les jours et définissez les horaires</v-card-title>
+                <div v-for="(detail, index) in editedItem.details" :key="index" class="day-container mb-4">
+                  <v-checkbox
+                    v-model="detail.enabled"
+                    :label="daysOfWeek.find(d => d.value === detail.day_of_week)?.label || ''"
+                    class="mb-2 day-checkbox"
                     color="primary"
-                  ></v-select>
+                    hide-details
+                  ></v-checkbox>
 
-                  <div class="d-flex gap-4">
-                    <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.AM">
-                      <div class="time-section flex-grow-1">
-                        <div class="text-subtitle-2 mb-3">Horaires du matin</div>
-                        <div class="d-flex gap-4">
-                          <v-menu
-                            v-model="detail.showStartTime1Menu"
-                            :close-on-content-click="false"
-                            location="bottom"
-                          >
-                            <template v-slot:activator="{ props }">
-                              <v-text-field
+                  <div v-if="detail.enabled" class="day-content pl-8">
+                    <v-select
+                      v-model="detail.day_type"
+                      :items="[
+                        { text: 'Journée entière', value: DayTypeEnum.FULL },
+                        { text: 'Matin uniquement', value: DayTypeEnum.AM },
+                        { text: 'Après-midi uniquement', value: DayTypeEnum.PM }
+                      ]"
+                      item-title="text"
+                      item-value="value"
+                      label="Type de journée"
+                      class="mb-4"
+                      density="comfortable"
+                      variant="outlined"
+                      color="primary"
+                    ></v-select>
+
+                    <div class="d-flex gap-4">
+                      <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.AM">
+                        <div class="time-section flex-grow-1">
+                          <div class="text-subtitle-2 mb-3">Horaires du matin</div>
+                          <div class="d-flex gap-4">
+                            <v-menu
+                              v-model="detail.showStartTime1Menu"
+                              :close-on-content-click="false"
+                              location="bottom"
+                            >
+                              <template v-slot:activator="{ props }">
+                                <v-text-field
+                                  v-model="detail.start_time_1"
+                                  label="Début"
+                                  v-bind="props"
+                                  density="comfortable"
+                                  variant="outlined"
+                                  color="primary"
+                                  class="flex-grow-1"
+                                  @click:clear="detail.start_time_1 = undefined"
+                                  clearable
+                                  :error-messages="getTimeError(detail)"
+                                  type="time"
+                                ></v-text-field>
+                              </template>
+                              <VTimePicker
                                 v-model="detail.start_time_1"
-                                label="Début"
-                                v-bind="props"
-                                density="comfortable"
-                                variant="outlined"
-                                color="primary"
-                                class="flex-grow-1"
-                                @click:clear="detail.start_time_1 = undefined"
-                                clearable
-                                :error-messages="getTimeError(detail)"
-                                type="time"
-                              ></v-text-field>
-                            </template>
-                            <VTimePicker
-                              v-model="detail.start_time_1"
-                              format="24hr"
-                              @click:save="detail.showStartTime1Menu = false"
-                              @click:cancel="detail.showStartTime1Menu = false"
-                              ok-text="OK"
-                              cancel-text="Annuler"
-                              hide-header
-                            ></VTimePicker>
-                          </v-menu>
-                          <v-menu
-                            v-model="detail.showEndTime1Menu"
-                            :close-on-content-click="false"
-                            location="bottom"
-                          >
-                            <template v-slot:activator="{ props }">
-                              <v-text-field
+                                format="24hr"
+                                @click:save="detail.showStartTime1Menu = false"
+                                @click:cancel="detail.showStartTime1Menu = false"
+                                ok-text="OK"
+                                cancel-text="Annuler"
+                                hide-header
+                              ></VTimePicker>
+                            </v-menu>
+                            <v-menu
+                              v-model="detail.showEndTime1Menu"
+                              :close-on-content-click="false"
+                              location="bottom"
+                            >
+                              <template v-slot:activator="{ props }">
+                                <v-text-field
+                                  v-model="detail.end_time_1"
+                                  label="Fin"
+                                  v-bind="props"
+                                  density="comfortable"
+                                  variant="outlined"
+                                  color="primary"
+                                  class="flex-grow-1"
+                                  @click:clear="detail.end_time_1 = undefined"
+                                  clearable
+                                  :error-messages="getTimeError(detail)"
+                                  type="time"
+                                ></v-text-field>
+                              </template>
+                              <VTimePicker
                                 v-model="detail.end_time_1"
-                                label="Fin"
-                                v-bind="props"
-                                density="comfortable"
-                                variant="outlined"
-                                color="primary"
-                                class="flex-grow-1"
-                                @click:clear="detail.end_time_1 = undefined"
-                                clearable
-                                :error-messages="getTimeError(detail)"
-                                type="time"
-                              ></v-text-field>
-                            </template>
-                            <VTimePicker
-                              v-model="detail.end_time_1"
-                              format="24hr"
-                              @click:save="detail.showEndTime1Menu = false"
-                              @click:cancel="detail.showEndTime1Menu = false"
-                              ok-text="OK"
-                              cancel-text="Annuler"
-                              hide-header
-                            ></VTimePicker>
-                          </v-menu>
+                                format="24hr"
+                                @click:save="detail.showEndTime1Menu = false"
+                                @click:cancel="detail.showEndTime1Menu = false"
+                                ok-text="OK"
+                                cancel-text="Annuler"
+                                hide-header
+                              ></VTimePicker>
+                            </v-menu>
+                          </div>
                         </div>
-                      </div>
-                    </template>
+                      </template>
 
-                    <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.PM">
-                      <div class="time-section flex-grow-1">
-                        <div class="text-subtitle-2 mb-3">Horaires de l'après-midi</div>
-                        <div class="d-flex gap-4">
-                          <v-menu
-                            v-model="detail.showStartTime2Menu"
-                            :close-on-content-click="false"
-                            location="bottom"
-                          >
-                            <template v-slot:activator="{ props }">
-                              <v-text-field
+                      <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.PM">
+                        <div class="time-section flex-grow-1">
+                          <div class="text-subtitle-2 mb-3">Horaires de l'après-midi</div>
+                          <div class="d-flex gap-4">
+                            <v-menu
+                              v-model="detail.showStartTime2Menu"
+                              :close-on-content-click="false"
+                              location="bottom"
+                            >
+                              <template v-slot:activator="{ props }">
+                                <v-text-field
+                                  v-model="detail.start_time_2"
+                                  label="Début"
+                                  v-bind="props"
+                                  density="comfortable"
+                                  variant="outlined"
+                                  color="primary"
+                                  class="flex-grow-1"
+                                  @click:clear="detail.start_time_2 = undefined"
+                                  clearable
+                                  :error-messages="getTimeError(detail)"
+                                  type="time"
+                                ></v-text-field>
+                              </template>
+                              <VTimePicker
                                 v-model="detail.start_time_2"
-                                label="Début"
-                                v-bind="props"
-                                density="comfortable"
-                                variant="outlined"
-                                color="primary"
-                                class="flex-grow-1"
-                                @click:clear="detail.start_time_2 = undefined"
-                                clearable
-                                :error-messages="getTimeError(detail)"
-                                type="time"
-                              ></v-text-field>
-                            </template>
-                            <VTimePicker
-                              v-model="detail.start_time_2"
-                              format="24hr"
-                              @click:save="detail.showStartTime2Menu = false"
-                              @click:cancel="detail.showStartTime2Menu = false"
-                              ok-text="OK"
-                              cancel-text="Annuler"
-                              hide-header
-                            ></VTimePicker>
-                          </v-menu>
-                          <v-menu
-                            v-model="detail.showEndTime2Menu"
-                            :close-on-content-click="false"
-                            location="bottom"
-                          >
-                            <template v-slot:activator="{ props }">
-                              <v-text-field
+                                format="24hr"
+                                @click:save="detail.showStartTime2Menu = false"
+                                @click:cancel="detail.showStartTime2Menu = false"
+                                ok-text="OK"
+                                cancel-text="Annuler"
+                                hide-header
+                              ></VTimePicker>
+                            </v-menu>
+                            <v-menu
+                              v-model="detail.showEndTime2Menu"
+                              :close-on-content-click="false"
+                              location="bottom"
+                            >
+                              <template v-slot:activator="{ props }">
+                                <v-text-field
+                                  v-model="detail.end_time_2"
+                                  label="Fin"
+                                  v-bind="props"
+                                  density="comfortable"
+                                  variant="outlined"
+                                  color="primary"
+                                  class="flex-grow-1"
+                                  @click:clear="detail.end_time_2 = undefined"
+                                  clearable
+                                  :error-messages="getTimeError(detail)"
+                                  type="time"
+                                ></v-text-field>
+                              </template>
+                              <VTimePicker
                                 v-model="detail.end_time_2"
-                                label="Fin"
-                                v-bind="props"
-                                density="comfortable"
-                                variant="outlined"
-                                color="primary"
-                                class="flex-grow-1"
-                                @click:clear="detail.end_time_2 = undefined"
-                                clearable
-                                :error-messages="getTimeError(detail)"
-                                type="time"
-                              ></v-text-field>
-                            </template>
-                            <VTimePicker
-                              v-model="detail.end_time_2"
-                              format="24hr"
-                              @click:save="detail.showEndTime2Menu = false"
-                              @click:cancel="detail.showEndTime2Menu = false"
-                              ok-text="OK"
-                              cancel-text="Annuler"
-                              hide-header
-                            ></VTimePicker>
-                          </v-menu>
+                                format="24hr"
+                                @click:save="detail.showEndTime2Menu = false"
+                                @click:cancel="detail.showEndTime2Menu = false"
+                                ok-text="OK"
+                                cancel-text="Annuler"
+                                hide-header
+                              ></VTimePicker>
+                            </v-menu>
+                          </div>
                         </div>
-                      </div>
-                    </template>
+                      </template>
+                    </div>
                   </div>
                 </div>
-              </div>
+                <v-alert
+                  v-if="!editedItem.details.some(d => d.enabled)"
+                  type="info"
+                  variant="tonal"
+                  class="mt-4"
+                >
+                  Veuillez sélectionner au moins un jour et définir ses horaires
+                </v-alert>
+              </v-card>
             </v-col>
           </v-row>
         </template>
@@ -425,12 +475,37 @@ interface ExtendedScheduleDetail {
   showEndTime2Menu?: boolean;
 }
 
+// Interface pour les employés assignés dans la réponse de l'API
+interface ApiAssignedEmployee {
+  id: number;
+  employee: number;
+  employee_name: string;
+  schedule: number;
+  site: number;
+}
+
+// Interface pour la réponse de l'API des plannings
+interface ApiSchedule extends BaseSchedule {
+  site_name: string;
+  assigned_employees: ApiAssignedEmployee[];
+}
+
+// Interface pour les employés assignés dans notre composant
+interface AssignedEmployee {
+  id: number;
+  employee: number;
+  employee_name: string;
+  schedule: number;
+  site: number;
+}
+
 // Interface étendue pour les plannings avec les propriétés supplémentaires
 interface ExtendedSchedule extends Omit<BaseSchedule, 'details'> {
   enabled?: boolean;
   employees?: Array<{ id: number }>;
   site: number;
   details: ExtendedScheduleDetail[];
+  assigned_employees?: AssignedEmployee[];
 }
 
 // Interface pour le formulaire de planning
@@ -472,7 +547,7 @@ const employees = ref<Employee[]>([])
 // En-têtes des tableaux
 const headers = [
   { title: 'Site', key: 'site_name' },
-  { title: 'Employé', key: 'employee_name' },
+  { title: 'Employés', key: 'employees' },
   { title: 'Type', key: 'schedule_type' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
@@ -513,7 +588,7 @@ const loadSchedules = async () => {
       site: filters.value.site ? Number(filters.value.site) : undefined,
       schedule_type: filters.value.type
     })
-    schedules.value = (response.data.results || []).map(schedule => ({
+    schedules.value = (response.data.results as ApiSchedule[] || []).map(schedule => ({
       ...schedule,
       schedule_type: schedule.schedule_type as ScheduleTypeEnum,
       name: schedule.site_name,
@@ -523,6 +598,13 @@ const loadSchedules = async () => {
       allow_late_departure: false,
       early_arrival_limit: 0,
       late_departure_limit: 0,
+      assigned_employees: schedule.assigned_employees?.map(employee => ({
+        id: employee.id,
+        employee: employee.employee,
+        employee_name: employee.employee_name,
+        schedule: schedule.id,
+        site: schedule.site
+      })) || [],
       details: schedule.details?.map(detail => ({
         id: detail.id || 0,
         day_of_week: detail.day_of_week,
@@ -570,12 +652,8 @@ const loadEmployees = async (siteId: number | string | undefined) => {
       return
     }
 
-    // Si on crée un nouveau planning (pas d'ID), on utilise getSiteEmployees
-    // Sinon, on utilise getScheduleEmployees
-    const response = editedItem.value?.id 
-      ? await schedulesApi.getScheduleEmployees(numericSiteId, editedItem.value.id)
-      : await sitesApi.getSiteEmployees(numericSiteId);
-    
+    // Charger les employés du site
+    const response = await sitesApi.getSiteEmployees(numericSiteId, { role: 'EMPLOYEE' })
     employees.value = response.data.results || []
     console.log('[Plannings][LoadEmployees] Employés chargés:', employees.value.length)
   } catch (error) {
@@ -597,7 +675,7 @@ const openDialog = (item?: ExtendedSchedule) => {
   editedItem.value = item ? {
     id: item.id,
     site: item.site,
-    employees: item.employees?.map(e => e.id) || [],
+    employees: item.assigned_employees?.map(e => e.employee) || [],
     details: item.details.map(detail => ({
       ...detail,
       showStartTime1Menu: false,
@@ -690,7 +768,7 @@ const saveSchedule = async () => {
     }
 
     // Gérer l'assignation des employés
-    if (savedSchedule?.data?.id && currentItem.employees?.length > 0) {
+    if (savedSchedule?.data?.id && currentItem.employees?.length >= 0) {
       await schedulesApi.assignMultipleEmployees(
         currentItem.site,
         savedSchedule.data.id,
@@ -808,6 +886,7 @@ watch(() => itemsPerPage.value, () => {
   background-color: #f8f9fa;
   border-radius: 8px;
   padding: 16px;
+  margin-top: 8px;
 }
 
 .time-section {
@@ -815,6 +894,7 @@ watch(() => itemsPerPage.value, () => {
   border-radius: 6px;
   padding: 16px;
   min-width: 0; /* Pour éviter le débordement des champs flex */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .time-section + .time-section {
@@ -833,6 +913,16 @@ watch(() => itemsPerPage.value, () => {
 
 :deep(.v-input__details) {
   padding-inline-start: 0;
+}
+
+:deep(.v-card-title) {
+  font-size: 1.1rem !important;
+  font-weight: 500 !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+}
+
+:deep(.v-alert) {
+  font-size: 0.95rem;
 }
 
 /* Style des boutons dans le tableau */

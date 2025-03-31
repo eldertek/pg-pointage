@@ -2391,6 +2391,23 @@ const navigateToDetail = async (tableKey: string, rowData: any) => {
   }
 }
 
+const resetState = () => {
+  console.log('[DetailView][ResetState] Réinitialisation de l\'état')
+  item.value = {}
+  statistics.value = []
+  relatedTables.value = []
+  timesheets.value = []
+  anomalies.value = []
+  reports.value = []
+  page.value = 1
+  activeTab.value = 'details'
+  showDeleteDialog.value = false
+  showEditDialog.value = false
+  showDeleteConfirmDialog.value = false
+  showAssignEmployeesDialog.value = false
+  showAssignSitesDialog.value = false
+}
+
 // Ajout des watchers pour la route et l'ID
 watch(
   [() => route.params.id, () => props.type],
@@ -2649,23 +2666,6 @@ const unassignEmployeeFromSite = async (employeeId: number) => {
     console.error('[DetailView][UnassignEmployee] Erreur lors du retrait de l\'employé:', error)
     showError('Erreur lors du retrait de l\'employé')
   }
-}
-
-const resetState = () => {
-  console.log('[DetailView][ResetState] Réinitialisation de l\'état')
-  item.value = {}
-  statistics.value = []
-  relatedTables.value = []
-  timesheets.value = []
-  anomalies.value = []
-  reports.value = []
-  page.value = 1
-  activeTab.value = 'details'
-  showDeleteDialog.value = false
-  showEditDialog.value = false
-  showDeleteConfirmDialog.value = false
-  showAssignEmployeesDialog.value = false
-  showAssignSitesDialog.value = false
 }
 </script>
 

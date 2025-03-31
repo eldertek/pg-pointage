@@ -177,7 +177,11 @@ interface Schedule {
   created_at: string;
   updated_at: string;
   is_active: boolean;
-  assigned_employees: Array<{ employee: number }>;
+  assigned_employees: Array<{
+    id: any
+    employee_name: any
+    employee: number
+  }>
 }
 
 interface ScheduleDetail {
@@ -300,8 +304,8 @@ const sitesApi = {
   getScheduleEmployees: (siteId: number, scheduleId: number): Promise<AxiosResponse<ApiResponse<Employee>>> =>
     api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`),
 
-  getSiteEmployees: (siteId: number): Promise<AxiosResponse<ApiResponse<Employee>>> =>
-    api.get(`/sites/${siteId}/employees/`),
+  getSiteEmployees: (siteId: number, params?: { role?: string }): Promise<AxiosResponse<ApiResponse<Employee>>> =>
+    api.get(`/sites/${siteId}/employees/`, { params }),
 
   // Get schedules by site
   getSchedulesBySite: (siteId: number): Promise<AxiosResponse<ApiResponse<Schedule>>> => 

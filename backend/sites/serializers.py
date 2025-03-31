@@ -134,12 +134,14 @@ class ScheduleSerializer(serializers.ModelSerializer):
         required=False,
         queryset=SiteEmployee.objects.all()
     )
+    assigned_employees = SiteEmployeeSerializer(many=True, read_only=True)
     
     class Meta:
         model = Schedule
         fields = [
             'id', 'site', 'site_name', 'schedule_type',
-            'details', 'employee', 'created_at', 'updated_at', 'is_active'
+            'details', 'employee', 'created_at', 'updated_at', 'is_active',
+            'assigned_employees'
         ]
     
     def create(self, validated_data):

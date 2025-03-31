@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4" v-if="!isDetailView">
-      <Title level="1">Anomalies</Title>
+      <Title :level="1">Anomalies</Title>
       <v-btn 
         color="warning" 
         prepend-icon="mdi-magnify-scan" 
@@ -471,6 +471,9 @@ export default {
       await applyFilters()
     }
     
+    // Ajout de la variable manquante
+    const showDeleteDialog = ref(false)
+    
     init()
     
     return {
@@ -493,7 +496,9 @@ export default {
       applyFilters,
       resetFilters,
       scanForAnomalies,
-      searchEmployees
+      searchEmployees,
+      showDeleteDialog,
+      currentSiteId
     }
   }
 }

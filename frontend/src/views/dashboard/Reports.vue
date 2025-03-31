@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Title level="1" class="mb-4">Rapports</Title>
+    <Title :level="1" class="mb-4">Rapports</Title>
     
     <v-row>
       <v-col cols="12" lg="4">
@@ -180,6 +180,7 @@ export default {
     const siteOptions = ref(['Tous les sites', 'Centre Commercial', 'Hôpital Nord', 'Résidence Les Pins'])
     
     const reports = ref([])
+    const showDeleteConfirmDialog = ref(false)
     
     const reportForm = ref({
       name: '',
@@ -347,7 +348,8 @@ export default {
       downloadReport,
       deleteReport,
       loadReports,
-      currentSiteId
+      currentSiteId,
+      showDeleteConfirmDialog
     }
   }
 }

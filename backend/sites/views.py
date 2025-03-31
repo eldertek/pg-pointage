@@ -212,7 +212,37 @@ class SiteEmployeeListView(generics.ListCreateAPIView):
     
     def get_queryset(self):
         site_pk = self.kwargs.get('site_pk')
-        return SiteEmployee.objects.filter(site_id=site_pk)
+        site = Site.objects.get(pk=site_pk)
+        
+        # Récupérer le paramètre role de la requête
+        role = self.request.query_params.get('role', None)
+        
+        # Récupérer tous les utilisateurs de l'organisation
+        users = User.objects.filter(
+            organizations__in=[site.organization],
+            is_active=True
+        )
+        
+        # Filtrer par rôle si spécifié
+        if role:
+            users = users.filter(role=role)
+            
+        users = users.order_by('last_name', 'first_name')
+        
+        # Pour chaque utilisateur, créer ou récupérer une entrée SiteEmployee
+        site_employees = []
+        for user in users:
+            site_employee, created = SiteEmployee.objects.get_or_create(
+                site_id=site_pk,
+                employee=user,
+                defaults={'is_active': True}
+            )
+            site_employees.append(site_employee)
+        
+        return SiteEmployee.objects.filter(
+            site_id=site_pk,
+            employee__in=users
+        )
     
     def perform_create(self, serializer):
         site_pk = self.kwargs.get('site_pk')
@@ -241,7 +271,10 @@ class SiteViewSet(viewsets.ModelViewSet):
         return [IsAdminOrManager()]
 
 class GlobalScheduleListView(generics.ListCreateAPIView):
-    queryset = Schedule.objects.all()
+    queryset = Schedule.objects.prefetch_related(
+        'assigned_employees',
+        'assigned_employees__employee'
+    ).all()
     serializer_class = ScheduleSerializer
     permission_classes = [IsAuthenticated]
     
@@ -258,6 +291,30 @@ class GlobalScheduleListView(generics.ListCreateAPIView):
             queryset = queryset.filter(schedule_type=schedule_type)
             
         return queryset
+
+    def perform_create(self, serializer):
+        schedule = serializer.save()
+        site = schedule.site
+
+        # Vérifier s'il y a des employés de l'organisation qui ne sont pas encore assignés au site
+        organization_employees = User.objects.filter(
+            organizations__in=[site.organization],
+            is_active=True
+        ).exclude(
+            assigned_sites__site=site,
+            assigned_sites__is_active=True
+        )
+
+        # Pour chaque employé trouvé, créer une assignation au site
+        for employee in organization_employees:
+            SiteEmployee.objects.create(
+                site=site,
+                employee=employee,
+                schedule=schedule,
+                is_active=True
+            )
+
+        return schedule
 
 class GlobalScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Schedule.objects.all()
@@ -288,4 +345,72 @@ class SiteUnassignedEmployeesView(generics.ListAPIView):
                 is_active=True
             ).values_list('employee_id', flat=True)
         ).order_by('last_name', 'first_name')
+
+class ScheduleBatchEmployeeView(generics.CreateAPIView):
+    """Vue pour ajouter des employés en lot à un planning"""
+    serializer_class = SiteEmployeeSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrManager]
+
+    def create(self, request, *args, **kwargs):
+        site_id = kwargs.get('site_pk')
+        schedule_id = kwargs.get('schedule_pk')
+        employees = request.data.get('employees', [])
+
+        try:
+            site = Site.objects.get(pk=site_id)
+            schedule = Schedule.objects.get(pk=schedule_id, site=site)
+
+            print("[Sites][BatchAssign] Début de l'assignation en lot")
+            print(f"[Sites][BatchAssign] Site: {site_id}, Planning: {schedule_id}, Employés: {employees}")
+
+            # Désactiver les assignations existantes pour ce planning
+            SiteEmployee.objects.filter(schedule=schedule).update(schedule=None)
+
+            # Récupérer tous les employés de l'organisation
+            organization_employees = User.objects.filter(
+                id__in=employees,
+                organizations__in=[site.organization],
+                is_active=True
+            )
+
+            print(f"[Sites][BatchAssign] Employés trouvés dans l'organisation: {organization_employees.count()}")
+
+            # Pour chaque employé, créer ou mettre à jour son assignation
+            for employee in organization_employees:
+                site_employee, created = SiteEmployee.objects.get_or_create(
+                    site=site,
+                    employee=employee,
+                    defaults={'is_active': True}
+                )
+                site_employee.schedule = schedule
+                site_employee.is_active = True
+                site_employee.save()
+
+                action = "créée" if created else "mise à jour"
+                print(f"[Sites][BatchAssign] Assignation {action} pour l'employé {employee.id}")
+
+            return Response({
+                'message': f'{len(employees)} employé(s) assigné(s) au planning avec succès'
+            }, status=201)
+
+        except Site.DoesNotExist:
+            print("[Sites][Error] Site non trouvé")
+            return Response({
+                'error': 'Site non trouvé'
+            }, status=404)
+        except Schedule.DoesNotExist:
+            print("[Sites][Error] Planning non trouvé")
+            return Response({
+                'error': 'Planning non trouvé'
+            }, status=404)
+        except User.DoesNotExist:
+            print("[Sites][Error] Un ou plusieurs employés n'existent pas")
+            return Response({
+                'error': 'Un ou plusieurs employés n\'existent pas'
+            }, status=400)
+        except Exception as e:
+            print(f"[Sites][Error] Erreur inattendue: {str(e)}")
+            return Response({
+                'error': str(e)
+            }, status=400)
 
