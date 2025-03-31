@@ -55,7 +55,7 @@
           </v-tabs>
 
           <v-card-text>
-            <v-window v-model="activeTab">
+            <v-window v-model="activeTab" :reverse="reverse">
               <!-- Onglet Informations -->
               <v-window-item value="details">
                 <v-card class="elevation-1">
@@ -502,7 +502,7 @@
           </v-tabs>
 
           <v-card-text>
-            <v-window v-model="activeTab">
+            <v-window v-model="activeTab" :reverse="reverse">
               <!-- Onglet Informations -->
               <v-window-item value="details">
                 <v-card class="elevation-1">
@@ -779,7 +779,7 @@
           </v-tabs>
 
           <v-card-text>
-            <v-window v-model="activeTab">
+            <v-window v-model="activeTab" :reverse="reverse">
               <!-- Onglet Informations -->
               <v-window-item value="details">
                 <v-card class="elevation-1">
@@ -1639,6 +1639,20 @@ const showAssignSitesDialog = ref(false)
 // Déclarer ces variables avant qu'elles ne soient utilisées dans resetState
 const page = ref(1)
 const activeTab = ref('details')
+const previousTab = ref('details')
+const reverse = ref(false)
+
+const tabOrder = ['details', 'sites', 'plannings', 'pointages', 'anomalies', 'reports']
+
+watch(activeTab, (newTab, oldTab) => {
+  if (!oldTab || !newTab) return
+  
+  const oldIndex = tabOrder.indexOf(oldTab)
+  const newIndex = tabOrder.indexOf(newTab)
+  
+  reverse.value = newIndex < oldIndex
+  previousTab.value = oldTab
+})
 const timesheets = ref<Timesheet[]>([])
 const anomalies = ref<Anomaly[]>([])
 const reports = ref<Report[]>([])
