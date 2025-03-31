@@ -1466,8 +1466,13 @@ const assigningEmployee = ref(false)
 const assigningSite = ref(false)
 const showAssignEmployeesDialog = ref(false)
 const showAssignSitesDialog = ref(false)
+
+// Déclarer ces variables avant qu'elles ne soient utilisées dans resetState
 const page = ref(1)
 const activeTab = ref('details')
+const timesheets = ref<Timesheet[]>([])
+const anomalies = ref<Anomaly[]>([])
+const reports = ref<Report[]>([])
 
 // Ajout du snackbar
 const snackbar = ref({
@@ -2508,10 +2513,6 @@ const reportsHeaders = ref([
   { title: 'Type', align: 'center' as const, key: 'type' },
   { title: 'Actions', align: 'end' as const, key: 'actions', sortable: false }
 ])
-
-const timesheets = ref<Timesheet[]>([])
-const anomalies = ref<Anomaly[]>([])
-const reports = ref<Report[]>([])
 
 const getTimesheetStatusColor = (timesheet: Timesheet) => {
   switch (timesheet.status) {
