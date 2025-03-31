@@ -273,7 +273,7 @@ class SiteSerializer(serializers.ModelSerializer):
         manager = attrs.get('manager')
         organization = attrs.get('organization')
         
-        if manager and organization and manager.organization != organization:
+        if manager and organization and organization not in manager.organizations.all():
             raise serializers.ValidationError("Le manager doit appartenir à la même organisation que le site")
         
         return attrs
