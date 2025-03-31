@@ -211,7 +211,7 @@
             :error-messages="formErrors.organizations"
             :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
             no-data-text="Aucune organisation disponible"
-            return-object
+            :return-object="false"
           ></v-select>
         </v-col>
         <!-- Sélection des sites uniquement pour les employés -->
@@ -272,7 +272,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { usersApi, sitesApi, organizationsApi } from '@/services/api'
-import type { User, UserRequest } from '@/types/api'
+import type { User, UserRequest, Organization } from '@/types/api'
 import type { Site } from '@/services/api'
 import { RoleEnum, ScanPreferenceEnum } from '@/types/api'
 import { useAuthStore } from '@/stores/auth'
@@ -292,12 +292,18 @@ interface ExtendedUser extends User {
   organizations: { id: number; name: string }[];
 }
 
+// Interface pour les organisations dans le formulaire
+interface FormOrganization {
+  id: number;
+  name: string;
+}
+
 // Interface pour le formulaire utilisateur
 interface UserFormData extends Omit<UserRequest, 'organizations'> {
   id?: number;
   phone_number?: string;
   sites?: number[];
-  organizations: number[];
+  organizations: FormOrganization[];
 }
 
 const authStore = useAuthStore()

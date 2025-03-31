@@ -240,7 +240,8 @@ class SiteEmployee(models.Model):
         null=True,
         blank=True,
         related_name='assigned_employees',
-        verbose_name=_('planning')
+        verbose_name=_('planning'),
+        db_index=True
     )
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
     is_active = models.BooleanField(_('actif'), default=True)
@@ -250,10 +251,13 @@ class SiteEmployee(models.Model):
         verbose_name_plural = _('employés du site')
         constraints = [
             models.UniqueConstraint(
-                fields=['site', 'employee', 'schedule'],
-                condition=models.Q(is_active=True),
-                name='unique_active_site_employee_schedule'
+                fields=['site', 'employee'],
+                name='unique_site_employee'
             )
+        ]
+        indexes = [
+            models.Index(fields=['schedule', 'is_active']),
+            models.Index(fields=['site', 'is_active'])
         ]
     
     def __str__(self):

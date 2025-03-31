@@ -66,6 +66,7 @@
         { title: 'Tout', value: -1 }
       ]"
       class="elevation-1"
+      @click:row="handleRowClick"
     >
       <!-- Site -->
       <template v-slot:item.site_name="{ item }">
@@ -112,7 +113,19 @@
           variant="text"
           size="small"
           color="primary"
-          @click="openDialog(item)"
+          :to="`/dashboard/plannings/${item.id}`"
+          @click.stop
+          v-tooltip="'Voir les détails'"
+        >
+          <v-icon>mdi-eye</v-icon>
+        </v-btn>
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          color="primary"
+          @click.stop="openDialog(item)"
+          v-tooltip="'Modifier'"
         >
           <v-icon>mdi-pencil</v-icon>
         </v-btn>
@@ -120,8 +133,19 @@
           icon
           variant="text"
           size="small"
+          color="warning"
+          @click.stop="toggleStatus(item)"
+          v-tooltip="item.is_active ? 'Désactiver' : 'Activer'"
+        >
+          <v-icon>{{ item.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+        </v-btn>
+        <v-btn
+          icon
+          variant="text"
+          size="small"
           color="error"
-          @click="confirmDelete(item)"
+          @click.stop="confirmDelete(item)"
+          v-tooltip="'Supprimer'"
         >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
@@ -434,7 +458,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { sitesApi, schedulesApi } from '@/services/api'
 import type { Site, Employee } from '@/services/api'
 import type { Schedule as BaseSchedule, ScheduleDetail as BaseScheduleDetail } from '@/types/api'
@@ -446,6 +470,8 @@ import DashboardForm from '@/components/dashboard/DashboardForm.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { VTimePicker } from 'vuetify/labs/VTimePicker'
 import { fr } from 'vuetify/locale'
+import { useConfirmDialog } from '@/utils/dialogs'
+import type { DialogState } from '@/utils/dialogs'
 
 // Configuration de la locale pour Vuetify
 const locale = {
@@ -457,6 +483,8 @@ const locale = {
 }
 
 const route = useRoute()
+const router = useRouter()
+const { dialogState } = useConfirmDialog()
 
 // Interface étendue pour les détails de planning
 interface ExtendedScheduleDetail {
@@ -582,48 +610,68 @@ function isValidSiteId(siteId: number | string | undefined): siteId is number {
 const loadSchedules = async () => {
   loading.value = true
   try {
+    console.log('[Plannings][LoadSchedules] Chargement des plannings...')
     const response = await schedulesApi.getAllSchedules({
       page: page.value,
       page_size: itemsPerPage.value,
       site: filters.value.site ? Number(filters.value.site) : undefined,
-      schedule_type: filters.value.type
+      schedule_type: filters.value.type,
+      expand: 'assigned_employees'
     })
-    schedules.value = (response.data.results as ApiSchedule[] || []).map(schedule => ({
-      ...schedule,
-      schedule_type: schedule.schedule_type as ScheduleTypeEnum,
-      name: schedule.site_name,
-      min_daily_hours: 0,
-      min_weekly_hours: 0,
-      allow_early_arrival: false,
-      allow_late_departure: false,
-      early_arrival_limit: 0,
-      late_departure_limit: 0,
-      assigned_employees: schedule.assigned_employees?.map(employee => ({
-        id: employee.id,
-        employee: employee.employee,
-        employee_name: employee.employee_name,
-        schedule: schedule.id,
-        site: schedule.site
-      })) || [],
-      details: schedule.details?.map(detail => ({
-        id: detail.id || 0,
-        day_of_week: detail.day_of_week,
-        frequency_duration: detail.frequency_duration || undefined,
-        start_time_1: detail.start_time_1 || undefined,
-        end_time_1: detail.end_time_1 || undefined,
-        start_time_2: detail.start_time_2 || undefined,
-        end_time_2: detail.end_time_2 || undefined,
-        day_type: detail.day_type,
-        enabled: true,
-        showStartTime1Menu: false,
-        showEndTime1Menu: false,
-        showStartTime2Menu: false,
-        showEndTime2Menu: false
-      })) || []
-    }))
+    console.log('[Plannings][LoadSchedules] Réponse brute:', JSON.stringify(response.data, null, 2))
+    console.log('[Plannings][LoadSchedules] Détails des employés assignés:', JSON.stringify(
+      response.data.results.map(schedule => ({
+        scheduleId: schedule.id,
+        employeesCount: schedule.assigned_employees?.length || 0,
+        employees: schedule.assigned_employees
+      })), null, 2
+    ))
+
+    schedules.value = (response.data.results as ApiSchedule[] || []).map(schedule => {
+      console.log(`[Plannings][LoadSchedules] Traitement du planning ${schedule.id}:`, JSON.stringify({
+        assignedEmployees: schedule.assigned_employees,
+        isActive: schedule.is_active,
+        scheduleType: schedule.schedule_type
+      }, null, 2))
+      
+      return {
+        ...schedule,
+        schedule_type: schedule.schedule_type as ScheduleTypeEnum,
+        name: schedule.site_name,
+        min_daily_hours: 0,
+        min_weekly_hours: 0,
+        allow_early_arrival: false,
+        allow_late_departure: false,
+        early_arrival_limit: 0,
+        late_departure_limit: 0,
+        assigned_employees: schedule.assigned_employees || [],
+        details: schedule.details?.map(detail => ({
+          id: detail.id || 0,
+          day_of_week: detail.day_of_week,
+          frequency_duration: detail.frequency_duration || undefined,
+          start_time_1: detail.start_time_1 || undefined,
+          end_time_1: detail.end_time_1 || undefined,
+          start_time_2: detail.start_time_2 || undefined,
+          end_time_2: detail.end_time_2 || undefined,
+          day_type: detail.day_type,
+          enabled: true,
+          showStartTime1Menu: false,
+          showEndTime1Menu: false,
+          showStartTime2Menu: false,
+          showEndTime2Menu: false
+        })) || []
+      }
+    })
+    console.log('[Plannings][LoadSchedules] Plannings transformés:', JSON.stringify(
+      schedules.value.map(schedule => ({
+        id: schedule.id,
+        employeesCount: schedule.assigned_employees?.length || 0,
+        employees: schedule.assigned_employees
+      })), null, 2
+    ))
     totalItems.value = response.data.count
   } catch (error) {
-    console.error('Erreur lors du chargement des plannings:', error)
+    console.error('[Plannings][Error] Erreur lors du chargement des plannings:', error)
   } finally {
     loading.value = false
   }
@@ -642,20 +690,17 @@ const loadEmployees = async (siteId: number | string | undefined) => {
   try {
     console.log('[Plannings][LoadEmployees] Début du chargement des employés pour le site:', siteId)
     
-    // Convertir siteId en nombre si c'est une chaîne
     const numericSiteId = typeof siteId === 'string' ? Number(siteId) : siteId
     console.log('[Plannings][LoadEmployees] SiteId converti:', numericSiteId)
     
-    // Vérifier que siteId est un nombre valide
     if (!isValidSiteId(numericSiteId)) {
       console.log('[Plannings][LoadEmployees] SiteId invalide')
       return
     }
 
-    // Charger les employés du site
     const response = await sitesApi.getSiteEmployees(numericSiteId, { role: 'EMPLOYEE' })
     employees.value = response.data.results || []
-    console.log('[Plannings][LoadEmployees] Employés chargés:', employees.value.length)
+    console.log('[Plannings][LoadEmployees] Employés chargés:', JSON.stringify(employees.value, null, 2))
   } catch (error) {
     console.error('[Plannings][Error] Erreur lors du chargement des employés:', error)
     employees.value = []
@@ -788,21 +833,87 @@ const saveSchedule = async () => {
 }
 
 const confirmDelete = (item: ExtendedSchedule) => {
-  if (window.confirm('Êtes-vous sûr de vouloir supprimer ce planning ?')) {
-    deleteSchedule(item)
+  const state = dialogState.value as DialogState
+  state.show = true
+  state.title = 'Confirmation de suppression'
+  state.message = 'Êtes-vous sûr de vouloir supprimer ce planning ?'
+  state.confirmText = 'Supprimer'
+  state.cancelText = 'Annuler'
+  state.confirmColor = 'error'
+  state.loading = false
+  state.onConfirm = async () => {
+    state.loading = true
+    await deleteSchedule(item)
+    state.show = false
+    state.loading = false
   }
 }
 
 const deleteSchedule = async (item: ExtendedSchedule) => {
   try {
-    const scheduleData = {
-      is_active: false,
-      enabled: false
-    }
-    await schedulesApi.updateSchedule(item.id, scheduleData)
+    console.log('[Plannings][Delete] Suppression du planning:', item.id)
+    await schedulesApi.deleteSchedule(item.id)
+    console.log('[Plannings][Delete] Planning supprimé avec succès')
     await loadSchedules()
   } catch (error) {
-    console.error('Erreur lors de la suppression:', error)
+    console.error('[Plannings][Error] Erreur lors de la suppression:', error)
+  }
+}
+
+const toggleStatus = async (item: ExtendedSchedule) => {
+  console.log('[Plannings][ToggleStatus] Début de la mise à jour du statut pour le planning:', JSON.stringify({
+    id: item.id,
+    currentStatus: item.is_active,
+    assignedEmployees: item.assigned_employees
+  }, null, 2))
+  
+  const state = dialogState.value as DialogState
+  state.title = 'Confirmation'
+  state.message = `Êtes-vous sûr de vouloir ${item.is_active ? 'désactiver' : 'activer'} ce planning ?`
+  state.confirmText = item.is_active ? 'Désactiver' : 'Activer'
+  state.cancelText = 'Annuler'
+  state.confirmColor = 'warning'
+  state.loading = false
+  state.onConfirm = async () => {
+    state.loading = true
+    try {
+      console.log('[Plannings][ToggleStatus] Envoi de la requête de mise à jour:', JSON.stringify({
+        id: item.id,
+        newStatus: !item.is_active,
+        scheduleType: item.schedule_type,
+        details: item.details,
+        assignedEmployees: item.assigned_employees
+      }, null, 2))
+      
+      const updateResponse = await schedulesApi.updateSchedule(item.id, {
+        ...item,
+        schedule_type: item.schedule_type,
+        details: item.details.map(detail => ({
+          ...detail,
+          schedule_type: item.schedule_type
+        })),
+        is_active: !item.is_active
+      })
+      console.log('[Plannings][ToggleStatus] Réponse de la mise à jour:', JSON.stringify(updateResponse.data, null, 2))
+      
+      if (item.assigned_employees?.length > 0) {
+        console.log('[Plannings][ToggleStatus] Réassignation des employés:', JSON.stringify(item.assigned_employees, null, 2))
+        const assignResponse = await schedulesApi.assignMultipleEmployees(
+          item.site,
+          item.id,
+          item.assigned_employees.map(emp => emp.employee)
+        )
+        console.log('[Plannings][ToggleStatus] Réponse de la réassignation:', JSON.stringify(assignResponse.data, null, 2))
+      }
+      
+      console.log('[Plannings][ToggleStatus] Rechargement des plannings')
+      await loadSchedules()
+    } catch (error) {
+      console.error('[Plannings][Error] Erreur lors du changement de statut:', error)
+    } finally {
+      state.show = false
+      state.loading = false
+    }
   }
 }
 
@@ -839,6 +950,19 @@ const getTimeError = (detail: ExtendedScheduleDetail): string | null => {
   }
   
   return null
+}
+
+const handleRowClick = (event: Event, { item }: { item: ExtendedSchedule }) => {
+  // Vérifier si le clic vient d'un élément interactif
+  const target = event.target as HTMLElement
+  const clickedElement = target.closest('.v-btn, a, button, [data-no-row-click]')
+  
+  if (clickedElement || target.hasAttribute('data-no-row-click')) {
+    return
+  }
+
+  console.log('[Plannings][Navigation] Redirection vers les détails du planning:', item.id)
+  router.push(`/dashboard/plannings/${item.id}`)
 }
 
 // Initialisation
@@ -926,22 +1050,44 @@ watch(() => itemsPerPage.value, () => {
 }
 
 /* Style des boutons dans le tableau */
-:deep(.v-data-table .v-btn--icon[color="primary"]) {
+:deep(.v-data-table .v-btn--icon) {
   background-color: transparent !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="primary"]) {
   color: #00346E !important;
-  opacity: 1 !important;
 }
 
 :deep(.v-data-table .v-btn--icon[color="error"]) {
-  background-color: transparent !important;
   color: #F78C48 !important;
-  opacity: 1 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="warning"]) {
+  color: #FB8C00 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="grey"]) {
+  color: #999999 !important;
+  opacity: 0.5 !important;
+  cursor: default !important;
+  pointer-events: none !important;
 }
 
 /* Assurer que les icônes dans les boutons sont visibles */
 :deep(.v-data-table .v-btn--icon .v-icon) {
   opacity: 1 !important;
   color: inherit !important;
+}
+
+/* Style pour le bouton désactivé */
+:deep(.disabled-button) {
+  opacity: 0.5 !important;
+  color: #999 !important;
+  cursor: not-allowed !important;
+}
+
+:deep(.disabled-button .v-icon) {
+  color: #999 !important;
 }
 
 :deep(.v-field__input) {
@@ -973,5 +1119,10 @@ watch(() => itemsPerPage.value, () => {
 
 :deep(.time-field input) {
   pointer-events: auto;
+}
+
+/* Style pour le tableau avec pointeur */
+:deep(.v-data-table tbody tr) {
+  cursor: pointer;
 }
 </style> 

@@ -271,25 +271,62 @@ class SiteViewSet(viewsets.ModelViewSet):
         return [IsAdminOrManager()]
 
 class GlobalScheduleListView(generics.ListCreateAPIView):
-    queryset = Schedule.objects.prefetch_related(
-        'assigned_employees',
-        'assigned_employees__employee'
-    ).all()
     serializer_class = ScheduleSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
-        queryset = super().get_queryset()
+        print("[GlobalScheduleListView][Debug] Début de get_queryset")
+        
+        queryset = Schedule.objects.prefetch_related(
+            models.Prefetch(
+                'assigned_employees',
+                queryset=SiteEmployee.objects.filter(is_active=True, schedule__isnull=False).select_related('employee')
+            )
+        ).select_related('site')
+        
+        print(f"[GlobalScheduleListView][Debug] Nombre de plannings trouvés: {queryset.count()}")
+        
         # Filtrer par site si spécifié
-        site = self.request.query_params.get('site', None)
-        if site is not None:
-            queryset = queryset.filter(site=site)
-            
+        site = self.request.query_params.get('site')
+        if site:
+            print(f"[GlobalScheduleListView][Debug] Filtrage par site: {site}")
+            queryset = queryset.filter(site_id=site)
+            print(f"[GlobalScheduleListView][Debug] Nombre de plannings après filtre site: {queryset.count()}")
+        
         # Filtrer par type de planning si spécifié
-        schedule_type = self.request.query_params.get('schedule_type', None)
-        if schedule_type is not None:
+        schedule_type = self.request.query_params.get('schedule_type')
+        if schedule_type:
+            print(f"[GlobalScheduleListView][Debug] Filtrage par type: {schedule_type}")
             queryset = queryset.filter(schedule_type=schedule_type)
-            
+            print(f"[GlobalScheduleListView][Debug] Nombre de plannings après filtre type: {queryset.count()}")
+        
+        # Filtrer selon le rôle de l'utilisateur
+        user = self.request.user
+        print(f"[GlobalScheduleListView][Debug] Utilisateur: {user.username} (role: {user.role})")
+        
+        if user.is_super_admin:
+            print("[GlobalScheduleListView][Debug] Utilisateur super admin, pas de filtre supplémentaire")
+            return queryset
+        elif user.is_admin or user.is_manager:
+            print("[GlobalScheduleListView][Debug] Utilisateur admin/manager, filtrage par organisation")
+            queryset = queryset.filter(site__organization__in=user.organizations.all())
+        elif user.is_employee:
+            print("[GlobalScheduleListView][Debug] Utilisateur employé, filtrage par site assigné")
+            queryset = queryset.filter(site__employees__employee=user, site__employees__is_active=True)
+        
+        print(f"[GlobalScheduleListView][Debug] Nombre final de plannings: {queryset.count()}")
+        
+        # Vérifier les employés assignés pour chaque planning
+        for schedule in queryset:
+            employees = SiteEmployee.objects.filter(
+                site=schedule.site,
+                schedule=schedule,
+                is_active=True
+            )
+            print(f"[GlobalScheduleListView][Debug] Planning {schedule.id} - Employés assignés: {employees.count()}")
+            for employee in employees:
+                print(f"[GlobalScheduleListView][Debug] - Employé: {employee.employee.get_full_name()} (ID: {employee.employee.id})")
+        
         return queryset
 
     def perform_create(self, serializer):
@@ -356,24 +393,40 @@ class ScheduleBatchEmployeeView(generics.CreateAPIView):
         schedule_id = kwargs.get('schedule_pk')
         employees = request.data.get('employees', [])
 
+        print(f"[ScheduleBatchEmployeeView][Debug] Début de l'assignation en lot")
+        print(f"[ScheduleBatchEmployeeView][Debug] Site: {site_id}, Planning: {schedule_id}")
+        print(f"[ScheduleBatchEmployeeView][Debug] Liste des employés à assigner: {employees}")
+
         try:
             site = Site.objects.get(pk=site_id)
             schedule = Schedule.objects.get(pk=schedule_id, site=site)
 
-            print("[Sites][BatchAssign] Début de l'assignation en lot")
-            print(f"[Sites][BatchAssign] Site: {site_id}, Planning: {schedule_id}, Employés: {employees}")
-
             # Désactiver les assignations existantes pour ce planning
-            SiteEmployee.objects.filter(schedule=schedule).update(schedule=None)
+            current_assignments = SiteEmployee.objects.filter(schedule=schedule)
+            print(f"[ScheduleBatchEmployeeView][Debug] Nombre d'assignations actuelles: {current_assignments.count()}")
+            current_assignments.update(schedule=None)
+            print("[ScheduleBatchEmployeeView][Debug] Assignations existantes désactivées")
+
+            # Convertir les IDs SiteEmployee en IDs User si nécessaire
+            user_ids = []
+            for emp_id in employees:
+                try:
+                    # Essayer de récupérer l'ID de l'utilisateur à partir de SiteEmployee
+                    site_employee = SiteEmployee.objects.get(id=emp_id, site=site)
+                    user_ids.append(site_employee.employee.id)
+                    print(f"[ScheduleBatchEmployeeView][Debug] ID SiteEmployee {emp_id} converti en ID User {site_employee.employee.id}")
+                except SiteEmployee.DoesNotExist:
+                    # Si ce n'est pas un ID SiteEmployee, supposer que c'est un ID User
+                    user_ids.append(emp_id)
+                    print(f"[ScheduleBatchEmployeeView][Debug] Utilisation directe de l'ID User {emp_id}")
 
             # Récupérer tous les employés de l'organisation
             organization_employees = User.objects.filter(
-                id__in=employees,
+                id__in=user_ids,
                 organizations__in=[site.organization],
                 is_active=True
             )
-
-            print(f"[Sites][BatchAssign] Employés trouvés dans l'organisation: {organization_employees.count()}")
+            print(f"[ScheduleBatchEmployeeView][Debug] Employés trouvés dans l'organisation: {organization_employees.count()}")
 
             # Pour chaque employé, créer ou mettre à jour son assignation
             for employee in organization_employees:
@@ -387,29 +440,39 @@ class ScheduleBatchEmployeeView(generics.CreateAPIView):
                 site_employee.save()
 
                 action = "créée" if created else "mise à jour"
-                print(f"[Sites][BatchAssign] Assignation {action} pour l'employé {employee.id}")
+                print(f"[ScheduleBatchEmployeeView][Debug] Assignation {action} pour l'employé {employee.id} ({employee.get_full_name()})")
+
+            # Vérifier les assignations finales
+            final_assignments = SiteEmployee.objects.filter(
+                site=site,
+                schedule=schedule,
+                is_active=True
+            )
+            print(f"[ScheduleBatchEmployeeView][Debug] Nombre d'assignations finales: {final_assignments.count()}")
+            for assignment in final_assignments:
+                print(f"[ScheduleBatchEmployeeView][Debug] - Employé assigné: {assignment.employee.get_full_name()} (ID: {assignment.employee.id})")
 
             return Response({
-                'message': f'{len(employees)} employé(s) assigné(s) au planning avec succès'
+                'message': f'{len(organization_employees)} employé(s) assigné(s) au planning avec succès'
             }, status=201)
 
         except Site.DoesNotExist:
-            print("[Sites][Error] Site non trouvé")
+            print("[ScheduleBatchEmployeeView][Error] Site non trouvé")
             return Response({
                 'error': 'Site non trouvé'
             }, status=404)
         except Schedule.DoesNotExist:
-            print("[Sites][Error] Planning non trouvé")
+            print("[ScheduleBatchEmployeeView][Error] Planning non trouvé")
             return Response({
                 'error': 'Planning non trouvé'
             }, status=404)
         except User.DoesNotExist:
-            print("[Sites][Error] Un ou plusieurs employés n'existent pas")
+            print("[ScheduleBatchEmployeeView][Error] Un ou plusieurs employés n'existent pas")
             return Response({
                 'error': 'Un ou plusieurs employés n\'existent pas'
             }, status=400)
         except Exception as e:
-            print(f"[Sites][Error] Erreur inattendue: {str(e)}")
+            print(f"[ScheduleBatchEmployeeView][Error] Erreur inattendue: {str(e)}")
             return Response({
                 'error': str(e)
             }, status=400)

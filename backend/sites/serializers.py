@@ -134,7 +134,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
         required=False,
         queryset=SiteEmployee.objects.all()
     )
-    assigned_employees = SiteEmployeeSerializer(many=True, read_only=True)
+    assigned_employees = serializers.SerializerMethodField()
     
     class Meta:
         model = Schedule
@@ -144,12 +144,28 @@ class ScheduleSerializer(serializers.ModelSerializer):
             'assigned_employees'
         ]
     
+    def get_assigned_employees(self, obj):
+        print(f"[ScheduleSerializer][Debug] Récupération des employés assignés pour le planning {obj.id}")
+        employees = SiteEmployee.objects.filter(
+            site=obj.site,
+            schedule=obj,
+            is_active=True
+        ).select_related('employee')
+        print(f"[ScheduleSerializer][Debug] Nombre d'employés trouvés: {employees.count()}")
+        for employee in employees:
+            print(f"[ScheduleSerializer][Debug] - Employé: {employee.employee.get_full_name()} (ID: {employee.employee.id})")
+        serialized_data = SiteEmployeeSerializer(employees, many=True).data
+        print(f"[ScheduleSerializer][Debug] Données sérialisées: {serialized_data}")
+        return serialized_data
+
     def create(self, validated_data):
+        print("[ScheduleSerializer][Debug] Début de la création d'un planning")
         details_data = validated_data.pop('details', [])
         employee = validated_data.pop('employee', None)
         
         # Créer le planning
         schedule = Schedule.objects.create(**validated_data)
+        print(f"[ScheduleSerializer][Debug] Planning créé avec l'ID: {schedule.id}")
         
         # Créer les détails du planning avec le type de planning dans le contexte
         for detail_data in details_data:
@@ -160,12 +176,13 @@ class ScheduleSerializer(serializers.ModelSerializer):
         
         # Assigner l'employé si spécifié
         if employee:
+            print(f"[ScheduleSerializer][Debug] Assignation de l'employé {employee.employee.id} au planning")
             SiteEmployee.objects.filter(
                 site=schedule.site,
                 employee=employee.employee
             ).update(schedule=schedule)
         elif SiteEmployee.objects.filter(site=schedule.site).count() == 1:
-            # Si un seul employé sur le site, l'assigner automatiquement
+            print("[ScheduleSerializer][Debug] Un seul employé sur le site, assignation automatique")
             site_employee = SiteEmployee.objects.get(site=schedule.site)
             site_employee.schedule = schedule
             site_employee.save()
@@ -173,6 +190,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
         return schedule
     
     def update(self, instance, validated_data):
+        print(f"[ScheduleSerializer][Debug] Début de la mise à jour du planning {instance.id}")
         details_data = validated_data.pop('details', [])
         employee = validated_data.pop('employee', None)
         
@@ -180,6 +198,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+        print("[ScheduleSerializer][Debug] Données de base du planning mises à jour")
         
         # Mettre à jour les détails avec le type de planning dans le contexte
         instance.details.all().delete()  # Supprimer les anciens détails
@@ -188,9 +207,11 @@ class ScheduleSerializer(serializers.ModelSerializer):
                 schedule=instance,
                 **detail_data
             )
+        print("[ScheduleSerializer][Debug] Détails du planning mis à jour")
         
         # Mettre à jour l'assignation de l'employé
         if employee:
+            print(f"[ScheduleSerializer][Debug] Mise à jour de l'assignation pour l'employé {employee.employee.id}")
             # Désassigner tous les employés de ce planning
             SiteEmployee.objects.filter(schedule=instance).update(schedule=None)
             # Assigner le nouvel employé
@@ -200,6 +221,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
             )
             site_employee.schedule = instance
             site_employee.save()
+            print("[ScheduleSerializer][Debug] Assignation mise à jour avec succès")
         
         return instance
 
