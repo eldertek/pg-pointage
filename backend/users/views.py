@@ -246,22 +246,37 @@ class UserStatisticsView(APIView):
 
 class UserSitesView(generics.ListAPIView):
     """Vue pour lister les sites d'un utilisateur"""
+    serializer_class = SiteSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        user = User.objects.get(pk=self.kwargs['pk'])
-        # Sites où l'utilisateur est employé
-        employee_sites = Site.objects.filter(employees__employee=user, employees__is_active=True)
-        # Sites où l'utilisateur est manager
-        manager_sites = Site.objects.filter(manager=user)
-        # Sites où l'utilisateur a des plannings assignés
-        scheduled_sites = Site.objects.filter(
-            schedules__assigned_employees__employee=user,
-            schedules__assigned_employees__is_active=True
-        )
-        
-        # Combiner tous les sites uniques
-        return (employee_sites | manager_sites | scheduled_sites).distinct()
+        try:
+            user = User.objects.get(pk=self.kwargs['pk'])
+            print(f"[UserSitesView][Debug] Récupération des sites pour l'utilisateur: {user.get_full_name()}")
+            
+            # Sites où l'utilisateur est employé
+            employee_sites = Site.objects.filter(
+                site_employees__employee=user,
+                site_employees__is_active=True
+            )
+            print(f"[UserSitesView][Debug] Sites en tant qu'employé: {employee_sites.count()}")
+            
+            # Sites où l'utilisateur est manager
+            manager_sites = Site.objects.filter(manager=user)
+            print(f"[UserSitesView][Debug] Sites en tant que manager: {manager_sites.count()}")
+            
+            # Combiner les deux querysets
+            all_sites = (employee_sites | manager_sites).distinct()
+            print(f"[UserSitesView][Debug] Total des sites uniques: {all_sites.count()}")
+            
+            return all_sites
+            
+        except User.DoesNotExist:
+            print(f"[UserSitesView][Error] Utilisateur {self.kwargs['pk']} non trouvé")
+            return Site.objects.none()
+        except Exception as e:
+            print(f"[UserSitesView][Error] Erreur inattendue: {str(e)}")
+            return Site.objects.none()
     
     def list(self, request, *args, **kwargs):
         try:
@@ -281,27 +296,43 @@ class UserSitesView(generics.ListAPIView):
 class UserSchedulesView(generics.ListAPIView):
     """Vue pour lister les plannings d'un utilisateur"""
     permission_classes = [IsAuthenticated]
+    serializer_class = ScheduleSerializer
     
     def get_queryset(self):
-        user = User.objects.get(pk=self.kwargs['pk'])
-        return Schedule.objects.filter(
-            assigned_employees__employee=user,
-            assigned_employees__is_active=True
-        ).distinct()
+        try:
+            user = User.objects.get(pk=self.kwargs['pk'])
+            print(f"[UserSchedulesView][Debug] Récupération des plannings pour l'utilisateur: {user.get_full_name()}")
+            
+            # Récupérer les plannings via la relation schedule_employees
+            schedules = Schedule.objects.filter(
+                schedule_employees__employee=user,
+                schedule_employees__is_active=True
+            ).distinct()
+            
+            print(f"[UserSchedulesView][Debug] Nombre de plannings trouvés: {schedules.count()}")
+            return schedules
+            
+        except User.DoesNotExist:
+            print(f"[UserSchedulesView][Error] Utilisateur {self.kwargs['pk']} non trouvé")
+            return Schedule.objects.none()
+        except Exception as e:
+            print(f"[UserSchedulesView][Error] Erreur inattendue: {str(e)}")
+            return Schedule.objects.none()
     
     def list(self, request, *args, **kwargs):
         try:
             queryset = self.get_queryset()
             page = self.paginate_queryset(queryset)
             if page is not None:
-                serializer = ScheduleSerializer(page, many=True)
+                serializer = self.get_serializer(page, many=True)
                 return self.get_paginated_response(serializer.data)
-            serializer = ScheduleSerializer(queryset, many=True)
+            serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
-        except User.DoesNotExist:
+        except Exception as e:
+            print(f"[UserSchedulesView][Error] Erreur lors de la liste des plannings: {str(e)}")
             return Response(
-                {'error': 'Utilisateur non trouvé'},
-                status=status.HTTP_404_NOT_FOUND
+                {'error': 'Erreur lors de la récupération des plannings'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class UserReportsView(generics.ListAPIView):
