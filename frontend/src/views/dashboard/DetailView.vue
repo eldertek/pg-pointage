@@ -179,21 +179,21 @@
                     </v-btn>
                   </template>
                   
-                  <template #item.is_active="{ item }">
-                    <StatusChip :status="item.is_active" />
+                  <template #item.is_active="{ item: rowItem }">
+                    <StatusChip :status="rowItem.is_active" />
                   </template>
                   
-                  <template #item.created_at="{ item }">
-                    {{ formatDate(item.created_at) }}
+                  <template #item.created_at="{ item: rowItem }">
+                    {{ formatDate(rowItem.created_at) }}
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
                       icon
                       variant="text"
                       size="small"
                       color="primary"
-                      :to="`/dashboard/admin/users/${item.id}`"
+                      :to="`/dashboard/admin/users/${rowItem.id}`"
                       @click.stop
                     >
                       <v-icon>mdi-eye</v-icon>
@@ -204,7 +204,7 @@
                       variant="text"
                       size="small"
                       color="error"
-                      @click.stop="unassignEmployeeFromSite(item.id)"
+                      @click.stop="unassignEmployeeFromSite(rowItem.id)"
                     >
                       <v-icon>mdi-account-remove</v-icon>
                       <v-tooltip activator="parent">Retirer du site</v-tooltip>
@@ -226,23 +226,23 @@
                   @delete="(item: TableItem) => handleDelete('schedules', item)"
                   @row-click="(item: TableItem) => router.push(`/dashboard/sites/${itemId}/schedules/${item.id}`)"
                 >
-                  <template #item.schedule_type="{ item }">
+                  <template #item.schedule_type="{ item: rowItem }">
                     <v-chip
-                      :color="(item as ScheduleItem).schedule_type === 'FIXED' ? 'primary' : 'warning'"
+                      :color="rowItem.schedule_type === 'FIXED' ? 'primary' : 'warning'"
                       size="small"
                     >
-                      {{ (item as ScheduleItem).schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                      {{ rowItem.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
                     </v-chip>
                   </template>
 
-                  <template #item.site="{ item }">
-                    {{ (item as ScheduleWithSite).site_name }}
+                  <template #item.site="{ item: rowItem }">
+                    {{ rowItem.site_name }}
                   </template>
 
-                  <template #item.details="{ item }">
-                    <div v-for="detail in (item as ScheduleWithSite).details" :key="detail.id" class="mb-1">
+                  <template #item.details="{ item: rowItem }">
+                    <div v-for="detail in rowItem.details" :key="detail.id" class="mb-1">
                       <strong>{{ getDayName(detail.day_of_week) }}:</strong>
-                      <template v-if="(item as ScheduleWithSite).schedule_type === 'FIXED'">
+                      <template v-if="rowItem.schedule_type === 'FIXED'">
                         <template v-if="detail.day_type === 'FULL'">
                           {{ detail.start_time_1 }}-{{ detail.end_time_1 }} / {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
                         </template>
@@ -270,29 +270,29 @@
                   :no-data-text="'Aucun pointage trouvé'"
                   @row-click="(item: TableItem) => showTimesheetDetails(item)"
                 >
-                  <template #item.entry_type="{ item }">
+                  <template #item.entry_type="{ item: rowItem }">
                     <v-chip
-                      :color="item.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
+                      :color="rowItem.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
                       size="small"
                     >
-                      {{ item.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
+                      {{ rowItem.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
                     </v-chip>
                   </template>
                   
-                  <template #item.status="{ item }">
+                  <template #item.status="{ item: rowItem }">
                     <StatusChip
-                      :status="item.status"
+                      :status="rowItem.status"
                       type="timesheet"
                     />
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
                       icon
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="showTimesheetDetails(item)"
+                      @click.stop="showTimesheetDetails(rowItem)"
                     >
                       <v-icon>mdi-eye</v-icon>
                       <v-tooltip activator="parent">Voir les détails</v-tooltip>
@@ -310,41 +310,41 @@
                   :no-data-text="'Aucune anomalie trouvée'"
                   @row-click="(item: TableItem) => showAnomalyDetails(item)"
                 >
-                  <template #item.type="{ item }">
+                  <template #item.type="{ item: rowItem }">
                     <v-chip
-                      :color="getAnomalyTypeColor(item.anomaly_type_display)"
+                      :color="getAnomalyTypeColor(rowItem.anomaly_type_display)"
                       size="small"
                     >
                       {{ item.anomaly_type_display }}
                     </v-chip>
                   </template>
                   
-                  <template #item.status="{ item }">
+                  <template #item.status="{ item: rowItem }">
                     <StatusChip
-                      :status="item.status_display"
+                      :status="rowItem.status_display"
                       type="anomaly"
                     />
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
-                      v-if="item.status === 'PENDING'"
+                      v-if="rowItem.status === 'PENDING'"
                       icon
                       variant="text"
                       size="small"
                       color="success"
-                      @click.stop="handleResolveAnomaly(item)"
+                      @click.stop="handleResolveAnomaly(rowItem)"
                     >
                       <v-icon>mdi-check</v-icon>
                       <v-tooltip activator="parent">Résoudre</v-tooltip>
                     </v-btn>
                     <v-btn
-                      v-if="item.status === 'PENDING'"
+                      v-if="rowItem.status === 'PENDING'"
                       icon
                       variant="text"
                       size="small"
                       color="warning"
-                      @click.stop="handleIgnoreAnomaly(item)"
+                      @click.stop="handleIgnoreAnomaly(rowItem)"
                     >
                       <v-icon>mdi-eye-off</v-icon>
                       <v-tooltip activator="parent">Ignorer</v-tooltip>
@@ -354,7 +354,7 @@
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="showAnomalyDetails(item)"
+                      @click.stop="showAnomalyDetails(rowItem)"
                     >
                       <v-icon>mdi-eye</v-icon>
                       <v-tooltip activator="parent">Voir les détails</v-tooltip>
@@ -372,41 +372,41 @@
                   :no-data-text="'Aucun rapport trouvé'"
                   @row-click="(item: TableItem) => showReportDetails(item as ReportItem)"
                 >
-                  <template #item.type="{ item }">
+                  <template #item.type="{ item: rowItem }">
                     <v-chip
-                      :color="getReportTypeColor((item as ReportItem).report_type_display)"
+                      :color="getReportTypeColor(rowItem.report_type_display)"
                       size="small"
                     >
-                      {{ (item as ReportItem).report_type_display }}
+                      {{ rowItem.report_type_display }}
                     </v-chip>
                   </template>
                   
-                  <template #item.status="{ item }">
+                  <template #item.status="{ item: rowItem }">
                     <StatusChip
-                      :status="(item as ReportItem).status_display"
+                      :status="rowItem.status_display"
                       type="report"
                     />
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
-                      v-if="(item as ReportItem).status === 'PENDING'"
+                      v-if="rowItem.status === 'PENDING'"
                       icon
                       variant="text"
                       size="small"
                       color="success"
-                      @click.stop="handleApproveReport(item as ReportItem)"
+                      @click.stop="handleApproveReport(rowItem)"
                     >
                       <v-icon>mdi-check</v-icon>
                       <v-tooltip activator="parent">Approuver</v-tooltip>
                     </v-btn>
                     <v-btn
-                      v-if="(item as ReportItem).status === 'PENDING'"
+                      v-if="rowItem.status === 'PENDING'"
                       icon
                       variant="text"
                       size="small"
                       color="error"
-                      @click.stop="handleRejectReport(item as ReportItem)"
+                      @click.stop="handleRejectReport(rowItem)"
                     >
                       <v-icon>mdi-close</v-icon>
                       <v-tooltip activator="parent">Rejeter</v-tooltip>
@@ -416,7 +416,7 @@
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="showReportDetails(item as ReportItem)"
+                      @click.stop="showReportDetails(rowItem)"
                     >
                       <v-icon>mdi-eye</v-icon>
                       <v-tooltip activator="parent">Voir les détails</v-tooltip>
@@ -527,21 +527,21 @@
                     </v-btn>
                   </template>
                   
-                  <template #item.is_active="{ item }">
-                    <StatusChip :status="item.is_active" />
+                  <template #item.is_active="{ item: rowItem }">
+                    <StatusChip :status="rowItem.is_active" />
                   </template>
                   
-                  <template #item.created_at="{ item }">
-                    {{ formatDate(item.created_at) }}
+                  <template #item.created_at="{ item: rowItem }">
+                    {{ formatDate(rowItem.created_at) }}
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
                       icon
                       variant="text"
                       size="small"
                       color="primary"
-                      :to="`/dashboard/admin/users/${item.id}`"
+                      :to="`/dashboard/admin/users/${rowItem.id}`"
                       @click.stop
                     >
                       <v-icon>mdi-eye</v-icon>
@@ -552,7 +552,7 @@
                       variant="text"
                       size="small"
                       color="error"
-                      @click.stop="unassignEmployeeFromSite(item.id)"
+                      @click.stop="unassignEmployeeFromSite(rowItem.id)"
                     >
                       <v-icon>mdi-account-remove</v-icon>
                       <v-tooltip activator="parent">Retirer du site</v-tooltip>
@@ -570,29 +570,29 @@
                   :no-data-text="'Aucun pointage trouvé'"
                   @row-click="(item: TableItem) => showTimesheetDetails(item)"
                 >
-                  <template #item.entry_type="{ item }">
+                  <template #item.entry_type="{ item: rowItem }">
                     <v-chip
-                      :color="item.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
+                      :color="rowItem.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
                       size="small"
                     >
-                      {{ item.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
+                      {{ rowItem.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
                     </v-chip>
                   </template>
                   
-                  <template #item.status="{ item }">
+                  <template #item.status="{ item: rowItem }">
                     <StatusChip
-                      :status="item.status"
+                      :status="rowItem.status"
                       type="timesheet"
                     />
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
                       icon
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="showTimesheetDetails(item)"
+                      @click.stop="showTimesheetDetails(rowItem)"
                     >
                       <v-icon>mdi-eye</v-icon>
                       <v-tooltip activator="parent">Voir les détails</v-tooltip>
@@ -614,23 +614,23 @@
                   @delete="(item: TableItem) => handleDelete('schedules', item)"
                   @row-click="(item: TableItem) => router.push(`/dashboard/sites/${itemId}/schedules/${item.id}`)"
                 >
-                  <template #item.schedule_type="{ item }">
+                  <template #item.schedule_type="{ item: rowItem }">
                     <v-chip
-                      :color="(item as ScheduleItem).schedule_type === 'FIXED' ? 'primary' : 'warning'"
+                      :color="rowItem.schedule_type === 'FIXED' ? 'primary' : 'warning'"
                       size="small"
                     >
-                      {{ (item as ScheduleItem).schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                      {{ rowItem.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
                     </v-chip>
                   </template>
 
-                  <template #item.site="{ item }">
-                    {{ (item as ScheduleWithSite).site_name }}
+                  <template #item.site="{ item: rowItem }">
+                    {{ rowItem.site_name }}
                   </template>
 
-                  <template #item.details="{ item }">
-                    <div v-for="detail in (item as ScheduleWithSite).details" :key="detail.id" class="mb-1">
+                  <template #item.details="{ item: rowItem }">
+                    <div v-for="detail in rowItem.details" :key="detail.id" class="mb-1">
                       <strong>{{ getDayName(detail.day_of_week) }}:</strong>
-                      <template v-if="(item as ScheduleWithSite).schedule_type === 'FIXED'">
+                      <template v-if="rowItem.schedule_type === 'FIXED'">
                         <template v-if="detail.day_type === 'FULL'">
                           {{ detail.start_time_1 }}-{{ detail.end_time_1 }} / {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
                         </template>
@@ -658,41 +658,41 @@
                   :no-data-text="'Aucune anomalie trouvée'"
                   @row-click="(item: TableItem) => showAnomalyDetails(item)"
                 >
-                  <template #item.type="{ item }">
+                  <template #item.type="{ item: rowItem }">
                     <v-chip
-                      :color="getAnomalyTypeColor(item.anomaly_type_display)"
+                      :color="getAnomalyTypeColor(rowItem.anomaly_type_display)"
                       size="small"
                     >
-                      {{ item.anomaly_type_display }}
+                      {{ rowItem.anomaly_type_display }}
                     </v-chip>
                   </template>
                   
-                  <template #item.status="{ item }">
+                  <template #item.status="{ item: rowItem }">
                     <StatusChip
-                      :status="item.status_display"
+                      :status="rowItem.status_display"
                       type="anomaly"
                     />
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
-                      v-if="item.status === 'PENDING'"
+                      v-if="rowItem.status === 'PENDING'"
                       icon
                       variant="text"
                       size="small"
                       color="success"
-                      @click.stop="handleResolveAnomaly(item)"
+                      @click.stop="handleResolveAnomaly(rowItem)"
                     >
                       <v-icon>mdi-check</v-icon>
                       <v-tooltip activator="parent">Résoudre</v-tooltip>
                     </v-btn>
                     <v-btn
-                      v-if="item.status === 'PENDING'"
+                      v-if="rowItem.status === 'PENDING'"
                       icon
                       variant="text"
                       size="small"
                       color="warning"
-                      @click.stop="handleIgnoreAnomaly(item)"
+                      @click.stop="handleIgnoreAnomaly(rowItem)"
                     >
                       <v-icon>mdi-eye-off</v-icon>
                       <v-tooltip activator="parent">Ignorer</v-tooltip>
@@ -702,7 +702,7 @@
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="showAnomalyDetails(item)"
+                      @click.stop="showAnomalyDetails(rowItem)"
                     >
                       <v-icon>mdi-eye</v-icon>
                       <v-tooltip activator="parent">Voir les détails</v-tooltip>
@@ -720,41 +720,41 @@
                   :no-data-text="'Aucun rapport trouvé'"
                   @row-click="(item: TableItem) => showReportDetails(item as ReportItem)"
                 >
-                  <template #item.type="{ item }">
+                  <template #item.type="{ item: rowItem }">
                     <v-chip
-                      :color="getReportTypeColor((item as ReportItem).report_type_display)"
+                      :color="getReportTypeColor(rowItem.report_type_display)"
                       size="small"
                     >
-                      {{ (item as ReportItem).report_type_display }}
+                      {{ rowItem.report_type_display }}
                     </v-chip>
                   </template>
                   
-                  <template #item.status="{ item }">
+                  <template #item.status="{ item: rowItem }">
                     <StatusChip
-                      :status="(item as ReportItem).status_display"
+                      :status="rowItem.status_display"
                       type="report"
                     />
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
-                      v-if="(item as ReportItem).status === 'PENDING'"
+                      v-if="rowItem.status === 'PENDING'"
                       icon
                       variant="text"
                       size="small"
                       color="success"
-                      @click.stop="handleApproveReport(item as ReportItem)"
+                      @click.stop="handleApproveReport(rowItem)"
                     >
                       <v-icon>mdi-check</v-icon>
                       <v-tooltip activator="parent">Approuver</v-tooltip>
                     </v-btn>
                     <v-btn
-                      v-if="(item as ReportItem).status === 'PENDING'"
+                      v-if="rowItem.status === 'PENDING'"
                       icon
                       variant="text"
                       size="small"
                       color="error"
-                      @click.stop="handleRejectReport(item as ReportItem)"
+                      @click.stop="handleRejectReport(rowItem)"
                     >
                       <v-icon>mdi-close</v-icon>
                       <v-tooltip activator="parent">Rejeter</v-tooltip>
@@ -764,7 +764,7 @@
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="showReportDetails(item as ReportItem)"
+                      @click.stop="showReportDetails(rowItem)"
                     >
                       <v-icon>mdi-eye</v-icon>
                       <v-tooltip activator="parent">Voir les détails</v-tooltip>
@@ -874,17 +874,17 @@
                   @delete="(item: TableItem) => handleDelete('sites', item)"
                   @row-click="(item: TableItem) => router.push(`/dashboard/sites/${item.id}`)"
                 >
-                  <template #item.address="{ item }">
+                  <template #item.address="{ item: rowItem }">
                     <AddressWithMap
-                      :address="item.address"
-                      :postal-code="item.postal_code"
-                      :city="item.city"
-                      :country="item.country"
+                      :address="rowItem.address"
+                      :postal-code="rowItem.postal_code"
+                      :city="rowItem.city"
+                      :country="rowItem.country"
                     />
                   </template>
                   
-                  <template #item.is_active="{ item }">
-                    <StatusChip :status="item.is_active" />
+                  <template #item.is_active="{ item: rowItem }">
+                    <StatusChip :status="rowItem.is_active" />
                   </template>
                 </DataTable>
               </v-window-item>
@@ -912,21 +912,21 @@
                     </v-btn>
                   </template>
                   
-                  <template #item.is_active="{ item }">
-                    <StatusChip :status="item.is_active" />
+                  <template #item.is_active="{ item: rowItem }">
+                    <StatusChip :status="rowItem.is_active" />
                   </template>
                   
-                  <template #item.created_at="{ item }">
-                    {{ formatDate(item.created_at) }}
+                  <template #item.created_at="{ item: rowItem }">
+                    {{ formatDate(rowItem.created_at) }}
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
                       icon
                       variant="text"
                       size="small"
                       color="primary"
-                      :to="`/dashboard/admin/users/${item.id}`"
+                      :to="`/dashboard/admin/users/${rowItem.id}`"
                       @click.stop
                     >
                       <v-icon>mdi-eye</v-icon>
@@ -937,7 +937,7 @@
                       variant="text"
                       size="small"
                       color="error"
-                      @click.stop="unassignEmployeeFromSite(item.id)"
+                      @click.stop="unassignEmployeeFromSite(rowItem.id)"
                     >
                       <v-icon>mdi-account-remove</v-icon>
                       <v-tooltip activator="parent">Retirer du site</v-tooltip>
@@ -955,41 +955,41 @@
                   :no-data-text="'Aucun rapport trouvé'"
                   @row-click="(item: TableItem) => showReportDetails(item as ReportItem)"
                 >
-                  <template #item.type="{ item }">
+                  <template #item.type="{ item: rowItem }">
                     <v-chip
-                      :color="getReportTypeColor((item as ReportItem).report_type_display)"
+                      :color="getReportTypeColor(rowItem.report_type_display)"
                       size="small"
                     >
-                      {{ (item as ReportItem).report_type_display }}
+                      {{ rowItem.report_type_display }}
                     </v-chip>
                   </template>
                   
-                  <template #item.status="{ item }">
+                  <template #item.status="{ item: rowItem }">
                     <StatusChip
-                      :status="(item as ReportItem).status_display"
+                      :status="rowItem.status_display"
                       type="report"
                     />
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
-                      v-if="(item as ReportItem).status === 'PENDING'"
+                      v-if="rowItem.status === 'PENDING'"
                       icon
                       variant="text"
                       size="small"
                       color="success"
-                      @click.stop="handleApproveReport(item as ReportItem)"
+                      @click.stop="handleApproveReport(rowItem)"
                     >
                       <v-icon>mdi-check</v-icon>
                       <v-tooltip activator="parent">Approuver</v-tooltip>
                     </v-btn>
                     <v-btn
-                      v-if="(item as ReportItem).status === 'PENDING'"
+                      v-if="rowItem.status === 'PENDING'"
                       icon
                       variant="text"
                       size="small"
                       color="error"
-                      @click.stop="handleRejectReport(item as ReportItem)"
+                      @click.stop="handleRejectReport(rowItem)"
                     >
                       <v-icon>mdi-close</v-icon>
                       <v-tooltip activator="parent">Rejeter</v-tooltip>
@@ -999,7 +999,7 @@
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="showReportDetails(item as ReportItem)"
+                      @click.stop="showReportDetails(rowItem)"
                     >
                       <v-icon>mdi-eye</v-icon>
                       <v-tooltip activator="parent">Voir les détails</v-tooltip>
@@ -1146,7 +1146,6 @@ import { ref, computed, onMounted, markRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
-import AssignDialog from '@/components/common/AssignDialog.vue'
 import { formatPhoneNumber } from '@/utils/formatters'
 import { generateStyledQRCode } from '@/utils/qrcode'
 import { format } from 'date-fns'
@@ -1158,7 +1157,6 @@ import {
   usersApi, 
   organizationsApi,
   timesheetsApi,
-  reportsApi,
   type Site,
   type Schedule
 } from '@/services/api'
@@ -1184,12 +1182,6 @@ interface SiteEmployee {
   schedule: number | null;
   created_at: string;
   is_active: boolean;
-}
-
-interface ScheduleWithSite extends Schedule {
-  details: any
-  schedule_type: "FIXED" | "FREQUENCY"
-  site_name: string;
 }
 
 // Types
@@ -1289,7 +1281,6 @@ const props = defineProps({
 const router = useRouter()
 const route = useRoute()
 const loading = ref(true)
-const deleting = ref(false)
 const showDeleteDialog = ref(false)
 const item = ref<any>({})
 const statistics = ref<Array<{ label: string; value: number }>>([])
@@ -1297,14 +1288,10 @@ const relatedTables = ref<RelatedTable[]>([])
 const auth = useAuthStore()
 const showEditDialog = ref(false)
 const showDeleteConfirmDialog = ref(false)
-const dialogItem = ref<any>(null)
-const dialogType = ref<string>('')
 const unassignedEmployees = ref<any[]>([])
 const unassignedSites = ref<any[]>([])
 const loadingEmployees = ref(false)
 const loadingSites = ref(false)
-const assigningEmployee = ref(false)
-const assigningSite = ref(false)
 const showAssignEmployeesDialog = ref(false)
 const showAssignSitesDialog = ref(false)
 
@@ -1383,14 +1370,6 @@ const getRoleLabel = (role: RoleEnum | undefined) => {
 
 // Computed properties
 const itemId = computed(() => Number(route.params.id))
-const itemTypeLabel = computed(() => {
-  switch (props.type) {
-    case 'user': return "l'utilisateur"
-    case 'site': return 'le site'
-    case 'organization': return "l'organisation"
-    default: return "l'élément"
-  }
-})
 
 const title = computed(() => {
   switch (props.type) {
@@ -1792,41 +1771,8 @@ const confirmDelete = () => {
   showDeleteDialog.value = true
 }
 
-const deleteItem = async () => {
-  
-  deleting.value = true
-  try {
-    switch (props.type) {
-      case 'user':
-        await usersApi.deleteUser(itemId.value)
-        await router.push('/dashboard/admin/users')
-        break
-      case 'site':
-        await sitesApi.deleteSite(itemId.value)
-        await router.push('/dashboard/sites')
-        break
-      case 'organization':
-        await organizationsApi.deleteOrganization(itemId.value)
-        await router.push('/dashboard/organizations')
-        break
-    }
-  } catch (error) {
-    console.error('[DetailView][Delete] Erreur lors de la suppression:', error)
-  } finally {
-    deleting.value = false
-    showDeleteDialog.value = false
-  }
-}
 
 
-const formatDetailRoute = (tableKey: string, rowItem: TableItem): string => {
-  const routes: Record<string, string> = {
-    employees: `/dashboard/admin/users/${rowItem.id}`,
-    sites: `/dashboard/sites/${rowItem.id}`,
-    schedules: `/dashboard/sites/${route.params.id}/schedules/${rowItem.id}`
-  }
-  return routes[tableKey] || ''
-}
 
 const loadSiteDetails = async () => {
   try {
@@ -2039,74 +1985,9 @@ const handleDelete = async (tableKey: string, item: any) => {
   }
 }
 
-const saveDialogItem = async () => {
-  try {
-    if (dialogType.value === 'sites') {
-      await sitesApi.updateSite(dialogItem.value.id, dialogItem.value)
-    } else {
-      await usersApi.updateUser(dialogItem.value.id, dialogItem.value)
-    }
-    showEditDialog.value = false
-    await loadData()
-  } catch (error) {
-    console.error('Erreur lors de la sauvegarde:', error)
-  }
-}
 
-const confirmDeleteDialogItem = async () => {
-  try {
-    if (dialogType.value === 'sites') {
-      await sitesApi.deleteSite(dialogItem.value.id)
-    } else {
-      await usersApi.deleteUser(dialogItem.value.id)
-    }
-    showDeleteConfirmDialog.value = false
-    await loadData()
-  } catch (error) {
-    console.error('Erreur lors de la suppression:', error)
-  }
-}
 
-const handleAssignEmployee = async (employee: any) => {
-  assigningEmployee.value = true
-  try {
-    await sitesApi.assignEmployee(itemId.value, employee.id)
-    
-    // Recharger la liste des employés
-    const response = await sitesApi.getSiteEmployees(itemId.value)
-    employees.value = (response.data.results as unknown as ApiSiteEmployee[]).map(employee => ({
-      id: employee.id,
-      site: employee.site,
-      employee: employee.employee,
-      employee_name: employee.employee_name,
-      schedule: employee.schedule,
-      created_at: employee.created_at,
-      is_active: employee.is_active
-    }))
-    
-    await loadData()
-    showAssignEmployeesDialog.value = false
-    showSuccess('Employé assigné avec succès')
-  } catch (error) {
-    console.error('[DetailView][AssignEmployee] Erreur lors de l\'assignation de l\'employé:', error)
-    showError('Erreur lors de l\'assignation de l\'employé')
-  } finally {
-    assigningEmployee.value = false
-  }
-}
 
-const handleAssignSite = async (site: any) => {
-  assigningSite.value = true
-  try {
-    await organizationsApi.assignSite(itemId.value, site.id)
-    await loadData()
-    showAssignSitesDialog.value = false
-  } catch (error) {
-    console.error('[DetailView][AssignSite] Erreur lors de l\'assignation du site:', error)
-  } finally {
-    assigningSite.value = false
-  }
-}
 
 const loadUnassignedEmployees = async () => {
   loadingEmployees.value = true
@@ -2157,33 +2038,8 @@ const openAssignSitesDialog = async () => {
   showAssignSitesDialog.value = true
 }
 
-const formatEditRoute = (tableKey: string, item: TableItem): string => {
-  const routes: Record<string, string> = {
-    employees: `/dashboard/admin/users/${item.id}/edit`,
-    sites: `/dashboard/sites/${item.id}/edit`,
-    schedules: `/dashboard/sites/${route.params.id}/schedules/${item.id}/edit`
-  }
-  return routes[tableKey] || ''
-}
 
 // Nouvelle fonction navigateToDetail améliorée
-const navigateToDetail = async (tableKey: string, rowData: any) => {
-  const item = rowData.item?.raw || rowData.item?.value || rowData.item || rowData
-  if (!item || !item.id) {
-    return
-  }
-
-  const routes: Record<string, string> = {
-    employees: `/dashboard/admin/users/${item.id}`,
-    sites: `/dashboard/sites/${item.id}`,
-    schedules: `/dashboard/sites/${route.params.id}/schedules/${item.id}`
-  }
-  
-  const targetRoute = routes[tableKey]
-  if (targetRoute) {
-    await router.push(targetRoute)
-  }
-}
 
 const resetState = () => {
   item.value = {}
@@ -2373,17 +2229,7 @@ const formatDate = (dateString: string): string => {
   return format(new Date(dateString), 'dd/MM/yyyy HH:mm', { locale: fr })
 }
 
-const timesheetsHeaders = ref([
-  { title: 'Date', key: 'date', align: 'start' as TableAlignment },
-  { title: 'Employé', key: 'employee', align: 'start' as TableAlignment },
-  { title: 'Type', key: 'entry_type', align: 'center' as TableAlignment },
-  { title: 'Statut', key: 'status', align: 'center' as TableAlignment },
-  { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
-])
 
-interface ScheduleItem {
-  schedule_type: 'FIXED' | 'FREQUENCY';
-}
 
 // Fonctions pour les timesheets
 const showTimesheetDetails = async (timesheet: any) => {
@@ -2432,21 +2278,6 @@ const showAnomalyDetails = async (anomaly: any) => {
 }
 
 // Fonction pour les rapports
-const handleDownloadReport = async (report: any) => {
-  try {
-    const response = await reportsApi.downloadReport(report.id)
-    console.log('[Reports][Download] Rapport téléchargé:', report.id)
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `rapport_${report.id}.pdf`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-  } catch (error) {
-    console.error('[Reports][Error] Erreur lors du téléchargement:', error)
-  }
-}
 
 // Fonction pour charger les anomalies
 const loadAnomalies = async () => {

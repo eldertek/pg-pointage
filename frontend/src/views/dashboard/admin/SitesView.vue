@@ -71,7 +71,7 @@
           variant="text"
           size="small"
           color="primary"
-          :to="`/dashboard/admin/sites/${item.id}`"
+          :to="`/dashboard/sites/${item.id}`"
           @click.stop
         >
           <v-icon>mdi-eye</v-icon>

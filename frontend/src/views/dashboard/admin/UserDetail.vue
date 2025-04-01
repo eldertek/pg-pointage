@@ -131,13 +131,22 @@
                 :no-data-text="'Aucun site trouvé'"
                 :detail-route="'/dashboard/sites/:id'"
                 :edit-route="'/dashboard/sites/:id/edit'"
-                @toggle-status="(item: TableItem) => handleToggleStatus('sites', item)"
-                @delete="(item: TableItem) => handleDelete('sites', item)"
+                @toggle-status="handleToggleStatus"
+                @delete="handleDelete"
                 @row-click="(item: TableItem) => router.push(`/dashboard/sites/${item.id}`)"
               >
                 
                 <template #item.is_active="{ item: rowItem }">
                   <StatusChip :status="rowItem.is_active" />
+                </template>
+                
+                <template #item.address="{ item: rowItem }">
+                  <AddressWithMap
+                    :address="rowItem.address"
+                    :postal-code="rowItem.postal_code"
+                    :city="rowItem.city"
+                    :country="rowItem.country"
+                  />
                 </template>
                 
                 <template #item.created_at="{ item: rowItem }">
@@ -160,11 +169,23 @@
                     icon
                     variant="text"
                     size="small"
-                    color="error"
-                    @click.stop="unassignSiteFromUser(rowItem.id)"
+                    :color="rowItem.is_active ? 'warning' : 'success'"
+                    @click.stop="confirmToggleStatus(rowItem)"
                   >
-                    <v-icon>mdi-domain-remove</v-icon>
-                    <v-tooltip activator="parent">Retirer l'accès</v-tooltip>
+                    <v-icon>{{ rowItem.is_active ? 'mdi-domain-off' : 'mdi-domain' }}</v-icon>
+                    <v-tooltip activator="parent">
+                      {{ rowItem.is_active ? 'Désactiver' : 'Activer' }} le site
+                    </v-tooltip>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="error"
+                    @click.stop="confirmDelete(rowItem)"
+                  >
+                    <v-icon>mdi-delete</v-icon>
+                    <v-tooltip activator="parent">Supprimer le site</v-tooltip>
                   </v-btn>
                 </template>
               </DataTable>
@@ -217,8 +238,8 @@
                   </div>
                 </template>
 
-                <template #item.is_active="{ item }">
-                  <StatusChip :status="item.is_active" />
+                <template #item.is_active="{ item: rowItem }">
+                  <StatusChip :status="rowItem.is_active" />
                 </template>
               </DataTable>
             </v-window-item>
@@ -237,17 +258,17 @@
                 :items="pointages"
                 :no-data-text="'Aucun pointage trouvé'"
               >
-                <template #item.status="{ item }">
+                <template #item.status="{ item: rowItem }">
                   <v-chip
-                    :color="getPointageStatusColor(item.status)"
+                    :color="getPointageStatusColor(rowItem.status)"
                     size="small"
                   >
-                    {{ getPointageStatusLabel(item.status) }}
+                    {{ getPointageStatusLabel(rowItem.status) }}
                   </v-chip>
                 </template>
 
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
               </DataTable>
             </v-window-item>
@@ -266,17 +287,17 @@
                 :items="anomalies"
                 :no-data-text="'Aucune anomalie trouvée'"
               >
-                <template #item.status="{ item }">
+                <template #item.status="{ item: rowItem }">
                   <v-chip
-                    :color="getAnomalyStatusColor(item.status)"
+                    :color="getAnomalyStatusColor(rowItem.status)"
                     size="small"
                   >
-                    {{ getAnomalyStatusLabel(item.status) }}
+                    {{ getAnomalyStatusLabel(rowItem.status) }}
                   </v-chip>
                 </template>
 
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
               </DataTable>
             </v-window-item>
@@ -295,17 +316,17 @@
                 :items="reports"
                 :no-data-text="'Aucun rapport trouvé'"
               >
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
 
-                <template #item.actions="{ item }">
+                <template #item.actions="{}">
                   <v-btn
                     icon
                     variant="text"
                     size="small"
-                    color="primary"
-                    @click.stop="downloadReport(item.id)"
+                    color="primary" 
+                    @click.stop="downloadReport"
                   >
                     <v-icon>mdi-download</v-icon>
                     <v-tooltip activator="parent">Télécharger le rapport</v-tooltip>
@@ -317,6 +338,9 @@
         </v-card-text>
       </v-card>
     </template>
+
+    <!-- Boîte de dialogue de confirmation -->
+    <ConfirmDialog />
   </v-container>
 </template>
 
@@ -328,16 +352,15 @@ import { formatPhoneNumber } from '@/utils/formatters'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '@/stores/auth'
-import { RoleEnum } from '@/types/api'
-import api, { 
+import { 
   usersApi, 
-  sitesApi, 
-  schedulesApi, 
-  timesheetsApi, 
-  reportsApi 
-} from '@/services/api'
+  timesheetsApi,
+  sitesApi } from '@/services/api'
 import StatusChip from '@/components/common/StatusChip.vue'
 import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
+import AddressWithMap from '@/components/common/AddressWithMap.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import { useConfirmDialog } from '@/utils/dialogs'
 
 // Type definitions
 interface Field {
@@ -376,7 +399,6 @@ const loadingTabs = ref({
   anomalies: false,
   reports: false
 })
-const deleting = ref(false)
 const showDeleteDialog = ref(false)
 const item = ref<any>({})
 const statistics = ref<Array<{ label: string; value: number }>>([])
@@ -384,6 +406,7 @@ const auth = useAuthStore()
 const activeTab = ref('details')
 const previousTab = ref('details')
 const reverse = ref(false)
+const { showConfirmDialog } = useConfirmDialog()
 
 // Snackbar pour les notifications
 const snackbar = ref({
@@ -421,7 +444,6 @@ const sitesHeaders = [
   { title: 'Adresse', key: 'address' },
   { title: 'Organisation', key: 'organization_name' },
   { title: 'Statut', key: 'is_active' },
-  { title: 'Date d\'ajout', key: 'created_at' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
 
@@ -685,24 +707,35 @@ const editItem = () => {
   })
 }
 
-const confirmDelete = () => {
-  if (isOwnProfile.value) {
-    return
-  }
-  showDeleteDialog.value = true
+// Méthodes de confirmation
+const confirmDelete = (site: any) => {
+  showConfirmDialog({
+    title: 'Supprimer le site',
+    message: 'Êtes-vous sûr de vouloir supprimer ce site ? Cette action est irréversible.',
+    confirmText: 'Supprimer',
+    confirmColor: 'error',
+    onConfirm: () => handleDelete(site)
+  })
 }
 
-const deleteItem = async () => {
-  deleting.value = true
-  try {
-    await usersApi.deleteUser(itemId.value)
-    await router.push('/dashboard/admin/users')
-  } catch (error) {
-    console.error('[UserDetail][Delete] Erreur lors de la suppression:', error)
-  } finally {
-    deleting.value = false
-    showDeleteDialog.value = false
-  }
+const confirmToggleStatus = (site: any) => {
+  showConfirmDialog({
+    title: site.is_active ? 'Désactiver le site' : 'Activer le site',
+    message: `Êtes-vous sûr de vouloir ${site.is_active ? 'désactiver' : 'activer'} ce site ?`,
+    confirmText: site.is_active ? 'Désactiver' : 'Activer',
+    confirmColor: site.is_active ? 'warning' : 'success',
+    onConfirm: () => handleToggleStatus(site)
+  })
+}
+
+const confirmUnassignSite = (site: any) => {
+  showConfirmDialog({
+    title: 'Retirer l\'accès au site',
+    message: `Êtes-vous sûr de vouloir retirer l'accès au site "${site.name}" pour cet utilisateur ?`,
+    confirmText: 'Retirer',
+    confirmColor: 'error',
+    onConfirm: () => unassignSiteFromUser(site)
+  })
 }
 
 const formatDate = (date: string) => {
@@ -750,42 +783,51 @@ const getAnomalyStatusLabel = (status: string) => {
   return labels[status] || status
 }
 
-const handleToggleStatus = async (type: string, item: TableItem) => {
+const handleToggleStatus = async (site: any) => {
   try {
-    // Implémentation à faire
-    showSuccess(`Statut mis à jour avec succès`)
+    await sitesApi.updateSite(site.id, { is_active: !site.is_active })
+    // Mettre à jour le site dans la liste
+    const index = sites.value.findIndex((s: any) => s.id === site.id)
+    if (index !== -1) {
+      sites.value[index].is_active = !site.is_active
+    }
+    showSuccess(`Site ${site.is_active ? 'désactivé' : 'activé'} avec succès`)
   } catch (error) {
-    showError(`Erreur lors de la mise à jour du statut`)
+    console.error('[UserDetail][HandleToggleStatus] Erreur lors de la mise à jour du statut:', error)
+    showError(`Erreur lors de la ${site.is_active ? 'désactivation' : 'activation'} du site`)
   }
 }
 
-const handleDelete = async (type: string, item: TableItem) => {
+const handleDelete = async (site: any) => {
   try {
-    // Implémentation à faire
-    showSuccess(`Élément supprimé avec succès`)
+    await sitesApi.deleteSite(site.id)
+    // Retirer le site de la liste
+    sites.value = sites.value.filter((s: any) => s.id !== site.id)
+    showSuccess('Site supprimé avec succès')
   } catch (error) {
-    showError(`Erreur lors de la suppression`)
+    console.error('[UserDetail][HandleDelete] Erreur lors de la suppression:', error)
+    showError('Erreur lors de la suppression du site')
   }
 }
 
-const openAssignSitesDialog = () => {
-  // Implémentation à faire
-}
-
-const unassignSiteFromUser = async (siteId: number) => {
+const unassignSiteFromUser = async (site: any) => {
   try {
-    // Implémentation à faire
-    showSuccess(`Site retiré avec succès`)
+    await sitesApi.unassignEmployee(site.id, itemId.value)
+    // Retirer le site de la liste
+    sites.value = sites.value.filter((s: any) => s.id !== site.id)
+    showSuccess(`Site ${site.name} retiré avec succès`)
   } catch (error) {
+    console.error('[UserDetail][UnassignSiteFromUser] Erreur lors du retrait du site:', error)
     showError(`Erreur lors du retrait du site`)
   }
 }
 
-const downloadReport = async (reportId: number) => {
+const downloadReport = async () => {
   try {
     // Implémentation à faire
     showSuccess(`Rapport téléchargé avec succès`)
   } catch (error) {
+    console.error('[UserDetail][DownloadReport] Erreur lors du téléchargement du rapport:', error)
     showError(`Erreur lors du téléchargement du rapport`)
   }
 }
