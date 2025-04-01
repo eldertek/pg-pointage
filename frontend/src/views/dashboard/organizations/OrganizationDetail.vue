@@ -297,7 +297,7 @@ const itemId = computed(() => Number(route.params.id))
 
 const title = computed(() => "Détails de l'organisation")
 
-const backRoute = computed(() => route.meta.backRoute as string || '/dashboard/organizations')
+const backRoute = computed(() => '/dashboard/admin/access')
 
 const displayFields = computed((): DisplayField[] => {
   return [

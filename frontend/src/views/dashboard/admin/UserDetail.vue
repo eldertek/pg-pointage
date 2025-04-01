@@ -506,7 +506,7 @@ const itemId = computed(() => Number(route.params.id))
 
 const title = computed(() => "Détails de l'utilisateur")
 
-const backRoute = computed(() => route.meta.backRoute as string || '/dashboard/admin/users')
+const backRoute = computed(() => '/dashboard/admin/users')
 
 // Computed pour vérifier si c'est le profil de l'utilisateur connecté
 const isOwnProfile = computed(() => {

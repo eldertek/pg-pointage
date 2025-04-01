@@ -523,7 +523,7 @@ const itemId = computed(() => Number(route.params.id))
 
 const title = computed(() => 'Détails du site')
 
-const backRoute = computed(() => route.meta.backRoute as string || '/dashboard/sites')
+const backRoute = computed(() => '/dashboard/sites')
 
 const displayFields = computed((): DisplayField[] => {
   return [
