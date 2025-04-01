@@ -67,7 +67,7 @@
                     <v-row>
                       <v-col cols="12" md="6">
                         <v-list>
-                          <template v-for="(field, index) in displayFields" :key="index">
+                          <template v-for="(field) in displayFields" :key="field.key || index">
                             <v-list-item>
                               <template #prepend>
                                 <v-icon>{{ field.icon }}</v-icon>
@@ -86,12 +86,11 @@
                                 
                                 <!-- Statut avec puce -->
                                 <template v-else-if="field.type === 'status'">
-                                  <v-chip
-                                    :color="item[field.key] ? 'success' : 'error'"
-                                    size="small"
-                                  >
-                                    {{ item[field.key] ? field.activeLabel : field.inactiveLabel }}
-                                  </v-chip>
+                                  <StatusChip
+                                    :status="item[field.key]"
+                                    :active-label="field.activeLabel"
+                                    :inactive-label="field.inactiveLabel"
+                                  />
                                 </template>
 
                                 <!-- Rôle avec puce -->
@@ -159,38 +158,42 @@
                 </v-card>
               </v-window-item>
               <v-window-item value="employees">
-                <v-data-table
-                  v-model:page="page"
+                <DataTable
+                  title="Employés"
                   :headers="employeesHeaders"
                   :items="employees"
-                  :items-per-page="5"
                   :no-data-text="'Aucun employé trouvé'"
-                  class="elevation-1"
+                  :detail-route="'/dashboard/admin/users/:id'"
+                  :edit-route="'/dashboard/admin/users/:id/edit'"
+                  @toggle-status="(item: TableItem) => handleToggleStatus('employees', item)"
+                  @delete="(item: TableItem) => handleDelete('employees', item)"
+                  @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
                 >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Employés</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
-                  </template>
-                  <template #item.is_active="{ item }">
-                    <v-chip
-                      :color="item.is_active ? 'success' : 'error'"
-                      size="small"
+                  <template #toolbar-actions>
+                    <v-btn
+                      color="primary"
+                      prepend-icon="mdi-account-plus"
+                      @click="openAssignEmployeesDialog"
                     >
-                      {{ item.is_active ? 'Actif' : 'Inactif' }}
-                    </v-chip>
+                      Assigner un employé
+                    </v-btn>
                   </template>
+                  
+                  <template #item.is_active="{ item }">
+                    <StatusChip :status="item.is_active" />
+                  </template>
+                  
                   <template #item.created_at="{ item }">
                     {{ formatDate(item.created_at) }}
                   </template>
+                  
                   <template #item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
                       size="small"
                       color="primary"
-                      :to="`/dashboard/admin/users/${item.employee}`"
+                      :to="`/dashboard/admin/users/${item.id}`"
                       @click.stop
                     >
                       <v-icon>mdi-eye</v-icon>
@@ -207,40 +210,28 @@
                       <v-tooltip activator="parent">Retirer du site</v-tooltip>
                     </v-btn>
                   </template>
-                </v-data-table>
+                </DataTable>
               </v-window-item>
 
               <!-- Onglet Plannings -->
               <v-window-item value="plannings">
-                <v-data-table
-                  v-model:page="page"
+                <DataTable
+                  title="Plannings"
                   :headers="planningsHeaders"
                   :items="item.schedules || []"
-                  :items-per-page="5"
                   :no-data-text="'Aucun planning trouvé'"
-                  :loading-text="'Chargement...'"
-                  :items-per-page-text="'Lignes par page'"
-                  :page-text="'{0}-{1} sur {2}'"
-                  :items-per-page-options="[
-                    { title: '5', value: 5 },
-                    { title: '10', value: 10 },
-                    { title: '15', value: 15 },
-                    { title: 'Tout', value: -1 }
-                  ]"
-                  class="elevation-1"
+                  :detail-route="'/dashboard/sites/:id/schedules/:id'"
+                  :edit-route="'/dashboard/sites/:id/schedules/:id/edit'"
+                  @toggle-status="(item: TableItem) => handleToggleStatus('schedules', item)"
+                  @delete="(item: TableItem) => handleDelete('schedules', item)"
+                  @row-click="(item: TableItem) => router.push(`/dashboard/sites/${itemId}/schedules/${item.id}`)"
                 >
-                  <template #top>
-                    <v-toolbar flat class="pl-0">
-                      <v-toolbar-title>Plannings</v-toolbar-title>
-                    </v-toolbar>
-                  </template>
-                  
                   <template #item.schedule_type="{ item }">
                     <v-chip
-                      :color="(item as ScheduleWithSite).schedule_type === 'FIXED' ? 'primary' : 'warning'"
+                      :color="(item as ScheduleItem).schedule_type === 'FIXED' ? 'primary' : 'warning'"
                       size="small"
                     >
-                      {{ (item as ScheduleWithSite).schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                      {{ (item as ScheduleItem).schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
                     </v-chip>
                   </template>
 
@@ -267,70 +258,18 @@
                       </template>
                     </div>
                   </template>
-                  
-                  <template #item.actions="{ item: schedule }">
-                    <v-btn
-                      icon
-                      variant="text"
-                      size="small"
-                      color="primary"
-                      :to="`/dashboard/sites/${itemId}/schedules/${(schedule as Schedule).id}`"
-                      @click.stop
-                    >
-                      <v-icon>mdi-eye</v-icon>
-                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
-                    </v-btn>
-                    <v-btn
-                      icon
-                      variant="text"
-                      size="small"
-                      color="primary"
-                      :to="`/dashboard/sites/${itemId}/schedules/${(schedule as Schedule).id}/edit`"
-                      @click.stop
-                    >
-                      <v-icon>mdi-pencil</v-icon>
-                      <v-tooltip activator="parent">Modifier</v-tooltip>
-                    </v-btn>
-                    <v-btn
-                      icon
-                      variant="text"
-                      size="small"
-                      color="error"
-                      @click.stop="handleDelete('schedules', schedule as Schedule)"
-                    >
-                      <v-icon>mdi-delete</v-icon>
-                      <v-tooltip activator="parent">Supprimer</v-tooltip>
-                    </v-btn>
-                  </template>
-                </v-data-table>
+                </DataTable>
               </v-window-item>
 
               <!-- Onglet Pointages -->
               <v-window-item value="pointages">
-                <v-data-table
-                  v-model:page="page"
+                <DataTable
+                  title="Pointages"
                   :headers="pointagesHeaders"
                   :items="timesheets"
-                  :items-per-page="5"
                   :no-data-text="'Aucun pointage trouvé'"
-                  :loading-text="'Chargement...'"
-                  :items-per-page-text="'Lignes par page'"
-                  :page-text="'{0}-{1} sur {2}'"
-                  :items-per-page-options="[
-                    { title: '5', value: 5 },
-                    { title: '10', value: 10 },
-                    { title: '15', value: 15 },
-                    { title: 'Tout', value: -1 }
-                  ]"
-                  class="elevation-1"
+                  @row-click="(item: TableItem) => showTimesheetDetails(item)"
                 >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Pointages</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
-                  </template>
-                  
                   <template #item.entry_type="{ item }">
                     <v-chip
                       :color="item.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
@@ -341,12 +280,10 @@
                   </template>
                   
                   <template #item.status="{ item }">
-                    <v-chip
-                      :color="getTimesheetStatusColor(item)"
-                      size="small"
-                    >
-                      {{ getTimesheetStatusLabel(item) }}
-                    </v-chip>
+                    <StatusChip
+                      :status="item.status"
+                      type="timesheet"
+                    />
                   </template>
                   
                   <template #item.actions="{ item }">
@@ -361,35 +298,18 @@
                       <v-tooltip activator="parent">Voir les détails</v-tooltip>
                     </v-btn>
                   </template>
-                </v-data-table>
+                </DataTable>
               </v-window-item>
 
               <!-- Onglet Anomalies -->
               <v-window-item value="anomalies">
-                <v-data-table
-                  v-model:page="page"
+                <DataTable
+                  title="Anomalies"
                   :headers="anomaliesHeaders"
                   :items="anomalies"
-                  :items-per-page="5"
                   :no-data-text="'Aucune anomalie trouvée'"
-                  :loading-text="'Chargement...'"
-                  :items-per-page-text="'Lignes par page'"
-                  :page-text="'{0}-{1} sur {2}'"
-                  :items-per-page-options="[
-                    { title: '5', value: 5 },
-                    { title: '10', value: 10 },
-                    { title: '15', value: 15 },
-                    { title: 'Tout', value: -1 }
-                  ]"
-                  class="elevation-1"
+                  @row-click="(item: TableItem) => showAnomalyDetails(item)"
                 >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Anomalies</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
-                  </template>
-                  
                   <template #item.type="{ item }">
                     <v-chip
                       :color="getAnomalyTypeColor(item.anomaly_type_display)"
@@ -400,12 +320,10 @@
                   </template>
                   
                   <template #item.status="{ item }">
-                    <v-chip
-                      :color="getAnomalyStatusColor(item.status_display)"
-                      size="small"
-                    >
-                      {{ item.status_display }}
-                    </v-chip>
+                    <StatusChip
+                      :status="item.status_display"
+                      type="anomaly"
+                    />
                   </template>
                   
                   <template #item.actions="{ item }">
@@ -415,7 +333,7 @@
                       variant="text"
                       size="small"
                       color="success"
-                      @click.stop="resolveAnomaly(item.id)"
+                      @click.stop="handleResolveAnomaly(item)"
                     >
                       <v-icon>mdi-check</v-icon>
                       <v-tooltip activator="parent">Résoudre</v-tooltip>
@@ -425,10 +343,10 @@
                       icon
                       variant="text"
                       size="small"
-                      color="error"
-                      @click.stop="ignoreAnomaly(item.id)"
+                      color="warning"
+                      @click.stop="handleIgnoreAnomaly(item)"
                     >
-                      <v-icon>mdi-close</v-icon>
+                      <v-icon>mdi-eye-off</v-icon>
                       <v-tooltip activator="parent">Ignorer</v-tooltip>
                     </v-btn>
                     <v-btn
@@ -442,47 +360,69 @@
                       <v-tooltip activator="parent">Voir les détails</v-tooltip>
                     </v-btn>
                   </template>
-                </v-data-table>
+                </DataTable>
               </v-window-item>
 
               <!-- Onglet Rapports -->
               <v-window-item value="reports">
-                <v-data-table
-                  v-model:page="page"
+                <DataTable
+                  title="Rapports"
                   :headers="reportsHeaders"
-                  :items="reports"
-                  :items-per-page="5"
+                  :items="reports as TableItem[]"
                   :no-data-text="'Aucun rapport trouvé'"
-                  :loading-text="'Chargement...'"
-                  :items-per-page-text="'Lignes par page'"
-                  :page-text="'{0}-{1} sur {2}'"
-                  :items-per-page-options="[
-                    { title: '5', value: 5 },
-                    { title: '10', value: 10 },
-                    { title: '15', value: 15 },
-                    { title: 'Tout', value: -1 }
-                  ]"
-                  class="elevation-1"
+                  @row-click="(item: TableItem) => showReportDetails(item as ReportItem)"
                 >
-                  <template #top>
-                    <v-toolbar flat class="pl-0">
-                      <v-toolbar-title>Rapports</v-toolbar-title>
-                    </v-toolbar>
+                  <template #item.type="{ item }">
+                    <v-chip
+                      :color="getReportTypeColor((item as ReportItem).report_type_display)"
+                      size="small"
+                    >
+                      {{ (item as ReportItem).report_type_display }}
+                    </v-chip>
+                  </template>
+                  
+                  <template #item.status="{ item }">
+                    <StatusChip
+                      :status="(item as ReportItem).status_display"
+                      type="report"
+                    />
                   </template>
                   
                   <template #item.actions="{ item }">
+                    <v-btn
+                      v-if="(item as ReportItem).status === 'PENDING'"
+                      icon
+                      variant="text"
+                      size="small"
+                      color="success"
+                      @click.stop="handleApproveReport(item as ReportItem)"
+                    >
+                      <v-icon>mdi-check</v-icon>
+                      <v-tooltip activator="parent">Approuver</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      v-if="(item as ReportItem).status === 'PENDING'"
+                      icon
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="handleRejectReport(item as ReportItem)"
+                    >
+                      <v-icon>mdi-close</v-icon>
+                      <v-tooltip activator="parent">Rejeter</v-tooltip>
+                    </v-btn>
                     <v-btn
                       icon
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="downloadReport(item)"
+                      @click.stop="showReportDetails(item as ReportItem)"
                     >
-                      <v-icon>mdi-download</v-icon>
-                      <v-tooltip activator="parent">Télécharger</v-tooltip>
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
                     </v-btn>
                   </template>
-                </v-data-table>
+                </DataTable>
               </v-window-item>
             </v-window>
           </v-card-text>
@@ -514,7 +454,7 @@
                     <v-row>
                       <v-col cols="12" md="6">
                         <v-list>
-                          <template v-for="(field, index) in displayFields" :key="index">
+                          <template v-for="(field) in displayFields" :key="field.key || index">
                             <v-list-item>
                               <template #prepend>
                                 <v-icon>{{ field.icon }}</v-icon>
@@ -522,12 +462,11 @@
                               <v-list-item-title>{{ field.label }}</v-list-item-title>
                               <v-list-item-subtitle>
                                 <template v-if="field.type === 'status'">
-                                  <v-chip
-                                    :color="item[field.key] ? 'success' : 'error'"
-                                    size="small"
-                                  >
-                                    {{ item[field.key] ? field.activeLabel : field.inactiveLabel }}
-                                  </v-chip>
+                                  <StatusChip
+                                    :status="item[field.key]"
+                                    :active-label="field.activeLabel"
+                                    :inactive-label="field.inactiveLabel"
+                                  />
                                 </template>
                                 <template v-else-if="field.type === 'role'">
                                   <v-chip
@@ -550,7 +489,7 @@
                           <v-card-title>Statistiques</v-card-title>
                           <v-card-text>
                             <v-row>
-                              <template v-for="(stat, index) in statistics" :key="index">
+                              <template v-for="(stat) in statistics" :key="stat.label">
                                 <v-col :cols="12 / statistics.length" class="text-center">
                                   <div class="text-h4">{{ stat.value }}</div>
                                   <div class="text-subtitle-1">{{ stat.label }}</div>
@@ -567,46 +506,42 @@
 
               <!-- Nouvel onglet Employés -->
               <v-window-item value="employees">
-                <v-data-table
-                  v-model:page="page"
+                <DataTable
+                  title="Employés"
                   :headers="employeesHeaders"
                   :items="employees"
-                  :items-per-page="5"
                   :no-data-text="'Aucun employé trouvé'"
-                  class="elevation-1"
+                  :detail-route="'/dashboard/admin/users/:id'"
+                  :edit-route="'/dashboard/admin/users/:id/edit'"
+                  @toggle-status="(item: TableItem) => handleToggleStatus('employees', item)"
+                  @delete="(item: TableItem) => handleDelete('employees', item)"
+                  @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
                 >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Employés</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                      <v-btn
-                        color="primary"
-                        prepend-icon="mdi-account-plus"
-                        @click="openAssignEmployeesDialog"
-                      >
-                        Assigner un employé
-                      </v-btn>
-                    </v-toolbar>
+                  <template #toolbar-actions>
+                    <v-btn
+                      color="primary"
+                      prepend-icon="mdi-account-plus"
+                      @click="openAssignEmployeesDialog"
+                    >
+                      Assigner un employé
+                    </v-btn>
                   </template>
                   
                   <template #item.is_active="{ item }">
-                    <v-chip
-                      :color="item.is_active ? 'success' : 'error'"
-                      size="small"
-                    >
-                      {{ item.is_active ? 'Actif' : 'Inactif' }}
-                    </v-chip>
+                    <StatusChip :status="item.is_active" />
                   </template>
+                  
                   <template #item.created_at="{ item }">
                     {{ formatDate(item.created_at) }}
                   </template>
+                  
                   <template #item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
                       size="small"
                       color="primary"
-                      :to="`/dashboard/admin/users/${item.employee}`"
+                      :to="`/dashboard/admin/users/${item.id}`"
                       @click.stop
                     >
                       <v-icon>mdi-eye</v-icon>
@@ -623,26 +558,18 @@
                       <v-tooltip activator="parent">Retirer du site</v-tooltip>
                     </v-btn>
                   </template>
-                </v-data-table>
+                </DataTable>
               </v-window-item>
 
               <!-- Onglet Pointages -->
               <v-window-item value="pointages">
-                <v-data-table
-                  v-model:page="page"
-                  :headers="timesheetsHeaders"
+                <DataTable
+                  title="Pointages"
+                  :headers="pointagesHeaders"
                   :items="timesheets"
-                  :items-per-page="5"
                   :no-data-text="'Aucun pointage trouvé'"
-                  class="elevation-1"
+                  @row-click="(item: TableItem) => showTimesheetDetails(item)"
                 >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Pointages</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
-                  </template>
-                  
                   <template #item.entry_type="{ item }">
                     <v-chip
                       :color="item.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
@@ -653,65 +580,84 @@
                   </template>
                   
                   <template #item.status="{ item }">
-                    <v-chip
-                      :color="getTimesheetStatusColor(item)"
-                      size="small"
-                    >
-                      {{ getTimesheetStatusLabel(item) }}
-                    </v-chip>
+                    <StatusChip
+                      :status="item.status"
+                      type="timesheet"
+                    />
                   </template>
-                </v-data-table>
+                  
+                  <template #item.actions="{ item }">
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="showTimesheetDetails(item)"
+                    >
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    </v-btn>
+                  </template>
+                </DataTable>
               </v-window-item>
 
               <!-- Onglet Plannings -->
               <v-window-item value="plannings">
-                <v-data-table
-                  v-model:page="page"
+                <DataTable
+                  title="Plannings"
                   :headers="schedulesHeaders"
                   :items="item.schedules || []"
-                  :items-per-page="5"
                   :no-data-text="'Aucun planning trouvé'"
-                  class="elevation-1"
+                  :detail-route="'/dashboard/sites/:id/schedules/:id'"
+                  :edit-route="'/dashboard/sites/:id/schedules/:id/edit'"
+                  @toggle-status="(item: TableItem) => handleToggleStatus('schedules', item)"
+                  @delete="(item: TableItem) => handleDelete('schedules', item)"
+                  @row-click="(item: TableItem) => router.push(`/dashboard/sites/${itemId}/schedules/${item.id}`)"
                 >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Plannings</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
-                  </template>
-                  
                   <template #item.schedule_type="{ item }">
                     <v-chip
-                      :color="(item as ScheduleWithSite).schedule_type === 'FIXED' ? 'primary' : 'warning'"
+                      :color="(item as ScheduleItem).schedule_type === 'FIXED' ? 'primary' : 'warning'"
                       size="small"
                     >
-                      {{ (item as ScheduleWithSite).schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                      {{ (item as ScheduleItem).schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
                     </v-chip>
                   </template>
 
                   <template #item.site="{ item }">
                     {{ (item as ScheduleWithSite).site_name }}
                   </template>
-                </v-data-table>
+
+                  <template #item.details="{ item }">
+                    <div v-for="detail in (item as ScheduleWithSite).details" :key="detail.id" class="mb-1">
+                      <strong>{{ getDayName(detail.day_of_week) }}:</strong>
+                      <template v-if="(item as ScheduleWithSite).schedule_type === 'FIXED'">
+                        <template v-if="detail.day_type === 'FULL'">
+                          {{ detail.start_time_1 }}-{{ detail.end_time_1 }} / {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
+                        </template>
+                        <template v-else-if="detail.day_type === 'AM'">
+                          {{ detail.start_time_1 }}-{{ detail.end_time_1 }}
+                        </template>
+                        <template v-else-if="detail.day_type === 'PM'">
+                          {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
+                        </template>
+                      </template>
+                      <template v-else>
+                        {{ detail.frequency_duration }} minutes
+                      </template>
+                    </div>
+                  </template>
+                </DataTable>
               </v-window-item>
 
               <!-- Onglet Anomalies -->
               <v-window-item value="anomalies">
-                <v-data-table
-                  v-model:page="page"
+                <DataTable
+                  title="Anomalies"
                   :headers="anomaliesHeaders"
                   :items="anomalies"
-                  :items-per-page="5"
                   :no-data-text="'Aucune anomalie trouvée'"
-                  class="elevation-1"
+                  @row-click="(item: TableItem) => showAnomalyDetails(item)"
                 >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Anomalies</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
-                  </template>
-                  
                   <template #item.type="{ item }">
                     <v-chip
                       :color="getAnomalyTypeColor(item.anomaly_type_display)"
@@ -722,46 +668,109 @@
                   </template>
                   
                   <template #item.status="{ item }">
-                    <v-chip
-                      :color="getAnomalyStatusColor(item.status_display)"
-                      size="small"
-                    >
-                      {{ item.status_display }}
-                    </v-chip>
-                  </template>
-                </v-data-table>
-              </v-window-item>
-
-              <!-- Onglet Rapports -->
-              <v-window-item value="reports">
-                <v-data-table
-                  v-model:page="page"
-                  :headers="reportsHeaders"
-                  :items="reports"
-                  :items-per-page="5"
-                  :no-data-text="'Aucun rapport trouvé'"
-                  class="elevation-1"
-                >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Rapports</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
+                    <StatusChip
+                      :status="item.status_display"
+                      type="anomaly"
+                    />
                   </template>
                   
                   <template #item.actions="{ item }">
+                    <v-btn
+                      v-if="item.status === 'PENDING'"
+                      icon
+                      variant="text"
+                      size="small"
+                      color="success"
+                      @click.stop="handleResolveAnomaly(item)"
+                    >
+                      <v-icon>mdi-check</v-icon>
+                      <v-tooltip activator="parent">Résoudre</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      v-if="item.status === 'PENDING'"
+                      icon
+                      variant="text"
+                      size="small"
+                      color="warning"
+                      @click.stop="handleIgnoreAnomaly(item)"
+                    >
+                      <v-icon>mdi-eye-off</v-icon>
+                      <v-tooltip activator="parent">Ignorer</v-tooltip>
+                    </v-btn>
                     <v-btn
                       icon
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="downloadReport(item)"
+                      @click.stop="showAnomalyDetails(item)"
                     >
-                      <v-icon>mdi-download</v-icon>
-                      <v-tooltip activator="parent">Télécharger</v-tooltip>
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
                     </v-btn>
                   </template>
-                </v-data-table>
+                </DataTable>
+              </v-window-item>
+
+              <!-- Onglet Rapports -->
+              <v-window-item value="reports">
+                <DataTable
+                  title="Rapports"
+                  :headers="reportsHeaders"
+                  :items="reports as TableItem[]"
+                  :no-data-text="'Aucun rapport trouvé'"
+                  @row-click="(item: TableItem) => showReportDetails(item as ReportItem)"
+                >
+                  <template #item.type="{ item }">
+                    <v-chip
+                      :color="getReportTypeColor((item as ReportItem).report_type_display)"
+                      size="small"
+                    >
+                      {{ (item as ReportItem).report_type_display }}
+                    </v-chip>
+                  </template>
+                  
+                  <template #item.status="{ item }">
+                    <StatusChip
+                      :status="(item as ReportItem).status_display"
+                      type="report"
+                    />
+                  </template>
+                  
+                  <template #item.actions="{ item }">
+                    <v-btn
+                      v-if="(item as ReportItem).status === 'PENDING'"
+                      icon
+                      variant="text"
+                      size="small"
+                      color="success"
+                      @click.stop="handleApproveReport(item as ReportItem)"
+                    >
+                      <v-icon>mdi-check</v-icon>
+                      <v-tooltip activator="parent">Approuver</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      v-if="(item as ReportItem).status === 'PENDING'"
+                      icon
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="handleRejectReport(item as ReportItem)"
+                    >
+                      <v-icon>mdi-close</v-icon>
+                      <v-tooltip activator="parent">Rejeter</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="showReportDetails(item as ReportItem)"
+                    >
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    </v-btn>
+                  </template>
+                </DataTable>
               </v-window-item>
             </v-window>
           </v-card-text>
@@ -791,7 +800,7 @@
                     <v-row>
                       <v-col cols="12" md="6">
                         <v-list>
-                          <template v-for="(field, index) in displayFields" :key="index">
+                          <template v-for="(field) in displayFields" :key="field.key || index">
                             <v-list-item>
                               <template #prepend>
                                 <v-icon>{{ field.icon }}</v-icon>
@@ -807,12 +816,11 @@
                                   />
                                 </template>
                                 <template v-else-if="field.type === 'status'">
-                                  <v-chip
-                                    :color="item[field.key] ? 'success' : 'error'"
-                                    size="small"
-                                  >
-                                    {{ item[field.key] ? field.activeLabel : field.inactiveLabel }}
-                                  </v-chip>
+                                  <StatusChip
+                                    :status="item[field.key]"
+                                    :active-label="field.activeLabel"
+                                    :inactive-label="field.inactiveLabel"
+                                  />
                                 </template>
                                 <template v-else>
                                   {{ formatFieldValue(field, item[field.key]) }}
@@ -838,7 +846,7 @@
                           <v-card-title>Statistiques</v-card-title>
                           <v-card-text>
                             <v-row>
-                              <template v-for="(stat, index) in statistics" :key="index">
+                              <template v-for="(stat) in statistics" :key="stat.label">
                                 <v-col :cols="12 / statistics.length" class="text-center">
                                   <div class="text-h4">{{ stat.value }}</div>
                                   <div class="text-subtitle-1">{{ stat.label }}</div>
@@ -855,21 +863,17 @@
 
               <!-- Onglet Sites -->
               <v-window-item value="sites">
-                <v-data-table
-                  v-model:page="page"
+                <DataTable
+                  title="Sites"
                   :headers="sitesHeaders"
                   :items="sites"
-                  :items-per-page="5"
                   :no-data-text="'Aucun site trouvé'"
-                  class="elevation-1"
+                  :detail-route="'/dashboard/sites/:id'"
+                  :edit-route="'/dashboard/sites/:id/edit'"
+                  @toggle-status="(item: TableItem) => handleToggleStatus('sites', item)"
+                  @delete="(item: TableItem) => handleDelete('sites', item)"
+                  @row-click="(item: TableItem) => router.push(`/dashboard/sites/${item.id}`)"
                 >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Sites</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
-                  </template>
-                  
                   <template #item.address="{ item }">
                     <AddressWithMap
                       :address="item.address"
@@ -880,22 +884,25 @@
                   </template>
                   
                   <template #item.is_active="{ item }">
-                    <v-chip
-                      :color="item.is_active ? 'success' : 'error'"
-                      size="small"
-                    >
-                      {{ item.is_active ? 'Actif' : 'Inactif' }}
-                    </v-chip>
+                    <StatusChip :status="item.is_active" />
                   </template>
-                </v-data-table>
+                </DataTable>
               </v-window-item>
 
               <!-- Onglet Employés -->
               <v-window-item value="employees">
-                <v-card class="elevation-1">
-                  <v-toolbar flat>
-                    <v-toolbar-title>Employés</v-toolbar-title>
-                    <v-spacer></v-spacer>
+                <DataTable
+                  title="Employés"
+                  :headers="employeesHeaders"
+                  :items="employees"
+                  :no-data-text="'Aucun employé trouvé'"
+                  :detail-route="'/dashboard/admin/users/:id'"
+                  :edit-route="'/dashboard/admin/users/:id/edit'"
+                  @toggle-status="(item: TableItem) => handleToggleStatus('employees', item)"
+                  @delete="(item: TableItem) => handleDelete('employees', item)"
+                  @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
+                >
+                  <template #toolbar-actions>
                     <v-btn
                       color="primary"
                       prepend-icon="mdi-account-plus"
@@ -903,80 +910,14 @@
                     >
                       Assigner un employé
                     </v-btn>
-                  </v-toolbar>
-                  <v-card-text>
-                    <v-data-table
-                      v-model:page="page"
-                      :headers="employeesHeaders"
-                      :items="relatedTables.find(t => t.key === 'employees')?.items || []"
-                      :items-per-page="5"
-                      :no-data-text="'Aucun employé trouvé'"
-                      :loading-text="'Chargement...'"
-                      :items-per-page-text="'Lignes par page'"
-                      :page-text="'{0}-{1} sur {2}'"
-                      :items-per-page-options="[
-                        { title: '5', value: 5 },
-                        { title: '10', value: 10 },
-                        { title: '15', value: 15 },
-                        { title: 'Tout', value: -1 }
-                      ]"
-                      class="elevation-1"
-                      @click:row="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
-                    >
-                      <template #item.is_active="{ item }">
-                        <v-chip
-                          :color="item.is_active ? 'success' : 'error'"
-                          size="small"
-                        >
-                          {{ item.is_active ? 'Actif' : 'Inactif' }}
-                        </v-chip>
-                      </template>
-                      <template #item.created_at="{ item }">
-                        {{ formatDate(item.created_at) }}
-                      </template>
-                      <template #item.actions="{ item }">
-                        <v-btn
-                          icon
-                          variant="text"
-                          size="small"
-                          color="primary"
-                          :to="`/dashboard/admin/users/${item.id}`"
-                          @click.stop
-                        >
-                          <v-icon>mdi-eye</v-icon>
-                          <v-tooltip activator="parent">Voir les détails</v-tooltip>
-                        </v-btn>
-                        <v-btn
-                          icon
-                          variant="text"
-                          size="small"
-                          color="error"
-                          @click.stop="unassignEmployeeFromSite(item.id)"
-                        >
-                          <v-icon>mdi-account-remove</v-icon>
-                          <v-tooltip activator="parent">Retirer du site</v-tooltip>
-                        </v-btn>
-                      </template>
-                    </v-data-table>
-                  </v-card-text>
-                </v-card>
-              </v-window-item>
-
-              <!-- Onglet Rapports -->
-              <v-window-item value="reports">
-                <v-data-table
-                  v-model:page="page"
-                  :headers="reportsHeaders"
-                  :items="reports"
-                  :items-per-page="5"
-                  :no-data-text="'Aucun rapport trouvé'"
-                  class="elevation-1"
-                >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Rapports</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
+                  </template>
+                  
+                  <template #item.is_active="{ item }">
+                    <StatusChip :status="item.is_active" />
+                  </template>
+                  
+                  <template #item.created_at="{ item }">
+                    {{ formatDate(item.created_at) }}
                   </template>
                   
                   <template #item.actions="{ item }">
@@ -985,13 +926,86 @@
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="downloadReport(item)"
+                      :to="`/dashboard/admin/users/${item.id}`"
+                      @click.stop
                     >
-                      <v-icon>mdi-download</v-icon>
-                      <v-tooltip activator="parent">Télécharger</v-tooltip>
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="unassignEmployeeFromSite(item.id)"
+                    >
+                      <v-icon>mdi-account-remove</v-icon>
+                      <v-tooltip activator="parent">Retirer du site</v-tooltip>
                     </v-btn>
                   </template>
-                </v-data-table>
+                </DataTable>
+              </v-window-item>
+
+              <!-- Onglet Rapports -->
+              <v-window-item value="reports">
+                <DataTable
+                  title="Rapports"
+                  :headers="reportsHeaders"
+                  :items="reports as TableItem[]"
+                  :no-data-text="'Aucun rapport trouvé'"
+                  @row-click="(item: TableItem) => showReportDetails(item as ReportItem)"
+                >
+                  <template #item.type="{ item }">
+                    <v-chip
+                      :color="getReportTypeColor((item as ReportItem).report_type_display)"
+                      size="small"
+                    >
+                      {{ (item as ReportItem).report_type_display }}
+                    </v-chip>
+                  </template>
+                  
+                  <template #item.status="{ item }">
+                    <StatusChip
+                      :status="(item as ReportItem).status_display"
+                      type="report"
+                    />
+                  </template>
+                  
+                  <template #item.actions="{ item }">
+                    <v-btn
+                      v-if="(item as ReportItem).status === 'PENDING'"
+                      icon
+                      variant="text"
+                      size="small"
+                      color="success"
+                      @click.stop="handleApproveReport(item as ReportItem)"
+                    >
+                      <v-icon>mdi-check</v-icon>
+                      <v-tooltip activator="parent">Approuver</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      v-if="(item as ReportItem).status === 'PENDING'"
+                      icon
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="handleRejectReport(item as ReportItem)"
+                    >
+                      <v-icon>mdi-close</v-icon>
+                      <v-tooltip activator="parent">Rejeter</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="showReportDetails(item as ReportItem)"
+                    >
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    </v-btn>
+                  </template>
+                </DataTable>
               </v-window-item>
             </v-window>
           </v-card-text>
@@ -1007,7 +1021,7 @@
               <v-card-title>Informations générales</v-card-title>
               <v-card-text>
                 <v-list>
-                  <template v-for="(field, index) in displayFields" :key="index">
+                  <template v-for="(field) in displayFields" :key="field.key || index">
                     <v-list-item>
                       <template #prepend>
                         <v-icon>{{ field.icon }}</v-icon>
@@ -1026,12 +1040,11 @@
                         
                         <!-- Statut avec puce -->
                         <template v-else-if="field.type === 'status'">
-                          <v-chip
-                            :color="item[field.key] ? 'success' : 'error'"
-                            size="small"
-                          >
-                            {{ item[field.key] ? field.activeLabel : field.inactiveLabel }}
-                          </v-chip>
+                          <StatusChip
+                            :status="item[field.key]"
+                            :active-label="field.activeLabel"
+                            :inactive-label="field.inactiveLabel"
+                          />
                         </template>
 
                         <!-- Rôle avec puce -->
@@ -1063,7 +1076,7 @@
               <v-card-title>Statistiques</v-card-title>
               <v-card-text>
                 <v-row>
-                  <template v-for="(stat, index) in statistics" :key="index">
+                  <template v-for="(stat) in statistics" :key="stat.label">
                     <v-col :cols="12 / statistics.length" class="text-center">
                       <div class="text-h4">{{ stat.value }}</div>
                       <div class="text-subtitle-1">{{ stat.label }}</div>
@@ -1121,311 +1134,8 @@
                 </div>
               </v-card-text>
             </v-card>
-
-            <!-- Loader pour QR Code -->
-            <v-card v-else-if="props.type === 'site' && !item.qr_code" class="qr-code-card mb-4" variant="outlined">
-              <v-card-title class="d-flex align-center">
-                <v-icon icon="mdi-qrcode" class="mr-2"></v-icon>
-                QR Code du site
-              </v-card-title>
-              <v-card-text class="text-center">
-                <v-progress-circular indeterminate color="primary"></v-progress-circular>
-              </v-card-text>
-            </v-card>
           </v-col>
         </v-row>
-
-        <!-- Tableaux de données associées -->
-        <template v-if="relatedTables.length > 0">
-          <v-card v-for="table in relatedTables" :key="table.key" class="mt-4">
-            <v-card-title class="d-flex justify-space-between align-center">
-              <span>{{ table.title }} ({{ table.items.length }})</span>
-              <v-btn
-                v-if="table.addLabel"
-                color="primary"
-                size="small"
-                prepend-icon="mdi-plus-circle"
-                :to="table.addRoute"
-                v-on="table.addAction ? { click: table.addAction } : {}"
-              >
-                {{ table.addLabel }}
-              </v-btn>
-            </v-card-title>
-            <v-card-text>
-              <v-data-table
-                v-model:page="page"
-                :headers="table.headers"
-                :items="table.items"
-                :items-per-page="5"
-                :no-data-text="table.noDataText || 'Aucune donnée'"
-                :loading-text="'Chargement...'"
-                :items-per-page-text="'Lignes par page'"
-                :page-text="'{0}-{1} sur {2}'"
-                :items-per-page-options="[
-                  { title: '5', value: 5 },
-                  { title: '10', value: 10 },
-                  { title: '15', value: 15 },
-                  { title: 'Tout', value: -1 }
-                ]"
-                @click:row="(_: Event, rowData: any) => navigateToDetail(table.key, rowData)"
-              >
-                <!-- Actions -->
-                <template #item.actions="{ item }">
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="primary"
-                    :to="formatDetailRoute(table.key, item)"
-                    @click.stop
-                  >
-                    <v-icon>mdi-eye</v-icon>
-                    <v-tooltip activator="parent">Voir les détails</v-tooltip>
-                  </v-btn>
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="primary"
-                    :to="formatEditRoute(table.key, item)"
-                    @click.stop
-                  >
-                    <v-icon>mdi-pencil</v-icon>
-                    <v-tooltip activator="parent">Modifier</v-tooltip>
-                  </v-btn>
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="warning"
-                    @click.stop="handleToggleStatus(table.key, item)"
-                  >
-                    <v-icon>{{ item.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
-                    <v-tooltip activator="parent">{{ item.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
-                  </v-btn>
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="error"
-                    @click.stop="handleDelete(table.key, item)"
-                  >
-                    <v-icon>mdi-delete</v-icon>
-                    <v-tooltip activator="parent">Supprimer</v-tooltip>
-                  </v-btn>
-                </template>
-
-                <!-- Slots pour les colonnes spéciales -->
-                <template v-for="slot in table.slots" :key="slot.key" #[`item.${slot.key}`]="{ item: rowItem }">
-                  <component :is="slot.component" v-bind="slot.props(rowItem)" />
-                </template>
-              </v-data-table>
-            </v-card-text>
-          </v-card>
-        </template>
-
-        <!-- Dialog de confirmation de suppression -->
-        <v-dialog v-model="showDeleteDialog" max-width="400">
-          <v-card>
-            <v-card-title>Confirmer la suppression</v-card-title>
-            <v-card-text>
-              Êtes-vous sûr de vouloir supprimer {{ itemTypeLabel }} "{{ item.name }}" ?
-              Cette action est irréversible.
-            </v-card-text>
-            <v-card-actions>
-              <v-spacer></v-spacer>
-              <v-btn color="grey" variant="text" @click="showDeleteDialog = false">
-                Annuler
-              </v-btn>
-              <v-btn
-                color="error"
-                variant="text"
-                :loading="deleting"
-                @click="deleteItem"
-              >
-                Supprimer
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-dialog>
-
-        <!-- Dialog de modification -->
-        <v-dialog v-model="showEditDialog" max-width="800px">
-          <v-card>
-            <v-card-title>
-              {{ dialogType === 'sites' ? 'Modifier le site' : 'Modifier l\'employé' }}
-            </v-card-title>
-            <v-card-text>
-              <v-form ref="dialogForm">
-                <template v-if="dialogType === 'sites'">
-                  <!-- Formulaire de site -->
-                  <v-row>
-                    <v-col cols="12" sm="6">
-                      <v-text-field
-                        v-model="dialogItem.name"
-                        label="Nom"
-                        required
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="6">
-                      <v-text-field
-                        v-model="dialogItem.address"
-                        label="Adresse"
-                        required
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="6">
-                      <v-text-field
-                        v-model="dialogItem.postal_code"
-                        label="Code postal"
-                        required
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="6">
-                      <v-text-field
-                        v-model="dialogItem.city"
-                        label="Ville"
-                        required
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="6">
-                      <v-text-field
-                        v-model="dialogItem.country"
-                        label="Pays"
-                        required
-                      ></v-text-field>
-                    </v-col>
-                  </v-row>
-                </template>
-                <template v-else>
-                  <!-- Formulaire d'employé -->
-                  <v-row>
-                    <v-col cols="12" sm="6">
-                      <v-text-field
-                        v-model="dialogItem.first_name"
-                        label="Prénom"
-                        required
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="6">
-                      <v-text-field
-                        v-model="dialogItem.last_name"
-                        label="Nom"
-                        required
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="6">
-                      <v-text-field
-                        v-model="dialogItem.email"
-                        label="Email"
-                        type="email"
-                        required
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="6">
-                      <v-select
-                        v-model="dialogItem.role"
-                        :items="roles"
-                        item-title="label"
-                        item-value="value"
-                        label="Rôle"
-                        required
-                      ></v-select>
-                    </v-col>
-                  </v-row>
-                </template>
-              </v-form>
-            </v-card-text>
-            <v-card-actions>
-              <v-spacer></v-spacer>
-              <v-btn color="grey" variant="text" @click="showEditDialog = false">
-                Annuler
-              </v-btn>
-              <v-btn color="primary" variant="text" @click="saveDialogItem">
-                Enregistrer
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-dialog>
-
-        <!-- Dialog de confirmation de suppression -->
-        <v-dialog v-model="showDeleteConfirmDialog" max-width="400px">
-          <v-card>
-            <v-card-title>Confirmer la suppression</v-card-title>
-            <v-card-text>
-              Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.
-            </v-card-text>
-            <v-card-actions>
-              <v-spacer></v-spacer>
-              <v-btn color="grey" variant="text" @click="showDeleteConfirmDialog = false">
-                Annuler
-              </v-btn>
-              <v-btn color="error" variant="text" @click="confirmDeleteDialogItem">
-                Supprimer
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-dialog>
-
-        <!-- Dialog pour assigner des employés -->
-        <AssignDialog
-          v-model="showAssignEmployeesDialog"
-          title="Assigner des employés"
-          subtitle="Sélectionnez un employé à assigner"
-          :items="unassignedEmployees"
-          item-icon="mdi-account"
-          label="Sélectionner un employé"
-          placeholder="Rechercher un employé..."
-          :loading="loadingEmployees"
-          :saving="assigningEmployee"
-          no-data-text="Aucun employé disponible"
-          @assign="handleAssignEmployee"
-        >
-          <template #item-subtitle="{ item }">
-            <div class="d-flex align-center gap-2">
-              <v-chip
-                size="x-small"
-                :color="item.role === 'MANAGER' ? 'warning' : 'success'"
-              >
-                {{ item.role === 'MANAGER' ? 'Manager' : 'Employé' }}
-              </v-chip>
-              <span>{{ item.email }}</span>
-            </div>
-          </template>
-        </AssignDialog>
-
-        <!-- Dialog pour assigner des sites -->
-        <AssignDialog
-          v-model="showAssignSitesDialog"
-          title="Assigner des sites"
-          subtitle="Sélectionnez un site à assigner"
-          :items="unassignedSites"
-          item-icon="mdi-domain"
-          label="Sélectionner un site"
-          placeholder="Rechercher un site..."
-          :loading="loadingSites"
-          :saving="assigningSite"
-          no-data-text="Aucun site disponible"
-          @assign="handleAssignSite"
-        >
-          <template #item-subtitle="{ item }">
-            <div class="d-flex align-center gap-2">
-              {{ item.address }}, {{ item.city }}
-              <v-chip size="x-small" :color="item.is_active ? 'success' : 'error'">
-                {{ item.is_active ? 'Actif' : 'Inactif' }}
-              </v-chip>
-            </div>
-          </template>
-        </AssignDialog>
-
-        <!-- Snackbar pour les notifications -->
-        <v-snackbar
-          v-model="snackbar.show"
-          :color="snackbar.color"
-          :timeout="3000"
-        >
-          {{ snackbar.text }}
-        </v-snackbar>
       </template>
     </template>
   </v-container>
@@ -1437,10 +1147,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import AssignDialog from '@/components/common/AssignDialog.vue'
-import TimesheetsView from '@/views/dashboard/Timesheets.vue'
-import AnomaliesView from '@/views/dashboard/Anomalies.vue'
-import ReportsView from '@/views/dashboard/Reports.vue'
-import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
+import { formatPhoneNumber } from '@/utils/formatters'
 import { generateStyledQRCode } from '@/utils/qrcode'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -1450,18 +1157,14 @@ import {
   sitesApi, 
   usersApi, 
   organizationsApi,
+  timesheetsApi,
+  reportsApi,
   type Site,
-  type Organization,
-  type Employee as BaseEmployee,
-  type Schedule,
-  type SiteStatistics
+  type Schedule
 } from '@/services/api'
+import StatusChip from '@/components/common/StatusChip.vue'
+import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
 
-// Interfaces étendues
-interface Employee extends BaseEmployee {
-  role?: string;
-  site_name?: string;
-}
 
 interface ApiSiteEmployee {
   id: number;
@@ -1539,47 +1242,19 @@ interface TableHeader {
 interface TableSlot {
   key: string;
   component: any;
-  props: (item: any) => any;
+  props: any;
 }
 
 interface RelatedTable {
   key: string;
   title: string;
-  items: any[];
+  items: TableItem[];
   headers: TableHeader[];
   addRoute?: string;
   addLabel?: string;
   noDataText?: string;
   slots?: TableSlot[];
   addAction?: () => void;
-}
-
-interface TableItem {
-  id: number;
-  [key: string]: any;
-}
-
-interface DataTableItem {
-  raw: any;
-  [key: string]: any;
-}
-
-interface ListItem {
-  id: number;
-  first_name?: string;
-  last_name?: string;
-  email?: string;
-  organization?: number;
-  employee?: number;
-  role?: string;
-  site_name?: string;
-  employee_name?: string;
-  name?: string;
-  address: string;  // Ajout de la propriété manquante
-  city: string;     // Ajout de la propriété manquante
-  postal_code?: string;
-  country?: string;
-  is_active: boolean; // Ajout de la propriété manquante
 }
 
 // Extended Site with additional properties needed for UI
@@ -1592,9 +1267,6 @@ interface ExtendedSite extends Omit<Site, 'schedules' | 'organization_name' | 'm
 }
 
 // Type guard to ensure schedule data is properly typed
-function isScheduleArray(data: unknown): data is any[] {
-  return Array.isArray(data);
-}
 
 const props = defineProps({
   type: {
@@ -1625,8 +1297,6 @@ const showEditDialog = ref(false)
 const showDeleteConfirmDialog = ref(false)
 const dialogItem = ref<any>(null)
 const dialogType = ref<string>('')
-const selectedEmployeeId = ref<any>(null)
-const selectedSiteId = ref<any>(null)
 const unassignedEmployees = ref<any[]>([])
 const unassignedSites = ref<any[]>([])
 const loadingEmployees = ref(false)
@@ -1709,11 +1379,6 @@ const getRoleLabel = (role: RoleEnum | undefined) => {
   return found ? found.label : role
 }
 
-// Mise à jour du type des routes
-interface RouteMap {
-  [key: string]: string;
-}
-
 // Computed properties
 const itemId = computed(() => Number(route.params.id))
 const itemTypeLabel = computed(() => {
@@ -1759,7 +1424,7 @@ const scanPreferenceLabels: Record<string, string> = {
 
 const displayFields = computed((): DisplayField[] => {
   switch (props.type) {
-    case 'user':
+    case 'user': {
       const fields: DisplayField[] = [
         { key: 'first_name', label: 'Prénom', icon: 'mdi-account', type: 'default' },
         { key: 'last_name', label: 'Nom', icon: 'mdi-account-box', type: 'default' },
@@ -1791,7 +1456,8 @@ const displayFields = computed((): DisplayField[] => {
           inactiveLabel: 'Inactif'
         }
       ]
-    case 'site':
+    }
+    case 'site': {
       return [
         { key: 'name', label: 'Nom', icon: 'mdi-domain' },
         { 
@@ -1817,7 +1483,8 @@ const displayFields = computed((): DisplayField[] => {
           inactiveLabel: 'Inactif'
         }
       ]
-    case 'organization':
+    }
+    case 'organization': {
       return [
         { key: 'name', label: 'Nom', icon: 'mdi-domain' },
         { key: 'org_id', label: 'ID Organisation', icon: 'mdi-identifier' },
@@ -1846,6 +1513,7 @@ const displayFields = computed((): DisplayField[] => {
           inactiveLabel: 'Inactive'
         }
       ]
+    }
     default:
       return []
   }
@@ -1856,29 +1524,23 @@ const isAddressField = (field: DisplayField): field is AddressField => {
   return field.type === 'address'
 }
 
-// Mise à jour des paramètres de getAllSites
-interface GetAllSitesParams {
-  page?: number;
-  perPage?: number;
-  organization?: number;
-}
 
 // Méthodes
 const loadData = async () => {
   loading.value = true
   try {
     switch (props.type) {
-      case 'user':
-        const userResponse = await usersApi.getUser(itemId.value)
-        item.value = userResponse.data
-        const userStats = await usersApi.getUserStatistics(itemId.value)
+      case 'user': {
+        const response = await usersApi.getUser(itemId.value);
+        item.value = response.data;
+        const stats = await usersApi.getUserStatistics(itemId.value);
         statistics.value = [
-          { label: 'Heures totales', value: userStats.data.total_hours || 0 },
-          { label: 'Anomalies', value: userStats.data.anomalies || 0 }
-        ]
-        break
-
-      case 'site':
+          { label: 'Heures totales', value: stats.data.total_hours || 0 },
+          { label: 'Anomalies', value: stats.data.anomalies || 0 }
+        ];
+        break;
+      }
+      case 'site': {
         const siteResponse = await sitesApi.getSite(itemId.value)
         item.value = siteResponse.data
         const siteStats = await sitesApi.getSiteStatistics(itemId.value)
@@ -1981,8 +1643,8 @@ const loadData = async () => {
           }
         ]
         break
-
-      case 'organization':
+      }
+      case 'organization': {
         const orgResponse = await organizationsApi.getOrganization(itemId.value)
         item.value = orgResponse.data
         const orgStats = await organizationsApi.getOrganizationStatistics(itemId.value)
@@ -2072,6 +1734,7 @@ const loadData = async () => {
           }
         ]
         break
+      }
     }
   } catch (error) {
     console.error('Erreur lors du chargement des données:', error)
@@ -2099,12 +1762,7 @@ const formatFieldValue = (field: Field, value: any) => {
 }
 
 const editItem = () => {
-  console.log('[DetailView][Edit] Début de la fonction editItem')
-  console.log('[DetailView][Edit] Type:', props.type, 'ID:', itemId.value)
-  console.log('[DetailView][Edit] isOwnProfile:', isOwnProfile.value)
-  
   if (isOwnProfile.value) {
-    console.log('[DetailView][Edit] Action bloquée - profil utilisateur')
     return
   }
   
@@ -2117,7 +1775,6 @@ const editItem = () => {
   
   const editRoute = editRoutes[props.type as RouteKey]
   if (editRoute) {
-    console.log('[DetailView][Edit] Redirection vers:', editRoute)
     router.push(editRoute).catch(error => {
       console.error('[DetailView][Edit] Erreur lors de la redirection:', error)
     })
@@ -2127,39 +1784,27 @@ const editItem = () => {
 }
 
 const confirmDelete = () => {
-  console.log('[DetailView][Delete] Début de la fonction confirmDelete')
-  console.log('[DetailView][Delete] isOwnProfile:', isOwnProfile.value)
-  
   if (isOwnProfile.value) {
-    console.log('[DetailView][Delete] Action bloquée - profil utilisateur')
     return
   }
-  
-  console.log('[DetailView][Delete] Ouverture du dialogue de confirmation')
   showDeleteDialog.value = true
 }
 
 const deleteItem = async () => {
-  console.log('[DetailView][Delete] Début de la fonction deleteItem')
-  console.log('[DetailView][Delete] Type:', props.type, 'ID:', itemId.value)
   
   deleting.value = true
   try {
-    console.log('[DetailView][Delete] Tentative de suppression...')
     switch (props.type) {
       case 'user':
         await usersApi.deleteUser(itemId.value)
-        console.log('[DetailView][Delete] Utilisateur supprimé, redirection...')
         await router.push('/dashboard/admin/users')
         break
       case 'site':
         await sitesApi.deleteSite(itemId.value)
-        console.log('[DetailView][Delete] Site supprimé, redirection...')
         await router.push('/dashboard/sites')
         break
       case 'organization':
         await organizationsApi.deleteOrganization(itemId.value)
-        console.log('[DetailView][Delete] Organisation supprimée, redirection...')
         await router.push('/dashboard/organizations')
         break
     }
@@ -2171,26 +1816,6 @@ const deleteItem = async () => {
   }
 }
 
-const handleRowClick = (tableKey: string, item: any) => {
-  console.log('[DetailView][Click] Click sur une ligne:', { tableKey, item })
-  
-  if (!item || !item.id) {
-    console.error('[DetailView][Click] Item invalide:', item)
-    return
-  }
-
-  const routes: Record<string, string> = {
-    employees: `/dashboard/admin/users/${item.id}`,
-    sites: `/dashboard/sites/${item.id}`,
-    schedules: `/dashboard/sites/${route.params.id}/schedules/${item.id}`
-  }
-  
-  const targetRoute = routes[tableKey]
-  if (targetRoute) {
-    console.log('[DetailView][Click] Navigation vers:', targetRoute)
-    router.push(targetRoute)
-  }
-}
 
 const formatDetailRoute = (tableKey: string, rowItem: TableItem): string => {
   const routes: Record<string, string> = {
@@ -2345,6 +1970,7 @@ const generateQRCode = async () => {
     item.value.qr_code = previewQRCode
     item.value.download_qr_code = downloadQRCode
   } catch (error) {
+    console.error('[DetailView][GenerateQRCode] Erreur lors de la génération du QR code:', error)
     showError('Erreur lors de la génération du QR code')
   }
 }
@@ -2366,41 +1992,12 @@ const downloadQRCode = async () => {
     document.body.removeChild(link)
     showSuccess('Téléchargement du QR code initié')
   } catch (error) {
+    console.error('[DetailView][DownloadQRCode] Erreur lors du téléchargement du QR code:', error)
     showError('Erreur lors du téléchargement du QR code')
   }
 }
 
-const editRelatedItem = (tableKey: string, item: any) => {
-  const routes = {
-    employees: `/dashboard/admin/users/${item.id}/edit`,
-    sites: `/dashboard/sites/${item.id}/edit`,
-    schedules: `/dashboard/sites/${route.params.id}/schedules/${item.id}/edit`
-  }
-  const editRoute = routes[tableKey as keyof typeof routes]
-  if (editRoute) {
-    router.push(editRoute)
-  }
-}
 
-const deleteRelatedItem = async (tableKey: string, item: any) => {
-  try {
-    switch (tableKey) {
-      case 'employees':
-        await usersApi.deleteUser(item.id)
-        break
-      case 'sites':
-        await sitesApi.deleteSite(item.id)
-        break
-      case 'schedules':
-        await sitesApi.deleteSchedule(Number(route.params.id), item.id)
-        break
-    }
-    // Recharger les données après la suppression
-    await loadData()
-  } catch (error) {
-    console.error('Erreur lors de la suppression:', error)
-  }
-}
 
 // Computed pour vérifier si c'est le profil de l'utilisateur connecté
 const isOwnProfile = computed(() => {
@@ -2408,22 +2005,7 @@ const isOwnProfile = computed(() => {
 })
 
 // Ajout des dialogues
-const handleViewDetails = (tableKey: string, item: any) => {
-  const routes: RouteMap = {
-    sites: `/dashboard/sites/${item.id}`,
-    employees: `/dashboard/admin/users/${item.id}`
-  }
-  const route = routes[tableKey]
-  if (route) {
-    router.push(route)
-  }
-}
 
-const handleEdit = (tableKey: string, item: any) => {
-  dialogType.value = tableKey
-  dialogItem.value = { ...item }
-  showEditDialog.value = true
-}
 
 const handleToggleStatus = async (tableKey: string, item: any) => {
   try {
@@ -2486,9 +2068,7 @@ const confirmDeleteDialogItem = async () => {
 const handleAssignEmployee = async (employee: any) => {
   assigningEmployee.value = true
   try {
-    console.log('[DetailView][AssignEmployee] Assignation de l\'employé', employee.id, 'au site', itemId.value)
     await sitesApi.assignEmployee(itemId.value, employee.id)
-    console.log('[DetailView][AssignEmployee] Employé assigné avec succès')
     
     // Recharger la liste des employés
     const response = await sitesApi.getSiteEmployees(itemId.value)
@@ -2516,9 +2096,7 @@ const handleAssignEmployee = async (employee: any) => {
 const handleAssignSite = async (site: any) => {
   assigningSite.value = true
   try {
-    console.log('[DetailView][AssignSite] Assignation du site', site.id)
     await organizationsApi.assignSite(itemId.value, site.id)
-    console.log('[DetailView][AssignSite] Site assigné avec succès')
     await loadData()
     showAssignSitesDialog.value = false
   } catch (error) {
@@ -2531,7 +2109,6 @@ const handleAssignSite = async (site: any) => {
 const loadUnassignedEmployees = async () => {
   loadingEmployees.value = true
   try {
-    console.log('[DetailView][LoadEmployees] Chargement des employés non assignés')
     // Si c'est un site, utiliser l'API des sites pour charger les employés non assignés
     if (props.type === 'site') {
       const response = await sitesApi.getUnassignedEmployees(itemId.value)
@@ -2541,7 +2118,6 @@ const loadUnassignedEmployees = async () => {
       const response = await organizationsApi.getUnassignedEmployees(itemId.value)
       unassignedEmployees.value = response.data.results || []
     }
-    console.log('[DetailView][LoadEmployees] Employés chargés:', unassignedEmployees.value.length)
   } catch (error) {
     console.error('[DetailView][LoadEmployees] Erreur lors du chargement des employés:', error)
     unassignedEmployees.value = []
@@ -2553,10 +2129,8 @@ const loadUnassignedEmployees = async () => {
 const loadUnassignedSites = async () => {
   loadingSites.value = true
   try {
-    console.log('[DetailView][LoadSites] Chargement des sites non assignés')
     const response = await organizationsApi.getUnassignedSites(itemId.value)
     unassignedSites.value = response.data.results || []
-    console.log('[DetailView][LoadSites] Sites chargés:', unassignedSites.value.length)
   } catch (error) {
     console.error('[DetailView][LoadSites] Erreur lors du chargement des sites:', error)
     unassignedSites.value = []
@@ -2566,16 +2140,10 @@ const loadUnassignedSites = async () => {
 }
 
 // Ouvrir le dialogue d'assignation des employés
-const openAssignEmployeesDialog = async () => {
-  console.log('[DetailView][OpenDialog] Ouverture du dialogue d\'assignation d\'employés')
-  console.log('[DetailView][OpenDialog] État du dialogue avant appel:', showAssignEmployeesDialog.value)
-  
+const openAssignEmployeesDialog = async () => { 
   try {
     await loadUnassignedEmployees()
-    console.log('[DetailView][OpenDialog] Employés chargés:', unassignedEmployees.value)
-    console.log('[DetailView][OpenDialog] Affichage du dialogue avec', unassignedEmployees.value.length, 'employés')
     showAssignEmployeesDialog.value = true
-    console.log('[DetailView][OpenDialog] État du dialogue après changement:', showAssignEmployeesDialog.value)
   } catch (error) {
     console.error('[DetailView][OpenDialog] Erreur lors de l\'ouverture du dialogue:', error)
   }
@@ -2583,9 +2151,7 @@ const openAssignEmployeesDialog = async () => {
 
 // Ouvrir le dialogue d'assignation des sites  
 const openAssignSitesDialog = async () => {
-  console.log('[DetailView][OpenDialog] Ouverture du dialogue d\'assignation de sites')
   await loadUnassignedSites()
-  console.log('[DetailView][OpenDialog] Affichage du dialogue avec', unassignedSites.value.length, 'sites')
   showAssignSitesDialog.value = true
 }
 
@@ -2600,13 +2166,8 @@ const formatEditRoute = (tableKey: string, item: TableItem): string => {
 
 // Nouvelle fonction navigateToDetail améliorée
 const navigateToDetail = async (tableKey: string, rowData: any) => {
-  console.log('[DetailView][Click] Données de ligne complètes:', rowData)
-  
   const item = rowData.item?.raw || rowData.item?.value || rowData.item || rowData
-  console.log('[DetailView][Click] Item extrait:', item)
-  
   if (!item || !item.id) {
-    console.error('[DetailView][Click] Impossible de trouver l\'ID dans:', rowData)
     return
   }
 
@@ -2618,13 +2179,11 @@ const navigateToDetail = async (tableKey: string, rowData: any) => {
   
   const targetRoute = routes[tableKey]
   if (targetRoute) {
-    console.log('[DetailView][Click] Navigation vers:', targetRoute)
     await router.push(targetRoute)
   }
 }
 
 const resetState = () => {
-  console.log('[DetailView][ResetState] Réinitialisation de l\'état')
   item.value = {}
   statistics.value = []
   relatedTables.value = []
@@ -2644,19 +2203,15 @@ const resetState = () => {
 watch(
   [() => route.params.id, () => props.type],
   async ([newId, newType], [oldId, oldType]) => {
-    console.log('[DetailView][Watch] Changement de route détectée:', { newId, oldId, newType, oldType })
     
     if (newId !== oldId || newType !== oldType) {
-      console.log('[DetailView][Watch] Réinitialisation et rechargement des données')
       resetState()
       
       loading.value = true
       try {
         if (props.type === 'site') {
-          console.log('[DetailView][Watch] Appel de loadSiteDetails')
           await loadSiteDetails()
         } else {
-          console.log('[DetailView][Watch] Appel de loadData')
           await loadData()
         }
       } catch (error) {
@@ -2671,12 +2226,9 @@ watch(
 )
 
 onMounted(async () => {
-  console.log('[DetailView][Mount] Composant monté')
   if (props.type === 'site') {
-    console.log('[DetailView][Mount] Appel de loadSiteDetails')
     await loadSiteDetails()
   } else {
-    console.log('[DetailView][Mount] Appel de loadData')
     await loadData()
   }
 })
@@ -2718,20 +2270,7 @@ interface Report {
 }
 
 
-const getTimesheetStatusColor = (timesheet: Timesheet) => {
-  switch (timesheet.status) {
-    case 'VALIDATED':
-      return 'success'
-    case 'REJECTED':
-      return 'error'
-    default:
-      return 'warning'
-  }
-}
 
-const getTimesheetStatusLabel = (timesheet: Timesheet) => {
-  return timesheet.status_display
-}
 
 const getAnomalyTypeColor = (type: string) => {
   switch (type.toLowerCase()) {
@@ -2744,91 +2283,6 @@ const getAnomalyTypeColor = (type: string) => {
   }
 }
 
-const getAnomalyStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'résolu':
-      return 'success'
-    case 'ignoré':
-      return 'grey'
-    default:
-      return 'warning'
-  }
-}
-
-const showTimesheetDetails = (timesheet: Timesheet) => {
-  // TODO: Implémenter l'affichage des détails du pointage
-  console.log('Afficher les détails du pointage:', timesheet)
-}
-
-const resolveAnomaly = async (anomalyId: number) => {
-  try {
-    // TODO: Implémenter la résolution de l'anomalie
-    console.log('Résoudre l\'anomalie:', anomalyId)
-    await fetchAnomalies()
-  } catch (error) {
-    console.error('Erreur lors de la résolution de l\'anomalie:', error)
-  }
-}
-
-const ignoreAnomaly = async (anomalyId: number) => {
-  try {
-    // TODO: Implémenter l'ignorance de l'anomalie
-    console.log('Ignorer l\'anomalie:', anomalyId)
-    await fetchAnomalies()
-  } catch (error) {
-    console.error('Erreur lors de l\'ignorance de l\'anomalie:', error)
-  }
-}
-
-const showAnomalyDetails = (anomaly: Anomaly) => {
-  // TODO: Implémenter l'affichage des détails de l'anomalie
-  console.log('Afficher les détails de l\'anomalie:', anomaly)
-}
-
-const downloadReport = (report: Report) => {
-  // TODO: Implémenter le téléchargement du rapport
-  console.log('Télécharger le rapport:', report)
-}
-
-const exportReport = () => {
-  // TODO: Implémenter l'exportation du rapport
-  console.log('Exporter le rapport')
-}
-
-const fetchTimesheets = async () => {
-  try {
-    // TODO: Implémenter la récupération des pointages
-    timesheets.value = []
-  } catch (error) {
-    console.error('Erreur lors de la récupération des pointages:', error)
-  }
-}
-
-const fetchAnomalies = async () => {
-  try {
-    // TODO: Implémenter la récupération des anomalies
-    anomalies.value = []
-  } catch (error) {
-    console.error('Erreur lors de la récupération des anomalies:', error)
-  }
-}
-
-const fetchReports = async () => {
-  try {
-    // TODO: Implémenter la récupération des rapports
-    reports.value = []
-  } catch (error) {
-    console.error('Erreur lors de la récupération des rapports:', error)
-  }
-}
-
-onMounted(async () => {
-  await Promise.all([
-    fetchTimesheets(),
-    fetchAnomalies(),
-    fetchReports()
-  ])
-})
 
 // Fonction pour obtenir le nom du jour
 const getDayName = (dayOfWeek: number): string => {
@@ -2893,7 +2347,6 @@ const reportsHeaders = ref([
 // Ajout de la fonction unassignEmployeeFromSite
 const unassignEmployeeFromSite = async (employeeId: number) => {
   try {
-    console.log('[DetailView][UnassignEmployee] Retrait de l\'employé du site', employeeId)
     await sitesApi.unassignEmployee(itemId.value, employeeId)
     showSuccess('Employé retiré du site avec succès')
     
@@ -2925,6 +2378,126 @@ const timesheetsHeaders = ref([
   { title: 'Statut', key: 'status', align: 'center' as TableAlignment },
   { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
 ])
+
+interface ScheduleItem {
+  schedule_type: 'FIXED' | 'FREQUENCY';
+}
+
+// Fonctions pour les timesheets
+const showTimesheetDetails = async (timesheet: any) => {
+  try {
+    const response = await timesheetsApi.getTimesheetDetails(timesheet.id)
+    console.log('[Timesheets][Details] Détails du timesheet:', response.data)
+    // TODO: Implémenter l'affichage des détails dans une modal ou un dialogue
+    // showTimesheetDialog(response.data)
+  } catch (error) {
+    console.error('[Timesheets][Error] Erreur lors de la récupération des détails:', error)
+  }
+}
+
+// Fonctions pour les anomalies
+const handleResolveAnomaly = async (anomaly: any) => {
+  try {
+    const response = await timesheetsApi.resolveAnomaly(anomaly.id)
+    console.log('[Anomalies][Resolve] Anomalie résolue:', response.data)
+    // Rafraîchir la liste des anomalies
+    await loadAnomalies()
+  } catch (error) {
+    console.error('[Anomalies][Error] Erreur lors de la résolution:', error)
+  }
+}
+
+const handleIgnoreAnomaly = async (anomaly: any) => {
+  try {
+    const response = await timesheetsApi.ignoreAnomaly(anomaly.id)
+    console.log('[Anomalies][Ignore] Anomalie ignorée:', response.data)
+    // Rafraîchir la liste des anomalies
+    await loadAnomalies()
+  } catch (error) {
+    console.error('[Anomalies][Error] Erreur lors de l\'ignorance:', error)
+  }
+}
+
+const showAnomalyDetails = async (anomaly: any) => {
+  try {
+    const response = await timesheetsApi.getAnomalyDetails(anomaly.id)
+    console.log('[Anomalies][Details] Détails de l\'anomalie:', response.data)
+    // TODO: Implémenter l'affichage des détails dans une modal ou un dialogue
+    // showAnomalyDialog(response.data)
+  } catch (error) {
+    console.error('[Anomalies][Error] Erreur lors de la récupération des détails:', error)
+  }
+}
+
+// Fonction pour les rapports
+const handleDownloadReport = async (report: any) => {
+  try {
+    const response = await reportsApi.downloadReport(report.id)
+    console.log('[Reports][Download] Rapport téléchargé:', report.id)
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `rapport_${report.id}.pdf`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  } catch (error) {
+    console.error('[Reports][Error] Erreur lors du téléchargement:', error)
+  }
+}
+
+// Fonction pour charger les anomalies
+const loadAnomalies = async () => {
+  try {
+    const response = await timesheetsApi.getAnomalies({ site: itemId.value })
+    anomalies.value = response.data.results
+    console.log('[Anomalies][Load] Anomalies chargées:', response.data.count)
+  } catch (error) {
+    console.error('[Anomalies][Error] Erreur lors du chargement:', error)
+  }
+}
+
+interface ReportItem extends TableItem {
+  report_type_display: string;
+  status_display: string;
+  status: string;
+}
+
+const getReportTypeColor = (type: string): string => {
+  switch (type.toLowerCase()) {
+    case 'hebdomadaire':
+      return 'primary'
+    case 'mensuel':
+      return 'success'
+    case 'annuel':
+      return 'warning'
+    default:
+      return 'grey'
+  }
+}
+
+const showReportDetails = (item: ReportItem) => {
+  // TODO: Implémenter l'affichage des détails du rapport
+  console.log('Afficher les détails du rapport:', item)
+}
+
+const handleApproveReport = async (item: ReportItem) => {
+  try {
+    // TODO: Implémenter l'approbation du rapport
+    console.log('Approuver le rapport:', item)
+  } catch (error) {
+    console.error('Erreur lors de l\'approbation du rapport:', error)
+  }
+}
+
+const handleRejectReport = async (item: ReportItem) => {
+  try {
+    // TODO: Implémenter le rejet du rapport
+    console.log('Rejeter le rapport:', item)
+  } catch (error) {
+    console.error('Erreur lors du rejet du rapport:', error)
+  }
+}
 </script>
 
 <style scoped>

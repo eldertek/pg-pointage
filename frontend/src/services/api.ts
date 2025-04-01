@@ -589,7 +589,86 @@ const timesheetsApi = {
   scanAnomalies: (params: any = {}) => {
     const queryParams = convertKeysToSnakeCase(params);
     return api.post('/timesheets/scan-anomalies/', { params: queryParams });
-  }
+  },
+
+  // Get timesheets for a specific site
+  getSiteTimesheets: (siteId: number, params: any = {}) => {
+    const queryParams = convertKeysToSnakeCase({
+      site: siteId,
+      ...params
+    });
+    return api.get('/timesheets/', { params: queryParams });
+  },
+
+  // Get user statistics
+  getUserStats: () => api.get('/timesheets/reports/'),
+
+  // Report an anomaly
+  reportAnomaly: (data: any) => 
+    api.post('/timesheets/anomalies/', convertKeysToSnakeCase(data)),
+
+  // Get dashboard statistics
+  getDashboardStats: async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const [sitesResponse, employeesResponse, timesheetsResponse] = await Promise.all([
+      sitesApi.getAllSites(),
+      usersApi.searchUsers(''),
+      timesheetsApi.getTimesheets({
+        start_date: today,
+        end_date: today
+      })
+    ]);
+
+    return {
+      sitesCount: sitesResponse.data?.count || sitesResponse.data?.results?.length || 0,
+      employeesCount: employeesResponse.data?.count || employeesResponse.data?.results?.length || 0,
+      timesheetsCount: timesheetsResponse.data?.count || timesheetsResponse.data?.results?.length || 0
+    };
+  },
+
+  // Build query parameters for anomalies
+  buildAnomalyQueryParams: (filters: any, currentSiteId?: number) => {
+    const params: any = {};
+    
+    if (filters.employee) {
+      params.employee = filters.employee;
+    }
+    if (currentSiteId) {
+      params.site = currentSiteId;
+    } else if (filters.site) {
+      params.site = filters.site;
+    }
+    if (filters.type) {
+      params.anomaly_type = filters.type;
+    }
+    if (filters.status) {
+      params.status = filters.status;
+    }
+    if (filters.startDate) {
+      params.start_date = filters.startDate;
+    }
+    if (filters.endDate) {
+      params.end_date = filters.endDate;
+    }
+    
+    return params;
+  },
+
+  // Get timesheet details
+  getTimesheetDetails: (id: number) => 
+    api.get(`/timesheets/${id}/details/`),
+
+  // Get anomaly details
+  getAnomalyDetails: (id: number) => 
+    api.get(`/timesheets/anomalies/${id}/`),
+
+  // Resolve anomaly
+  resolveAnomaly: (id: number) => 
+    api.patch(`/timesheets/anomalies/${id}/`, { status: 'RESOLVED' }),
+
+  // Ignore anomaly
+  ignoreAnomaly: (id: number) => 
+    api.patch(`/timesheets/anomalies/${id}/`, { status: 'IGNORED' }),
 }
 
 // Anomalies API methods
@@ -604,7 +683,20 @@ const anomaliesApi = {
 // Reports API methods
 const reportsApi = {
   getReportsBySite: (siteId: number) => 
-    api.get(`/reports/`, { params: { site: siteId } })
+    api.get(`/reports/`, { params: { site: siteId } }),
+
+  // Get reports for a specific site
+  getSiteReports: (siteId: number) => 
+    api.get(`/reports/`, { params: { site: siteId } }),
+
+  // Download report
+  downloadReport: (reportId: number) => 
+    api.get(`/reports/${reportId}/download/`, { 
+      responseType: 'blob',
+      headers: {
+        'Accept': 'application/pdf'
+      }
+    }),
 }
 
 // Plannings API methods
