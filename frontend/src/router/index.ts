@@ -14,7 +14,9 @@ import ResetPassword from "@/views/auth/ResetPassword.vue"
 
 // Views - Dashboard (Admin/Manager)
 import Dashboard from "@/views/dashboard/Dashboard.vue"
-import DetailView from "@/views/dashboard/DetailView.vue"
+import SiteDetail from "@/views/dashboard/sites/SiteDetail.vue"
+import OrganizationDetail from "@/views/dashboard/organizations/OrganizationDetail.vue"
+import UserDetail from "@/views/dashboard/admin/UserDetail.vue"
 import Plannings from "@/views/dashboard/Plannings.vue"
 import Timesheets from "@/views/dashboard/Timesheets.vue"
 import Anomalies from "@/views/dashboard/Anomalies.vue"
@@ -90,7 +92,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: "admin/users/:id",
         name: "UserDetail",
-        component: DetailView,
+        component: UserDetail,
         props: { type: 'user' },
         meta: { roles: ["SUPER_ADMIN", "MANAGER"], section: "users" },
       },
@@ -110,7 +112,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: "admin/access/:id",
         name: "OrganizationDetail",
-        component: DetailView,
+        component: OrganizationDetail,
         props: { type: 'organization' },
         meta: { roles: ["SUPER_ADMIN"] },
       },
@@ -131,7 +133,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: "sites/:id",
         name: "SiteDetails",
-        component: DetailView,
+        component: SiteDetail,
         props: { type: 'site' },
         meta: { section: "sites" },
       },

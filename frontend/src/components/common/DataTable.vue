@@ -4,11 +4,11 @@
     :headers="headers"
     :items="items"
     :items-per-page="itemsPerPage"
-    :no-data-text="noDataText"
-    :loading-text="loadingText"
-    :items-per-page-text="itemsPerPageText"
-    :page-text="pageText"
-    :items-per-page-options="itemsPerPageOptions"
+    :no-data-text="noDataText || defaultNoDataText"
+    :loading-text="loadingText || defaultLoadingText"
+    :items-per-page-text="itemsPerPageText || defaultItemsPerPageText"
+    :page-text="pageText || defaultPageText"
+    :items-per-page-options="itemsPerPageOptions || defaultItemsPerPageOptions"
     class="elevation-1"
     @click:row="handleRowClick"
   >
@@ -117,6 +117,18 @@ const props = defineProps<{
   detailRoute?: string;
   editRoute?: string;
 }>()
+
+// Valeurs par défaut pour les textes
+const defaultItemsPerPageText = "Lignes par page :"
+const defaultLoadingText = "Chargement..."
+const defaultPageText = "{0}-{1} sur {2}"
+const defaultNoDataText = "Aucune donnée disponible"
+const defaultItemsPerPageOptions = [
+  { title: '5', value: 5 },
+  { title: '10', value: 10 },
+  { title: '15', value: 15 },
+  { title: '20', value: 20 }
+]
 
 const emit = defineEmits<{
   'toggle-status': [item: TableItem]
