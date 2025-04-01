@@ -80,7 +80,7 @@
           variant="text"
           size="small"
           color="primary"
-          :to="`/dashboard/reports/${item.raw.id}`"
+          :to="`/dashboard/reports/${item.id}`"
         >
           <v-icon>mdi-eye</v-icon>
         </v-btn>
@@ -90,7 +90,7 @@
           variant="text"
           size="small"
           color="primary"
-          @click="downloadReport(item.raw.id)"
+          @click="downloadReport(item.id)"
         >
           <v-icon>mdi-download</v-icon>
         </v-btn>
@@ -100,7 +100,7 @@
           variant="text"
           size="small"
           color="error"
-          @click="confirmDelete(item.raw.id)"
+          @click="confirmDelete(item.id)"
         >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
@@ -239,12 +239,11 @@ export default {
     const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
     
     const headers = ref([
-      { title: 'Nom', align: 'start', key: 'name' },
-      { title: 'Type', align: 'start', key: 'type' },
-      { title: 'Format', align: 'center', key: 'format' },
+      { title: 'Site', align: 'start', key: 'site_name' },
+      { title: 'Type', align: 'start', key: 'report_type_display' },
+      { title: 'Format', align: 'center', key: 'report_format_display' },
       { title: 'Période', align: 'start', key: 'period' },
-      { title: 'Site', align: 'start', key: 'site' },
-      { title: 'Créé le', align: 'start', key: 'created_at' },
+      { title: 'Créé par', align: 'start', key: 'created_by_name' },
       { title: 'Actions', align: 'end', key: 'actions', sortable: false }
     ])
     
@@ -310,12 +309,7 @@ export default {
     
     const formatReportData = (data) => {
       return data.map(report => ({
-        id: report.id,
-        name: report.report_type_display,
-        type: report.report_type_display,
-        format: report.report_format_display,
-        period: report.period,
-        site: report.site_name || 'Tous les sites',
+        ...report, // On garde toutes les données originales
         created_at: new Date(report.created_at).toLocaleDateString()
       }))
     }

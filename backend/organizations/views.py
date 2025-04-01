@@ -8,7 +8,10 @@ from users.models import User
 from users.serializers import UserSerializer
 from sites.models import Site
 from sites.serializers import SiteSerializer
-from timesheets.models import Anomaly
+from timesheets.models import Anomaly, Timesheet
+from timesheets.serializers import AnomalySerializer, TimesheetSerializer
+from reports.models import Report
+from reports.serializers import ReportSerializer
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 class OrganizationStatisticsSerializer(serializers.Serializer):
@@ -168,4 +171,46 @@ def assign_site_to_organization(request, pk):
             {'error': 'Organisation non trouvée'}, 
             status=404
         )
+
+class OrganizationTimesheetsView(generics.ListAPIView):
+    """Vue pour lister tous les pointages des sites d'une organisation"""
+    serializer_class = TimesheetSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Timesheet.objects.none()
+            
+        organization_pk = self.kwargs.get('pk')
+        return Timesheet.objects.filter(
+            site__organization_id=organization_pk
+        ).order_by('-created_at')
+
+class OrganizationAnomaliesView(generics.ListAPIView):
+    """Vue pour lister toutes les anomalies des sites d'une organisation"""
+    serializer_class = AnomalySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Anomaly.objects.none()
+            
+        organization_pk = self.kwargs.get('pk')
+        return Anomaly.objects.filter(
+            site__organization_id=organization_pk
+        ).order_by('-created_at')
+
+class OrganizationReportsView(generics.ListAPIView):
+    """Vue pour lister tous les rapports d'une organisation"""
+    serializer_class = ReportSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Report.objects.none()
+            
+        organization_pk = self.kwargs.get('pk')
+        return Report.objects.filter(
+            site__organization_id=organization_pk
+        ).order_by('-created_at')
 

@@ -550,6 +550,18 @@ const organizationsApi = {
       }
     }),
 
+  // Get organization timesheets
+  getOrganizationTimesheets: (id: number, params: any = {}) => 
+    api.get(`/organizations/${id}/timesheets/`, { params }),
+
+  // Get organization anomalies
+  getOrganizationAnomalies: (id: number, params: any = {}) => 
+    api.get(`/organizations/${id}/anomalies/`, { params }),
+
+  // Get organization reports
+  getOrganizationReports: (id: number, params: any = {}) => 
+    api.get(`/organizations/${id}/reports/`, { params }),
+
   // Activer/désactiver une organisation
   toggleOrganizationStatus: (id: number, isActive: boolean) => 
     api.patch(`/organizations/${id}/`, { is_active: isActive }),

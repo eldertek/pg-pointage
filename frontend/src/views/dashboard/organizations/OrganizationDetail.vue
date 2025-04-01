@@ -132,15 +132,6 @@
                 @delete="(item: TableItem) => handleDelete('sites', item)"
                 @row-click="(item: TableItem) => router.push(`/dashboard/sites/${item.id}`)"
               >
-                <template #toolbar-actions>
-                  <v-btn
-                    color="primary"
-                    prepend-icon="mdi-domain-plus"
-                    :to="`/dashboard/sites/create?organization=${itemId}`"
-                  >
-                    Ajouter un site
-                  </v-btn>
-                </template>
                 
                 <template #item.is_active="{ item: rowItem }">
                   <StatusChip :status="rowItem.is_active" />
@@ -165,15 +156,6 @@
                 @delete="(item: TableItem) => handleDelete('employees', item)"
                 @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
               >
-                <template #toolbar-actions>
-                  <v-btn
-                    color="primary"
-                    prepend-icon="mdi-account-plus"
-                    :to="`/dashboard/admin/users/create?organization=${itemId}`"
-                  >
-                    Ajouter un employé
-                  </v-btn>
-                </template>
                 
                 <template #item.is_active="{ item: rowItem }">
                   <StatusChip :status="rowItem.is_active" />
@@ -195,6 +177,18 @@
               >
                 <template #item.created_at="{ item: rowItem }">
                   {{ formatDate(rowItem.created_at) }}
+                </template>
+                <template v-slot:item.report_type_display="{ item: rowItem }">
+                  {{ rowItem.report_type_display }}
+                </template>
+                <template v-slot:item.report_format_display="{ item: rowItem }">
+                  {{ rowItem.report_format_display }}
+                </template>
+                <template v-slot:item.period="{ item: rowItem }">
+                  {{ rowItem.period }}
+                </template>
+                <template v-slot:item.created_by_name="{ item: rowItem }">
+                  {{ rowItem.created_by_name }}
                 </template>
               </DataTable>
             </v-window-item>
@@ -249,6 +243,13 @@ const allowDelete = ref(true)
 const router = useRouter()
 const route = useRoute()
 const loading = ref(true)
+const loadingTabs = ref({
+  sites: false,
+  employees: false,
+  pointages: false,
+  anomalies: false,
+  reports: false
+})
 const showDeleteDialog = ref(false)
 const item = ref<any>({})
 const statistics = ref<Array<{ label: string; value: number }>>([])
@@ -280,7 +281,7 @@ const showError = (text: string) => {
 }
 
 // Configuration des onglets
-const tabOrder = ['details', 'sites', 'employees', 'reports']
+const tabOrder = ['details', 'sites', 'employees', 'pointages', 'anomalies', 'reports']
 
 watch(activeTab, (newTab, oldTab) => {
   if (!oldTab || !newTab) return
@@ -290,6 +291,11 @@ watch(activeTab, (newTab, oldTab) => {
   
   reverse.value = newIndex < oldIndex
   previousTab.value = oldTab
+
+  // Charger les données du nouvel onglet s'il n'est pas 'details'
+  if (newTab !== 'details') {
+    loadTabData(newTab)
+  }
 })
 
 // Computed properties
@@ -338,6 +344,8 @@ const isAddressField = (field: DisplayField): field is AddressField => {
 // Données pour les tableaux
 const sites = ref<any[]>([])
 const employees = ref<any[]>([])
+const pointages = ref<any[]>([])
+const anomalies = ref<any[]>([])
 const reports = ref<any[]>([])
 
 // En-têtes des tableaux
@@ -345,8 +353,6 @@ const sitesHeaders = [
   { title: 'Nom', key: 'name' },
   { title: 'Adresse', key: 'address' },
   { title: 'Manager', key: 'manager_name' },
-  { title: 'Statut', key: 'is_active' },
-  { title: 'Date d\'ajout', key: 'created_at' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
 
@@ -355,15 +361,15 @@ const employeesHeaders = [
   { title: 'Prénom', key: 'first_name' },
   { title: 'Email', key: 'email' },
   { title: 'Rôle', key: 'role' },
-  { title: 'Statut', key: 'is_active' },
-  { title: 'Date d\'ajout', key: 'created_at' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
 
 const reportsHeaders = [
-  { title: 'Nom', key: 'name' },
-  { title: 'Type', key: 'type' },
-  { title: 'Date de création', key: 'created_at' },
+  { title: 'Site', key: 'site_name' },
+  { title: 'Type', key: 'report_type_display' },
+  { title: 'Format', key: 'report_format_display' },
+  { title: 'Période', key: 'period' },
+  { title: 'Créé par', key: 'created_by_name' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
 
@@ -449,9 +455,115 @@ const handleDelete = async (type: string, item: TableItem) => {
   }
 }
 
+// Méthodes de chargement des données pour chaque onglet
+const loadSites = async () => {
+  console.log('[OrganizationDetail][LoadSites] Chargement des sites...')
+  loadingTabs.value.sites = true
+  try {
+    const response = await organizationsApi.getOrganizationSites(itemId.value)
+    sites.value = response.data.results
+  } catch (error) {
+    console.error('[OrganizationDetail][LoadSites] Erreur lors du chargement des sites:', error)
+    showError('Erreur lors du chargement des sites')
+  } finally {
+    loadingTabs.value.sites = false
+  }
+}
+
+const loadEmployees = async () => {
+  console.log('[OrganizationDetail][LoadEmployees] Chargement des employés...')
+  loadingTabs.value.employees = true
+  try {
+    const response = await organizationsApi.getOrganizationUsers(itemId.value)
+    employees.value = response.data.results
+  } catch (error) {
+    console.error('[OrganizationDetail][LoadEmployees] Erreur lors du chargement des employés:', error)
+    showError('Erreur lors du chargement des employés')
+  } finally {
+    loadingTabs.value.employees = false
+  }
+}
+
+const loadPointages = async () => {
+  console.log('[OrganizationDetail][LoadPointages] Chargement des pointages...')
+  loadingTabs.value.pointages = true
+  try {
+    const response = await organizationsApi.getOrganizationTimesheets(itemId.value, {
+      page: 1,
+      page_size: 10
+    })
+    pointages.value = response.data.results
+  } catch (error) {
+    console.error('[OrganizationDetail][LoadPointages] Erreur lors du chargement des pointages:', error)
+    showError('Erreur lors du chargement des pointages')
+  } finally {
+    loadingTabs.value.pointages = false
+  }
+}
+
+const loadAnomalies = async () => {
+  console.log('[OrganizationDetail][LoadAnomalies] Chargement des anomalies...')
+  loadingTabs.value.anomalies = true
+  try {
+    const response = await organizationsApi.getOrganizationAnomalies(itemId.value, {
+      page: 1,
+      page_size: 10
+    })
+    anomalies.value = response.data.results
+  } catch (error) {
+    console.error('[OrganizationDetail][LoadAnomalies] Erreur lors du chargement des anomalies:', error)
+    showError('Erreur lors du chargement des anomalies')
+  } finally {
+    loadingTabs.value.anomalies = false
+  }
+}
+
+const loadReports = async () => {
+  console.log('[OrganizationDetail][LoadReports] Chargement des rapports...')
+  loadingTabs.value.reports = true
+  try {
+    const response = await organizationsApi.getOrganizationReports(itemId.value, {
+      page: 1,
+      page_size: 10
+    })
+    reports.value = response.data.results
+  } catch (error) {
+    console.error('[OrganizationDetail][LoadReports] Erreur lors du chargement des rapports:', error)
+    showError('Erreur lors du chargement des rapports')
+  } finally {
+    loadingTabs.value.reports = false
+  }
+}
+
+// Fonction pour charger les données en fonction de l'onglet actif
+const loadTabData = async (tab: string) => {
+  console.log('[OrganizationDetail][LoadTabData] Chargement des données pour l\'onglet:', tab)
+  switch (tab) {
+    case 'sites':
+      await loadSites()
+      break
+    case 'employees':
+      await loadEmployees()
+      break
+    case 'pointages':
+      await loadPointages()
+      break
+    case 'anomalies':
+      await loadAnomalies()
+      break
+    case 'reports':
+      await loadReports()
+      break
+  }
+}
+
 // Lifecycle hooks
 onMounted(async () => {
   await loadData()
+  // Charger les données de l'onglet initial si ce n'est pas 'details'
+  if (activeTab.value !== 'details') {
+    await loadTabData(activeTab.value)
+  }
 })
 
 // Watch for route changes
@@ -460,6 +572,10 @@ watch(
   async (newId, oldId) => {
     if (newId !== oldId) {
       await loadData()
+      // Recharger les données de l'onglet actif si ce n'est pas 'details'
+      if (activeTab.value !== 'details') {
+        await loadTabData(activeTab.value)
+      }
     }
   }
 )
@@ -534,5 +650,35 @@ watch(
 :deep(.v-tab:hover) {
   color: #00346E !important;
   opacity: 0.8;
+}
+
+/* Style des boutons dans le tableau */
+:deep(.v-data-table .v-btn--icon) {
+  background-color: transparent !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="primary"]) {
+  color: #00346E !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="error"]) {
+  color: #F78C48 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="warning"]) {
+  color: #FB8C00 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="grey"]) {
+  color: #999999 !important;
+  opacity: 0.5 !important;
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+/* Assurer que les icônes dans les boutons sont visibles */
+:deep(.v-data-table .v-btn--icon .v-icon) {
+  opacity: 1 !important;
+  color: inherit !important;
 }
 </style> 
