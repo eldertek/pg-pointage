@@ -104,9 +104,20 @@
     <v-snackbar
       v-model="snackbar.show"
       :color="snackbar.color"
-      timeout="3000"
+      timeout="5000"
+      multi-line
     >
       {{ snackbar.text }}
+      
+      <template v-slot:actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Fermer
+        </v-btn>
+      </template>
     </v-snackbar>
   </div>
 </template>
@@ -457,8 +468,7 @@ export default {
           site_id: siteId,
           latitude,
           longitude,
-          scan_type: scanMethod,
-          entry_type: 'ARRIVAL' // Par défaut on met ARRIVAL, le backend déterminera si c'est un départ
+          scan_type: scanMethod
         })
         
         if (result.is_ambiguous) {
@@ -477,7 +487,26 @@ export default {
         }
       } catch (err) {
         console.error('Erreur lors de l\'enregistrement:', err)
-        showError(err.message || 'Erreur lors de l\'enregistrement')
+        
+        // Gestion des erreurs de validation du backend
+        if (err.response?.data?.detail) {
+          const detail = err.response.data.detail
+          
+          // Si c'est un objet avec des champs d'erreur
+          if (typeof detail === 'object') {
+            // Extraire les messages d'erreur
+            const messages = Object.values(detail)
+              .flat()
+              .filter(msg => msg)
+              .join('\n')
+            showError(messages)
+          } else {
+            // Si c'est une chaîne simple
+            showError(detail)
+          }
+        } else {
+          showError('Erreur lors de l\'enregistrement')
+        }
       } finally {
         scanning.value = false
       }
@@ -493,7 +522,27 @@ export default {
         
         showSuccess(result.message || 'Enregistrement effectué avec succès')
       } catch (err) {
-        showError(err.message || 'Erreur lors de l\'enregistrement')
+        console.error('Erreur lors de l\'enregistrement ambigu:', err)
+        
+        // Gestion des erreurs de validation du backend
+        if (err.response?.data?.detail) {
+          const detail = err.response.data.detail
+          
+          // Si c'est un objet avec des champs d'erreur
+          if (typeof detail === 'object') {
+            // Extraire les messages d'erreur
+            const messages = Object.values(detail)
+              .flat()
+              .filter(msg => msg)
+              .join('\n')
+            showError(messages)
+          } else {
+            // Si c'est une chaîne simple
+            showError(detail)
+          }
+        } else {
+          showError('Erreur lors de l\'enregistrement')
+        }
       } finally {
         showAmbiguousDialog.value = false
         ambiguousTimesheetData.value = null
@@ -629,6 +678,12 @@ export default {
 
 .gap-4 {
   gap: 1rem;
+}
+
+/* Style pour le snackbar */
+:deep(.v-snackbar__content) {
+  white-space: pre-line;
+  text-align: left;
 }
 </style>
 

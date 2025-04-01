@@ -3,6 +3,7 @@ from .models import Timesheet, Anomaly, EmployeeReport
 from sites.models import Site
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
+from django.utils import timezone
 
 class TimesheetSerializer(serializers.ModelSerializer):
     """Serializer pour les pointages"""
@@ -33,14 +34,14 @@ class TimesheetSerializer(serializers.ModelSerializer):
 class TimesheetCreateSerializer(serializers.ModelSerializer):
     """Serializer pour la création de pointages"""
     site_id = serializers.CharField(write_only=True)
-    latitude = serializers.DecimalField(max_digits=13, decimal_places=10, required=False, allow_null=True)
-    longitude = serializers.DecimalField(max_digits=13, decimal_places=10, required=False, allow_null=True)
+    latitude = serializers.DecimalField(max_digits=12, decimal_places=10, required=False, allow_null=True)
+    longitude = serializers.DecimalField(max_digits=12, decimal_places=10, required=False, allow_null=True)
+    message = serializers.CharField(read_only=True)
     
     class Meta:
         model = Timesheet
-        fields = ['site_id', 'entry_type', 'scan_type', 'latitude', 'longitude']
+        fields = ['site_id', 'scan_type', 'latitude', 'longitude', 'message']
         extra_kwargs = {
-            'entry_type': {'required': True},
             'scan_type': {'required': True}
         }
     
@@ -50,15 +51,54 @@ class TimesheetCreateSerializer(serializers.ModelSerializer):
         except Site.DoesNotExist:
             raise serializers.ValidationError("Site introuvable avec cet ID NFC/QR Code.")
     
+    def validate(self, attrs):
+        site = attrs['site_id']
+        employee = self.context['request'].user
+        today = timezone.now().date()
+        
+        # Déterminer automatiquement le type d'entrée
+        last_timesheet = Timesheet.objects.filter(
+            employee=employee,
+            site=site,
+            timestamp__date=today
+        ).order_by('-timestamp').first()
+        
+        # Si pas de pointage aujourd'hui ou dernier pointage = départ -> arrivée
+        # Si dernier pointage = arrivée -> départ
+        entry_type = Timesheet.EntryType.ARRIVAL
+        message = "Premier pointage de la journée enregistré comme une arrivée."
+        
+        if last_timesheet:
+            if last_timesheet.entry_type == Timesheet.EntryType.ARRIVAL:
+                entry_type = Timesheet.EntryType.DEPARTURE
+                message = "Pointage enregistré comme un départ suite à votre dernière arrivée."
+            else:
+                message = "Nouveau cycle de pointage, enregistré comme une arrivée."
+        
+        attrs['entry_type'] = entry_type
+        attrs['message'] = message
+        return attrs
+    
     def create(self, validated_data):
         site = validated_data.pop('site_id')
-        # Arrondir les coordonnées GPS si présentes
+        message = validated_data.pop('message')
+        employee = self.context['request'].user
+        
+        # Arrondir les coordonnées GPS à 10 décimales
         if 'latitude' in validated_data:
             validated_data['latitude'] = round(float(validated_data['latitude']), 10)
         if 'longitude' in validated_data:
             validated_data['longitude'] = round(float(validated_data['longitude']), 10)
-            
-        return Timesheet.objects.create(site=site, **validated_data)
+        
+        timesheet = Timesheet.objects.create(
+            employee=employee,
+            site=site,
+            **validated_data
+        )
+        
+        # Ajouter le message à la réponse
+        timesheet.message = message
+        return timesheet
 
 class AnomalySerializer(serializers.ModelSerializer):
     """Serializer pour les anomalies"""

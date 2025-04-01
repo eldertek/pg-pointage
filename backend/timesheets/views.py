@@ -91,28 +91,19 @@ class TimesheetCreateView(generics.CreateAPIView):
     serializer_class = TimesheetCreateSerializer
     permission_classes = [permissions.IsAuthenticated]
     
-    def perform_create(self, serializer):
-        try:
-            timesheet = serializer.save(
-                employee=self.request.user,
-                timestamp=timezone.now()
-            )
-            return timesheet
-        except ValidationError as e:
-            if hasattr(e, 'message_dict'):
-                raise serializers.ValidationError(e.message_dict)
-            raise serializers.ValidationError({'non_field_errors': [str(e)]})
-
     def create(self, request, *args, **kwargs):
         try:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            timesheet = self.perform_create(serializer)
+            timesheet = serializer.save(timestamp=timezone.now())
+            
+            # Vérifier si le pointage est ambigu (à implémenter selon la logique métier)
+            is_ambiguous = False
             
             return Response({
                 'message': 'Pointage enregistré avec succès',
                 'data': TimesheetSerializer(timesheet).data,
-                'is_ambiguous': False  # À implémenter selon la logique métier
+                'is_ambiguous': is_ambiguous
             }, status=status.HTTP_201_CREATED)
             
         except serializers.ValidationError as e:
