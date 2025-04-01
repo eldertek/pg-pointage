@@ -7,6 +7,7 @@ from .views import (
     OrganizationTimesheetsView, OrganizationAnomaliesView,
     OrganizationReportsView
 )
+from . import views
 
 urlpatterns = [
     path('', OrganizationListView.as_view(), name='organization-list'),
@@ -20,5 +21,6 @@ urlpatterns = [
     path('<int:pk>/timesheets/', OrganizationTimesheetsView.as_view(), name='organization-timesheets'),
     path('<int:pk>/anomalies/', OrganizationAnomaliesView.as_view(), name='organization-anomalies'),
     path('<int:pk>/reports/', OrganizationReportsView.as_view(), name='organization-reports'),
+    path('<int:pk>/employees/', views.OrganizationEmployeesView.as_view(), name='organization-employees'),
 ]
 

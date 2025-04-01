@@ -184,6 +184,33 @@
             label="Organisation active"
           ></v-switch>
         </v-col>
+        <v-col cols="12">
+          <v-autocomplete
+            v-model="(editedItem as OrganizationFormData).users"
+            :items="users"
+            item-title="full_name"
+            item-value="id"
+            label="Employés"
+            multiple
+            chips
+            closable-chips
+            variant="outlined"
+            :error-messages="formErrors.users"
+          >
+            <template v-slot:chip="{ props, item }">
+              <v-chip
+                v-bind="props"
+                :text="`${item.raw.last_name} ${item.raw.first_name} (${item.raw.email})`"
+              ></v-chip>
+            </template>
+            <template v-slot:item="{ props, item }">
+              <v-list-item
+                v-bind="props"
+                :title="`${item.raw.last_name} ${item.raw.first_name} (${item.raw.email})`"
+              ></v-list-item>
+            </template>
+          </v-autocomplete>
+        </v-col>
       </DashboardForm>
     </template>
   </DashboardView>
@@ -219,6 +246,7 @@ interface Organization {
   created_at: string;
   updated_at: string;
   is_active: boolean;
+  users?: number[];
 }
 
 // Interface pour le formulaire organisation
@@ -234,6 +262,7 @@ interface OrganizationFormData {
   siret?: string;
   notes?: string;
   is_active?: boolean;
+  users?: number[];
 }
 
 const props = defineProps({
@@ -253,6 +282,8 @@ const editedItem = ref<OrganizationFormData | null>(null)
 const form = ref()
 const dashboardView = ref()
 const formErrors = ref<Record<string, string[]>>({})
+const users = ref<any[]>([])
+const selectedUsers = ref<number[]>([])
 
 // Filtres
 const filters = ref({
@@ -341,6 +372,41 @@ const loadOrganizations = async () => {
   }
 }
 
+const loadUsers = async () => {
+  try {
+    const response = await organizationsApi.getUnassignedEmployees(editedItem.value?.id || 0)
+    const unassignedUsers = response.data.results || []
+    
+    // Combiner avec les utilisateurs existants
+    const allUsers = [...users.value, ...unassignedUsers]
+    
+    // Formater les noms complets
+    users.value = allUsers.map(user => ({
+      ...user,
+      full_name: `${user.last_name} ${user.first_name} (${user.email})`
+    }))
+  } catch (error) {
+    console.error('[AccessManagement][LoadUsers] Erreur lors du chargement des utilisateurs:', error)
+  }
+}
+
+const loadOrganizationUsers = async (organizationId: number) => {
+  try {
+    const response = await organizationsApi.getOrganizationUsers(organizationId)
+    const organizationUsers = response.data.results || []
+    selectedUsers.value = organizationUsers.map((user: any) => user.id)
+    editedItem.value.users = selectedUsers.value
+    
+    // Ajouter les utilisateurs actuels à la liste des utilisateurs disponibles
+    users.value = organizationUsers.map((user: any) => ({
+      ...user,
+      full_name: `${user.last_name} ${user.first_name} (${user.email})`
+    }))
+  } catch (error) {
+    console.error('[AccessManagement][LoadOrganizationUsers] Erreur lors du chargement des utilisateurs de l\'organisation:', error)
+  }
+}
+
 const resetFilters = () => {
   filters.value = {
     search: ''
@@ -348,7 +414,11 @@ const resetFilters = () => {
   loadOrganizations()
 }
 
-const openDialog = (item?: Organization) => {
+const openDialog = async (item?: Organization) => {
+  // Réinitialiser les utilisateurs
+  users.value = []
+  selectedUsers.value = []
+  
   editedItem.value = item ? {
     id: item.id,
     name: item.name,
@@ -360,7 +430,8 @@ const openDialog = (item?: Organization) => {
     country: item.country,
     siret: item.siret,
     notes: item.notes,
-    is_active: item.is_active
+    is_active: item.is_active,
+    users: []
   } : {
     name: '',
     phone: '',
@@ -371,8 +442,17 @@ const openDialog = (item?: Organization) => {
     country: '',
     siret: '',
     notes: '',
-    is_active: true
+    is_active: true,
+    users: []
   }
+
+  // Charger d'abord les utilisateurs de l'organisation si on est en mode édition
+  if (item?.id) {
+    await loadOrganizationUsers(item.id)
+  }
+  
+  // Ensuite charger les utilisateurs non assignés
+  await loadUsers()
   dashboardView.value.showForm = true
 }
 
@@ -386,15 +466,21 @@ const saveOrganization = async () => {
     if (editedItem.value) {
       const orgData = editedItem.value as OrganizationFormData
       if (orgData.id) {
-        await organizationsApi.updateOrganization(orgData.id, orgData)
+        await organizationsApi.updateOrganization(orgData.id, {
+          ...orgData,
+          users: orgData.users || []
+        })
       } else {
-        await organizationsApi.createOrganization(orgData)
+        await organizationsApi.createOrganization({
+          ...orgData,
+          users: orgData.users || []
+        })
       }
       await loadOrganizations()
       dashboardView.value.showForm = false
     }
   } catch (error: any) {
-    console.error('Erreur lors de la sauvegarde:', error)
+    console.error('[AccessManagement][SaveOrganization] Erreur lors de la sauvegarde:', error)
     if (error.response?.data) {
       formErrors.value = error.response.data
     }

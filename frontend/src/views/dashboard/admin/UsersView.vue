@@ -2,7 +2,7 @@
   <DashboardView
     ref="dashboardView"
     title="Utilisateurs"
-    :form-title="(editedItem as UserFormData)?.username ? 'Modifier utilisateur' : 'Nouvel utilisateur'"
+    :form-title="editedItem?.id ? 'Modifier un utilisateur' : 'Nouvel utilisateur'"
     :saving="saving"
     @save="saveUser"
   >
@@ -214,21 +214,6 @@
             :return-object="false"
           ></v-select>
         </v-col>
-        <!-- Sélection des sites uniquement pour les employés -->
-        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
-          <v-select
-            v-model="(editedItem as UserFormData).sites"
-            :items="sites"
-            item-title="name"
-            item-value="id"
-            label="Sites"
-            multiple
-            chips
-            required
-            :error-messages="formErrors.sites"
-            no-data-text="Aucun site disponible"
-          ></v-select>
-        </v-col>
         <!-- Champ mot de passe uniquement à la création -->
         <v-col v-if="!(editedItem as UserFormData).id" cols="12" sm="6">
           <v-text-field
@@ -271,9 +256,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { usersApi, sitesApi, organizationsApi } from '@/services/api'
+import { usersApi, organizationsApi } from '@/services/api'
 import type { User, UserRequest, Organization } from '@/types/api'
-import type { Site } from '@/services/api'
 import { RoleEnum, ScanPreferenceEnum } from '@/types/api'
 import { useAuthStore } from '@/stores/auth'
 import DashboardView from '@/components/dashboard/DashboardView.vue'
@@ -286,7 +270,6 @@ import type { DialogState } from '@/utils/dialogs'
 
 // Interface étendue pour les utilisateurs avec les propriétés supplémentaires
 interface ExtendedUser extends User {
-  sites?: Site[];
   id: number;
   is_active: boolean;
   organizations: { id: number; name: string }[];
@@ -302,7 +285,6 @@ interface FormOrganization {
 interface UserFormData extends Omit<UserRequest, 'organizations'> {
   id?: number;
   phone_number?: string;
-  sites?: number[];
   organizations: FormOrganization[];
 }
 
@@ -335,7 +317,6 @@ const filters = ref({
 // Données
 const users = ref<ExtendedUser[]>([])
 const organizations = ref<Organization[]>([])
-const sites = ref<Site[]>([])
 
 // En-têtes des tableaux
 const headers = [
@@ -346,7 +327,6 @@ const headers = [
   { title: 'Email', key: 'email' },
   { title: 'Rôle', key: 'role' },
   { title: 'Organisations', key: 'organizations_names', sortable: false },
-  { title: 'Sites', key: 'sites' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
 
@@ -395,18 +375,6 @@ const loadOrganizations = async () => {
   }
 }
 
-const loadSites = async (organizationIds?: number[]) => {
-  try {
-    console.log('[Users][LoadSites] Chargement des sites pour les organisations:', organizationIds)
-    const response = await sitesApi.getAllSites(1, 100, {
-      organizations: organizationIds
-    })
-    sites.value = response.data.results || []
-  } catch (error) {
-    console.error('[Users][Error] Erreur lors du chargement des sites:', error)
-  }
-}
-
 const resetFilters = () => {
   filters.value = {
     search: '',
@@ -448,8 +416,7 @@ const openDialog = (item?: ExtendedUser) => {
       phone_number: item.phone_number,
       is_active: item.is_active,
       scan_preference: item.scan_preference,
-      simplified_mobile_view: item.simplified_mobile_view,
-      sites: item.role === RoleEnum.SUPER_ADMIN ? undefined : item.sites?.map(site => site.id)
+      simplified_mobile_view: item.simplified_mobile_view
     }
   } else {
     editedItem.value = {
@@ -463,8 +430,7 @@ const openDialog = (item?: ExtendedUser) => {
       is_active: true,
       scan_preference: ScanPreferenceEnum.BOTH,
       simplified_mobile_view: false,
-      password: '',
-      sites: []
+      password: ''
     }
   }
   dashboardView.value.showForm = true
@@ -606,11 +572,6 @@ onMounted(async () => {
     try {
       const response = await usersApi.getUser(Number(props.editId))
       openDialog(response.data)
-      // Charger les sites pour les organisations de l'utilisateur
-      if (response.data.role === RoleEnum.EMPLOYEE && response.data.organizations) {
-        const organizationIds = response.data.organizations.map((org: any) => org.id)
-        await loadSites(organizationIds)
-      }
     } catch (error) {
       console.error('[Users][Error] Erreur lors du chargement des données:', error)
     }
@@ -625,22 +586,11 @@ watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
     // Réinitialiser les champs en fonction du rôle
     if (newRole === RoleEnum.SUPER_ADMIN) {
       userData.organizations = []
-      userData.sites = []
     } else if (newRole === RoleEnum.MANAGER) {
-      userData.sites = []
+      userData.organizations = []
     }
   }
 })
-
-// Watcher pour les organisations sélectionnées
-watch(() => (editedItem.value as UserFormData)?.organizations, async (newOrganizations) => {
-  if (editedItem.value && (editedItem.value as UserFormData).role === RoleEnum.EMPLOYEE) {
-    const organizationIds = newOrganizations?.map(org => typeof org === 'object' ? org.id : org)
-    await loadSites(organizationIds)
-    // Réinitialiser les sites sélectionnés si les organisations changent
-    ;(editedItem.value as UserFormData).sites = []
-  }
-}, { deep: true })
 
 </script>
 

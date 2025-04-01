@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions, viewsets, serializers
 from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from django.http import Http404
 
 from .models import Site, Schedule, ScheduleDetail, SiteEmployee
 from .serializers import (
@@ -89,8 +90,8 @@ class SiteListView(generics.ListCreateAPIView):
         user = self.request.user
         base_queryset = Site.objects.prefetch_related(
             'schedules',
-            'schedules__assigned_employees',
-            'schedules__assigned_employees__employee'
+            'schedules__schedule_employees',
+            'schedules__schedule_employees__employee'
         )
         
         organizations = self.request.query_params.get('organizations')
@@ -112,10 +113,7 @@ class SiteListView(generics.ListCreateAPIView):
     
     def perform_create(self, serializer):
         if self.request.user.is_manager and self.request.user.organization:
-            serializer.save(
-                organization=self.request.user.organization,
-                manager=self.request.user
-            )
+            serializer.save(organization=self.request.user.organization)
         else:
             serializer.save()
 
@@ -131,8 +129,8 @@ class SiteDetailView(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         base_queryset = Site.objects.prefetch_related(
             'schedules',
-            'schedules__assigned_employees',
-            'schedules__assigned_employees__employee'
+            'schedules__schedule_employees',
+            'schedules__schedule_employees__employee'
         )
         
         if user.is_super_admin:
@@ -149,37 +147,87 @@ class SiteEmployeesView(generics.ListCreateAPIView):
     
     def get_queryset(self):
         site_pk = self.kwargs.get('pk')
-        site = Site.objects.get(pk=site_pk)
-        
-        role = self.request.query_params.get('role', None)
-        
-        users = User.objects.filter(
-            organizations__in=[site.organization],
-            is_active=True
-        )
-        
-        if role:
-            users = users.filter(role=role)
+        try:
+            site = Site.objects.get(pk=site_pk)
             
-        users = users.order_by('last_name', 'first_name')
-        
-        site_employees = []
-        for user in users:
-            site_employee, created = SiteEmployee.objects.get_or_create(
-                site_id=site_pk,
-                employee=user,
-                defaults={'is_active': True}
+            # Récupérer le rôle demandé dans les paramètres de requête
+            role = self.request.query_params.get('role', None)
+            
+            # Base de la requête pour les utilisateurs
+            base_query = models.Q(
+                organizations__in=[site.organization],
+                is_active=True,
+                employee_sites__site=site,
+                employee_sites__schedule__isnull=False
             )
-            site_employees.append(site_employee)
-        
-        return SiteEmployee.objects.filter(
-            site_id=site_pk,
-            employee__in=users
-        )
+            
+            # Ajouter le manager du site s'il existe
+            if site.manager:
+                base_query |= models.Q(id=site.manager.id, is_active=True)
+            
+            users = User.objects.filter(base_query)
+            
+            # Appliquer le filtre de rôle si spécifié
+            if role:
+                users = users.filter(role=role)
+            
+            # Ordonner les résultats
+            users = users.order_by('last_name', 'first_name').distinct()
+            
+            print(f"[SiteEmployeesView][Debug] Site: {site.name}")
+            print(f"[SiteEmployeesView][Debug] Organisation: {site.organization.name}")
+            print(f"[SiteEmployeesView][Debug] Manager du site: {site.manager.get_full_name() if site.manager else 'Aucun'}")
+            print(f"[SiteEmployeesView][Debug] Rôle filtré: {role}")
+            print(f"[SiteEmployeesView][Debug] Nombre d'employés trouvés: {users.count()}")
+            
+            # Créer ou récupérer les SiteEmployee pour tous les utilisateurs
+            site_employees = []
+            for user in users:
+                site_employee, created = SiteEmployee.objects.get_or_create(
+                    site=site,
+                    employee=user,
+                    defaults={'is_active': True}
+                )
+                if not site_employee.is_active:
+                    site_employee.is_active = True
+                    site_employee.save()
+                site_employees.append(site_employee.id)
+            
+            return SiteEmployee.objects.filter(
+                id__in=site_employees
+            ).select_related('employee', 'schedule')
+            
+        except Site.DoesNotExist:
+            print(f"[SiteEmployeesView][Error] Site {site_pk} non trouvé")
+            return SiteEmployee.objects.none()
+        except Exception as e:
+            print(f"[SiteEmployeesView][Error] Erreur inattendue: {str(e)}")
+            return SiteEmployee.objects.none()
     
     def perform_create(self, serializer):
         site_pk = self.kwargs.get('pk')
-        serializer.save(site_id=site_pk)
+        try:
+            site = Site.objects.get(pk=site_pk)
+            
+            # Vérifier que l'employé appartient à l'organisation du site
+            employee = serializer.validated_data['employee']
+            if not employee.organizations.filter(id=site.organization.id).exists():
+                raise serializers.ValidationError({
+                    'employee': 'L\'employé doit appartenir à l\'organisation du site'
+                })
+            
+            # Vérifier que l'employé a un planning associé au site
+            if not Schedule.objects.filter(site=site, schedule_employees__employee=employee).exists():
+                raise serializers.ValidationError({
+                    'employee': 'L\'employé doit être associé à un planning du site'
+                })
+            
+            serializer.save(site=site)
+            
+        except Site.DoesNotExist:
+            raise serializers.ValidationError({
+                'site': 'Site non trouvé'
+            })
 
 class SiteSchedulesView(generics.ListAPIView):
     """Vue pour lister les plannings d'un site"""
@@ -194,20 +242,44 @@ class SiteSchedulesView(generics.ListAPIView):
             site_id=site_pk
         ).prefetch_related(
             'details',
-            'assigned_employees',
-            'assigned_employees__employee'
+            'schedule_employees',
+            'schedule_employees__employee'
         )
         
         print(f"[SiteSchedulesView][Debug] Nombre de plannings trouvés: {queryset.count()}")
         return queryset
 
 class SiteScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Vue pour gérer les détails d'un planning d'un site"""
     serializer_class = ScheduleSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         site_pk = self.kwargs.get('pk')
+        schedule_pk = self.kwargs.get('schedule_pk')
+        print(f"[SiteScheduleDetailView][Debug] Recherche du planning {schedule_pk} pour le site {site_pk}")
         return Schedule.objects.filter(site_id=site_pk)
+
+    def get_object(self):
+        queryset = self.get_queryset()
+        schedule_pk = self.kwargs.get('schedule_pk')
+        obj = queryset.filter(id=schedule_pk).first()
+        if not obj:
+            print(f"[SiteScheduleDetailView][Error] Planning {schedule_pk} non trouvé")
+            raise Http404(f"Planning {schedule_pk} non trouvé")
+        print(f"[SiteScheduleDetailView][Debug] Planning trouvé: {obj.id}")
+        return obj
+
+    def perform_update(self, serializer):
+        print("[SiteScheduleDetailView][Update] Début de la mise à jour")
+        print(f"[SiteScheduleDetailView][Update] Données reçues: {self.request.data}")
+        try:
+            instance = serializer.save()
+            print(f"[SiteScheduleDetailView][Update] Planning mis à jour avec succès: {instance.id}")
+            return instance
+        except Exception as e:
+            print(f"[SiteScheduleDetailView][Error] Erreur lors de la mise à jour: {str(e)}")
+            raise
 
 class SiteScheduleDetailListView(generics.ListCreateAPIView):
     serializer_class = ScheduleDetailSerializer
@@ -345,8 +417,8 @@ class AllSchedulesView(generics.ListAPIView):
         
         queryset = Schedule.objects.prefetch_related(
             'details',
-            'assigned_employees',
-            'assigned_employees__employee'
+            'schedule_employees',
+            'schedule_employees__employee'
         )
         
         if user.is_super_admin:
@@ -355,8 +427,28 @@ class AllSchedulesView(generics.ListAPIView):
             return queryset.filter(site__organization__in=user.organizations.all())
         elif user.is_employee:
             return queryset.filter(
-                assigned_employees__employee=user,
-                assigned_employees__is_active=True
+                schedule_employees__employee=user,
+                schedule_employees__is_active=True
             )
         return Schedule.objects.none()
+
+class SiteAvailableEmployeesView(generics.ListAPIView):
+    """Vue pour lister les employés disponibles de l'organisation d'un site"""
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        site_pk = self.kwargs.get('pk')
+        try:
+            site = Site.objects.get(pk=site_pk)
+            
+            # Récupérer les employés de l'organisation qui sont actifs
+            return User.objects.filter(
+                organizations=site.organization,
+                is_active=True,
+                role='EMPLOYEE'
+            ).order_by('last_name', 'first_name')
+            
+        except Site.DoesNotExist:
+            return User.objects.none()
 

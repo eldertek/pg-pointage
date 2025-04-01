@@ -256,18 +256,64 @@ class SiteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Site
         fields = ['id', 'name', 'address', 'postal_code', 'city', 'country',
-                 'organization', 'organization_name', 'nfc_id', 'qr_code', 'late_margin',
+                 'organization', 'organization_name', 'manager', 'manager_name', 'nfc_id', 'qr_code', 'late_margin',
                  'early_departure_margin', 'ambiguous_margin', 'alert_emails',
                  'require_geolocation', 'geolocation_radius', 'allow_offline_mode',
                  'max_offline_duration', 'created_at', 'updated_at', 'is_active',
-                 'schedules', 'manager', 'manager_name']
+                 'schedules']
         read_only_fields = ['created_at', 'updated_at', 'organization_name', 'nfc_id']
+        extra_kwargs = {
+            'name': {'required': True, 'error_messages': {'required': 'Ce champ est obligatoire.'}},
+            'address': {'required': True, 'error_messages': {'required': 'Ce champ est obligatoire.'}},
+            'postal_code': {'required': True, 'error_messages': {'required': 'Ce champ est obligatoire.'}},
+            'city': {'required': True, 'error_messages': {'required': 'Ce champ est obligatoire.'}},
+            'organization': {'required': True, 'error_messages': {'required': 'Ce champ est obligatoire.'}},
+            'manager': {'required': False},
+            'country': {'required': False, 'default': 'France'},
+            'late_margin': {'required': False, 'default': 15},
+            'early_departure_margin': {'required': False, 'default': 15},
+            'ambiguous_margin': {'required': False, 'default': 20},
+            'require_geolocation': {'required': False, 'default': True},
+            'geolocation_radius': {'required': False, 'default': 100},
+            'allow_offline_mode': {'required': False, 'default': True},
+            'max_offline_duration': {'required': False, 'default': 24},
+            'is_active': {'required': False, 'default': True}
+        }
 
     @extend_schema_field(OpenApiTypes.STR)
-    def get_manager_name(self, obj) -> str:
+    def get_manager_name(self, obj):
+        """Retourne le nom complet du manager"""
         if obj.manager:
             return obj.manager.get_full_name() or obj.manager.username
         return None
+
+    def validate(self, attrs):
+        """Validation personnalisée pour le manager et l'organisation"""
+        manager = attrs.get('manager')
+        organization = attrs.get('organization')
+
+        if manager:
+            # Vérifier que le manager existe et a le bon rôle
+            if manager.role != 'MANAGER':
+                raise serializers.ValidationError({
+                    'manager': 'L\'utilisateur sélectionné doit avoir le rôle de manager'
+                })
+
+            # Si l'organisation est fournie, vérifier que le manager y appartient
+            if organization and not manager.organizations.filter(id=organization.id).exists():
+                raise serializers.ValidationError({
+                    'manager': 'Le manager doit appartenir à l\'organisation du site'
+                })
+            
+            # Si l'organisation n'est pas fournie mais qu'on est en update,
+            # vérifier avec l'organisation existante
+            elif not organization and self.instance:
+                if not manager.organizations.filter(id=self.instance.organization.id).exists():
+                    raise serializers.ValidationError({
+                        'manager': 'Le manager doit appartenir à l\'organisation du site'
+                    })
+
+        return attrs
 
     def validate_nfc_id(self, value):
         """Valide le format de l'ID du site"""
@@ -289,14 +335,4 @@ class SiteSerializer(serializers.ModelSerializer):
             # Si l'organisation change, générer un nouvel ID
             validated_data['nfc_id'] = generate_site_id(validated_data['organization'])
         return super().update(instance, validated_data)
-
-    def validate(self, attrs):
-        # Vérifier que le manager appartient à la même organisation que le site
-        manager = attrs.get('manager')
-        organization = attrs.get('organization')
-        
-        if manager and organization and organization not in manager.organizations.all():
-            raise serializers.ValidationError("Le manager doit appartenir à la même organisation que le site")
-        
-        return attrs
 

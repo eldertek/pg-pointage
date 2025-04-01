@@ -137,8 +137,6 @@
               label="Manager"
               item-title="name"
               item-value="id"
-              :rules="[v => !!v || 'Le manager est requis']"
-              required
               :disabled="!editedItem.organization"
               :no-data-text="'Aucun manager disponible'"
               :loading-text="'Chargement des managers...'"
@@ -156,7 +154,10 @@
             <v-text-field
               v-model="editedItem.postal_code"
               label="Code postal"
-              :rules="[v => !!v || 'Le code postal est requis']"
+              :rules="[
+                v => !!v || 'Le code postal est requis',
+                v => /^\d{5}$/.test(v) || 'Le code postal doit contenir 5 chiffres'
+              ]"
               required
             ></v-text-field>
           </v-col>
@@ -268,6 +269,7 @@ interface EditedSite {
   allow_offline_mode: boolean
   max_offline_duration: number
   is_active: boolean
+  alert_emails: string
 }
 
 // État
@@ -277,20 +279,27 @@ const saving = ref(false)
 const page = ref(1)
 const itemsPerPage = ref(10)
 const totalItems = ref(0)
-const editedItem = ref<EditedSite>({
+
+const defaultSiteValues = {
   name: '',
   address: '',
   postal_code: '',
   city: '',
   country: 'France',
   organization: undefined,
-  manager: undefined,
+  manager: null,
   require_geolocation: true,
   geolocation_radius: 100,
   allow_offline_mode: true,
   max_offline_duration: 24,
-  is_active: true
-})
+  late_margin: 15,
+  early_departure_margin: 15,
+  ambiguous_margin: 20,
+  is_active: true,
+  alert_emails: ''
+}
+
+const editedItem = ref({ ...defaultSiteValues })
 const form = ref()
 
 // Filtres
@@ -379,46 +388,98 @@ const loadManagers = async () => {
 
 const dashboardView = ref()
 
-const openDialog = (item?: Site) => {
-  if (item) {
-    editedItem.value = {
-      ...item,
-      organization: item.organization || undefined,
-      manager: item.manager || undefined
+const openDialog = async (item?: Site) => {
+  try {
+    // S'assurer que les organisations sont chargées
+    if (organizations.value.length === 0) {
+      await loadOrganizations()
     }
-  } else {
-    editedItem.value = {
-      name: '',
-      address: '',
-      postal_code: '',
-      city: '',
-      country: 'France',
-      organization: undefined,
-      manager: undefined,
-      require_geolocation: true,
-      geolocation_radius: 100,
-      allow_offline_mode: true,
-      max_offline_duration: 24,
-      is_active: true
+
+    if (item) {
+      // Charger d'abord les managers si on a une organisation
+      if (item.organization) {
+        editedItem.value = {
+          ...defaultSiteValues,
+          ...item,
+          organization: item.organization,
+          manager: null // On met temporairement le manager à null pendant le chargement
+        }
+        await loadManagers()
+      }
+
+      // Une fois les managers chargés, on peut définir la valeur finale
+      editedItem.value = {
+        ...defaultSiteValues,
+        ...item,
+        organization: item.organization || undefined,
+        manager: item.manager || null
+      }
+    } else {
+      editedItem.value = { ...defaultSiteValues }
     }
+
+    // Ouvrir le formulaire uniquement une fois que tout est chargé
+    dashboardView.value.showForm = true
+  } catch (error) {
+    console.error('[Sites][Error] Erreur lors de l\'ouverture du formulaire:', error)
   }
-  dashboardView.value.showForm = true
 }
 
 const saveSite = async () => {
-  if (!form.value?.validate()) return
+  if (!form.value?.validate()) {
+    console.log('[Sites][Save] Formulaire invalide')
+    return
+  }
 
   saving.value = true
   try {
+    console.log('[Sites][Save] editedItem avant traitement:', editedItem.value)
+    
+    // S'assurer que tous les champs requis sont présents et correctement formatés
+    const siteData = {
+      name: editedItem.value.name,
+      address: editedItem.value.address,
+      postal_code: editedItem.value.postal_code,
+      city: editedItem.value.city,
+      country: editedItem.value.country || 'France',
+      organization: editedItem.value.organization,
+      manager: editedItem.value.manager || null,
+      require_geolocation: editedItem.value.require_geolocation ?? true,
+      geolocation_radius: editedItem.value.geolocation_radius ?? 100,
+      allow_offline_mode: editedItem.value.allow_offline_mode ?? true,
+      max_offline_duration: editedItem.value.max_offline_duration ?? 24,
+      late_margin: editedItem.value.late_margin ?? 15,
+      early_departure_margin: editedItem.value.early_departure_margin ?? 15,
+      ambiguous_margin: editedItem.value.ambiguous_margin ?? 20,
+      is_active: editedItem.value.is_active ?? true,
+      alert_emails: editedItem.value.alert_emails ?? ''
+    }
+
+    console.log('[Sites][Save] Données à envoyer:', siteData)
+
     if (editedItem.value.id) {
-      await sitesApi.updateSite(editedItem.value.id, editedItem.value)
+      await sitesApi.updateSite(editedItem.value.id, siteData)
     } else {
-      await sitesApi.createSite(editedItem.value)
+      await sitesApi.createSite(siteData)
     }
     await loadSites()
     dashboardView.value.showForm = false
   } catch (error) {
-    console.error('Erreur lors de la sauvegarde:', error)
+    console.error('[Sites][Error] Erreur lors de la sauvegarde:', error)
+    console.error('[Sites][Error] Détails de la réponse:', error.response?.data)
+    
+    // Afficher les erreurs de validation si présentes
+    if (error.response?.data) {
+      const errors = error.response.data
+      Object.keys(errors).forEach(field => {
+        const messages = errors[field]
+        if (Array.isArray(messages)) {
+          messages.forEach(message => {
+            console.error(`[Sites][Validation] ${field}: ${message}`)
+          })
+        }
+      })
+    }
   } finally {
     saving.value = false
   }
@@ -516,9 +577,12 @@ watch(itemsPerPage, () => {
   loadSites()
 })
 
-watch(() => editedItem.value.organization, async (newOrgId) => {
+watch(() => editedItem.value.organization, async (newOrgId, oldOrgId) => {
   if (newOrgId) {
-    editedItem.value.manager = undefined
+    // Ne réinitialiser le manager que si l'organisation change
+    if (newOrgId !== oldOrgId) {
+      editedItem.value.manager = undefined
+    }
     await loadManagers()
   } else {
     managers.value = []

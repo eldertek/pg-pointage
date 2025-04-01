@@ -459,7 +459,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { sitesApi, schedulesApi } from '@/services/api'
+import { sitesApi, schedulesApi, usersApi } from '@/services/api'
 import type { Site, Employee } from '@/services/api'
 import type { Schedule as BaseSchedule, ScheduleDetail as BaseScheduleDetail } from '@/types/api'
 import { ScheduleTypeEnum, DayTypeEnum, DayOfWeekEnum, RoleEnum } from '@/types/api'
@@ -697,8 +697,15 @@ const loadEmployees = async (siteId: number | string | undefined) => {
       return
     }
 
-    const response = await sitesApi.getSiteEmployees(numericSiteId, { role: 'EMPLOYEE' })
-    employees.value = response.data.results || []
+    // Utiliser la méthode dédiée pour récupérer les employés disponibles du site
+    const response = await schedulesApi.getAvailableEmployeesForSite(numericSiteId)
+    employees.value = response.data.results.map(employee => ({
+      id: employee.id,
+      employee_name: `${employee.first_name} ${employee.last_name}`,
+      employee: employee.id,
+      organization: employee.organizations[0] // On prend la première organisation car c'est celle du site
+    }))
+
     console.log('[Plannings][LoadEmployees] Employés chargés:', JSON.stringify(employees.value, null, 2))
   } catch (error) {
     console.error('[Plannings][Error] Erreur lors du chargement des employés:', error)
@@ -805,24 +812,42 @@ const saveSchedule = async () => {
     }
 
     let savedSchedule
-    if (currentItem.id) {
-      savedSchedule = await schedulesApi.updateSchedule(currentItem.id, scheduleData)
-    } else {
-      savedSchedule = await schedulesApi.createSchedule(scheduleData)
-    }
+    try {
+      if (currentItem.id) {
+        console.log('[Plannings][Save] Mise à jour du planning:', {
+          siteId: currentItem.site,
+          scheduleId: currentItem.id,
+          data: scheduleData
+        })
+        savedSchedule = await schedulesApi.updateSchedule(currentItem.site, currentItem.id, scheduleData)
+      } else {
+        console.log('[Plannings][Save] Création d\'un nouveau planning:', {
+          data: scheduleData
+        })
+        savedSchedule = await schedulesApi.createSchedule(scheduleData)
+      }
 
-    // Gérer l'assignation des employés
-    if (savedSchedule?.data?.id && currentItem.employees?.length >= 0) {
-      await schedulesApi.assignMultipleEmployees(
-        currentItem.site,
-        savedSchedule.data.id,
-        currentItem.employees
-      )
-    }
-    
-    await loadSchedules()
-    if (dashboardView.value) {
-      dashboardView.value.showForm = false
+      // Gérer l'assignation des employés si le planning a été sauvegardé avec succès
+      if (savedSchedule?.data?.id && currentItem.employees?.length >= 0) {
+        console.log('[Plannings][Save] Assignation des employés:', {
+          siteId: currentItem.site,
+          scheduleId: savedSchedule.data.id,
+          employees: currentItem.employees
+        })
+        await schedulesApi.assignMultipleEmployees(
+          currentItem.site,
+          savedSchedule.data.id,
+          currentItem.employees
+        )
+      }
+      
+      await loadSchedules()
+      if (dashboardView.value) {
+        dashboardView.value.showForm = false
+      }
+    } catch (error) {
+      console.error('[Plannings][Save] Erreur lors de la sauvegarde:', error)
+      throw error
     }
   } catch (error) {
     console.error('[Plannings][Error] Erreur lors de la sauvegarde:', error)

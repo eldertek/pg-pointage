@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from drf_spectacular.utils import extend_schema_field
-from drf_spectacular.types import OpenApiTypes
+from organizations.models import Organization
 
 User = get_user_model()
 
@@ -43,6 +43,12 @@ class UserSerializer(serializers.ModelSerializer):
     """Serializer pour les utilisateurs (admin)"""
     password = serializers.CharField(write_only=True, required=False)
     organizations_names = serializers.SerializerMethodField()
+    organizations = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Organization.objects.all(),
+        required=False,
+        allow_empty=True
+    )
     
     class Meta:
         model = User
@@ -72,10 +78,11 @@ class UserSerializer(serializers.ModelSerializer):
         
         # Gérer les organisations
         if organizations:
+            print(f"[DEBUG] Ajout des organisations: {organizations}")
             user.organizations.set(organizations)
         
         user.save()
-        print(f"[DEBUG] Utilisateur créé: {user.username} (actif: {user.is_active})")
+        print(f"[DEBUG] Utilisateur créé: {user.username} (actif: {user.is_active}, orgs: {list(user.organizations.all())})")
         return user
 
     def update(self, instance, validated_data):
@@ -87,6 +94,7 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         
         if organizations is not None:
+            print(f"[DEBUG] Mise à jour des organisations: {organizations}")
             instance.organizations.set(organizations)
         
         if 'is_active' in validated_data:
@@ -96,6 +104,7 @@ class UserSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         
         instance.save()
+        print(f"[DEBUG] Utilisateur mis à jour: {instance.username} (orgs: {list(instance.organizations.all())})")
         return instance
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -118,13 +127,32 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class UserRegisterSerializer(serializers.ModelSerializer):
     """Serializer pour l'enregistrement de nouveaux utilisateurs"""
     password = serializers.CharField(write_only=True)
+    organizations = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Organization.objects.all(),
+        required=False,
+        allow_empty=True
+    )
     
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'is_active', 'role']
+        fields = ['username', 'email', 'password', 'first_name', 'last_name', 
+                 'is_active', 'role', 'organizations', 'phone_number', 
+                 'scan_preference', 'simplified_mobile_view']
     
     def create(self, validated_data):
+        organizations = validated_data.pop('organizations', [])
         validated_data['is_active'] = True  # Définir is_active à True par défaut
         user = User.objects.create_user(**validated_data)
+        
+        if organizations:
+            print(f"[DEBUG] Ajout des organisations: {organizations}")
+            user.organizations.set(organizations)
+            
         return user
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['organizations'] = [org.id for org in instance.organizations.all()]
+        return ret
 

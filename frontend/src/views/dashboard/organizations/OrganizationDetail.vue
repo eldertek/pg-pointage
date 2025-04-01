@@ -156,13 +156,27 @@
                 @delete="(item: TableItem) => handleDelete('employees', item)"
                 @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
               >
-                
-                <template #item.is_active="{ item: rowItem }">
-                  <StatusChip :status="rowItem.is_active" />
+                <template #item.email="{ item: rowItem }">
+                  {{ rowItem.first_name }} {{ rowItem.last_name }}
                 </template>
                 
-                <template #item.created_at="{ item: rowItem }">
-                  {{ formatDate(rowItem.created_at) }}
+                <template #item.phone_number="{ item: rowItem }">
+                  <v-tooltip location="top" text="Cliquer pour appeler">
+                    <template #activator="{ props }">
+                      <a 
+                        v-bind="props"
+                        :href="`tel:${rowItem.phone_number}`"
+                        class="text-decoration-none"
+                        @click.stop
+                      >
+                        {{ formatPhoneNumber(rowItem.phone_number) }}
+                      </a>
+                    </template>
+                  </v-tooltip>
+                </template>
+                
+                <template #item.role="{ item: rowItem }">
+                  {{ getRoleTranslation(rowItem.role) }}
                 </template>
               </DataTable>
             </v-window-item>
@@ -178,16 +192,16 @@
                 <template #item.created_at="{ item: rowItem }">
                   {{ formatDate(rowItem.created_at) }}
                 </template>
-                <template v-slot:item.report_type_display="{ item: rowItem }">
+                <template #item.report_type_display="{ item: rowItem }">
                   {{ rowItem.report_type_display }}
                 </template>
-                <template v-slot:item.report_format_display="{ item: rowItem }">
+                <template #item.report_format_display="{ item: rowItem }">
                   {{ rowItem.report_format_display }}
                 </template>
-                <template v-slot:item.period="{ item: rowItem }">
+                <template #item.period="{ item: rowItem }">
                   {{ rowItem.period }}
                 </template>
-                <template v-slot:item.created_by_name="{ item: rowItem }">
+                <template #item.created_by_name="{ item: rowItem }">
                   {{ rowItem.created_by_name }}
                 </template>
               </DataTable>
@@ -357,11 +371,30 @@ const sitesHeaders = [
 ]
 
 const employeesHeaders = [
-  { title: 'Nom', key: 'last_name' },
-  { title: 'Prénom', key: 'first_name' },
-  { title: 'Email', key: 'email' },
-  { title: 'Rôle', key: 'role' },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { 
+    title: 'Email', 
+    key: 'email',
+    align: 'start',
+    sortable: true
+  },
+  { 
+    title: 'Téléphone', 
+    key: 'phone_number',
+    align: 'start',
+    sortable: true
+  },
+  { 
+    title: 'Rôle', 
+    key: 'role',
+    align: 'start',
+    sortable: true
+  },
+  { 
+    title: 'Actions', 
+    key: 'actions', 
+    sortable: false,
+    align: 'end'
+  }
 ]
 
 const reportsHeaders = [
@@ -471,11 +504,27 @@ const loadSites = async () => {
 }
 
 const loadEmployees = async () => {
-  console.log('[OrganizationDetail][LoadEmployees] Chargement des employés...')
+  console.log('[OrganizationDetail][LoadEmployees] Début du chargement des employés...')
   loadingTabs.value.employees = true
   try {
     const response = await organizationsApi.getOrganizationUsers(itemId.value)
     employees.value = response.data.results
+    console.log('[OrganizationDetail][LoadEmployees] Appel API pour l\'organisation', itemId.value)
+    console.log('[OrganizationDetail][LoadEmployees] Données reçues:', response.data)
+    console.log('[OrganizationDetail][LoadEmployees] Nombre d\'employés chargés:', employees.value.length)
+    
+    // Ajout des logs détaillés pour chaque employé
+    employees.value.forEach((employee, index) => {
+      console.log(`[OrganizationDetail][LoadEmployees] Détails de l'employé ${index + 1}:`)
+      console.log('- ID:', employee.id)
+      console.log('- Nom complet:', `${employee.first_name} ${employee.last_name}`)
+      console.log('- Email:', employee.email)
+      console.log('- Rôle:', employee.role)
+      console.log('- Téléphone:', employee.phone_number)
+      console.log('- Statut:', employee.is_active ? 'Actif' : 'Inactif')
+      console.log('- Organisations:', employee.organizations_names)
+      console.log('----------------------------------------')
+    })
   } catch (error) {
     console.error('[OrganizationDetail][LoadEmployees] Erreur lors du chargement des employés:', error)
     showError('Erreur lors du chargement des employés')
@@ -579,6 +628,17 @@ watch(
     }
   }
 )
+
+// Ajouter cette fonction dans la section script
+const getRoleTranslation = (role: string) => {
+  const roleTranslations: { [key: string]: string } = {
+    'SUPER_ADMIN': 'Super administrateur',
+    'ADMIN': 'Administrateur',
+    'MANAGER': 'Manager',
+    'EMPLOYEE': 'Employé'
+  }
+  return roleTranslations[role] || role
+}
 </script>
 
 <style scoped>

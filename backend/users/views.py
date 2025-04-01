@@ -64,6 +64,12 @@ class UserRegistrationView(generics.CreateAPIView):
     serializer_class = UserRegisterSerializer
     permission_classes = [permissions.AllowAny]
 
+    def create(self, request, *args, **kwargs):
+        print(f"[Users][Register] Données reçues: {request.data}")
+        response = super().create(request, *args, **kwargs)
+        print(f"[Users][Register] Utilisateur créé avec succès: {response.data}")
+        return response
+
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """Vue pour obtenir et mettre à jour le profil de l'utilisateur connecté"""
     serializer_class = UserProfileSerializer

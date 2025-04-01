@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from .utils import validate_site_id
 
 class Site(models.Model):
-    """Modèle pour les sites de travail"""
+    """Modèle pour les sites de travail, rattachés à une organisation"""
     
     name = models.CharField(_('nom'), max_length=100)
     address = models.TextField(_('adresse'))
@@ -15,16 +15,24 @@ class Site(models.Model):
         'organizations.Organization',
         on_delete=models.CASCADE,
         related_name='sites',
-        verbose_name=_('organisation')
+        verbose_name=_('organisation'),
+        help_text=_('Organisation à laquelle le site est rattaché')
     )
     manager = models.ForeignKey(
         'users.User',
         on_delete=models.SET_NULL,
         null=True,
-        blank=True,
         related_name='managed_sites',
         verbose_name=_('manager'),
+        help_text=_('Manager responsable du site'),
         limit_choices_to={'role': 'MANAGER'}
+    )
+    employees = models.ManyToManyField(
+        'users.User',
+        through='SiteEmployee',
+        related_name='sites',
+        verbose_name=_('employés'),
+        help_text=_('Employés assignés à ce site')
     )
     nfc_id = models.CharField(
         _('ID Site'), 
@@ -80,22 +88,25 @@ class Site(models.Model):
             raise ValidationError({
                 'nfc_id': _('L\'ID du site doit être au format FFF-Sxxxx')
             })
-        
-        # Valider que le manager appartient à la même organisation
-        if self.manager and self.organization and self.manager.organization != self.organization:
-            raise ValidationError({
-                'manager': _('Le manager doit appartenir à la même organisation que le site')
-            })
+            
+        # Valider que le manager appartient à l'organisation
+        if self.manager and self.organization:
+            if not self.manager.organizations.filter(id=self.organization.id).exists():
+                raise ValidationError({
+                    'manager': _('Le manager doit appartenir à l\'organisation du site')
+                })
+            if self.manager.role != 'MANAGER':
+                raise ValidationError({
+                    'manager': _('L\'utilisateur sélectionné doit avoir le rôle de manager')
+                })
     
     @property
     def alert_email_list(self):
-        """Retourne la liste des emails pour les alertes, incluant le manager"""
+        """Retourne la liste des emails pour les alertes"""
         emails = []
         if self.alert_emails:
             emails.extend([email.strip() for email in self.alert_emails.split(',')])
-        if self.manager and self.manager.email:
-            emails.append(self.manager.email)
-        return list(set(emails))  # Dédupliquer les emails
+        return list(set(emails))
 
 
 class Schedule(models.Model):
@@ -116,6 +127,13 @@ class Schedule(models.Model):
         max_length=20,
         choices=ScheduleType.choices,
         default=ScheduleType.FIXED
+    )
+    employees = models.ManyToManyField(
+        'users.User',
+        through='SiteEmployee',
+        related_name='schedules',
+        verbose_name=_('employés'),
+        help_text=_('Employés assignés à ce planning')
     )
     
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
@@ -220,28 +238,28 @@ class ScheduleDetail(models.Model):
 
 
 class SiteEmployee(models.Model):
-    """Association entre un site et un employé"""
+    """Association entre un site, un employé et un planning"""
     
     site = models.ForeignKey(
         Site,
         on_delete=models.CASCADE,
-        related_name='employees',
+        related_name='site_employees',
         verbose_name=_('site')
     )
     employee = models.ForeignKey(
         'users.User',
         on_delete=models.CASCADE,
-        related_name='assigned_sites',
-        verbose_name=_('employé')
+        related_name='employee_sites',
+        verbose_name=_('employé'),
+        limit_choices_to={'role': 'EMPLOYEE'}
     )
     schedule = models.ForeignKey(
         Schedule,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='assigned_employees',
-        verbose_name=_('planning'),
-        db_index=True
+        related_name='schedule_employees',
+        verbose_name=_('planning')
     )
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
     is_active = models.BooleanField(_('actif'), default=True)
@@ -262,4 +280,14 @@ class SiteEmployee(models.Model):
     
     def __str__(self):
         return f"{self.employee.get_full_name()} - {self.site.name}"
+    
+    def clean(self):
+        """Validation personnalisée du modèle"""
+        super().clean()
+        
+        # Vérifier que l'employé appartient à l'organisation du site
+        if self.employee and self.site and not self.employee.organizations.filter(id=self.site.organization.id).exists():
+            raise ValidationError({
+                'employee': _('L\'employé doit appartenir à l\'organisation du site')
+            })
 

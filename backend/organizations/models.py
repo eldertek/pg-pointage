@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 
 class Organization(models.Model):
-    """Modèle pour les organisations"""
+    """Modèle pour les organisations - Entité centrale qui relie utilisateurs, sites et plannings"""
     
     name = models.CharField(_('nom'), max_length=100)
     org_id = models.CharField(
@@ -78,14 +78,14 @@ class Organization(models.Model):
         """Retourne le nombre total d'anomalies pour l'organisation"""
         from timesheets.models import TimesheetAnomaly
         return TimesheetAnomaly.objects.filter(
-            timesheet__user__organization=self
+            timesheet__user__organizations=self
         ).count()
         
     def get_pending_anomalies(self):
         """Retourne le nombre d'anomalies en attente pour l'organisation"""
         from timesheets.models import TimesheetAnomaly
         return TimesheetAnomaly.objects.filter(
-            timesheet__user__organization=self,
+            timesheet__user__organizations=self,
             status='PENDING'
         ).count()
 

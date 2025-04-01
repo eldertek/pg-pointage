@@ -136,30 +136,30 @@ interface ApiResponse<T> {
 
 interface Site {
   id: number;
-  name: string;
-  address: string;
-  postal_code: string;
-  city: string;
-  country: string;
-  nfc_id: string;  // Format: S0001 à S9999
-  organization: number;
-  organization_name?: string;
-  manager?: number | null;
-  manager_name?: string;
-  late_margin: number;
-  early_departure_margin: number;
-  ambiguous_margin: number;
-  alert_emails: string;
-  require_geolocation: boolean;
-  geolocation_radius: number;
-  allow_offline_mode: boolean;
-  max_offline_duration: number;
-  is_active: boolean;
-  qr_code?: string;
-  download_qr_code?: string;
-  created_at: string;
-  updated_at: string;
-  schedules?: Schedule[];
+  name: string;  // required
+  address: string;  // required
+  postal_code: string;  // required
+  city: string;  // required
+  country: string;  // optional, default: 'France'
+  nfc_id: string;  // read-only
+  organization: number;  // required
+  organization_name?: string;  // read-only
+  manager?: number | null;  // optional
+  manager_name?: string;  // read-only
+  late_margin: number;  // optional, default: 15
+  early_departure_margin: number;  // optional, default: 15
+  ambiguous_margin: number;  // optional, default: 20
+  alert_emails: string;  // optional
+  require_geolocation: boolean;  // optional, default: true
+  geolocation_radius: number;  // optional, default: 100
+  allow_offline_mode: boolean;  // optional, default: true
+  max_offline_duration: number;  // optional, default: 24
+  is_active: boolean;  // optional, default: true
+  qr_code?: string;  // optional
+  download_qr_code?: string;  // optional
+  created_at: string;  // read-only
+  updated_at: string;  // read-only
+  schedules?: Schedule[];  // optional
 }
 
 interface SiteStatistics {
@@ -250,8 +250,10 @@ const sitesApi = {
   
   // Create a new site
   createSite: (data: Partial<Site>): Promise<AxiosResponse<Site>> => {
-    const { siteData } = convertKeysToSnakeCase(data);
-    return api.post('/sites/', siteData);
+    console.log('[SitesAPI][Create] Données reçues:', data)
+    const siteData = convertKeysToSnakeCase(data)
+    console.log('[SitesAPI][Create] Données converties:', siteData)
+    return api.post('/sites/', siteData)
   },
   
   // Update a site
@@ -281,7 +283,7 @@ const sitesApi = {
   
   // Update a schedule
   updateSchedule: (siteId: number, scheduleId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
-    api.put(`/sites/${siteId}/schedules/${scheduleId}/`, convertKeysToSnakeCase(data)),
+    api.patch(`/sites/${siteId}/schedules/${scheduleId}/`, convertKeysToSnakeCase(data)),
   
   // Delete a schedule
   deleteSchedule: (siteId: number, scheduleId: number): Promise<AxiosResponse<void>> => 
@@ -357,8 +359,14 @@ const schedulesApi = {
     api.post('/sites/schedules/', convertKeysToSnakeCase(data)),
   
   // Update a schedule
-  updateSchedule: (siteId: number, scheduleId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
-    api.put(`/sites/${siteId}/schedules/${scheduleId}/`, convertKeysToSnakeCase(data)),
+  updateSchedule: (siteId: number, scheduleId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => {
+    console.log('[SchedulesAPI][Update] Mise à jour du planning:', {
+      siteId,
+      scheduleId,
+      data: convertKeysToSnakeCase(data)
+    })
+    return api.patch(`/sites/${siteId}/schedules/${scheduleId}/`, convertKeysToSnakeCase(data))
+  },
   
   // Delete a schedule
   deleteSchedule: (id: number): Promise<AxiosResponse<void>> => api.delete(`/sites/schedules/${id}/`),
@@ -406,6 +414,15 @@ const schedulesApi = {
       site: siteId,
       employees: employeeIds,
       schedule: scheduleId
+    }),
+
+  // Get available employees for a site's organization
+  getAvailableEmployeesForSite: (siteId: number): Promise<AxiosResponse<ApiResponse<Employee>>> => 
+    api.get(`/sites/${siteId}/available-employees/`, {
+      params: {
+        role: 'EMPLOYEE',
+        is_active: true
+      }
     }),
 }
 
@@ -585,6 +602,10 @@ const organizationsApi = {
   // Assigner un site à une organisation
   assignSite: (organizationId: number, siteId: number) => 
     api.post(`/organizations/${organizationId}/assign-site/`, { site_id: siteId }),
+
+  // Get organization employees
+  getOrganizationEmployees: (id: number, params: { role?: string } = {}): Promise<AxiosResponse<ApiResponse<Employee>>> => 
+    api.get(`/organizations/${id}/employees/`, { params }),
 }
 
 // Timesheets API methods

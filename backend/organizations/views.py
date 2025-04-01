@@ -214,3 +214,25 @@ class OrganizationReportsView(generics.ListAPIView):
             site__organization_id=organization_pk
         ).order_by('-created_at')
 
+class OrganizationEmployeesView(generics.ListAPIView):
+    """Vue pour lister tous les employés d'une organisation avec filtrage optionnel par rôle"""
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return User.objects.none()
+            
+        organization_pk = self.kwargs.get('pk')
+        queryset = User.objects.filter(
+            organizations__id=organization_pk,
+            is_active=True
+        )
+        
+        # Filtrer par rôle si spécifié
+        role = self.request.query_params.get('role')
+        if role:
+            queryset = queryset.filter(role=role)
+            
+        return queryset.order_by('last_name', 'first_name')
+

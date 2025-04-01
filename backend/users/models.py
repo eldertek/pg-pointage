@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
 class User(AbstractUser):
-    """Modèle utilisateur personnalisé"""
+    """Modèle utilisateur personnalisé avec relation ManyToMany vers les organisations"""
     
     class Role(models.TextChoices):
         SUPER_ADMIN = 'SUPER_ADMIN', _('Super Admin')
@@ -39,8 +39,8 @@ class User(AbstractUser):
     organizations = models.ManyToManyField(
         'organizations.Organization',
         related_name='users',
-        blank=True,
-        verbose_name=_('organisations')
+        verbose_name=_('organisations'),
+        help_text=_('Organisations auxquelles l\'utilisateur est rattaché')
     )
     phone_number = models.CharField(_('numéro de téléphone'), max_length=15, blank=True)
     is_active = models.BooleanField(_('actif'), default=True)
