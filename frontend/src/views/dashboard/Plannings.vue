@@ -615,8 +615,7 @@ const loadSchedules = async () => {
       page: page.value,
       page_size: itemsPerPage.value,
       site: filters.value.site ? Number(filters.value.site) : undefined,
-      schedule_type: filters.value.type,
-      expand: 'assigned_employees'
+      schedule_type: filters.value.type
     })
     console.log('[Plannings][LoadSchedules] Réponse brute:', JSON.stringify(response.data, null, 2))
     console.log('[Plannings][LoadSchedules] Détails des employés assignés:', JSON.stringify(
@@ -868,6 +867,7 @@ const toggleStatus = async (item: ExtendedSchedule) => {
   }, null, 2))
   
   const state = dialogState.value as DialogState
+  state.show = true
   state.title = 'Confirmation'
   state.message = `Êtes-vous sûr de vouloir ${item.is_active ? 'désactiver' : 'activer'} ce planning ?`
   state.confirmText = item.is_active ? 'Désactiver' : 'Activer'
@@ -879,32 +879,12 @@ const toggleStatus = async (item: ExtendedSchedule) => {
     try {
       console.log('[Plannings][ToggleStatus] Envoi de la requête de mise à jour:', JSON.stringify({
         id: item.id,
-        newStatus: !item.is_active,
-        scheduleType: item.schedule_type,
-        details: item.details,
-        assignedEmployees: item.assigned_employees
+        newStatus: !item.is_active
       }, null, 2))
       
-      const updateResponse = await schedulesApi.updateSchedule(item.id, {
-        ...item,
-        schedule_type: item.schedule_type,
-        details: item.details.map(detail => ({
-          ...detail,
-          schedule_type: item.schedule_type
-        })),
+      await schedulesApi.updateSchedule(item.site, item.id, {
         is_active: !item.is_active
       })
-      console.log('[Plannings][ToggleStatus] Réponse de la mise à jour:', JSON.stringify(updateResponse.data, null, 2))
-      
-      if (item.assigned_employees?.length > 0) {
-        console.log('[Plannings][ToggleStatus] Réassignation des employés:', JSON.stringify(item.assigned_employees, null, 2))
-        const assignResponse = await schedulesApi.assignMultipleEmployees(
-          item.site,
-          item.id,
-          item.assigned_employees.map(emp => emp.employee)
-        )
-        console.log('[Plannings][ToggleStatus] Réponse de la réassignation:', JSON.stringify(assignResponse.data, null, 2))
-      }
       
       console.log('[Plannings][ToggleStatus] Rechargement des plannings')
       await loadSchedules()

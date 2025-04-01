@@ -158,33 +158,15 @@
                 :edit-route="'/dashboard/admin/users/:id/edit'"
                 @toggle-status="(item: TableItem) => handleToggleStatus('employees', item)"
                 @delete="(item: TableItem) => handleDelete('employees', item)"
-                @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
+                @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.employee}`)"
               >
-                <template #toolbar-actions>
-                  <v-btn
-                    color="primary"
-                    prepend-icon="mdi-account-plus"
-                    @click="openAssignEmployeesDialog"
-                  >
-                    Assigner un employé
-                  </v-btn>
-                </template>
-                
-                <template #item.is_active="{ item: rowItem }">
-                  <StatusChip :status="rowItem.is_active" />
-                </template>
-                
-                <template #item.created_at="{ item: rowItem }">
-                  {{ formatDate(rowItem.created_at) }}
-                </template>
-                
                 <template #item.actions="{ item: rowItem }">
                   <v-btn
                     icon
                     variant="text"
                     size="small"
                     color="primary"
-                    :to="`/dashboard/admin/users/${rowItem.id}`"
+                    :to="`/dashboard/admin/users/${rowItem.employee}`"
                     @click.stop
                   >
                     <v-icon>mdi-eye</v-icon>
@@ -226,13 +208,9 @@
                   </v-chip>
                 </template>
 
-                <template #item.site="{ item: rowItem }">
-                  {{ rowItem.site_name }}
-                </template>
-
                 <template #item.details="{ item: rowItem }">
                   <div v-for="detail in rowItem.details" :key="detail.id" class="mb-1">
-                    <strong>{{ getDayName(detail.day_of_week) }}:</strong>
+                    <strong>{{ detail.day_name }}:</strong>
                     <template v-if="rowItem.schedule_type === 'FIXED'">
                       <template v-if="detail.day_type === 'FULL'">
                         {{ detail.start_time_1 }}-{{ detail.end_time_1 }} / {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
@@ -248,6 +226,50 @@
                       {{ detail.frequency_duration }}h
                     </template>
                   </div>
+                </template>
+
+                <template #item.actions="{ item: rowItem }">
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="primary"
+                    :to="`/dashboard/sites/${itemId}/schedules/${rowItem.id}`"
+                    @click.stop
+                  >
+                    <v-icon>mdi-eye</v-icon>
+                    <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="primary"
+                    @click.stop="openDialog(rowItem)"
+                  >
+                    <v-icon>mdi-pencil</v-icon>
+                    <v-tooltip activator="parent">Modifier</v-tooltip>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="warning"
+                    @click.stop="toggleStatus(rowItem)"
+                  >
+                    <v-icon>{{ rowItem.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+                    <v-tooltip activator="parent">{{ rowItem.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+                  </v-btn>
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="small"
+                    color="error"
+                    @click.stop="confirmDeleteSchedule(rowItem)"
+                  >
+                    <v-icon>mdi-delete</v-icon>
+                    <v-tooltip activator="parent">Supprimer</v-tooltip>
+                  </v-btn>
                 </template>
               </DataTable>
             </v-window-item>
@@ -356,7 +378,7 @@ import { Title } from '@/components/typography'
 import { generateStyledQRCode } from '@/utils/qrcode'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { sitesApi } from '@/services/api'
+import { sitesApi, planningsApi } from '@/services/api'
 import StatusChip from '@/components/common/StatusChip.vue'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
@@ -409,6 +431,7 @@ const route = useRoute()
 const loading = ref(true)
 const loadingTabs = ref({
   employees: false,
+  plannings: false,
   pointages: false,
   anomalies: false,
   reports: false
@@ -428,20 +451,13 @@ const reports = ref<any[]>([])
 
 // En-têtes des tableaux
 const employeesHeaders = [
-  { title: 'Nom', key: 'last_name' },
-  { title: 'Prénom', key: 'first_name' },
-  { title: 'Email', key: 'email' },
-  { title: 'Rôle', key: 'role' },
-  { title: 'Statut', key: 'is_active' },
-  { title: 'Date d\'ajout', key: 'created_at' },
+  { title: 'Nom', key: 'employee_name' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
 
 const planningsHeaders = [
   { title: 'Type', key: 'schedule_type' },
-  { title: 'Site', key: 'site' },
   { title: 'Détails', key: 'details' },
-  { title: 'Statut', key: 'is_active' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
 
@@ -726,10 +742,6 @@ const handleDelete = async (type: string, item: TableItem) => {
   }
 }
 
-const openAssignEmployeesDialog = () => {
-  // Implémentation à faire
-}
-
 const unassignEmployeeFromSite = async (employeeId: number) => {
   try {
     await sitesApi.unassignEmployee(itemId.value, employeeId)
@@ -762,7 +774,9 @@ const downloadReport = async (reportId: number) => {
 const loadEmployees = async () => {
   loadingTabs.value.employees = true;
   try {
+    console.log('[SiteDetail][LoadEmployees] Chargement des employés pour le site:', itemId.value);
     const response = await sitesApi.getSiteEmployees(itemId.value);
+    console.log('[SiteDetail][LoadEmployees] Réponse reçue:', response.data);
     employees.value = response.data.results;
   } catch (error) {
     console.error('[SiteDetail][LoadEmployees] Erreur lors du chargement des employés:', error);
@@ -811,11 +825,29 @@ const loadReports = async () => {
   }
 };
 
+const loadPlannings = async () => {
+  loadingTabs.value.plannings = true;
+  try {
+    console.log('[SiteDetail][LoadPlannings] Chargement des plannings pour le site:', itemId.value);
+    const response = await planningsApi.getSitePlannings(itemId.value);
+    console.log('[SiteDetail][LoadPlannings] Réponse reçue:', response.data);
+    item.value.schedules = response.data.results;
+  } catch (error) {
+    console.error('[SiteDetail][LoadPlannings] Erreur lors du chargement des plannings:', error);
+    showError('Erreur lors du chargement des plannings');
+  } finally {
+    loadingTabs.value.plannings = false;
+  }
+};
+
 // Fonction pour charger les données en fonction de l'onglet actif
 const loadTabData = async (tab: string) => {
   switch (tab) {
     case 'employees':
       await loadEmployees();
+      break;
+    case 'plannings':
+      await loadPlannings();
       break;
     case 'pointages':
       await loadPointages();
@@ -850,6 +882,35 @@ watch(
     }
   }
 )
+
+const openDialog = (item: any) => {
+  router.push(`/dashboard/sites/${itemId.value}/schedules/${item.id}/edit`)
+}
+
+const toggleStatus = async (item: any) => {
+  try {
+    await planningsApi.updatePlanning(item.id, {
+      ...item,
+      is_active: !item.is_active
+    })
+    await loadPlannings()
+    showSuccess(`Statut du planning mis à jour avec succès`)
+  } catch (error) {
+    console.error('[SiteDetail][ToggleStatus] Erreur lors de la mise à jour du statut:', error)
+    showError(`Erreur lors de la mise à jour du statut`)
+  }
+}
+
+const confirmDeleteSchedule = async (item: any) => {
+  try {
+    await planningsApi.deletePlanning(item.id)
+    await loadPlannings()
+    showSuccess(`Planning supprimé avec succès`)
+  } catch (error) {
+    console.error('[SiteDetail][Delete] Erreur lors de la suppression:', error)
+    showError(`Erreur lors de la suppression`)
+  }
+}
 </script>
 
 <style scoped>
@@ -940,5 +1001,72 @@ watch(
 
 .gap-2 {
   gap: 8px;
+}
+
+/* Style des boutons dans le tableau */
+:deep(.v-data-table .v-btn--icon) {
+  background-color: transparent !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="primary"]) {
+  color: #00346E !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="error"]) {
+  color: #F78C48 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="warning"]) {
+  color: #FB8C00 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="grey"]) {
+  color: #999999 !important;
+  opacity: 0.5 !important;
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+/* Assurer que les icônes dans les boutons sont visibles */
+:deep(.v-data-table .v-btn--icon .v-icon) {
+  opacity: 1 !important;
+  color: inherit !important;
+}
+
+/* Style des tooltips */
+:deep(.v-tooltip) {
+  z-index: 100;
+}
+
+/* Style des lignes du tableau */
+:deep(.v-data-table .v-data-table__tr) {
+  cursor: pointer;
+}
+
+:deep(.v-data-table .v-data-table__tr:hover) {
+  background-color: rgba(0, 52, 110, 0.04) !important;
+}
+
+/* Style des cellules du tableau */
+:deep(.v-data-table .v-data-table__td) {
+  padding: 12px 16px;
+}
+
+/* Style des en-têtes du tableau */
+:deep(.v-data-table .v-data-table-header) {
+  background-color: #f5f5f5;
+}
+
+:deep(.v-data-table .v-data-table-header th) {
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.87);
+  padding: 12px 16px;
+}
+
+/* Style du message "Aucun employé trouvé" */
+:deep(.v-data-table .v-data-table__empty-wrapper) {
+  padding: 24px;
+  text-align: center;
+  color: rgba(0, 0, 0, 0.6);
 }
 </style> 
