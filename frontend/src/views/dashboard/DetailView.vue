@@ -14,9 +14,9 @@
       <v-btn
         :color="isOwnProfile ? 'grey' : 'primary'"
         prepend-icon="mdi-pencil"
-        @click.stop="editItem"
         class="mr-2"
         :disabled="isOwnProfile"
+        @click.stop="editItem"
       >
         Modifier
       </v-btn>
@@ -24,11 +24,11 @@
         v-if="allowDelete"
         :color="isOwnProfile ? 'grey' : 'error'"
         prepend-icon="mdi-delete"
-        @click.stop="confirmDelete"
         :disabled="isOwnProfile"
+        @click.stop="confirmDelete"
       >
         Supprimer
-        <v-tooltip activator="parent" v-if="isOwnProfile">
+        <v-tooltip v-if="isOwnProfile" activator="parent">
           Vous ne pouvez pas supprimer votre propre compte
         </v-tooltip>
       </v-btn>
@@ -167,13 +167,13 @@
                   :no-data-text="'Aucun employé trouvé'"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat>
                       <v-toolbar-title>Employés</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
-                  <template v-slot:item.is_active="{ item }">
+                  <template #item.is_active="{ item }">
                     <v-chip
                       :color="item.is_active ? 'success' : 'error'"
                       size="small"
@@ -181,10 +181,10 @@
                       {{ item.is_active ? 'Actif' : 'Inactif' }}
                     </v-chip>
                   </template>
-                  <template v-slot:item.created_at="{ item }">
+                  <template #item.created_at="{ item }">
                     {{ formatDate(item.created_at) }}
                   </template>
-                  <template v-slot:item.actions="{ item }">
+                  <template #item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -229,13 +229,13 @@
                   ]"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat class="pl-0">
                       <v-toolbar-title>Plannings</v-toolbar-title>
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.schedule_type="{ item }">
+                  <template #item.schedule_type="{ item }">
                     <v-chip
                       :color="(item as ScheduleWithSite).schedule_type === 'FIXED' ? 'primary' : 'warning'"
                       size="small"
@@ -244,11 +244,11 @@
                     </v-chip>
                   </template>
 
-                  <template v-slot:item.site="{ item }">
+                  <template #item.site="{ item }">
                     {{ (item as ScheduleWithSite).site_name }}
                   </template>
 
-                  <template v-slot:item.details="{ item }">
+                  <template #item.details="{ item }">
                     <div v-for="detail in (item as ScheduleWithSite).details" :key="detail.id" class="mb-1">
                       <strong>{{ getDayName(detail.day_of_week) }}:</strong>
                       <template v-if="(item as ScheduleWithSite).schedule_type === 'FIXED'">
@@ -268,7 +268,7 @@
                     </div>
                   </template>
                   
-                  <template v-slot:item.actions="{ item: schedule }">
+                  <template #item.actions="{ item: schedule }">
                     <v-btn
                       icon
                       variant="text"
@@ -324,14 +324,14 @@
                   ]"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat>
                       <v-toolbar-title>Pointages</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.entry_type="{ item }">
+                  <template #item.entry_type="{ item }">
                     <v-chip
                       :color="item.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
                       size="small"
@@ -340,7 +340,7 @@
                     </v-chip>
                   </template>
                   
-                  <template v-slot:item.status="{ item }">
+                  <template #item.status="{ item }">
                     <v-chip
                       :color="getTimesheetStatusColor(item)"
                       size="small"
@@ -349,7 +349,7 @@
                     </v-chip>
                   </template>
                   
-                  <template v-slot:item.actions="{ item }">
+                  <template #item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -383,14 +383,14 @@
                   ]"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat>
                       <v-toolbar-title>Anomalies</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.type="{ item }">
+                  <template #item.type="{ item }">
                     <v-chip
                       :color="getAnomalyTypeColor(item.anomaly_type_display)"
                       size="small"
@@ -399,7 +399,7 @@
                     </v-chip>
                   </template>
                   
-                  <template v-slot:item.status="{ item }">
+                  <template #item.status="{ item }">
                     <v-chip
                       :color="getAnomalyStatusColor(item.status_display)"
                       size="small"
@@ -408,7 +408,7 @@
                     </v-chip>
                   </template>
                   
-                  <template v-slot:item.actions="{ item }">
+                  <template #item.actions="{ item }">
                     <v-btn
                       v-if="item.status === 'PENDING'"
                       icon
@@ -464,13 +464,13 @@
                   ]"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat class="pl-0">
                       <v-toolbar-title>Rapports</v-toolbar-title>
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.actions="{ item }">
+                  <template #item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -575,7 +575,7 @@
                   :no-data-text="'Aucun employé trouvé'"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat>
                       <v-toolbar-title>Employés</v-toolbar-title>
                       <v-spacer></v-spacer>
@@ -589,7 +589,7 @@
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.is_active="{ item }">
+                  <template #item.is_active="{ item }">
                     <v-chip
                       :color="item.is_active ? 'success' : 'error'"
                       size="small"
@@ -597,10 +597,10 @@
                       {{ item.is_active ? 'Actif' : 'Inactif' }}
                     </v-chip>
                   </template>
-                  <template v-slot:item.created_at="{ item }">
+                  <template #item.created_at="{ item }">
                     {{ formatDate(item.created_at) }}
                   </template>
-                  <template v-slot:item.actions="{ item }">
+                  <template #item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -636,14 +636,14 @@
                   :no-data-text="'Aucun pointage trouvé'"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat>
                       <v-toolbar-title>Pointages</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.entry_type="{ item }">
+                  <template #item.entry_type="{ item }">
                     <v-chip
                       :color="item.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
                       size="small"
@@ -652,7 +652,7 @@
                     </v-chip>
                   </template>
                   
-                  <template v-slot:item.status="{ item }">
+                  <template #item.status="{ item }">
                     <v-chip
                       :color="getTimesheetStatusColor(item)"
                       size="small"
@@ -673,14 +673,14 @@
                   :no-data-text="'Aucun planning trouvé'"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat>
                       <v-toolbar-title>Plannings</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.schedule_type="{ item }">
+                  <template #item.schedule_type="{ item }">
                     <v-chip
                       :color="(item as ScheduleWithSite).schedule_type === 'FIXED' ? 'primary' : 'warning'"
                       size="small"
@@ -689,7 +689,7 @@
                     </v-chip>
                   </template>
 
-                  <template v-slot:item.site="{ item }">
+                  <template #item.site="{ item }">
                     {{ (item as ScheduleWithSite).site_name }}
                   </template>
                 </v-data-table>
@@ -705,14 +705,14 @@
                   :no-data-text="'Aucune anomalie trouvée'"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat>
                       <v-toolbar-title>Anomalies</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.type="{ item }">
+                  <template #item.type="{ item }">
                     <v-chip
                       :color="getAnomalyTypeColor(item.anomaly_type_display)"
                       size="small"
@@ -721,7 +721,7 @@
                     </v-chip>
                   </template>
                   
-                  <template v-slot:item.status="{ item }">
+                  <template #item.status="{ item }">
                     <v-chip
                       :color="getAnomalyStatusColor(item.status_display)"
                       size="small"
@@ -742,14 +742,14 @@
                   :no-data-text="'Aucun rapport trouvé'"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat>
                       <v-toolbar-title>Rapports</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.actions="{ item }">
+                  <template #item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -823,7 +823,7 @@
                         </v-list>
                       </v-col>
                       <v-col cols="12" md="6">
-                        <v-card class="mb-4" v-if="item.logo">
+                        <v-card v-if="item.logo" class="mb-4">
                           <v-card-title>Logo</v-card-title>
                           <v-card-text class="text-center">
                             <v-img
@@ -863,14 +863,14 @@
                   :no-data-text="'Aucun site trouvé'"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat>
                       <v-toolbar-title>Sites</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.address="{ item }">
+                  <template #item.address="{ item }">
                     <AddressWithMap
                       :address="item.address"
                       :postal-code="item.postal_code"
@@ -879,7 +879,7 @@
                     />
                   </template>
                   
-                  <template v-slot:item.is_active="{ item }">
+                  <template #item.is_active="{ item }">
                     <v-chip
                       :color="item.is_active ? 'success' : 'error'"
                       size="small"
@@ -923,7 +923,7 @@
                       class="elevation-1"
                       @click:row="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
                     >
-                      <template v-slot:item.is_active="{ item }">
+                      <template #item.is_active="{ item }">
                         <v-chip
                           :color="item.is_active ? 'success' : 'error'"
                           size="small"
@@ -931,10 +931,10 @@
                           {{ item.is_active ? 'Actif' : 'Inactif' }}
                         </v-chip>
                       </template>
-                      <template v-slot:item.created_at="{ item }">
+                      <template #item.created_at="{ item }">
                         {{ formatDate(item.created_at) }}
                       </template>
-                      <template v-slot:item.actions="{ item }">
+                      <template #item.actions="{ item }">
                         <v-btn
                           icon
                           variant="text"
@@ -972,14 +972,14 @@
                   :no-data-text="'Aucun rapport trouvé'"
                   class="elevation-1"
                 >
-                  <template v-slot:top>
+                  <template #top>
                     <v-toolbar flat>
                       <v-toolbar-title>Rapports</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template v-slot:item.actions="{ item }">
+                  <template #item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -1104,16 +1104,16 @@
                     <v-btn
                       color="#00346E"
                       prepend-icon="mdi-download"
-                      @click="downloadQRCode"
                       size="small"
+                      @click="downloadQRCode"
                     >
                       Télécharger
                     </v-btn>
                     <v-btn
                       color="#F78C48"
                       prepend-icon="mdi-refresh"
-                      @click="generateQRCode"
                       size="small"
+                      @click="generateQRCode"
                     >
                       Régénérer
                     </v-btn>
@@ -1170,7 +1170,7 @@
                 @click:row="(_: Event, rowData: any) => navigateToDetail(table.key, rowData)"
               >
                 <!-- Actions -->
-                <template v-slot:item.actions="{ item }">
+                <template #item.actions="{ item }">
                   <v-btn
                     icon
                     variant="text"
@@ -1216,7 +1216,7 @@
                 </template>
 
                 <!-- Slots pour les colonnes spéciales -->
-                <template v-for="slot in table.slots" :key="slot.key" v-slot:[`item.${slot.key}`]="{ item: rowItem }">
+                <template v-for="slot in table.slots" :key="slot.key" #[`item.${slot.key}`]="{ item: rowItem }">
                   <component :is="slot.component" v-bind="slot.props(rowItem)" />
                 </template>
               </v-data-table>
@@ -1240,8 +1240,8 @@
               <v-btn
                 color="error"
                 variant="text"
-                @click="deleteItem"
                 :loading="deleting"
+                @click="deleteItem"
               >
                 Supprimer
               </v-btn>
