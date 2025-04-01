@@ -136,10 +136,6 @@
                 @row-click="(item: TableItem) => router.push(`/dashboard/sites/${item.id}`)"
               >
                 
-                <template #item.is_active="{ item: rowItem }">
-                  <StatusChip :status="rowItem.is_active" />
-                </template>
-                
                 <template #item.address="{ item: rowItem }">
                   <AddressWithMap
                     :address="rowItem.address"
@@ -164,18 +160,6 @@
                   >
                     <v-icon>mdi-eye</v-icon>
                     <v-tooltip activator="parent">Voir les détails</v-tooltip>
-                  </v-btn>
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    :color="rowItem.is_active ? 'warning' : 'success'"
-                    @click.stop="confirmToggleStatus(rowItem)"
-                  >
-                    <v-icon>{{ rowItem.is_active ? 'mdi-domain-off' : 'mdi-domain' }}</v-icon>
-                    <v-tooltip activator="parent">
-                      {{ rowItem.is_active ? 'Désactiver' : 'Activer' }} le site
-                    </v-tooltip>
                   </v-btn>
                   <v-btn
                     icon
@@ -443,7 +427,6 @@ const sitesHeaders = [
   { title: 'Nom', key: 'name' },
   { title: 'Adresse', key: 'address' },
   { title: 'Organisation', key: 'organization_name' },
-  { title: 'Statut', key: 'is_active' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
 
