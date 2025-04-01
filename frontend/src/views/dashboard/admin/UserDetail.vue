@@ -118,7 +118,13 @@
             <!-- Autres onglets à intégrer au besoin... -->
             <!-- Onglet Sites -->
             <v-window-item value="sites">
+              <v-row v-if="loadingTabs.sites">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </v-col>
+              </v-row>
               <DataTable
+                v-else
                 title="Sites"
                 :headers="sitesHeaders"
                 :items="sites"
@@ -129,31 +135,22 @@
                 @delete="(item: TableItem) => handleDelete('sites', item)"
                 @row-click="(item: TableItem) => router.push(`/dashboard/sites/${item.id}`)"
               >
-                <template #toolbar-actions>
-                  <v-btn
-                    color="primary"
-                    prepend-icon="mdi-domain-plus"
-                    @click="openAssignSitesDialog"
-                  >
-                    Assigner un site
-                  </v-btn>
+                
+                <template #item.is_active="{ item: rowItem }">
+                  <StatusChip :status="rowItem.is_active" />
                 </template>
                 
-                <template #item.is_active="{ item }">
-                  <StatusChip :status="item.is_active" />
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
                 
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
-                </template>
-                
-                <template #item.actions="{ item }">
+                <template #item.actions="{ item: rowItem }">
                   <v-btn
                     icon
                     variant="text"
                     size="small"
                     color="primary"
-                    :to="`/dashboard/sites/${item.id}`"
+                    :to="`/dashboard/sites/${rowItem.id}`"
                     @click.stop
                   >
                     <v-icon>mdi-eye</v-icon>
@@ -164,7 +161,7 @@
                     variant="text"
                     size="small"
                     color="error"
-                    @click.stop="unassignSiteFromUser(item.id)"
+                    @click.stop="unassignSiteFromUser(rowItem.id)"
                   >
                     <v-icon>mdi-domain-remove</v-icon>
                     <v-tooltip activator="parent">Retirer l'accès</v-tooltip>
@@ -175,29 +172,35 @@
 
             <!-- Onglet Plannings -->
             <v-window-item value="plannings">
+              <v-row v-if="loadingTabs.plannings">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </v-col>
+              </v-row>
               <DataTable
+                v-else
                 title="Plannings"
                 :headers="planningsHeaders"
                 :items="plannings"
                 :no-data-text="'Aucun planning trouvé'"
               >
-                <template #item.schedule_type="{ item }">
+                <template #item.schedule_type="{ item: rowItem }">
                   <v-chip
-                    :color="item.schedule_type === 'FIXED' ? 'primary' : 'warning'"
+                    :color="rowItem.schedule_type === 'FIXED' ? 'primary' : 'warning'"
                     size="small"
                   >
-                    {{ item.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                    {{ rowItem.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
                   </v-chip>
                 </template>
 
-                <template #item.site="{ item }">
-                  {{ item.site_name }}
+                <template #item.site="{ item: rowItem }">
+                  {{ rowItem.site_name }}
                 </template>
 
-                <template #item.details="{ item }">
-                  <div v-for="detail in item.details" :key="detail.id" class="mb-1">
-                    <strong>{{ getDayName(detail.day_of_week) }}:</strong>
-                    <template v-if="item.schedule_type === 'FIXED'">
+                <template #item.details="{ item: rowItem }">
+                  <div v-for="detail in rowItem.details" :key="detail.id" class="mb-1">
+                    <strong>{{ detail.day_name || getDayName(detail.day_of_week) }}:</strong>
+                    <template v-if="rowItem.schedule_type === 'FIXED'">
                       <template v-if="detail.day_type === 'FULL'">
                         {{ detail.start_time_1 }}-{{ detail.end_time_1 }} / {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
                       </template>
@@ -213,12 +216,22 @@
                     </template>
                   </div>
                 </template>
+
+                <template #item.is_active="{ item }">
+                  <StatusChip :status="item.is_active" />
+                </template>
               </DataTable>
             </v-window-item>
 
             <!-- Onglet Pointages -->
             <v-window-item value="pointages">
+              <v-row v-if="loadingTabs.pointages">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </v-col>
+              </v-row>
               <DataTable
+                v-else
                 title="Pointages"
                 :headers="pointagesHeaders"
                 :items="pointages"
@@ -241,7 +254,13 @@
 
             <!-- Onglet Anomalies -->
             <v-window-item value="anomalies">
+              <v-row v-if="loadingTabs.anomalies">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </v-col>
+              </v-row>
               <DataTable
+                v-else
                 title="Anomalies"
                 :headers="anomaliesHeaders"
                 :items="anomalies"
@@ -264,7 +283,13 @@
 
             <!-- Onglet Rapports -->
             <v-window-item value="reports">
+              <v-row v-if="loadingTabs.reports">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </v-col>
+              </v-row>
               <DataTable
+                v-else
                 title="Rapports"
                 :headers="reportsHeaders"
                 :items="reports"
@@ -304,7 +329,13 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '@/stores/auth'
 import { RoleEnum } from '@/types/api'
-import { usersApi } from '@/services/api'
+import api, { 
+  usersApi, 
+  sitesApi, 
+  schedulesApi, 
+  timesheetsApi, 
+  reportsApi 
+} from '@/services/api'
 import StatusChip from '@/components/common/StatusChip.vue'
 import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
 
@@ -338,6 +369,13 @@ const allowDelete = ref(true)
 const router = useRouter()
 const route = useRoute()
 const loading = ref(true)
+const loadingTabs = ref({
+  sites: false,
+  plannings: false,
+  pointages: false,
+  anomalies: false,
+  reports: false
+})
 const deleting = ref(false)
 const showDeleteDialog = ref(false)
 const item = ref<any>({})
@@ -446,7 +484,7 @@ const itemId = computed(() => Number(route.params.id))
 
 const title = computed(() => "Détails de l'utilisateur")
 
-const backRoute = computed(() => '/dashboard/admin/users')
+const backRoute = computed(() => route.meta.backRoute as string || '/dashboard/admin/users')
 
 // Computed pour vérifier si c'est le profil de l'utilisateur connecté
 const isOwnProfile = computed(() => {
@@ -498,12 +536,126 @@ const loadData = async () => {
       { label: 'Heures totales', value: stats.data.total_hours || 0 },
       { label: 'Anomalies', value: stats.data.anomalies || 0 }
     ];
+
+    // Charger les données de l'onglet actif
+    await loadTabData(activeTab.value);
   } catch (error) {
     console.error('[UserDetail][LoadData] Erreur lors du chargement des données:', error)
   } finally {
     loading.value = false
   }
 }
+
+// Méthodes de chargement des données pour chaque onglet
+const loadSites = async () => {
+  loadingTabs.value.sites = true;
+  try {
+    const response = await usersApi.getUserSites(itemId.value, {
+      page: 1,
+      page_size: 10
+    });
+    sites.value = response.data.results;
+  } catch (error) {
+    console.error('[UserDetail][LoadSites] Erreur lors du chargement des sites:', error);
+    showError('Erreur lors du chargement des sites');
+  } finally {
+    loadingTabs.value.sites = false;
+  }
+};
+
+const loadPlannings = async () => {
+  loadingTabs.value.plannings = true;
+  try {
+    const response = await usersApi.getUserSchedules(itemId.value, {
+      page: 1,
+      page_size: 10
+    });
+    plannings.value = response.data.results;
+  } catch (error) {
+    console.error('[UserDetail][LoadPlannings] Erreur lors du chargement des plannings:', error);
+    showError('Erreur lors du chargement des plannings');
+  } finally {
+    loadingTabs.value.plannings = false;
+  }
+};
+
+const loadPointages = async () => {
+  loadingTabs.value.pointages = true;
+  try {
+    const response = await timesheetsApi.getTimesheets({
+      employee: itemId.value,
+      page: 1,
+      page_size: 10
+    });
+    pointages.value = response.data.results;
+  } catch (error) {
+    console.error('[UserDetail][LoadPointages] Erreur lors du chargement des pointages:', error);
+    showError('Erreur lors du chargement des pointages');
+  } finally {
+    loadingTabs.value.pointages = false;
+  }
+};
+
+const loadAnomalies = async () => {
+  loadingTabs.value.anomalies = true;
+  try {
+    const response = await timesheetsApi.getAnomalies({
+      employee: itemId.value,
+      page: 1,
+      page_size: 10
+    });
+    anomalies.value = response.data.results;
+  } catch (error) {
+    console.error('[UserDetail][LoadAnomalies] Erreur lors du chargement des anomalies:', error);
+    showError('Erreur lors du chargement des anomalies');
+  } finally {
+    loadingTabs.value.anomalies = false;
+  }
+};
+
+const loadReports = async () => {
+  loadingTabs.value.reports = true;
+  try {
+    const response = await usersApi.getUserReports(itemId.value, {
+      page: 1,
+      page_size: 10
+    });
+    reports.value = response.data.results;
+  } catch (error) {
+    console.error('[UserDetail][LoadReports] Erreur lors du chargement des rapports:', error);
+    showError('Erreur lors du chargement des rapports');
+  } finally {
+    loadingTabs.value.reports = false;
+  }
+};
+
+// Fonction pour charger les données en fonction de l'onglet actif
+const loadTabData = async (tab: string) => {
+  switch (tab) {
+    case 'sites':
+      await loadSites();
+      break;
+    case 'plannings':
+      await loadPlannings();
+      break;
+    case 'pointages':
+      await loadPointages();
+      break;
+    case 'anomalies':
+      await loadAnomalies();
+      break;
+    case 'reports':
+      await loadReports();
+      break;
+  }
+};
+
+// Watch pour le changement d'onglet
+watch(activeTab, async (newTab) => {
+  if (newTab !== 'details') {
+    await loadTabData(newTab);
+  }
+});
 
 const formatFieldValue = (field: Field, value: any) => {
   if (!value) return ''
@@ -723,5 +875,35 @@ watch(
 :deep(.v-tab:hover) {
   color: #00346E !important;
   opacity: 0.8;
+}
+
+/* Style des boutons dans le tableau */
+:deep(.v-data-table .v-btn--icon) {
+  background-color: transparent !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="primary"]) {
+  color: #00346E !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="error"]) {
+  color: #F78C48 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="warning"]) {
+  color: #FB8C00 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="grey"]) {
+  color: #999999 !important;
+  opacity: 0.5 !important;
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+/* Assurer que les icônes dans les boutons sont visibles */
+:deep(.v-data-table .v-btn--icon .v-icon) {
+  opacity: 1 !important;
+  color: inherit !important;
 }
 </style> 

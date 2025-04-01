@@ -5,14 +5,16 @@ class Report(models.Model):
     """Modèle pour les rapports"""
     
     class ReportType(models.TextChoices):
-        TIMESHEET = 'TIMESHEET', _('Pointages')
-        ANOMALY = 'ANOMALY', _('Anomalies')
-        EMPLOYEE = 'EMPLOYEE', _('Employés')
+        DAILY = 'DAILY', _('Journalier')
+        WEEKLY = 'WEEKLY', _('Hebdomadaire')
+        MONTHLY = 'MONTHLY', _('Mensuel')
     
     class ReportFormat(models.TextChoices):
         PDF = 'PDF', _('PDF')
+        CSV = 'CSV', _('CSV')
         EXCEL = 'EXCEL', _('Excel')
     
+    name = models.CharField(_('nom'), max_length=255)
     organization = models.ForeignKey(
         'organizations.Organization',
         on_delete=models.CASCADE,

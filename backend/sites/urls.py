@@ -3,13 +3,17 @@ from .views import (
     SiteListView, SiteDetailView, ScheduleListView, ScheduleDetailView,
     ScheduleDetailListView, SiteEmployeeListView, SiteEmployeeDetailView,
     GlobalScheduleListView, GlobalScheduleDetailView, SiteStatisticsView,
-    SiteUnassignedEmployeesView, ScheduleBatchEmployeeView
+    SiteUnassignedEmployeesView, ScheduleBatchEmployeeView,
+    SitePointagesView, SiteAnomaliesView, SiteReportsView
 )
 
 urlpatterns = [
     path('', SiteListView.as_view(), name='site-list'),
     path('<int:pk>/', SiteDetailView.as_view(), name='site-detail'),
     path('<int:pk>/statistics/', SiteStatisticsView.as_view(), name='site-statistics'),
+    path('<int:pk>/pointages/', SitePointagesView.as_view(), name='site-pointages'),
+    path('<int:pk>/anomalies/', SiteAnomaliesView.as_view(), name='site-anomalies'),
+    path('<int:pk>/reports/', SiteReportsView.as_view(), name='site-reports'),
     path('schedules/', GlobalScheduleListView.as_view(), name='global-schedule-list'),
     path('schedules/<int:pk>/', GlobalScheduleDetailView.as_view(), name='global-schedule-detail'),
     path('<int:site_pk>/schedules/', ScheduleListView.as_view(), name='schedule-list'),

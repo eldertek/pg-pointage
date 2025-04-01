@@ -223,18 +223,6 @@ interface Organization {
   is_active?: boolean;
 }
 
-// Utilitaires pour la validation des IDs de sites
-const validateSiteId = (siteId: string): boolean => {
-  if (!siteId || siteId.length !== 5) return false;
-  if (!siteId.startsWith('S')) return false;
-  try {
-    const number = parseInt(siteId.slice(1));
-    return number > 0 && number < 10000;
-  } catch {
-    return false;
-  }
-};
-
 // Sites API methods
 const sitesApi = {
   // Get all sites with pagination
@@ -263,15 +251,13 @@ const sitesApi = {
   
   // Create a new site
   createSite: (data: Partial<Site>): Promise<AxiosResponse<Site>> => {
-    // Supprime le nfc_id s'il est fourni car il est généré côté serveur
-    const { nfc_id, ...siteData } = convertKeysToSnakeCase(data);
+    const { siteData } = convertKeysToSnakeCase(data);
     return api.post('/sites/', siteData);
   },
   
   // Update a site
   updateSite: (id: number, data: Partial<Site>): Promise<AxiosResponse<Site>> => {
-    // Supprime le nfc_id s'il est fourni car il ne doit pas être modifié
-    const { nfc_id, ...siteData } = convertKeysToSnakeCase(data);
+    const siteData = convertKeysToSnakeCase(data);
     return api.patch(`/sites/${id}/`, siteData);
   },
   
@@ -322,6 +308,22 @@ const sitesApi = {
   // Désassigner un employé d'un site
   unassignEmployee: (siteId: number, employeeId: number): Promise<AxiosResponse<void>> => 
     api.delete(`/sites/${siteId}/employees/${employeeId}/`),
+
+  // Get site pointages
+  getSitePointages: (siteId: number, params: any = {}) => 
+    api.get(`/sites/${siteId}/pointages/`, { params }),
+
+  // Get site anomalies
+  getSiteAnomalies: (siteId: number, params: any = {}) => 
+    api.get(`/sites/${siteId}/anomalies/`, { params }),
+
+  // Get site reports
+  getSiteReports: (siteId: number, params: any = {}) => 
+    api.get(`/sites/${siteId}/reports/`, { params }),
+
+  // Download a report
+  downloadReport: (siteId: number, reportId: number) => 
+    api.get(`/sites/${siteId}/reports/${reportId}/download/`, { responseType: 'blob' }),
 }
 
 // Schedules API methods
@@ -416,7 +418,7 @@ const usersApi = {
       ...convertKeysToSnakeCase(data),
       organizations: data.organizations
     }
-    return api.post('/users/register/', userData)
+    return api.post('/users/auth/register/', userData)
   },
   
   // Update a user
@@ -433,6 +435,15 @@ const usersApi = {
   
   // Get user statistics
   getUserStatistics: (id: number) => api.get(`/users/${id}/statistics/`),
+  
+  // Get user sites
+  getUserSites: (id: number, params: any = {}) => api.get(`/users/${id}/sites/`, { params }),
+  
+  // Get user schedules
+  getUserSchedules: (id: number, params: any = {}) => api.get(`/users/${id}/schedules/`, { params }),
+  
+  // Get user reports
+  getUserReports: (id: number, params: any = {}) => api.get(`/users/${id}/reports/`, { params }),
   
   // Update user profile
   updateProfile: (data: any) => {
@@ -471,7 +482,7 @@ const usersApi = {
   },
   
   // Change password
-  changePassword: (data: any) => api.post('/users/change-password/', {
+  changePassword: (data: any) => api.post('/users/auth/change-password/', {
     old_password: data.currentPassword,
     new_password: data.newPassword
   }),
@@ -682,21 +693,52 @@ const anomaliesApi = {
 
 // Reports API methods
 const reportsApi = {
-  getReportsBySite: (siteId: number) => 
-    api.get(`/reports/`, { params: { site: siteId } }),
+  getAllReports: (params: {
+    search?: string;
+    type?: string;
+    format?: string;
+    site?: number;
+    page?: number;
+    page_size?: number;
+  } = {}) => {
+    console.log('[ReportsAPI][GetAll] Params:', params)
+    return api.get('/reports/', { params: convertKeysToSnakeCase(params) })
+  },
 
-  // Get reports for a specific site
-  getSiteReports: (siteId: number) => 
-    api.get(`/reports/`, { params: { site: siteId } }),
+  generateReport: (data: {
+    name: string;
+    type: string;
+    format: string;
+    start_date: string;
+    end_date: string;
+    site?: number;
+  }) => {
+    console.log('[ReportsAPI][Generate] Data:', data)
+    const requestData = {
+      name: data.name,
+      report_type: data.type,
+      report_format: data.format,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      site: data.site
+    }
+    return api.post('/reports/generate/', requestData)
+  },
 
-  // Download report
-  downloadReport: (reportId: number) => 
-    api.get(`/reports/${reportId}/download/`, { 
+  downloadReport: (id: number) => {
+    console.log('[ReportsAPI][Download] ID:', id)
+    return api.get(`/reports/${id}/download/`, {
       responseType: 'blob',
       headers: {
-        'Accept': 'application/pdf'
+        'Accept': '*/*'
       }
-    }),
+    })
+  },
+
+  deleteReport: (id: number) => {
+    console.log('[ReportsAPI][Delete] ID:', id)
+    return api.delete(`/reports/${id}/`)
+  }
 }
 
 // Plannings API methods

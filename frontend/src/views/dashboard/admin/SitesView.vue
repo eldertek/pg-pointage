@@ -424,7 +424,7 @@ const saveSite = async () => {
   }
 }
 
-const { dialogState, handleConfirm } = useConfirmDialog()
+const { dialogState } = useConfirmDialog()
 
 const confirmDelete = (item: Site) => {
   const state = dialogState.value as DialogState
@@ -464,13 +464,16 @@ const toggleSiteStatus = async (item: Site) => {
   state.onConfirm = async () => {
     state.loading = true
     try {
+      console.log('[Sites][ToggleStatus] État actuel:', item.is_active)
+      console.log('[Sites][ToggleStatus] Nouvel état:', !item.is_active)
+      
+      // N'envoyer que l'ID et le nouveau statut
       await sitesApi.updateSite(item.id, {
-        ...item,
-        is_active: !item.is_active,
-        organization: item.organization || undefined,
-        manager: item.manager || undefined
+        is_active: !item.is_active
       })
       await loadSites()
+      
+      console.log('[Sites][ToggleStatus] Mise à jour réussie')
     } catch (error) {
       console.error('[Sites][Error] Erreur lors de la mise à jour du statut:', error)
     } finally {

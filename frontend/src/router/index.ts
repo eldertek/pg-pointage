@@ -22,8 +22,8 @@ import Timesheets from "@/views/dashboard/Timesheets.vue"
 import Anomalies from "@/views/dashboard/Anomalies.vue"
 import Reports from "@/views/dashboard/Reports.vue"
 import Settings from "@/views/dashboard/Settings.vue"
-import AdminSites from "@/views/dashboard/admin/Sites.vue"
-import AdminUsers from "@/views/dashboard/admin/Users.vue"
+import AdminSites from "@/views/dashboard/admin/SitesView.vue"
+import AdminUsers from "@/views/dashboard/admin/UsersView.vue"
 import AccessManagement from "@/views/dashboard/admin/AccessManagement.vue"
 
 // Views - Mobile (Employee)
@@ -38,12 +38,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean;
     roles?: string[];
+    backRoute?: string;
   }
-}
-
-interface RouteMeta {
-  requiresAuth?: boolean;
-  roles?: string[];
 }
 
 const routes: RouteRecordRaw[] = [
@@ -209,6 +205,28 @@ const routes: RouteRecordRaw[] = [
   },
 ]
 
+// Fonction pour gérer le retour à la page précédente
+const getBackRoute = (to: any, from: any) => {
+  // Si on vient d'une page de liste, retourner à cette liste
+  if (from.name && from.name.includes('List')) {
+    return from.fullPath
+  }
+  
+  // Si on vient d'une page de détail, retourner à cette page de détail
+  if (from.name && from.name.includes('Detail')) {
+    return from.fullPath
+  }
+  
+  // Sinon, retourner à la page de liste correspondante
+  const section = to.meta.section
+  if (section) {
+    return `/dashboard/${section}`
+  }
+  
+  // Par défaut, retourner au dashboard
+  return '/dashboard'
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
@@ -262,6 +280,11 @@ router.beforeEach(async (to, from, next) => {
       next("/dashboard")
     }
     return
+  }
+
+  // Ajouter la route de retour dans les meta de la route
+  if (from.name) {
+    to.meta.backRoute = getBackRoute(to, from)
   }
 
   next()

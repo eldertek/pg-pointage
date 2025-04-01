@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions, viewsets, serializers
 from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+
 from .models import Site, Schedule, ScheduleDetail, SiteEmployee
 from .serializers import (
     SiteSerializer, ScheduleSerializer, ScheduleDetailSerializer, 
@@ -8,13 +9,11 @@ from .serializers import (
 )
 from .permissions import IsSiteOrganizationManager
 from django.db import models
-from django.db.models import Count, Q, F, ExpressionWrapper, fields
-from django.db.models.functions import ExtractHour, ExtractMinute
+from reports.models import Report
 from timesheets.models import Timesheet, Anomaly
 from users.models import User
 from users.serializers import UserSerializer
-from drf_spectacular.utils import extend_schema, OpenApiResponse
-from datetime import timedelta
+from drf_spectacular.utils import extend_schema
 
 class SiteStatisticsSerializer(serializers.Serializer):
     total_employees = serializers.IntegerField()
@@ -476,4 +475,34 @@ class ScheduleBatchEmployeeView(generics.CreateAPIView):
             return Response({
                 'error': str(e)
             }, status=400)
+
+class SitePointagesView(generics.ListAPIView):
+    """Vue pour lister tous les pointages d'un site"""
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        site_pk = self.kwargs.get('pk')
+        return Timesheet.objects.filter(
+            site_id=site_pk
+        ).select_related('employee').order_by('-timestamp')
+
+class SiteAnomaliesView(generics.ListAPIView):
+    """Vue pour lister toutes les anomalies d'un site"""
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        site_pk = self.kwargs.get('pk')
+        return Anomaly.objects.filter(
+            site_id=site_pk
+        ).select_related('employee').order_by('-created_at')
+
+class SiteReportsView(generics.ListAPIView):
+    """Vue pour lister tous les rapports d'un site"""
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        site_pk = self.kwargs.get('pk')
+        return Report.objects.filter(
+            site_id=site_pk
+        ).order_by('-created_at')
 

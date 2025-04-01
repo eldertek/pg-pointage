@@ -70,10 +70,10 @@
                               <!-- Adresse avec carte -->
                               <template v-if="field.type === 'address' && isAddressField(field)">
                                 <AddressWithMap
-                                  :address="(item.value as ExtendedSite)[field.address]"
-                                  :postal-code="(item.value as ExtendedSite)[field.postalCode]"
-                                  :city="(item.value as ExtendedSite)[field.city]"
-                                  :country="(item.value as ExtendedSite)[field.country]"
+                                  :address="item[field.address]"
+                                  :postal-code="item[field.postalCode]"
+                                  :city="item[field.city]"
+                                  :country="item[field.country]"
                                 />
                               </template>
                               
@@ -143,7 +143,13 @@
 
             <!-- Onglet Employés -->
             <v-window-item value="employees">
+              <v-row v-if="loadingTabs.employees">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </v-col>
+              </v-row>
               <DataTable
+                v-else
                 title="Employés"
                 :headers="employeesHeaders"
                 :items="employees"
@@ -164,21 +170,21 @@
                   </v-btn>
                 </template>
                 
-                <template #item.is_active="{ item }">
-                  <StatusChip :status="item.is_active" />
+                <template #item.is_active="{ item: rowItem }">
+                  <StatusChip :status="rowItem.is_active" />
                 </template>
                 
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
                 
-                <template #item.actions="{ item }">
+                <template #item.actions="{ item: rowItem }">
                   <v-btn
                     icon
                     variant="text"
                     size="small"
                     color="primary"
-                    :to="`/dashboard/admin/users/${item.id}`"
+                    :to="`/dashboard/admin/users/${rowItem.id}`"
                     @click.stop
                   >
                     <v-icon>mdi-eye</v-icon>
@@ -189,7 +195,7 @@
                     variant="text"
                     size="small"
                     color="error"
-                    @click.stop="unassignEmployeeFromSite(item.id)"
+                    @click.stop="unassignEmployeeFromSite(rowItem.id)"
                   >
                     <v-icon>mdi-account-remove</v-icon>
                     <v-tooltip activator="parent">Retirer du site</v-tooltip>
@@ -211,23 +217,23 @@
                 @delete="(item: TableItem) => handleDelete('schedules', item)"
                 @row-click="(item: TableItem) => router.push(`/dashboard/sites/${itemId}/schedules/${item.id}`)"
               >
-                <template #item.schedule_type="{ item }">
+                <template #item.schedule_type="{ item: rowItem }">
                   <v-chip
-                    :color="item.schedule_type === 'FIXED' ? 'primary' : 'warning'"
+                    :color="rowItem.schedule_type === 'FIXED' ? 'primary' : 'warning'"
                     size="small"
                   >
-                    {{ item.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                    {{ rowItem.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
                   </v-chip>
                 </template>
 
-                <template #item.site="{ item }">
-                  {{ item.site_name }}
+                <template #item.site="{ item: rowItem }">
+                  {{ rowItem.site_name }}
                 </template>
 
-                <template #item.details="{ item }">
-                  <div v-for="detail in item.details" :key="detail.id" class="mb-1">
+                <template #item.details="{ item: rowItem }">
+                  <div v-for="detail in rowItem.details" :key="detail.id" class="mb-1">
                     <strong>{{ getDayName(detail.day_of_week) }}:</strong>
-                    <template v-if="item.schedule_type === 'FIXED'">
+                    <template v-if="rowItem.schedule_type === 'FIXED'">
                       <template v-if="detail.day_type === 'FULL'">
                         {{ detail.start_time_1 }}-{{ detail.end_time_1 }} / {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
                       </template>
@@ -248,69 +254,87 @@
 
             <!-- Onglet Pointages -->
             <v-window-item value="pointages">
+              <v-row v-if="loadingTabs.pointages">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </v-col>
+              </v-row>
               <DataTable
+                v-else
                 title="Pointages"
                 :headers="pointagesHeaders"
                 :items="pointages"
                 :no-data-text="'Aucun pointage trouvé'"
               >
-                <template #item.status="{ item }">
+                <template #item.status="{ item: rowItem }">
                   <v-chip
-                    :color="getPointageStatusColor(item.status)"
+                    :color="getPointageStatusColor(rowItem.status)"
                     size="small"
                   >
-                    {{ getPointageStatusLabel(item.status) }}
+                    {{ getPointageStatusLabel(rowItem.status) }}
                   </v-chip>
                 </template>
 
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
               </DataTable>
             </v-window-item>
 
             <!-- Onglet Anomalies -->
             <v-window-item value="anomalies">
+              <v-row v-if="loadingTabs.anomalies">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </v-col>
+              </v-row>
               <DataTable
+                v-else
                 title="Anomalies"
                 :headers="anomaliesHeaders"
                 :items="anomalies"
                 :no-data-text="'Aucune anomalie trouvée'"
               >
-                <template #item.status="{ item }">
+                <template #item.status="{ item: rowItem }">
                   <v-chip
-                    :color="getAnomalyStatusColor(item.status)"
+                    :color="getAnomalyStatusColor(rowItem.status)"
                     size="small"
                   >
-                    {{ getAnomalyStatusLabel(item.status) }}
+                    {{ getAnomalyStatusLabel(rowItem.status) }}
                   </v-chip>
                 </template>
 
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
               </DataTable>
             </v-window-item>
 
             <!-- Onglet Rapports -->
             <v-window-item value="reports">
+              <v-row v-if="loadingTabs.reports">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </v-col>
+              </v-row>
               <DataTable
+                v-else
                 title="Rapports"
                 :headers="reportsHeaders"
                 :items="reports"
                 :no-data-text="'Aucun rapport trouvé'"
               >
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
 
-                <template #item.actions="{ item }">
+                <template #item.actions="{ item: rowItem }">
                   <v-btn
                     icon
                     variant="text"
                     size="small"
                     color="primary"
-                    @click.stop="downloadReport(item.id)"
+                    @click.stop="downloadReport(rowItem.id)"
                   >
                     <v-icon>mdi-download</v-icon>
                     <v-tooltip activator="parent">Télécharger le rapport</v-tooltip>
@@ -329,11 +353,10 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
-import { formatPhoneNumber } from '@/utils/formatters'
 import { generateStyledQRCode } from '@/utils/qrcode'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { sitesApi, type Site, type Schedule } from '@/services/api'
+import { sitesApi } from '@/services/api'
 import StatusChip from '@/components/common/StatusChip.vue'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
@@ -384,7 +407,12 @@ const allowDelete = ref(true)
 const router = useRouter()
 const route = useRoute()
 const loading = ref(true)
-const deleting = ref(false)
+const loadingTabs = ref({
+  employees: false,
+  pointages: false,
+  anomalies: false,
+  reports: false
+})
 const showDeleteDialog = ref(false)
 const item = ref<ExtendedSite>({} as ExtendedSite)
 const statistics = ref<Array<{ label: string; value: number }>>([])
@@ -479,7 +507,7 @@ const itemId = computed(() => Number(route.params.id))
 
 const title = computed(() => 'Détails du site')
 
-const backRoute = computed(() => '/dashboard/sites')
+const backRoute = computed(() => route.meta.backRoute as string || '/dashboard/sites')
 
 const displayFields = computed((): DisplayField[] => {
   return [
@@ -617,20 +645,6 @@ const confirmDelete = () => {
   showDeleteDialog.value = true
 }
 
-const deleteItem = async () => {
-  deleting.value = true
-  try {
-    await sitesApi.deleteSite(itemId.value)
-    await router.push('/dashboard/sites')
-  } catch (error) {
-    console.error('[SiteDetail][Delete] Erreur lors de la suppression:', error)
-    showError('Erreur lors de la suppression du site')
-  } finally {
-    deleting.value = false
-    showDeleteDialog.value = false
-  }
-}
-
 const formatDate = (date: string) => {
   return format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: fr })
 }
@@ -678,18 +692,36 @@ const getAnomalyStatusLabel = (status: string) => {
 
 const handleToggleStatus = async (type: string, item: TableItem) => {
   try {
-    // Implémentation à faire
+    if (type === 'employees') {
+      await sitesApi.updateSite(item.id, {
+        ...item,
+        is_active: !item.is_active
+      })
+    } else if (type === 'schedules') {
+      await sitesApi.updateSchedule(itemId.value, item.id, {
+        ...item,
+        is_active: !item.is_active
+      })
+    }
+    await loadTabData(activeTab.value)
     showSuccess(`Statut mis à jour avec succès`)
   } catch (error) {
+    console.error('[SiteDetail][HandleToggleStatus] Erreur lors de la mise à jour du statut:', error)
     showError(`Erreur lors de la mise à jour du statut`)
   }
 }
 
 const handleDelete = async (type: string, item: TableItem) => {
   try {
-    // Implémentation à faire
+    if (type === 'employees') {
+      await sitesApi.unassignEmployee(itemId.value, item.id)
+    } else if (type === 'schedules') {
+      await sitesApi.deleteSchedule(itemId.value, item.id)
+    }
+    await loadTabData(activeTab.value)
     showSuccess(`Élément supprimé avec succès`)
   } catch (error) {
+    console.error('[SiteDetail][HandleDelete] Erreur lors de la suppression:', error)
     showError(`Erreur lors de la suppression`)
   }
 }
@@ -700,21 +732,109 @@ const openAssignEmployeesDialog = () => {
 
 const unassignEmployeeFromSite = async (employeeId: number) => {
   try {
-    // Implémentation à faire
+    await sitesApi.unassignEmployee(itemId.value, employeeId)
+    await loadEmployees()
     showSuccess(`Employé retiré du site avec succès`)
   } catch (error) {
+    console.error('[SiteDetail][UnassignEmployeeFromSite] Erreur lors du retrait de l\'employé:', error)
     showError(`Erreur lors du retrait de l'employé`)
   }
 }
 
 const downloadReport = async (reportId: number) => {
   try {
-    // Implémentation à faire
+    const response = await sitesApi.downloadReport(itemId.value, reportId)
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `rapport-${reportId}.pdf`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
     showSuccess(`Rapport téléchargé avec succès`)
   } catch (error) {
     showError(`Erreur lors du téléchargement du rapport`)
+    console.error('[SiteDetail][DownloadReport] Erreur lors du téléchargement du rapport:', error)  
   }
 }
+
+// Méthodes de chargement des données pour chaque onglet
+const loadEmployees = async () => {
+  loadingTabs.value.employees = true;
+  try {
+    const response = await sitesApi.getSiteEmployees(itemId.value);
+    employees.value = response.data.results;
+  } catch (error) {
+    console.error('[SiteDetail][LoadEmployees] Erreur lors du chargement des employés:', error);
+    showError('Erreur lors du chargement des employés');
+  } finally {
+    loadingTabs.value.employees = false;
+  }
+};
+
+const loadPointages = async () => {
+  loadingTabs.value.pointages = true;
+  try {
+    const response = await sitesApi.getSitePointages(itemId.value);
+    pointages.value = response.data.results;
+  } catch (error) {
+    console.error('[SiteDetail][LoadPointages] Erreur lors du chargement des pointages:', error);
+    showError('Erreur lors du chargement des pointages');
+  } finally {
+    loadingTabs.value.pointages = false;
+  }
+};
+
+const loadAnomalies = async () => {
+  loadingTabs.value.anomalies = true;
+  try {
+    const response = await sitesApi.getSiteAnomalies(itemId.value);
+    anomalies.value = response.data.results;
+  } catch (error) {
+    console.error('[SiteDetail][LoadAnomalies] Erreur lors du chargement des anomalies:', error);
+    showError('Erreur lors du chargement des anomalies');
+  } finally {
+    loadingTabs.value.anomalies = false;
+  }
+};
+
+const loadReports = async () => {
+  loadingTabs.value.reports = true;
+  try {
+    const response = await sitesApi.getSiteReports(itemId.value);
+    reports.value = response.data.results;
+  } catch (error) {
+    console.error('[SiteDetail][LoadReports] Erreur lors du chargement des rapports:', error);
+    showError('Erreur lors du chargement des rapports');
+  } finally {
+    loadingTabs.value.reports = false;
+  }
+};
+
+// Fonction pour charger les données en fonction de l'onglet actif
+const loadTabData = async (tab: string) => {
+  switch (tab) {
+    case 'employees':
+      await loadEmployees();
+      break;
+    case 'pointages':
+      await loadPointages();
+      break;
+    case 'anomalies':
+      await loadAnomalies();
+      break;
+    case 'reports':
+      await loadReports();
+      break;
+  }
+};
+
+// Watch pour le changement d'onglet
+watch(activeTab, async (newTab) => {
+  if (newTab !== 'details') {
+    await loadTabData(newTab);
+  }
+});
 
 // Lifecycle hooks
 onMounted(async () => {

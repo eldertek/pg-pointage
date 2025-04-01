@@ -142,12 +142,12 @@
                   </v-btn>
                 </template>
                 
-                <template #item.is_active="{ item }">
-                  <StatusChip :status="item.is_active" />
+                <template #item.is_active="{ item: rowItem }">
+                  <StatusChip :status="rowItem.is_active" />
                 </template>
                 
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
               </DataTable>
             </v-window-item>
@@ -175,12 +175,12 @@
                   </v-btn>
                 </template>
                 
-                <template #item.is_active="{ item }">
-                  <StatusChip :status="item.is_active" />
+                <template #item.is_active="{ item: rowItem }">
+                  <StatusChip :status="rowItem.is_active" />
                 </template>
                 
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
               </DataTable>
             </v-window-item>
@@ -193,21 +193,8 @@
                 :items="reports"
                 :no-data-text="'Aucun rapport trouvé'"
               >
-                <template #item.created_at="{ item }">
-                  {{ formatDate(item.created_at) }}
-                </template>
-
-                <template #item.actions="{ item }">
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="primary"
-                    @click.stop="downloadReport(item.id)"
-                  >
-                    <v-icon>mdi-download</v-icon>
-                    <v-tooltip activator="parent">Télécharger le rapport</v-tooltip>
-                  </v-btn>
+                <template #item.created_at="{ item: rowItem }">
+                  {{ formatDate(rowItem.created_at) }}
                 </template>
               </DataTable>
             </v-window-item>
@@ -229,6 +216,8 @@ import { organizationsApi } from '@/services/api'
 import StatusChip from '@/components/common/StatusChip.vue'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
+import { sitesApi } from '@/services/api'
+import { employeesService } from '@/services/employees'
 
 // Types
 interface Field {
@@ -260,7 +249,6 @@ const allowDelete = ref(true)
 const router = useRouter()
 const route = useRoute()
 const loading = ref(true)
-const deleting = ref(false)
 const showDeleteDialog = ref(false)
 const item = ref<any>({})
 const statistics = ref<Array<{ label: string; value: number }>>([])
@@ -309,7 +297,7 @@ const itemId = computed(() => Number(route.params.id))
 
 const title = computed(() => "Détails de l'organisation")
 
-const backRoute = computed(() => '/dashboard/organizations')
+const backRoute = computed(() => route.meta.backRoute as string || '/dashboard/organizations')
 
 const displayFields = computed((): DisplayField[] => {
   return [
@@ -425,48 +413,39 @@ const confirmDelete = () => {
   showDeleteDialog.value = true
 }
 
-const deleteItem = async () => {
-  deleting.value = true
-  try {
-    await organizationsApi.deleteOrganization(itemId.value)
-    await router.push('/dashboard/organizations')
-  } catch (error) {
-    console.error('[OrganizationDetail][Delete] Erreur lors de la suppression:', error)
-    showError('Erreur lors de la suppression de l\'organisation')
-  } finally {
-    deleting.value = false
-    showDeleteDialog.value = false
-  }
-}
-
 const formatDate = (date: string) => {
   return format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: fr })
 }
 
 const handleToggleStatus = async (type: string, item: TableItem) => {
   try {
-    // Implémentation à faire
+    if (type === 'sites') {
+      await sitesApi.updateSite(item.id, {
+        is_active: !item.is_active
+      })
+    } else if (type === 'employees') {
+      await employeesService.toggleEmployeeStatus(item.id, !item.is_active)
+    }
+    await loadData()
     showSuccess(`Statut mis à jour avec succès`)
   } catch (error) {
+    console.error('[OrganizationDetail][HandleToggleStatus] Erreur lors de la mise à jour du statut:', error)
     showError(`Erreur lors de la mise à jour du statut`)
   }
 }
 
 const handleDelete = async (type: string, item: TableItem) => {
   try {
-    // Implémentation à faire
+    if (type === 'sites') {
+      await sitesApi.deleteSite(item.id)
+    } else if (type === 'employees') {
+      await employeesService.deleteEmployee(item.id)
+    }
+    await loadData()
     showSuccess(`Élément supprimé avec succès`)
   } catch (error) {
+    console.error('[OrganizationDetail][HandleDelete] Erreur lors de la suppression:', error)
     showError(`Erreur lors de la suppression`)
-  }
-}
-
-const downloadReport = async (reportId: number) => {
-  try {
-    // Implémentation à faire
-    showSuccess(`Rapport téléchargé avec succès`)
-  } catch (error) {
-    showError(`Erreur lors du téléchargement du rapport`)
   }
 }
 

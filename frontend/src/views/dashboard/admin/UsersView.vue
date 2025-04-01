@@ -270,7 +270,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { usersApi, sitesApi, organizationsApi } from '@/services/api'
 import type { User, UserRequest, Organization } from '@/types/api'
 import type { Site } from '@/services/api'
@@ -360,7 +360,7 @@ const roles = [
 
 // Méthodes
 const router = useRouter()
-const { dialogState, handleConfirm } = useConfirmDialog()
+const { dialogState } = useConfirmDialog()
 
 const handleRowClick = (event: any, { item }: any) => {
   if (item?.id) {
@@ -636,13 +636,6 @@ watch(() => (editedItem.value as UserFormData)?.organizations, async (newOrganiz
   }
 }, { deep: true })
 
-// Ajouter la fonction pour vérifier si l'utilisateur peut gérer un utilisateur
-const canManageUser = (user: ExtendedUser) => {
-  if (authStore.isSuperAdmin) return true
-  if (user.id === authStore.user?.id) return false
-  if (user.role === 'SUPER_ADMIN') return false
-  return user.organizations.some(org => authStore.hasOrganizationAccess(org.id))
-}
 </script>
 
 <style scoped>

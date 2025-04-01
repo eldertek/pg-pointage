@@ -77,7 +77,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRoute } from 'vue-router'
 
 interface TableHeader {
   title: string
@@ -89,7 +88,7 @@ interface TableHeader {
 interface TableSlot {
   key: string
   component: any
-  props: (item: any) => any
+  props: any
 }
 
 export interface TableItem {
@@ -136,7 +135,6 @@ const emit = defineEmits<{
   'row-click': [item: TableItem]
 }>()
 
-const route = useRoute()
 const page = ref(1)
 
 const handleRowClick = (event: Event, rowData: { item: TableItem }) => {

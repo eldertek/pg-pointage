@@ -3,9 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model, logout
-from django.db.models import Count, Sum
 from django.utils import timezone
 from datetime import timedelta
 from .serializers import (
@@ -13,9 +11,12 @@ from .serializers import (
     CustomTokenObtainPairSerializer
 )
 from .models import User
-from sites.permissions import IsSiteOrganizationManager
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from timesheets.models import Timesheet, Anomaly
+from sites.models import Site, Schedule
+from reports.models import Report
+from sites.serializers import SiteSerializer, ScheduleSerializer
+from reports.serializers import ReportSerializer
 
 User = get_user_model()
 
@@ -235,5 +236,88 @@ class UserStatisticsView(APIView):
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class UserSitesView(generics.ListAPIView):
+    """Vue pour lister les sites d'un utilisateur"""
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = User.objects.get(pk=self.kwargs['pk'])
+        # Sites où l'utilisateur est employé
+        employee_sites = Site.objects.filter(employees__employee=user, employees__is_active=True)
+        # Sites où l'utilisateur est manager
+        manager_sites = Site.objects.filter(manager=user)
+        # Sites où l'utilisateur a des plannings assignés
+        scheduled_sites = Site.objects.filter(
+            schedules__assigned_employees__employee=user,
+            schedules__assigned_employees__is_active=True
+        )
+        
+        # Combiner tous les sites uniques
+        return (employee_sites | manager_sites | scheduled_sites).distinct()
+    
+    def list(self, request, *args, **kwargs):
+        try:
+            queryset = self.get_queryset()
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = SiteSerializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            serializer = SiteSerializer(queryset, many=True)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Utilisateur non trouvé'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class UserSchedulesView(generics.ListAPIView):
+    """Vue pour lister les plannings d'un utilisateur"""
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = User.objects.get(pk=self.kwargs['pk'])
+        return Schedule.objects.filter(
+            assigned_employees__employee=user,
+            assigned_employees__is_active=True
+        ).distinct()
+    
+    def list(self, request, *args, **kwargs):
+        try:
+            queryset = self.get_queryset()
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = ScheduleSerializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            serializer = ScheduleSerializer(queryset, many=True)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Utilisateur non trouvé'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class UserReportsView(generics.ListAPIView):
+    """Vue pour lister les rapports d'un utilisateur"""
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = User.objects.get(pk=self.kwargs['pk'])
+        return Report.objects.filter(created_by=user)
+    
+    def list(self, request, *args, **kwargs):
+        try:
+            queryset = self.get_queryset()
+            page = self.paginate_queryset(queryset)
+            if page is not None:
+                serializer = ReportSerializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            serializer = ReportSerializer(queryset, many=True)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Utilisateur non trouvé'},
+                status=status.HTTP_404_NOT_FOUND
             )
 

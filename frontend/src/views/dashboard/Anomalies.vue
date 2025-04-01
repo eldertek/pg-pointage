@@ -1,7 +1,7 @@
 <template>
   <div>
     <div v-if="!isDetailView" class="d-flex justify-space-between align-center mb-4">
-      <Title :level="1">Anomalies</Title>
+      <PageTitle :level="1">Anomalies</PageTitle>
       <v-btn 
         color="warning" 
         prepend-icon="mdi-magnify-scan" 
@@ -15,7 +15,7 @@
     <v-card v-if="!isDetailView" class="mb-4">
       <v-card-title>Filtres</v-card-title>
       <v-card-text>
-        <v-row>
+        <DashboardFilters @reset="resetFilters">
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-autocomplete
               v-model="filters.employee"
@@ -82,9 +82,7 @@
               @update:model-value="applyFilters"
             ></v-select>
           </v-col>
-        </v-row>
-        
-        <v-row>
+
           <v-col cols="12" md="4">
             <v-text-field
               v-model="filters.startDate"
@@ -108,19 +106,7 @@
               @update:model-value="applyFilters"
             ></v-text-field>
           </v-col>
-          
-          <v-col cols="12" md="4" class="d-flex align-center">
-            <v-btn 
-              color="error" 
-              variant="outlined" 
-              prepend-icon="mdi-refresh"
-              class="px-4"
-              @click="resetFilters"
-            >
-              Réinitialiser les filtres
-            </v-btn>
-          </v-col>
-        </v-row>
+        </DashboardFilters>
       </v-card-text>
     </v-card>
     
@@ -205,12 +191,14 @@ import { ref, watch, computed } from 'vue'
 import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
 import { useToast } from 'vue-toastification'
 import { useSitesStore } from '@/stores/sites'
-import { Title } from '@/components/typography'
+import { Title as PageTitle } from '@/components/typography'
+import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 
 export default {
   name: 'AnomaliesView',
   components: {
-    Title
+    PageTitle,
+    DashboardFilters
   },
   props: {
     isDetailView: {
