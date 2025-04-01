@@ -245,7 +245,7 @@ class UserStatisticsView(APIView):
             )
 
 class UserSitesView(generics.ListAPIView):
-    """Vue pour lister les sites d'un utilisateur"""
+    """Vue pour lister les sites d'un utilisateur (sites où il est manager ou rattaché à un planning)"""
     serializer_class = SiteSerializer
     permission_classes = [IsAuthenticated]
     
@@ -254,22 +254,22 @@ class UserSitesView(generics.ListAPIView):
             user = User.objects.get(pk=self.kwargs['pk'])
             print(f"[UserSitesView][Debug] Récupération des sites pour l'utilisateur: {user.get_full_name()}")
             
-            # Sites où l'utilisateur est employé
-            employee_sites = Site.objects.filter(
-                site_employees__employee=user,
-                site_employees__is_active=True
-            )
-            print(f"[UserSitesView][Debug] Sites en tant qu'employé: {employee_sites.count()}")
-            
             # Sites où l'utilisateur est manager
             manager_sites = Site.objects.filter(manager=user)
             print(f"[UserSitesView][Debug] Sites en tant que manager: {manager_sites.count()}")
             
+            # Sites où l'utilisateur est rattaché à un planning
+            scheduled_sites = Site.objects.filter(
+                schedules__schedule_employees__employee=user,
+                schedules__schedule_employees__is_active=True
+            )
+            print(f"[UserSitesView][Debug] Sites avec plannings: {scheduled_sites.count()}")
+            
             # Combiner les deux querysets
-            all_sites = (employee_sites | manager_sites).distinct()
+            all_sites = (manager_sites | scheduled_sites).distinct()
             print(f"[UserSitesView][Debug] Total des sites uniques: {all_sites.count()}")
             
-            return all_sites
+            return all_sites.order_by('name')
             
         except User.DoesNotExist:
             print(f"[UserSitesView][Error] Utilisateur {self.kwargs['pk']} non trouvé")

@@ -188,90 +188,106 @@
 
             <!-- Onglet Plannings -->
             <v-window-item value="plannings">
-              <DataTable
-                title="Plannings"
-                :headers="planningsHeaders"
-                :items="item.schedules || []"
-                :no-data-text="'Aucun planning trouvé'"
-                :detail-route="'/dashboard/sites/:id/schedules/:id'"
-                :edit-route="'/dashboard/sites/:id/schedules/:id/edit'"
-                @toggle-status="(item: TableItem) => handleToggleStatus('schedules', item)"
-                @delete="(item: TableItem) => handleDelete('schedules', item)"
-                @row-click="(item: TableItem) => router.push(`/dashboard/sites/${itemId}/schedules/${item.id}`)"
-              >
-                <template #item.schedule_type="{ item: rowItem }">
-                  <v-chip
-                    :color="rowItem.schedule_type === 'FIXED' ? 'primary' : 'warning'"
-                    size="small"
-                  >
-                    {{ rowItem.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
-                  </v-chip>
-                </template>
+              <v-row v-if="loadingTabs.plannings">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </v-col>
+              </v-row>
+              <v-card v-else>
+                <v-toolbar flat>
+                  <v-toolbar-title>Plannings</v-toolbar-title>
+                  <v-spacer></v-spacer>
+                </v-toolbar>
+                <v-data-table
+                  :headers="planningsHeaders"
+                  :items="item.schedules || []"
+                  :no-data-text="'Aucun planning trouvé'"
+                  class="elevation-1"
+                  @click:row="(item) => router.push(`/dashboard/plannings/${item.id}`)"
+                >
+                  <!-- Site -->
+                  <template #item.site_name="{ item }">
+                    {{ item.site_name }}
+                  </template>
 
-                <template #item.details="{ item: rowItem }">
-                  <div v-for="detail in rowItem.details" :key="detail.id" class="mb-1">
-                    <strong>{{ detail.day_name }}:</strong>
-                    <template v-if="rowItem.schedule_type === 'FIXED'">
-                      <template v-if="detail.day_type === 'FULL'">
-                        {{ detail.start_time_1 }}-{{ detail.end_time_1 }} / {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
-                      </template>
-                      <template v-else-if="detail.day_type === 'AM'">
-                        {{ detail.start_time_1 }}-{{ detail.end_time_1 }}
-                      </template>
-                      <template v-else-if="detail.day_type === 'PM'">
-                        {{ detail.start_time_2 }}-{{ detail.end_time_2 }}
-                      </template>
-                    </template>
-                    <template v-else>
-                      {{ detail.frequency_duration }}h
-                    </template>
-                  </div>
-                </template>
+                  <!-- Employés -->
+                  <template #item.employees="{ item }">
+                    <v-chip-group>
+                      <v-chip
+                        v-for="employee in item.assigned_employees"
+                        :key="employee.id"
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      >
+                        {{ employee.employee_name }}
+                      </v-chip>
+                      <v-chip
+                        v-if="!item.assigned_employees?.length"
+                        size="small"
+                        color="grey"
+                        variant="outlined"
+                      >
+                        Aucun employé
+                      </v-chip>
+                    </v-chip-group>
+                  </template>
 
-                <template #item.actions="{ item: rowItem }">
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="primary"
-                    :to="`/dashboard/sites/${itemId}/schedules/${rowItem.id}`"
-                    @click.stop
-                  >
-                    <v-icon>mdi-eye</v-icon>
-                    <v-tooltip activator="parent">Voir les détails</v-tooltip>
-                  </v-btn>
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="primary"
-                    @click.stop="openDialog(rowItem)"
-                  >
-                    <v-icon>mdi-pencil</v-icon>
-                    <v-tooltip activator="parent">Modifier</v-tooltip>
-                  </v-btn>
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="warning"
-                    @click.stop="toggleStatus(rowItem)"
-                  >
-                    <v-icon>{{ rowItem.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
-                    <v-tooltip activator="parent">{{ rowItem.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
-                  </v-btn>
-                  <v-btn
-                    icon
-                    variant="text"
-                    size="small"
-                    color="error"
-                    @click.stop="confirmDeleteSchedule(rowItem)"
-                  >
-                    <v-icon>mdi-delete</v-icon>
-                    <v-tooltip activator="parent">Supprimer</v-tooltip>
-                  </v-btn>
-                </template>
-              </DataTable>
+                  <!-- Type de planning -->
+                  <template #item.schedule_type="{ item }">
+                    <v-chip
+                      :color="item.schedule_type === 'FIXED' ? 'primary' : 'secondary'"
+                      size="small"
+                    >
+                      {{ item.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                    </v-chip>
+                  </template>
+
+                  <!-- Actions -->
+                  <template #item.actions="{ item }">
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="viewPlanningDetails(item)"
+                    >
+                      <v-icon>mdi-eye</v-icon>
+                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="navigateToPlanning(item)"
+                    >
+                      <v-icon>mdi-pencil</v-icon>
+                      <v-tooltip activator="parent">Modifier</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="warning"
+                      @click.stop="confirmTogglePlanningStatus(item)"
+                    >
+                      <v-icon>{{ item.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+                      <v-tooltip activator="parent">{{ item.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="confirmDeletePlanning(item)"
+                    >
+                      <v-icon>mdi-delete</v-icon>
+                      <v-tooltip activator="parent">Supprimer</v-tooltip>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-card>
             </v-window-item>
 
             <!-- Onglet Pointages -->
@@ -368,6 +384,8 @@
         </v-card-text>
       </v-card>
     </template>
+    <!-- Boîte de dialogue de confirmation -->
+    <ConfirmDialog />
   </v-container>
 </template>
 
@@ -378,10 +396,13 @@ import { Title } from '@/components/typography'
 import { generateStyledQRCode } from '@/utils/qrcode'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { sitesApi, planningsApi } from '@/services/api'
+import { sitesApi, planningsApi, schedulesApi } from '@/services/api'
 import StatusChip from '@/components/common/StatusChip.vue'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
+import { useConfirmDialog } from '@/utils/dialogs'
+import type { DialogState } from '@/utils/dialogs'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 // Types
 interface Field {
@@ -442,6 +463,7 @@ const statistics = ref<Array<{ label: string; value: number }>>([])
 const activeTab = ref('details')
 const previousTab = ref('details')
 const reverse = ref(false)
+const { dialogState, showConfirmDialog } = useConfirmDialog()
 
 // Données pour les tableaux
 const employees = ref<any[]>([])
@@ -456,9 +478,10 @@ const employeesHeaders = [
 ]
 
 const planningsHeaders = [
-  { title: 'Type', key: 'schedule_type' },
-  { title: 'Détails', key: 'details' },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { title: 'Site', key: 'site_name', align: 'start' },
+  { title: 'Employés', key: 'employees', align: 'start' },
+  { title: 'Type', key: 'schedule_type', align: 'start' },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
 ]
 
 const pointagesHeaders = [
@@ -909,6 +932,80 @@ const confirmDeleteSchedule = async (item: any) => {
   } catch (error) {
     console.error('[SiteDetail][Delete] Erreur lors de la suppression:', error)
     showError(`Erreur lors de la suppression`)
+  }
+}
+
+// Méthodes pour l'onglet plannings
+const navigateToPlanning = (planning: any) => {
+  router.push({
+    name: 'PlanningEdit',
+    params: { id: planning.id }
+  })
+}
+
+const viewPlanningDetails = (planning: any) => {
+  router.push({
+    name: 'Plannings',
+    query: { view: planning.id }
+  })
+}
+
+const confirmTogglePlanningStatus = (planning: any) => {
+  showConfirmDialog({
+    title: planning.is_active ? 'Désactiver le planning' : 'Activer le planning',
+    message: `Êtes-vous sûr de vouloir ${planning.is_active ? 'désactiver' : 'activer'} ce planning ?`,
+    confirmText: planning.is_active ? 'Désactiver' : 'Activer',
+    cancelText: 'Annuler',
+    confirmColor: planning.is_active ? 'warning' : 'success',
+    onConfirm: async () => {
+      await togglePlanningStatus(planning)
+    }
+  })
+}
+
+const togglePlanningStatus = async (planning: any) => {
+  try {
+    await schedulesApi.updateSchedule(itemId.value, planning.id, {
+      is_active: !planning.is_active
+    })
+    
+    // Mettre à jour le planning dans la liste locale
+    const index = item.value.schedules.findIndex((p: any) => p.id === planning.id)
+    if (index !== -1) {
+      item.value.schedules[index].is_active = !planning.is_active
+    }
+    
+    showSuccess(`Planning ${planning.is_active ? 'désactivé' : 'activé'} avec succès`)
+  } catch (error) {
+    console.error('[SiteDetail][TogglePlanningStatus] Erreur lors du changement de statut:', error)
+    showError(`Erreur lors du ${planning.is_active ? 'désactivation' : 'activation'} du planning`)
+  }
+}
+
+const confirmDeletePlanning = (planning: any) => {
+  showConfirmDialog({
+    title: 'Supprimer le planning',
+    message: 'Êtes-vous sûr de vouloir supprimer ce planning ? Cette action est irréversible.',
+    confirmText: 'Supprimer',
+    cancelText: 'Annuler',
+    confirmColor: 'error',
+    onConfirm: async () => {
+      await deletePlanning(planning)
+    }
+  })
+}
+
+const deletePlanning = async (planning: any) => {
+  try {
+    await schedulesApi.deleteSchedule(planning.id)
+    
+    // Retirer le planning de la liste
+    item.value.schedules = item.value.schedules.filter((p: any) => p.id !== planning.id)
+    
+    showSuccess('Planning supprimé avec succès')
+  } catch (error) {
+    console.error('[SiteDetail][DeletePlanning] Erreur lors de la suppression:', error)
+    showError('Erreur lors de la suppression du planning')
   }
 }
 </script>

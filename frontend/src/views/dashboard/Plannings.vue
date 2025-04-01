@@ -486,6 +486,14 @@ const route = useRoute()
 const router = useRouter()
 const { dialogState } = useConfirmDialog()
 
+// Props
+const props = defineProps({
+  editId: {
+    type: [String, Number],
+    default: null
+  }
+})
+
 // Interface étendue pour les détails de planning
 interface ExtendedScheduleDetail {
   id?: number;
@@ -661,6 +669,15 @@ const loadSchedules = async () => {
         })) || []
       }
     })
+
+    // Si on a un editId, ouvrir le formulaire avec le planning correspondant
+    if (props.editId) {
+      const scheduleToEdit = schedules.value.find(s => s.id === Number(props.editId))
+      if (scheduleToEdit) {
+        openDialog(scheduleToEdit)
+      }
+    }
+
     console.log('[Plannings][LoadSchedules] Plannings transformés:', JSON.stringify(
       schedules.value.map(schedule => ({
         id: schedule.id,
@@ -723,20 +740,47 @@ const resetFilters = () => {
 }
 
 const openDialog = (item?: ExtendedSchedule) => {
+  console.log('[Plannings][OpenDialog] Item reçu:', item)
+  
   editedItem.value = item ? {
     id: item.id,
     site: item.site,
     employees: item.assigned_employees?.map(e => e.employee) || [],
-    details: item.details.map(detail => ({
-      ...detail,
-      showStartTime1Menu: false,
-      showEndTime1Menu: false,
-      showStartTime2Menu: false,
-      showEndTime2Menu: false
-    })),
+    details: daysOfWeek.map(day => {
+      // Rechercher un détail existant pour ce jour
+      const existingDetail = item.details?.find(detail => detail.day_of_week === day.value)
+      
+      if (existingDetail) {
+        console.log(`[Plannings][OpenDialog] Détail existant trouvé pour le jour ${day.label}:`, existingDetail)
+        return {
+          ...existingDetail,
+          enabled: true,
+          showStartTime1Menu: false,
+          showEndTime1Menu: false,
+          showStartTime2Menu: false,
+          showEndTime2Menu: false
+        }
+      } else {
+        console.log(`[Plannings][OpenDialog] Création d'un nouveau détail pour le jour ${day.label}`)
+        return {
+          day_of_week: day.value,
+          enabled: false,
+          day_type: DayTypeEnum.FULL,
+          frequency_duration: item.schedule_type === ScheduleTypeEnum.FREQUENCY ? 0 : undefined,
+          start_time_1: item.schedule_type === ScheduleTypeEnum.FIXED ? '09:00' : undefined,
+          end_time_1: item.schedule_type === ScheduleTypeEnum.FIXED ? '12:00' : undefined,
+          start_time_2: item.schedule_type === ScheduleTypeEnum.FIXED ? '14:00' : undefined,
+          end_time_2: item.schedule_type === ScheduleTypeEnum.FIXED ? '17:00' : undefined,
+          showStartTime1Menu: false,
+          showEndTime1Menu: false,
+          showStartTime2Menu: false,
+          showEndTime2Menu: false
+        }
+      }
+    }),
     is_active: item.is_active,
     schedule_type: item.schedule_type,
-    enabled: item.enabled
+    enabled: true
   } : {
     site: undefined,
     employees: [],
@@ -744,6 +788,10 @@ const openDialog = (item?: ExtendedSchedule) => {
       day_of_week: day.value,
       enabled: false,
       day_type: DayTypeEnum.FULL,
+      start_time_1: '09:00',
+      end_time_1: '12:00',
+      start_time_2: '14:00',
+      end_time_2: '17:00',
       showStartTime1Menu: false,
       showEndTime1Menu: false,
       showStartTime2Menu: false,
@@ -753,6 +801,8 @@ const openDialog = (item?: ExtendedSchedule) => {
     enabled: true,
     is_active: true
   }
+
+  console.log('[Plannings][OpenDialog] Item préparé:', editedItem.value)
 
   const currentItem = editedItem.value
   // Si un site est sélectionné, charger les employés
@@ -976,6 +1026,29 @@ onMounted(async () => {
     loadSchedules(),
     loadSites()
   ])
+
+  // Si on a un editId, charger directement le planning depuis la liste
+  if (props.editId) {
+    console.log('[Plannings][Mount] EditId trouvé:', props.editId)
+    const scheduleToEdit = schedules.value.find(s => s.id === Number(props.editId))
+    if (scheduleToEdit) {
+      console.log('[Plannings][Mount] Planning trouvé dans la liste:', scheduleToEdit)
+      openDialog(scheduleToEdit)
+    } else {
+      console.log('[Plannings][Mount] Planning non trouvé dans la liste, chargement direct...')
+      try {
+        // Utiliser le site_id si disponible dans le planning trouvé
+        const schedule = schedules.value.find(s => s.id === Number(props.editId))
+        if (schedule?.site) {
+          const response = await schedulesApi.getSiteSchedule(schedule.site, Number(props.editId))
+          console.log('[Plannings][Mount] Planning chargé:', response.data)
+          openDialog(response.data)
+        }
+      } catch (error) {
+        console.error('[Plannings][Error] Erreur lors du chargement du planning:', error)
+      }
+    }
+  }
 })
 
 // Observateurs

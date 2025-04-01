@@ -146,6 +146,13 @@ const routes: RouteRecordRaw[] = [
         component: Plannings,
       },
       {
+        path: "plannings/:id/edit",
+        name: "PlanningEdit",
+        component: Plannings,
+        props: route => ({ editId: route.params.id }),
+        meta: { section: "plannings", mode: "edit" },
+      },
+      {
         path: "timesheets",
         name: "Timesheets",
         component: Timesheets,

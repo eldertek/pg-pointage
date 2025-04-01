@@ -11,7 +11,9 @@ from .serializers import (
 from .permissions import IsSiteOrganizationManager
 from django.db import models
 from reports.models import Report
+from reports.serializers import ReportSerializer
 from timesheets.models import Timesheet, Anomaly
+from timesheets.serializers import TimesheetSerializer, AnomalySerializer
 from users.models import User
 from users.serializers import UserSerializer
 from drf_spectacular.utils import extend_schema
@@ -229,8 +231,8 @@ class SiteEmployeesView(generics.ListCreateAPIView):
                 'site': 'Site non trouvé'
             })
 
-class SiteSchedulesView(generics.ListAPIView):
-    """Vue pour lister les plannings d'un site"""
+class SiteSchedulesView(generics.ListCreateAPIView):
+    """Vue pour lister et créer les plannings d'un site"""
     permission_classes = [IsAuthenticated]
     serializer_class = ScheduleSerializer
     
@@ -248,6 +250,11 @@ class SiteSchedulesView(generics.ListAPIView):
         
         print(f"[SiteSchedulesView][Debug] Nombre de plannings trouvés: {queryset.count()}")
         return queryset
+
+    def perform_create(self, serializer):
+        site_pk = self.kwargs.get('pk')
+        print(f"[SiteSchedulesView][Create] Création d'un planning pour le site {site_pk}")
+        serializer.save(site_id=site_pk)
 
 class SiteScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Vue pour gérer les détails d'un planning d'un site"""
@@ -381,6 +388,7 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
 
 class SitePointagesView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = TimesheetSerializer
     
     def get_queryset(self):
         site_pk = self.kwargs.get('pk')
@@ -389,7 +397,9 @@ class SitePointagesView(generics.ListAPIView):
         ).select_related('employee').order_by('-timestamp')
 
 class SiteAnomaliesView(generics.ListAPIView):
+    """Vue pour lister les anomalies d'un site"""
     permission_classes = [IsAuthenticated]
+    serializer_class = AnomalySerializer
     
     def get_queryset(self):
         site_pk = self.kwargs.get('pk')
@@ -398,7 +408,9 @@ class SiteAnomaliesView(generics.ListAPIView):
         ).select_related('employee').order_by('-created_at')
 
 class SiteReportsView(generics.ListAPIView):
+    """Vue pour lister les rapports d'un site"""
     permission_classes = [IsAuthenticated]
+    serializer_class = ReportSerializer
     
     def get_queryset(self):
         site_pk = self.kwargs.get('pk')

@@ -355,8 +355,12 @@ const schedulesApi = {
   getSchedule: (id: number): Promise<AxiosResponse<Schedule>> => api.get(`/sites/schedules/${id}/`),
   
   // Create a new schedule
-  createSchedule: (data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
-    api.post('/sites/schedules/', convertKeysToSnakeCase(data)),
+  createSchedule: (data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => {
+    if (!data.site) {
+      throw new Error('Le site est requis pour créer un planning')
+    }
+    return api.post(`/sites/${data.site}/schedules/`, convertKeysToSnakeCase(data))
+  },
   
   // Update a schedule
   updateSchedule: (siteId: number, scheduleId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => {
