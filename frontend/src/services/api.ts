@@ -410,15 +410,6 @@ const usersApi = {
   // Get a single user by ID
   getUser: (id: number) => api.get(`/users/${id}/`),
   
-  // Get user sites
-  getUserSites: (id: number, page = 1, perPage = 10) => 
-    api.get(`/users/${id}/sites/`, {
-      params: {
-        page,
-        page_size: perPage
-      }
-    }),
-  
   // Create a new user
   createUser: (data: any) => {
     const userData = {

@@ -14,9 +14,9 @@
       <v-btn
         :color="isOwnProfile ? 'grey' : 'primary'"
         prepend-icon="mdi-pencil"
+        @click.stop="editItem"
         class="mr-2"
         :disabled="isOwnProfile"
-        @click.stop="editItem"
       >
         Modifier
       </v-btn>
@@ -24,11 +24,11 @@
         v-if="allowDelete"
         :color="isOwnProfile ? 'grey' : 'error'"
         prepend-icon="mdi-delete"
-        :disabled="isOwnProfile"
         @click.stop="confirmDelete"
+        :disabled="isOwnProfile"
       >
         Supprimer
-        <v-tooltip v-if="isOwnProfile" activator="parent">
+        <v-tooltip activator="parent" v-if="isOwnProfile">
           Vous ne pouvez pas supprimer votre propre compte
         </v-tooltip>
       </v-btn>
@@ -67,7 +67,7 @@
                     <v-row>
                       <v-col cols="12" md="6">
                         <v-list>
-                          <template v-for="(field) in displayFields" :key="index">
+                          <template v-for="(field, index) in displayFields" :key="index">
                             <v-list-item>
                               <template #prepend>
                                 <v-icon>{{ field.icon }}</v-icon>
@@ -167,13 +167,13 @@
                   :no-data-text="'Aucun employé trouvé'"
                   class="elevation-1"
                 >
-                  <template #top>
+                  <template v-slot:top>
                     <v-toolbar flat>
                       <v-toolbar-title>Employés</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
-                  <template #item.is_active="{ item }">
+                  <template v-slot:item.is_active="{ item }">
                     <v-chip
                       :color="item.is_active ? 'success' : 'error'"
                       size="small"
@@ -181,10 +181,10 @@
                       {{ item.is_active ? 'Actif' : 'Inactif' }}
                     </v-chip>
                   </template>
-                  <template #item.created_at="{ item }">
+                  <template v-slot:item.created_at="{ item }">
                     {{ formatDate(item.created_at) }}
                   </template>
-                  <template #item.actions="{ item }">
+                  <template v-slot:item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -229,13 +229,13 @@
                   ]"
                   class="elevation-1"
                 >
-                  <template #top>
+                  <template v-slot:top>
                     <v-toolbar flat class="pl-0">
                       <v-toolbar-title>Plannings</v-toolbar-title>
                     </v-toolbar>
                   </template>
                   
-                  <template #item.schedule_type="{ item }">
+                  <template v-slot:item.schedule_type="{ item }">
                     <v-chip
                       :color="(item as ScheduleWithSite).schedule_type === 'FIXED' ? 'primary' : 'warning'"
                       size="small"
@@ -244,11 +244,11 @@
                     </v-chip>
                   </template>
 
-                  <template #item.site="{ item }">
+                  <template v-slot:item.site="{ item }">
                     {{ (item as ScheduleWithSite).site_name }}
                   </template>
 
-                  <template #item.details="{ item }">
+                  <template v-slot:item.details="{ item }">
                     <div v-for="detail in (item as ScheduleWithSite).details" :key="detail.id" class="mb-1">
                       <strong>{{ getDayName(detail.day_of_week) }}:</strong>
                       <template v-if="(item as ScheduleWithSite).schedule_type === 'FIXED'">
@@ -268,7 +268,7 @@
                     </div>
                   </template>
                   
-                  <template #item.actions="{ item: schedule }">
+                  <template v-slot:item.actions="{ item: schedule }">
                     <v-btn
                       icon
                       variant="text"
@@ -324,14 +324,14 @@
                   ]"
                   class="elevation-1"
                 >
-                  <template #top>
+                  <template v-slot:top>
                     <v-toolbar flat>
                       <v-toolbar-title>Pointages</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template #item.entry_type="{ item }">
+                  <template v-slot:item.entry_type="{ item }">
                     <v-chip
                       :color="item.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
                       size="small"
@@ -340,7 +340,7 @@
                     </v-chip>
                   </template>
                   
-                  <template #item.status="{ item }">
+                  <template v-slot:item.status="{ item }">
                     <v-chip
                       :color="getTimesheetStatusColor(item)"
                       size="small"
@@ -349,7 +349,7 @@
                     </v-chip>
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template v-slot:item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -383,14 +383,14 @@
                   ]"
                   class="elevation-1"
                 >
-                  <template #top>
+                  <template v-slot:top>
                     <v-toolbar flat>
                       <v-toolbar-title>Anomalies</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template #item.type="{ item }">
+                  <template v-slot:item.type="{ item }">
                     <v-chip
                       :color="getAnomalyTypeColor(item.anomaly_type_display)"
                       size="small"
@@ -399,7 +399,7 @@
                     </v-chip>
                   </template>
                   
-                  <template #item.status="{ item }">
+                  <template v-slot:item.status="{ item }">
                     <v-chip
                       :color="getAnomalyStatusColor(item.status_display)"
                       size="small"
@@ -408,7 +408,7 @@
                     </v-chip>
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template v-slot:item.actions="{ item }">
                     <v-btn
                       v-if="item.status === 'PENDING'"
                       icon
@@ -464,13 +464,13 @@
                   ]"
                   class="elevation-1"
                 >
-                  <template #top>
+                  <template v-slot:top>
                     <v-toolbar flat class="pl-0">
                       <v-toolbar-title>Rapports</v-toolbar-title>
                     </v-toolbar>
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template v-slot:item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -489,17 +489,20 @@
         </v-card>
       </template>
 
-      <!-- Vue détaillée de l'utilisateur -->
+      <!-- Vue détaillée de l'utilisateur avec onglets -->
       <template v-else-if="props.type === 'user'">
         <v-card>
           <v-tabs v-model="activeTab" color="#00346E">
             <v-tab value="details">Informations</v-tab>
             <v-tab value="sites">Sites</v-tab>
-            <v-tab value="employees">Employés</v-tab>
+            <v-tab value="plannings">Plannings</v-tab>
+            <v-tab value="pointages">Pointages</v-tab>
+            <v-tab value="anomalies">Anomalies</v-tab>
+            <v-tab value="reports">Rapports</v-tab>
           </v-tabs>
 
           <v-card-text>
-            <v-window v-model="activeTab">
+            <v-window v-model="activeTab" :reverse="reverse">
               <!-- Onglet Informations -->
               <v-window-item value="details">
                 <v-card class="elevation-1">
@@ -511,7 +514,7 @@
                     <v-row>
                       <v-col cols="12" md="6">
                         <v-list>
-                          <template v-for="(field) in displayFields" :key="index">
+                          <template v-for="(field, index) in displayFields" :key="index">
                             <v-list-item>
                               <template #prepend>
                                 <v-icon>{{ field.icon }}</v-icon>
@@ -547,7 +550,7 @@
                           <v-card-title>Statistiques</v-card-title>
                           <v-card-text>
                             <v-row>
-                              <template v-for="(stat) in statistics" :key="index">
+                              <template v-for="(stat, index) in statistics" :key="index">
                                 <v-col :cols="12 / statistics.length" class="text-center">
                                   <div class="text-h4">{{ stat.value }}</div>
                                   <div class="text-subtitle-1">{{ stat.label }}</div>
@@ -562,54 +565,7 @@
                 </v-card>
               </v-window-item>
 
-              <!-- Onglet Sites -->
-              <v-window-item value="sites">
-                <v-data-table
-                  v-model:page="page"
-                  :headers="sitesHeaders"
-                  :items="userSites"
-                  :items-per-page="5"
-                  :no-data-text="'Aucun site trouvé'"
-                  class="elevation-1"
-                >
-                  <template #top>
-                    <v-toolbar flat>
-                      <v-toolbar-title>Sites</v-toolbar-title>
-                      <v-spacer></v-spacer>
-                    </v-toolbar>
-                  </template>
-                  <template #item.address="{ item }">
-                    <AddressWithMap
-                      :address="item.address"
-                      :postal-code="item.postal_code"
-                      :city="item.city"
-                      :country="item.country"
-                    />
-                  </template>
-                  <template #item.is_active="{ item }">
-                    <v-chip
-                      :color="item.is_active ? 'success' : 'error'"
-                      size="small"
-                    >
-                      {{ item.is_active ? 'Actif' : 'Inactif' }}
-                    </v-chip>
-                  </template>
-                  <template #item.actions="{ item }">
-                    <v-btn
-                      icon
-                      variant="text"
-                      size="small"
-                      color="primary"
-                      :to="`/dashboard/sites/${item.id}`"
-                    >
-                      <v-icon>mdi-eye</v-icon>
-                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
-                    </v-btn>
-                  </template>
-                </v-data-table>
-              </v-window-item>
-
-              <!-- Onglet Employés -->
+              <!-- Nouvel onglet Employés -->
               <v-window-item value="employees">
                 <v-data-table
                   v-model:page="page"
@@ -619,7 +575,7 @@
                   :no-data-text="'Aucun employé trouvé'"
                   class="elevation-1"
                 >
-                  <template #top>
+                  <template v-slot:top>
                     <v-toolbar flat>
                       <v-toolbar-title>Employés</v-toolbar-title>
                       <v-spacer></v-spacer>
@@ -633,7 +589,7 @@
                     </v-toolbar>
                   </template>
                   
-                  <template #item.is_active="{ item }">
+                  <template v-slot:item.is_active="{ item }">
                     <v-chip
                       :color="item.is_active ? 'success' : 'error'"
                       size="small"
@@ -641,10 +597,10 @@
                       {{ item.is_active ? 'Actif' : 'Inactif' }}
                     </v-chip>
                   </template>
-                  <template #item.created_at="{ item }">
+                  <template v-slot:item.created_at="{ item }">
                     {{ formatDate(item.created_at) }}
                   </template>
-                  <template #item.actions="{ item }">
+                  <template v-slot:item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -665,6 +621,144 @@
                     >
                       <v-icon>mdi-account-remove</v-icon>
                       <v-tooltip activator="parent">Retirer du site</v-tooltip>
+                    </v-btn>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Pointages -->
+              <v-window-item value="pointages">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="timesheetsHeaders"
+                  :items="timesheets"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun pointage trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Pointages</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.entry_type="{ item }">
+                    <v-chip
+                      :color="item.entry_type === 'ARRIVAL' ? 'success' : 'warning'"
+                      size="small"
+                    >
+                      {{ item.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
+                    </v-chip>
+                  </template>
+                  
+                  <template v-slot:item.status="{ item }">
+                    <v-chip
+                      :color="getTimesheetStatusColor(item)"
+                      size="small"
+                    >
+                      {{ getTimesheetStatusLabel(item) }}
+                    </v-chip>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Plannings -->
+              <v-window-item value="plannings">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="schedulesHeaders"
+                  :items="item.schedules || []"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun planning trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Plannings</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.schedule_type="{ item }">
+                    <v-chip
+                      :color="(item as ScheduleWithSite).schedule_type === 'FIXED' ? 'primary' : 'warning'"
+                      size="small"
+                    >
+                      {{ (item as ScheduleWithSite).schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                    </v-chip>
+                  </template>
+
+                  <template v-slot:item.site="{ item }">
+                    {{ (item as ScheduleWithSite).site_name }}
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Anomalies -->
+              <v-window-item value="anomalies">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="anomaliesHeaders"
+                  :items="anomalies"
+                  :items-per-page="5"
+                  :no-data-text="'Aucune anomalie trouvée'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Anomalies</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.type="{ item }">
+                    <v-chip
+                      :color="getAnomalyTypeColor(item.anomaly_type_display)"
+                      size="small"
+                    >
+                      {{ item.anomaly_type_display }}
+                    </v-chip>
+                  </template>
+                  
+                  <template v-slot:item.status="{ item }">
+                    <v-chip
+                      :color="getAnomalyStatusColor(item.status_display)"
+                      size="small"
+                    >
+                      {{ item.status_display }}
+                    </v-chip>
+                  </template>
+                </v-data-table>
+              </v-window-item>
+
+              <!-- Onglet Rapports -->
+              <v-window-item value="reports">
+                <v-data-table
+                  v-model:page="page"
+                  :headers="reportsHeaders"
+                  :items="reports"
+                  :items-per-page="5"
+                  :no-data-text="'Aucun rapport trouvé'"
+                  class="elevation-1"
+                >
+                  <template v-slot:top>
+                    <v-toolbar flat>
+                      <v-toolbar-title>Rapports</v-toolbar-title>
+                      <v-spacer></v-spacer>
+                    </v-toolbar>
+                  </template>
+                  
+                  <template v-slot:item.actions="{ item }">
+                    <v-btn
+                      icon
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      @click.stop="downloadReport(item)"
+                    >
+                      <v-icon>mdi-download</v-icon>
+                      <v-tooltip activator="parent">Télécharger</v-tooltip>
                     </v-btn>
                   </template>
                 </v-data-table>
@@ -697,7 +791,7 @@
                     <v-row>
                       <v-col cols="12" md="6">
                         <v-list>
-                          <template v-for="(field) in displayFields" :key="index">
+                          <template v-for="(field, index) in displayFields" :key="index">
                             <v-list-item>
                               <template #prepend>
                                 <v-icon>{{ field.icon }}</v-icon>
@@ -729,7 +823,7 @@
                         </v-list>
                       </v-col>
                       <v-col cols="12" md="6">
-                        <v-card v-if="item.logo" class="mb-4">
+                        <v-card class="mb-4" v-if="item.logo">
                           <v-card-title>Logo</v-card-title>
                           <v-card-text class="text-center">
                             <v-img
@@ -744,7 +838,7 @@
                           <v-card-title>Statistiques</v-card-title>
                           <v-card-text>
                             <v-row>
-                              <template v-for="(stat) in statistics" :key="index">
+                              <template v-for="(stat, index) in statistics" :key="index">
                                 <v-col :cols="12 / statistics.length" class="text-center">
                                   <div class="text-h4">{{ stat.value }}</div>
                                   <div class="text-subtitle-1">{{ stat.label }}</div>
@@ -764,19 +858,19 @@
                 <v-data-table
                   v-model:page="page"
                   :headers="sitesHeaders"
-                  :items="userSites"
+                  :items="sites"
                   :items-per-page="5"
                   :no-data-text="'Aucun site trouvé'"
                   class="elevation-1"
                 >
-                  <template #top>
+                  <template v-slot:top>
                     <v-toolbar flat>
                       <v-toolbar-title>Sites</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template #item.address="{ item }">
+                  <template v-slot:item.address="{ item }">
                     <AddressWithMap
                       :address="item.address"
                       :postal-code="item.postal_code"
@@ -785,7 +879,7 @@
                     />
                   </template>
                   
-                  <template #item.is_active="{ item }">
+                  <template v-slot:item.is_active="{ item }">
                     <v-chip
                       :color="item.is_active ? 'success' : 'error'"
                       size="small"
@@ -829,7 +923,7 @@
                       class="elevation-1"
                       @click:row="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
                     >
-                      <template #item.is_active="{ item }">
+                      <template v-slot:item.is_active="{ item }">
                         <v-chip
                           :color="item.is_active ? 'success' : 'error'"
                           size="small"
@@ -837,10 +931,10 @@
                           {{ item.is_active ? 'Actif' : 'Inactif' }}
                         </v-chip>
                       </template>
-                      <template #item.created_at="{ item }">
+                      <template v-slot:item.created_at="{ item }">
                         {{ formatDate(item.created_at) }}
                       </template>
-                      <template #item.actions="{ item }">
+                      <template v-slot:item.actions="{ item }">
                         <v-btn
                           icon
                           variant="text"
@@ -878,14 +972,14 @@
                   :no-data-text="'Aucun rapport trouvé'"
                   class="elevation-1"
                 >
-                  <template #top>
+                  <template v-slot:top>
                     <v-toolbar flat>
                       <v-toolbar-title>Rapports</v-toolbar-title>
                       <v-spacer></v-spacer>
                     </v-toolbar>
                   </template>
                   
-                  <template #item.actions="{ item }">
+                  <template v-slot:item.actions="{ item }">
                     <v-btn
                       icon
                       variant="text"
@@ -913,7 +1007,7 @@
               <v-card-title>Informations générales</v-card-title>
               <v-card-text>
                 <v-list>
-                  <template v-for="(field) in displayFields" :key="index">
+                  <template v-for="(field, index) in displayFields" :key="index">
                     <v-list-item>
                       <template #prepend>
                         <v-icon>{{ field.icon }}</v-icon>
@@ -969,7 +1063,7 @@
               <v-card-title>Statistiques</v-card-title>
               <v-card-text>
                 <v-row>
-                  <template v-for="(stat) in statistics" :key="index">
+                  <template v-for="(stat, index) in statistics" :key="index">
                     <v-col :cols="12 / statistics.length" class="text-center">
                       <div class="text-h4">{{ stat.value }}</div>
                       <div class="text-subtitle-1">{{ stat.label }}</div>
@@ -1010,16 +1104,16 @@
                     <v-btn
                       color="#00346E"
                       prepend-icon="mdi-download"
-                      size="small"
                       @click="downloadQRCode"
+                      size="small"
                     >
                       Télécharger
                     </v-btn>
                     <v-btn
                       color="#F78C48"
                       prepend-icon="mdi-refresh"
-                      size="small"
                       @click="generateQRCode"
+                      size="small"
                     >
                       Régénérer
                     </v-btn>
@@ -1076,7 +1170,7 @@
                 @click:row="(_: Event, rowData: any) => navigateToDetail(table.key, rowData)"
               >
                 <!-- Actions -->
-                <template #item.actions="{ item }">
+                <template v-slot:item.actions="{ item }">
                   <v-btn
                     icon
                     variant="text"
@@ -1122,7 +1216,7 @@
                 </template>
 
                 <!-- Slots pour les colonnes spéciales -->
-                <template v-for="slot in table.slots" :key="slot.key" #[`item.${slot.key}`]="{ item: rowItem }">
+                <template v-for="slot in table.slots" :key="slot.key" v-slot:[`item.${slot.key}`]="{ item: rowItem }">
                   <component :is="slot.component" v-bind="slot.props(rowItem)" />
                 </template>
               </v-data-table>
@@ -1146,8 +1240,8 @@
               <v-btn
                 color="error"
                 variant="text"
-                :loading="deleting"
                 @click="deleteItem"
+                :loading="deleting"
               >
                 Supprimer
               </v-btn>
@@ -1338,12 +1432,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, markRaw } from 'vue'
+import { ref, computed, onMounted, markRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
-import AddressWithMap from '@/components/AddressWithMap.vue'
+import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import AssignDialog from '@/components/common/AssignDialog.vue'
-import { formatPhoneNumber } from '@/utils/formatters'
+import TimesheetsView from '@/views/dashboard/Timesheets.vue'
+import AnomaliesView from '@/views/dashboard/Anomalies.vue'
+import ReportsView from '@/views/dashboard/Reports.vue'
+import { formatPhoneNumber, formatAddressForMaps } from '@/utils/formatters'
 import { generateStyledQRCode } from '@/utils/qrcode'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -1354,9 +1451,17 @@ import {
   usersApi, 
   organizationsApi,
   type Site,
+  type Organization,
+  type Employee as BaseEmployee,
   type Schedule,
+  type SiteStatistics
 } from '@/services/api'
 
+// Interfaces étendues
+interface Employee extends BaseEmployee {
+  role?: string;
+  site_name?: string;
+}
 
 interface ApiSiteEmployee {
   id: number;
@@ -1454,7 +1559,28 @@ interface TableItem {
   [key: string]: any;
 }
 
+interface DataTableItem {
+  raw: any;
+  [key: string]: any;
+}
 
+interface ListItem {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  organization?: number;
+  employee?: number;
+  role?: string;
+  site_name?: string;
+  employee_name?: string;
+  name?: string;
+  address: string;  // Ajout de la propriété manquante
+  city: string;     // Ajout de la propriété manquante
+  postal_code?: string;
+  country?: string;
+  is_active: boolean; // Ajout de la propriété manquante
+}
 
 // Extended Site with additional properties needed for UI
 interface ExtendedSite extends Omit<Site, 'schedules' | 'organization_name' | 'manager_name'> {
@@ -1466,6 +1592,9 @@ interface ExtendedSite extends Omit<Site, 'schedules' | 'organization_name' | 'm
 }
 
 // Type guard to ensure schedule data is properly typed
+function isScheduleArray(data: unknown): data is any[] {
+  return Array.isArray(data);
+}
 
 const props = defineProps({
   type: {
@@ -1496,6 +1625,8 @@ const showEditDialog = ref(false)
 const showDeleteConfirmDialog = ref(false)
 const dialogItem = ref<any>(null)
 const dialogType = ref<string>('')
+const selectedEmployeeId = ref<any>(null)
+const selectedSiteId = ref<any>(null)
 const unassignedEmployees = ref<any[]>([])
 const unassignedSites = ref<any[]>([])
 const loadingEmployees = ref(false)
@@ -1576,6 +1707,11 @@ const getRoleLabel = (role: RoleEnum | undefined) => {
   if (!role) return ''
   const found = roles.find(r => r.value === role)
   return found ? found.label : role
+}
+
+// Mise à jour du type des routes
+interface RouteMap {
+  [key: string]: string;
 }
 
 // Computed properties
@@ -1720,6 +1856,12 @@ const isAddressField = (field: DisplayField): field is AddressField => {
   return field.type === 'address'
 }
 
+// Mise à jour des paramètres de getAllSites
+interface GetAllSitesParams {
+  page?: number;
+  perPage?: number;
+  organization?: number;
+}
 
 // Méthodes
 const loadData = async () => {
@@ -1734,9 +1876,6 @@ const loadData = async () => {
           { label: 'Heures totales', value: userStats.data.total_hours || 0 },
           { label: 'Anomalies', value: userStats.data.anomalies || 0 }
         ]
-        // Ajout de la récupération des sites pour l'utilisateur
-        const userSitesResponse = await usersApi.getUserSites(itemId.value)
-        userSites.value = userSitesResponse.data.results
         break
 
       case 'site':
@@ -1853,15 +1992,15 @@ const loadData = async () => {
           { label: 'Sites actifs', value: orgStats.data.active_sites || 0 }
         ]
         // Charger les sites et les employés pour les tableaux associés
-        const [orgSitesResponse, orgEmployeesResponse] = await Promise.all([
-          organizationsApi.getOrganizationSites(itemId.value),
+        const [sitesResponse, orgEmployeesResponse] = await Promise.all([
+          organizationsApi.getOrganizationSites(itemId.value, 1, 10),
           organizationsApi.getOrganizationUsers(itemId.value)
         ])
         relatedTables.value = [
           {
             key: 'sites',
             title: 'Sites',
-            items: orgSitesResponse.data.results,
+            items: sitesResponse.data.results,
             headers: [
               { title: 'ID', key: 'id' },
               { title: 'Nom', key: 'name' },
@@ -2032,6 +2171,26 @@ const deleteItem = async () => {
   }
 }
 
+const handleRowClick = (tableKey: string, item: any) => {
+  console.log('[DetailView][Click] Click sur une ligne:', { tableKey, item })
+  
+  if (!item || !item.id) {
+    console.error('[DetailView][Click] Item invalide:', item)
+    return
+  }
+
+  const routes: Record<string, string> = {
+    employees: `/dashboard/admin/users/${item.id}`,
+    sites: `/dashboard/sites/${item.id}`,
+    schedules: `/dashboard/sites/${route.params.id}/schedules/${item.id}`
+  }
+  
+  const targetRoute = routes[tableKey]
+  if (targetRoute) {
+    console.log('[DetailView][Click] Navigation vers:', targetRoute)
+    router.push(targetRoute)
+  }
+}
 
 const formatDetailRoute = (tableKey: string, rowItem: TableItem): string => {
   const routes: Record<string, string> = {
@@ -2187,7 +2346,6 @@ const generateQRCode = async () => {
     item.value.download_qr_code = downloadQRCode
   } catch (error) {
     showError('Erreur lors de la génération du QR code')
-    console.error('[DetailView][GenerateQRCode] Erreur lors de la génération du QR code:', error)
   }
 }
 
@@ -2208,12 +2366,41 @@ const downloadQRCode = async () => {
     document.body.removeChild(link)
     showSuccess('Téléchargement du QR code initié')
   } catch (error) {
-    console.error('[DetailView][DownloadQRCode] Erreur lors du téléchargement du QR code:', error)
     showError('Erreur lors du téléchargement du QR code')
   }
 }
 
+const editRelatedItem = (tableKey: string, item: any) => {
+  const routes = {
+    employees: `/dashboard/admin/users/${item.id}/edit`,
+    sites: `/dashboard/sites/${item.id}/edit`,
+    schedules: `/dashboard/sites/${route.params.id}/schedules/${item.id}/edit`
+  }
+  const editRoute = routes[tableKey as keyof typeof routes]
+  if (editRoute) {
+    router.push(editRoute)
+  }
+}
 
+const deleteRelatedItem = async (tableKey: string, item: any) => {
+  try {
+    switch (tableKey) {
+      case 'employees':
+        await usersApi.deleteUser(item.id)
+        break
+      case 'sites':
+        await sitesApi.deleteSite(item.id)
+        break
+      case 'schedules':
+        await sitesApi.deleteSchedule(Number(route.params.id), item.id)
+        break
+    }
+    // Recharger les données après la suppression
+    await loadData()
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error)
+  }
+}
 
 // Computed pour vérifier si c'est le profil de l'utilisateur connecté
 const isOwnProfile = computed(() => {
@@ -2221,7 +2408,22 @@ const isOwnProfile = computed(() => {
 })
 
 // Ajout des dialogues
+const handleViewDetails = (tableKey: string, item: any) => {
+  const routes: RouteMap = {
+    sites: `/dashboard/sites/${item.id}`,
+    employees: `/dashboard/admin/users/${item.id}`
+  }
+  const route = routes[tableKey]
+  if (route) {
+    router.push(route)
+  }
+}
 
+const handleEdit = (tableKey: string, item: any) => {
+  dialogType.value = tableKey
+  dialogItem.value = { ...item }
+  showEditDialog.value = true
+}
 
 const handleToggleStatus = async (tableKey: string, item: any) => {
   try {
@@ -2480,6 +2682,12 @@ onMounted(async () => {
 })
 
 // Headers pour le tableau des plannings
+const schedulesHeaders = ref([
+  { title: 'Type', key: 'schedule_type', align: 'start' as const },
+  { title: 'Site', key: 'site_name', align: 'start' as const },
+  { title: 'Détails', key: 'details', align: 'start' as const },
+  { title: 'Actions', key: 'actions', align: 'end' as const, sortable: false }
+])
 
 interface Timesheet {
   id: number;
@@ -2582,6 +2790,10 @@ const downloadReport = (report: Report) => {
   console.log('Télécharger le rapport:', report)
 }
 
+const exportReport = () => {
+  // TODO: Implémenter l'exportation du rapport
+  console.log('Exporter le rapport')
+}
 
 const fetchTimesheets = async () => {
   try {
@@ -2625,6 +2837,7 @@ const getDayName = (dayOfWeek: number): string => {
 }
 
 // Ajout des refs pour les tableaux de données
+const sites = ref<Site[]>([])
 const employees = ref<SiteEmployee[]>([])
 
 // Headers pour les tableaux
@@ -2639,12 +2852,11 @@ const employeesHeaders = ref([
 ])
 
 const sitesHeaders = ref([
-  { title: 'ID', key: 'id', align: 'start' as TableAlignment, sortable: true },
-  { title: 'Nom', key: 'name', align: 'start' as TableAlignment, sortable: true },
-  { title: 'Adresse', key: 'address', align: 'start' as TableAlignment, sortable: false },
-  { title: 'Ville', key: 'city', align: 'start' as TableAlignment, sortable: true },
-  { title: 'Statut', key: 'is_active', align: 'center' as TableAlignment, sortable: true },
-  { title: 'Actions', key: 'actions', align: 'center' as TableAlignment, sortable: false }
+  { title: 'ID', key: 'id', align: 'start' as TableAlignment },
+  { title: 'Nom', key: 'name', align: 'start' as TableAlignment },
+  { title: 'Adresse', key: 'address', align: 'start' as TableAlignment },
+  { title: 'Statut', key: 'is_active', align: 'center' as TableAlignment },
+  { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
 ])
 
 const planningsHeaders = ref([
@@ -2706,15 +2918,12 @@ const formatDate = (dateString: string): string => {
   return format(new Date(dateString), 'dd/MM/yyyy HH:mm', { locale: fr })
 }
 
-// Variables réactives pour les sites
-const userSites = ref<Site[]>([])
-const sitesHeaders = ref([
-  { title: 'ID', key: 'id', align: 'start' as TableAlignment, sortable: true },
-  { title: 'Nom', key: 'name', align: 'start' as TableAlignment, sortable: true },
-  { title: 'Adresse', key: 'address', align: 'start' as TableAlignment, sortable: false },
-  { title: 'Ville', key: 'city', align: 'start' as TableAlignment, sortable: true },
-  { title: 'Statut', key: 'is_active', align: 'center' as TableAlignment, sortable: true },
-  { title: 'Actions', key: 'actions', align: 'center' as TableAlignment, sortable: false }
+const timesheetsHeaders = ref([
+  { title: 'Date', key: 'date', align: 'start' as TableAlignment },
+  { title: 'Employé', key: 'employee', align: 'start' as TableAlignment },
+  { title: 'Type', key: 'entry_type', align: 'center' as TableAlignment },
+  { title: 'Statut', key: 'status', align: 'center' as TableAlignment },
+  { title: 'Actions', key: 'actions', align: 'end' as TableAlignment, sortable: false }
 ])
 </script>
 
