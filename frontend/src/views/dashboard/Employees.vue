@@ -156,9 +156,9 @@
           <v-btn
             color="primary"
             variant="text"
-            @click="saveEmployee"
             :loading="employeesStore.loading"
             :disabled="!isFormValid"
+            @click="saveEmployee"
           >
             {{ isEditing ? 'Modifier' : 'Ajouter' }}
           </v-btn>
@@ -185,8 +185,8 @@
           <v-btn
             color="error"
             variant="text"
-            @click="deleteEmployee"
             :loading="employeesStore.loading"
+            @click="deleteEmployee"
           >
             Supprimer
           </v-btn>

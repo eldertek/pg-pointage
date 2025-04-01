@@ -69,7 +69,7 @@
       @click:row="handleRowClick"
     >
       <!-- Rôle -->
-      <template v-slot:item.role="{ item }">
+      <template #item.role="{ item }">
         <v-chip
           :color="getRoleColor(item.role)"
           size="small"
@@ -79,7 +79,7 @@
       </template>
 
       <!-- Sites -->
-      <template v-slot:item.sites="{ item }">
+      <template #item.sites="{ item }">
         <v-chip
           v-for="site in item.sites"
           :key="site.id"
@@ -92,7 +92,7 @@
       </template>
 
       <!-- Organizations -->
-      <template v-slot:item.organizations_names="{ item }">
+      <template #item.organizations_names="{ item }">
         <v-chip
           v-for="orgName in item.organizations_names"
           :key="orgName"
@@ -108,7 +108,7 @@
       </template>
 
       <!-- Actions -->
-      <template v-slot:item.actions="{ item }">
+      <template #item.actions="{ item }">
         <v-btn
           icon
           variant="text"

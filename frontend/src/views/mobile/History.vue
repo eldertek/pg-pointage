@@ -117,8 +117,8 @@
             v-if="hasMoreTimesheets"
             color="primary"
             variant="outlined"
-            @click="loadMoreTimesheets"
             :loading="loadingMore"
+            @click="loadMoreTimesheets"
           >
             Charger plus
           </v-btn>

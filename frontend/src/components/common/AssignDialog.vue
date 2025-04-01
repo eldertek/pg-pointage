@@ -1,9 +1,9 @@
 <template>
   <v-dialog 
     :model-value="modelValue"
-    @update:model-value="$emit('update:modelValue', $event)"
     max-width="800px"
     persistent
+    @update:model-value="$emit('update:modelValue', $event)"
   >
     <v-card class="form-dialog">
       <div class="form-dialog-header">
@@ -16,8 +16,8 @@
           variant="text"
           size="small"
           color="grey"
-          @click="$emit('update:modelValue', false)"
           class="close-button"
+          @click="$emit('update:modelValue', false)"
         >
           <v-icon>mdi-close</v-icon>
         </v-btn>
@@ -38,9 +38,9 @@
                 :no-data-text="noDataText"
                 :item-title="getItemTitle"
               >
-                <template v-slot:item="{ props, item }">
+                <template #item="{ props, item }">
                   <v-list-item v-bind="props">
-                    <template v-slot:prepend>
+                    <template #prepend>
                       <v-icon :icon="itemIcon" class="mr-2"></v-icon>
                     </template>
                     <v-list-item-title>{{ getItemTitle(item.raw) }}</v-list-item-title>
@@ -62,18 +62,18 @@
         <v-btn 
           color="grey" 
           variant="text" 
-          @click="$emit('update:modelValue', false)"
           class="action-button"
+          @click="$emit('update:modelValue', false)"
         >
           Annuler
         </v-btn>
         <v-btn 
           color="primary" 
           variant="text" 
-          @click="handleSubmit"
           :disabled="!selectedItem"
           :loading="saving"
           class="action-button"
+          @click="handleSubmit"
         >
           Assigner
         </v-btn>
@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch } from 'vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
 import { typography } from '@/styles/typography'
 

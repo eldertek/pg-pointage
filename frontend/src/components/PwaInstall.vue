@@ -14,8 +14,8 @@
         <div class="d-flex gap-2">
           <v-btn
             color="primary"
-            @click="installPwa"
             :loading="installing"
+            @click="installPwa"
           >
             Installer l'application
           </v-btn>

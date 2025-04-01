@@ -2,8 +2,8 @@
   <v-app>
     <v-app-bar color="primary">
       <v-app-bar-nav-icon 
-        @click="$vuetify.display.lgAndUp ? (rail = !rail) : (drawer = !drawer)"
         :icon="rail ? 'mdi-menu' : 'mdi-menu-open'"
+        @click="$vuetify.display.lgAndUp ? (rail = !rail) : (drawer = !drawer)"
       ></v-app-bar-nav-icon>
       <v-app-bar-title>Planète Gardiens - Administration</v-app-bar-title>
       <v-spacer></v-spacer>
@@ -28,9 +28,9 @@
       <v-list @click="handleListItemClick">
         <!-- Tableau de bord -->
         <v-tooltip location="right" :disabled="!rail">
-          <template v-slot:activator="{ props }">
+          <template #activator="{ props }">
             <v-list-item to="/dashboard" active-class="primary--text" v-bind="props">
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon>mdi-view-dashboard</v-icon>
               </template>
               <v-list-item-title>Tableau de bord</v-list-item-title>
@@ -40,15 +40,15 @@
         </v-tooltip>
 
         <!-- Utilisateurs - Super Admin, Admin et Manager -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
-          <template v-slot:activator="{ props }">
+        <v-tooltip v-if="isSuperAdmin || isAdmin || isManager" location="right" :disabled="!rail">
+          <template #activator="{ props }">
             <v-list-item 
               to="/dashboard/admin/users" 
               :active="$route.meta.section === 'users' || $route.path === '/dashboard/admin/users'" 
               active-class="primary--text" 
               v-bind="props"
             >
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon>mdi-account-group</v-icon>
               </template>
               <v-list-item-title>Utilisateurs</v-list-item-title>
@@ -58,15 +58,15 @@
         </v-tooltip>
 
         <!-- Sites - Super Admin, Admin et Manager -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
-          <template v-slot:activator="{ props }">
+        <v-tooltip v-if="isSuperAdmin || isAdmin || isManager" location="right" :disabled="!rail">
+          <template #activator="{ props }">
             <v-list-item 
               to="/dashboard/sites" 
               :active="$route.meta.section === 'sites' || $route.path === '/dashboard/sites'"
               active-class="primary--text" 
               v-bind="props"
             >
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon>mdi-domain</v-icon>
               </template>
               <v-list-item-title>Sites</v-list-item-title>
@@ -76,10 +76,10 @@
         </v-tooltip>
 
         <!-- Plannings - Super Admin, Admin et Manager -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
-          <template v-slot:activator="{ props }">
+        <v-tooltip v-if="isSuperAdmin || isAdmin || isManager" location="right" :disabled="!rail">
+          <template #activator="{ props }">
             <v-list-item to="/dashboard/plannings" active-class="primary--text" v-bind="props">
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon>mdi-calendar</v-icon>
               </template>
               <v-list-item-title>Plannings</v-list-item-title>
@@ -89,10 +89,10 @@
         </v-tooltip>
 
         <!-- Pointages - Super Admin, Admin et Manager -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
-          <template v-slot:activator="{ props }">
+        <v-tooltip v-if="isSuperAdmin || isAdmin || isManager" location="right" :disabled="!rail">
+          <template #activator="{ props }">
             <v-list-item to="/dashboard/timesheets" active-class="primary--text" v-bind="props">
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon>mdi-clock-time-four</v-icon>
               </template>
               <v-list-item-title>Pointages</v-list-item-title>
@@ -102,10 +102,10 @@
         </v-tooltip>
 
         <!-- Anomalies - Super Admin, Admin et Manager -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
-          <template v-slot:activator="{ props }">
+        <v-tooltip v-if="isSuperAdmin || isAdmin || isManager" location="right" :disabled="!rail">
+          <template #activator="{ props }">
             <v-list-item to="/dashboard/anomalies" active-class="primary--text" v-bind="props">
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon>mdi-alert</v-icon>
               </template>
               <v-list-item-title>Anomalies</v-list-item-title>
@@ -115,10 +115,10 @@
         </v-tooltip>
 
         <!-- Rapports - Super Admin, Admin et Manager -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
-          <template v-slot:activator="{ props }">
+        <v-tooltip v-if="isSuperAdmin || isAdmin || isManager" location="right" :disabled="!rail">
+          <template #activator="{ props }">
             <v-list-item to="/dashboard/reports" active-class="primary--text" v-bind="props">
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon>mdi-file-chart</v-icon>
               </template>
               <v-list-item-title>Rapports</v-list-item-title>
@@ -128,15 +128,15 @@
         </v-tooltip>
 
         <!-- Gestion des accès - Super Admin uniquement -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin">
-          <template v-slot:activator="{ props }">
+        <v-tooltip v-if="isSuperAdmin" location="right" :disabled="!rail">
+          <template #activator="{ props }">
             <v-list-item 
               to="/dashboard/admin/access" 
               :active="$route.path.includes('/dashboard/admin/access')"
               active-class="primary--text" 
               v-bind="props"
             >
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon>mdi-domain</v-icon>
               </template>
               <v-list-item-title>Gestion des accès</v-list-item-title>
@@ -146,10 +146,10 @@
         </v-tooltip>
 
         <!-- Paramètres - Super Admin, Admin et Manager -->
-        <v-tooltip location="right" :disabled="!rail" v-if="isSuperAdmin || isAdmin || isManager">
-          <template v-slot:activator="{ props }">
+        <v-tooltip v-if="isSuperAdmin || isAdmin || isManager" location="right" :disabled="!rail">
+          <template #activator="{ props }">
             <v-list-item to="/dashboard/settings" active-class="primary--text" v-bind="props">
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon>mdi-cog</v-icon>
               </template>
               <v-list-item-title>Paramètres</v-list-item-title>

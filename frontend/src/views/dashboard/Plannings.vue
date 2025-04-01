@@ -69,12 +69,12 @@
       @click:row="handleRowClick"
     >
       <!-- Site -->
-      <template v-slot:item.site_name="{ item }">
+      <template #item.site_name="{ item }">
         {{ item.site_name }}
       </template>
 
       <!-- Employés -->
-      <template v-slot:item.employees="{ item }">
+      <template #item.employees="{ item }">
         <v-chip-group>
           <v-chip
             v-for="employee in item.assigned_employees"
@@ -97,7 +97,7 @@
       </template>
 
       <!-- Type de planning -->
-      <template v-slot:item.schedule_type="{ item }">
+      <template #item.schedule_type="{ item }">
         <v-chip
           :color="item.schedule_type === 'FIXED' ? 'primary' : 'secondary'"
           size="small"
@@ -107,45 +107,45 @@
       </template>
 
       <!-- Actions -->
-      <template v-slot:item.actions="{ item }">
+      <template #item.actions="{ item }">
         <v-btn
+          v-tooltip="'Voir les détails'"
           icon
           variant="text"
           size="small"
           color="primary"
           :to="`/dashboard/plannings/${item.id}`"
           @click.stop
-          v-tooltip="'Voir les détails'"
         >
           <v-icon>mdi-eye</v-icon>
         </v-btn>
         <v-btn
+          v-tooltip="'Modifier'"
           icon
           variant="text"
           size="small"
           color="primary"
           @click.stop="openDialog(item)"
-          v-tooltip="'Modifier'"
         >
           <v-icon>mdi-pencil</v-icon>
         </v-btn>
         <v-btn
+          v-tooltip="item.is_active ? 'Désactiver' : 'Activer'"
           icon
           variant="text"
           size="small"
           color="warning"
           @click.stop="toggleStatus(item)"
-          v-tooltip="item.is_active ? 'Désactiver' : 'Activer'"
         >
           <v-icon>{{ item.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
         </v-btn>
         <v-btn
+          v-tooltip="'Supprimer'"
           icon
           variant="text"
           size="small"
           color="error"
           @click.stop="confirmDelete(item)"
-          v-tooltip="'Supprimer'"
         >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
@@ -202,7 +202,7 @@
               density="comfortable"
               variant="outlined"
             >
-              <template v-slot:chip="{ props, item }">
+              <template #chip="{ props, item }">
                 <v-chip
                   v-bind="props"
                   :text="item.raw.employee_name"
@@ -210,7 +210,7 @@
                   variant="outlined"
                 ></v-chip>
               </template>
-              <template v-slot:no-data>
+              <template #no-data>
                 <div class="pa-2 text-center">Aucun employé disponible pour ce site</div>
               </template>
             </v-select>
@@ -247,7 +247,7 @@
                         class="flex-grow-1"
                         hide-details
                       >
-                        <template v-slot:append-inner>
+                        <template #append-inner>
                           <span class="text-grey">min</span>
                         </template>
                       </v-text-field>
@@ -309,7 +309,7 @@
                               :close-on-content-click="false"
                               location="bottom"
                             >
-                              <template v-slot:activator="{ props }">
+                              <template #activator="{ props }">
                                 <v-text-field
                                   v-model="detail.start_time_1"
                                   label="Début"
@@ -318,20 +318,20 @@
                                   variant="outlined"
                                   color="primary"
                                   class="flex-grow-1"
-                                  @click:clear="detail.start_time_1 = undefined"
                                   clearable
                                   :error-messages="getTimeError(detail)"
                                   type="time"
+                                  @click:clear="detail.start_time_1 = undefined"
                                 ></v-text-field>
                               </template>
                               <VTimePicker
                                 v-model="detail.start_time_1"
                                 format="24hr"
-                                @click:save="detail.showStartTime1Menu = false"
-                                @click:cancel="detail.showStartTime1Menu = false"
                                 ok-text="OK"
                                 cancel-text="Annuler"
                                 hide-header
+                                @click:save="detail.showStartTime1Menu = false"
+                                @click:cancel="detail.showStartTime1Menu = false"
                               ></VTimePicker>
                             </v-menu>
                             <v-menu
@@ -339,7 +339,7 @@
                               :close-on-content-click="false"
                               location="bottom"
                             >
-                              <template v-slot:activator="{ props }">
+                              <template #activator="{ props }">
                                 <v-text-field
                                   v-model="detail.end_time_1"
                                   label="Fin"
@@ -348,20 +348,20 @@
                                   variant="outlined"
                                   color="primary"
                                   class="flex-grow-1"
-                                  @click:clear="detail.end_time_1 = undefined"
                                   clearable
                                   :error-messages="getTimeError(detail)"
                                   type="time"
+                                  @click:clear="detail.end_time_1 = undefined"
                                 ></v-text-field>
                               </template>
                               <VTimePicker
                                 v-model="detail.end_time_1"
                                 format="24hr"
-                                @click:save="detail.showEndTime1Menu = false"
-                                @click:cancel="detail.showEndTime1Menu = false"
                                 ok-text="OK"
                                 cancel-text="Annuler"
                                 hide-header
+                                @click:save="detail.showEndTime1Menu = false"
+                                @click:cancel="detail.showEndTime1Menu = false"
                               ></VTimePicker>
                             </v-menu>
                           </div>
@@ -377,7 +377,7 @@
                               :close-on-content-click="false"
                               location="bottom"
                             >
-                              <template v-slot:activator="{ props }">
+                              <template #activator="{ props }">
                                 <v-text-field
                                   v-model="detail.start_time_2"
                                   label="Début"
@@ -386,20 +386,20 @@
                                   variant="outlined"
                                   color="primary"
                                   class="flex-grow-1"
-                                  @click:clear="detail.start_time_2 = undefined"
                                   clearable
                                   :error-messages="getTimeError(detail)"
                                   type="time"
+                                  @click:clear="detail.start_time_2 = undefined"
                                 ></v-text-field>
                               </template>
                               <VTimePicker
                                 v-model="detail.start_time_2"
                                 format="24hr"
-                                @click:save="detail.showStartTime2Menu = false"
-                                @click:cancel="detail.showStartTime2Menu = false"
                                 ok-text="OK"
                                 cancel-text="Annuler"
                                 hide-header
+                                @click:save="detail.showStartTime2Menu = false"
+                                @click:cancel="detail.showStartTime2Menu = false"
                               ></VTimePicker>
                             </v-menu>
                             <v-menu
@@ -407,7 +407,7 @@
                               :close-on-content-click="false"
                               location="bottom"
                             >
-                              <template v-slot:activator="{ props }">
+                              <template #activator="{ props }">
                                 <v-text-field
                                   v-model="detail.end_time_2"
                                   label="Fin"
@@ -416,20 +416,20 @@
                                   variant="outlined"
                                   color="primary"
                                   class="flex-grow-1"
-                                  @click:clear="detail.end_time_2 = undefined"
                                   clearable
                                   :error-messages="getTimeError(detail)"
                                   type="time"
+                                  @click:clear="detail.end_time_2 = undefined"
                                 ></v-text-field>
                               </template>
                               <VTimePicker
                                 v-model="detail.end_time_2"
                                 format="24hr"
-                                @click:save="detail.showEndTime2Menu = false"
-                                @click:cancel="detail.showEndTime2Menu = false"
                                 ok-text="OK"
                                 cancel-text="Annuler"
                                 hide-header
+                                @click:save="detail.showEndTime2Menu = false"
+                                @click:cancel="detail.showEndTime2Menu = false"
                               ></VTimePicker>
                             </v-menu>
                           </div>

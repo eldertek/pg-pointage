@@ -29,6 +29,8 @@
     "@types/lodash": "^4.17.16",
     "@types/node": "^22.13.13",
     "@types/qrcode": "^1.5.5",
+    "@typescript-eslint/eslint-plugin": "^8.29.0",
+    "@typescript-eslint/parser": "^8.29.0",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vue/compiler-sfc": "^3.4.21",
     "@vue/eslint-config-prettier": "^9.0.0",

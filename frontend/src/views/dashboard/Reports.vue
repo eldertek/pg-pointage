@@ -7,7 +7,7 @@
         <v-card class="mb-4">
           <v-card-title>Générer un rapport</v-card-title>
           <v-card-text>
-            <v-form @submit.prevent="generateReport" ref="form">
+            <v-form ref="form" @submit.prevent="generateReport">
               <v-text-field
                 v-model="reportForm.name"
                 label="Nom du rapport"

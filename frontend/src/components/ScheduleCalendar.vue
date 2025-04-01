@@ -16,7 +16,7 @@
               :interval-height="intervalHeight"
               @click:event="showEvent"
             >
-              <template v-slot:event="{ event }">
+              <template #event="{ event }">
                 <div class="text-truncate">
                   {{ event.name }}
                 </div>

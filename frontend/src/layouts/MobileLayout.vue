@@ -2,7 +2,7 @@
   <div class="mobile-layout">
     <v-app-bar color="primary" density="compact">
       <v-app-bar-title>Planète Gardiens</v-app-bar-title>
-      <template v-slot:append>
+      <template #append>
         <v-btn icon @click="showLogoutDialog = true">
           <v-icon>mdi-logout</v-icon>
         </v-btn>
@@ -13,7 +13,7 @@
       <router-view />
     </v-main>
     
-    <v-bottom-navigation v-if="!isSimplifiedView" grow v-model="activeTab">
+    <v-bottom-navigation v-if="!isSimplifiedView" v-model="activeTab" grow>
       <v-btn value="home" to="/mobile" variant="flat">
         <v-icon>mdi-view-dashboard</v-icon>
         Accueil
@@ -36,7 +36,7 @@
     </v-bottom-navigation>
 
     <!-- Navigation simplifiée -->
-    <v-bottom-navigation v-else grow v-model="activeTab">
+    <v-bottom-navigation v-else v-model="activeTab" grow>
       <v-btn value="scan" to="/mobile/scan" variant="flat">
         <v-icon>mdi-qrcode-scan</v-icon>
         Scanner

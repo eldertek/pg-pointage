@@ -6,7 +6,7 @@
     </v-card-title>
     
     <v-card-text>
-      <v-form @submit.prevent="resetPassword" ref="form">
+      <v-form ref="form" @submit.prevent="resetPassword">
         <v-text-field
           v-model="password"
           label="Nouveau mot de passe"
@@ -14,9 +14,9 @@
           :rules="[rules.required, rules.minLength]"
           prepend-inner-icon="mdi-lock"
           :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-          @click:append-inner="showPassword = !showPassword"
           variant="outlined"
           class="mb-4"
+          @click:append-inner="showPassword = !showPassword"
         ></v-text-field>
         
         <v-text-field
@@ -26,9 +26,9 @@
           :rules="[rules.required, rules.match]"
           prepend-inner-icon="mdi-lock-check"
           :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
-          @click:append-inner="showConfirmPassword = !showConfirmPassword"
           variant="outlined"
           class="mb-6"
+          @click:append-inner="showConfirmPassword = !showConfirmPassword"
         ></v-text-field>
         
         <v-alert

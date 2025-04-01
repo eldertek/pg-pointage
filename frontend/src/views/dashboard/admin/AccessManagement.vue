@@ -55,7 +55,7 @@
       @click:row="handleRowClick"
     >
       <!-- Adresse -->
-      <template v-slot:item.address="{ item }">
+      <template #item.address="{ item }">
         <AddressWithMap
           :address="item.address"
           :postal-code="item.postal_code"
@@ -65,7 +65,7 @@
       </template>
 
       <!-- Actions -->
-      <template v-slot:item.actions="{ item }">
+      <template #item.actions="{ item }">
         <v-btn
           icon
           variant="text"
@@ -150,13 +150,13 @@
         <v-col cols="12" sm="6">
           <v-autocomplete
             v-model="(editedItem as OrganizationFormData).country"
+            v-model:search-input="searchCountry"
             :items="countries"
             item-title="title"
             item-value="value"
             label="Pays"
             variant="outlined"
             prepend-inner-icon="mdi-earth"
-            :search-input.sync="searchCountry"
             :filter="customFilter"
             :error-messages="formErrors.country"
             no-data-text="Aucun pays trouvé"

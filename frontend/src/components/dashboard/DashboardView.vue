@@ -37,8 +37,8 @@
             variant="text"
             size="small"
             color="grey"
-            @click="closeForm"
             class="close-button"
+            @click="closeForm"
           >
             <v-icon>mdi-close</v-icon>
           </v-btn>
@@ -55,17 +55,17 @@
           <v-btn 
             color="grey" 
             variant="text" 
-            @click="closeForm"
             class="action-button"
+            @click="closeForm"
           >
             Annuler
           </v-btn>
           <v-btn 
             color="primary" 
             variant="text" 
-            @click="$emit('save')"
             :loading="saving"
             class="action-button"
+            @click="$emit('save')"
           >
             Enregistrer
           </v-btn>

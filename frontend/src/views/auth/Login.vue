@@ -7,7 +7,7 @@
       </v-card-title>
       
       <v-card-text>
-        <v-form @submit.prevent="login" ref="form">
+        <v-form ref="form" @submit.prevent="login">
           <v-text-field
             v-model="email"
             label="Email"
@@ -26,10 +26,10 @@
             :rules="[rules.required]"
             prepend-inner-icon="mdi-lock"
             :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-            @click:append-inner="showPassword = !showPassword"
             variant="outlined"
             class="mb-6"
             autocomplete="current-password"
+            @click:append-inner="showPassword = !showPassword"
           ></v-text-field>
           
           <v-alert

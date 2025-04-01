@@ -61,8 +61,8 @@
             <v-btn
               icon="mdi-refresh"
               size="small"
-              @click="fetchRecentAnomalies"
               :loading="loading.anomalies"
+              @click="fetchRecentAnomalies"
             >
               <v-icon>mdi-refresh</v-icon>
             </v-btn>
@@ -86,7 +86,7 @@
               :key="anomaly.id"
               class="py-2"
             >
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon
                   :color="anomaly.status === 'PENDING' ? 'error' : 'success'"
                   class="me-2"

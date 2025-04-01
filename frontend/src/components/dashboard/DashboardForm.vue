@@ -1,5 +1,5 @@
 <template>
-  <v-form ref="form" @submit.prevent="$emit('submit')" class="dashboard-form">
+  <v-form ref="form" class="dashboard-form" @submit.prevent="$emit('submit')">
     <div v-if="$slots.header" class="form-header">
       <slot name="header"></slot>
     </div>

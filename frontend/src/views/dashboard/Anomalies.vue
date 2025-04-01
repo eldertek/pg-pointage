@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="d-flex justify-space-between align-center mb-4" v-if="!isDetailView">
+    <div v-if="!isDetailView" class="d-flex justify-space-between align-center mb-4">
       <Title :level="1">Anomalies</Title>
       <v-btn 
         color="warning" 
@@ -12,16 +12,16 @@
       </v-btn>
     </div>
     
-    <v-card class="mb-4" v-if="!isDetailView">
+    <v-card v-if="!isDetailView" class="mb-4">
       <v-card-title>Filtres</v-card-title>
       <v-card-text>
         <v-row>
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-autocomplete
               v-model="filters.employee"
+              v-model:search-input="employeeSearch"
               :loading="searchingEmployees"
               :items="employeeOptions"
-              :search-input.sync="employeeSearch"
               label="Employé"
               item-title="text"
               item-value="value"
@@ -29,9 +29,9 @@
               prepend-inner-icon="mdi-account-search"
               clearable
               @update:search="searchEmployees"
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             >
-              <template v-slot:no-data>
+              <template #no-data>
                 <v-list-item>
                   <v-list-item-title>
                     Commencez à taper pour rechercher un employé
@@ -41,7 +41,7 @@
             </v-autocomplete>
           </v-col>
           
-          <v-col cols="12" :md="currentSiteId ? 4 : 3" v-if="!currentSiteId">
+          <v-col v-if="!currentSiteId" cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.site"
               label="Site"
@@ -51,7 +51,7 @@
               variant="outlined"
               prepend-inner-icon="mdi-map-marker"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-select>
           </v-col>
           
@@ -65,7 +65,7 @@
               variant="outlined"
               prepend-inner-icon="mdi-alert-circle"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-select>
           </v-col>
           
@@ -79,7 +79,7 @@
               variant="outlined"
               prepend-inner-icon="mdi-check-circle"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-select>
           </v-col>
         </v-row>
@@ -93,7 +93,7 @@
               variant="outlined"
               prepend-inner-icon="mdi-calendar"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-text-field>
           </v-col>
           
@@ -105,7 +105,7 @@
               variant="outlined"
               prepend-inner-icon="mdi-calendar"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-text-field>
           </v-col>
           
@@ -113,9 +113,9 @@
             <v-btn 
               color="error" 
               variant="outlined" 
-              @click="resetFilters"
               prepend-icon="mdi-refresh"
               class="px-4"
+              @click="resetFilters"
             >
               Réinitialiser les filtres
             </v-btn>

@@ -13,7 +13,7 @@
         
         <v-list>
           <v-list-item>
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon icon="mdi-email"></v-icon>
             </template>
             <v-list-item-title>Email</v-list-item-title>
@@ -21,7 +21,7 @@
           </v-list-item>
           
           <v-list-item>
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon icon="mdi-phone"></v-icon>
             </template>
             <v-list-item-title>Téléphone</v-list-item-title>
@@ -29,7 +29,7 @@
           </v-list-item>
           
           <v-list-item v-if="user.organization_name">
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon icon="mdi-domain"></v-icon>
             </template>
             <v-list-item-title>Organisation</v-list-item-title>
@@ -37,7 +37,7 @@
           </v-list-item>
           
           <v-list-item v-if="user.employee_id">
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon icon="mdi-badge-account"></v-icon>
             </template>
             <v-list-item-title>ID Employé</v-list-item-title>
@@ -45,7 +45,7 @@
           </v-list-item>
 
           <v-list-item v-if="user.role === 'EMPLOYEE'">
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon icon="mdi-qrcode-scan"></v-icon>
             </template>
             <v-list-item-title>Méthode de scan</v-list-item-title>
@@ -53,7 +53,7 @@
           </v-list-item>
 
           <v-list-item v-if="user.role === 'EMPLOYEE'">
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon icon="mdi-cellphone-cog"></v-icon>
             </template>
             <v-list-item-title>Vue simplifiée</v-list-item-title>
@@ -81,7 +81,7 @@
       <v-card-text>
         <v-list v-if="assignedSites.length > 0">
           <v-list-item v-for="site in assignedSites" :key="site.id">
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon icon="mdi-map-marker"></v-icon>
             </template>
             <v-list-item-title>{{ site.name }}</v-list-item-title>
@@ -100,21 +100,21 @@
       <v-card-text>
         <v-list>
           <v-list-item @click="showPasswordDialog = true">
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon icon="mdi-lock"></v-icon>
             </template>
             <v-list-item-title>Changer mon mot de passe</v-list-item-title>
           </v-list-item>
           
           <v-list-item to="/mobile/report-anomaly">
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon icon="mdi-alert-circle"></v-icon>
             </template>
             <v-list-item-title>Signaler une anomalie</v-list-item-title>
           </v-list-item>
           
           <v-list-item @click="showLogoutDialog = true">
-            <template v-slot:prepend>
+            <template #prepend>
               <v-icon icon="mdi-logout" color="error"></v-icon>
             </template>
             <v-list-item-title class="text-error">Se déconnecter</v-list-item-title>
@@ -128,7 +128,7 @@
       <v-card>
         <v-card-title>Changer mon mot de passe</v-card-title>
         <v-card-text>
-          <v-form @submit.prevent="changePassword" ref="passwordForm">
+          <v-form ref="passwordForm" @submit.prevent="changePassword">
             <v-text-field
               v-model="passwordForm.currentPassword"
               label="Mot de passe actuel"
@@ -160,7 +160,7 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn color="grey" variant="text" @click="showPasswordDialog = false">Annuler</v-btn>
-          <v-btn color="primary" @click="changePassword" :loading="saving">Changer</v-btn>
+          <v-btn color="primary" :loading="saving" @click="changePassword">Changer</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

@@ -8,16 +8,16 @@
         <v-btn 
           color="grey" 
           variant="text" 
-          @click="dialogState.show = false"
           :disabled="dialogState.loading"
+          @click="dialogState.show = false"
         >
           {{ dialogState.cancelText }}
         </v-btn>
         <v-btn 
           :color="dialogState.confirmColor"
           variant="text" 
-          @click="handleConfirm"
           :loading="dialogState.loading"
+          @click="handleConfirm"
         >
           {{ dialogState.confirmText }}
         </v-btn>

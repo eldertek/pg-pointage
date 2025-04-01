@@ -10,7 +10,7 @@
         <v-card>
           <v-card-title>Informations du profil</v-card-title>
           <v-card-text>
-            <v-form @submit.prevent="saveProfile" ref="profileForm">
+            <v-form ref="profileForm" @submit.prevent="saveProfile">
               <v-row>
                 <v-col cols="12" md="6">
                   <v-text-field
@@ -48,8 +48,8 @@
                     label="Téléphone"
                     variant="outlined"
                     :value="profile.phone ? formatPhoneNumber(profile.phone) : ''"
-                    @input="e => profile.phone = e.target.value.replace(/\D/g, '')"
                     :rules="[rules.phone]"
+                    @input="e => profile.phone = e.target.value.replace(/\D/g, '')"
                   ></v-text-field>
                 </v-col>
               </v-row>
@@ -70,7 +70,7 @@
         <v-card>
           <v-card-title>Sécurité</v-card-title>
           <v-card-text>
-            <v-form @submit.prevent="changePassword" ref="passwordForm">
+            <v-form ref="passwordForm" @submit.prevent="changePassword">
               <v-text-field
                 v-model="security.currentPassword"
                 label="Mot de passe actuel"

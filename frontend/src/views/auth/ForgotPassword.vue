@@ -6,7 +6,7 @@
     </v-card-title>
     
     <v-card-text>
-      <v-form @submit.prevent="requestReset" ref="form">
+      <v-form ref="form" @submit.prevent="requestReset">
         <v-text-field
           v-model="email"
           label="Email"

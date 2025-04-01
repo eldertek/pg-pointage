@@ -5,7 +5,7 @@
     <v-card>
       <v-card-title>Détails de l'anomalie</v-card-title>
       <v-card-text>
-        <v-form @submit.prevent="submitAnomaly" ref="form">
+        <v-form ref="form" @submit.prevent="submitAnomaly">
           <v-select
             v-model="anomaly.site"
             label="Site"
@@ -75,7 +75,7 @@
     >
       {{ snackbar.text }}
       
-      <template v-slot:actions>
+      <template #actions>
         <v-btn
           v-if="snackbar.color === 'success'"
           color="white"

@@ -55,7 +55,7 @@
       @click:row="handleRowClick"
     >
       <!-- Adresse -->
-      <template v-slot:item.address="{ item }">
+      <template #item.address="{ item }">
         <AddressWithMap
           :address="item.address"
           :postal-code="item.postal_code"
@@ -65,7 +65,7 @@
       </template>
 
       <!-- Actions -->
-      <template v-slot:item.actions="{ item }">
+      <template #item.actions="{ item }">
         <v-btn
           icon
           variant="text"

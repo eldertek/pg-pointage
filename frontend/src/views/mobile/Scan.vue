@@ -26,9 +26,9 @@
               v-if="userScanPreference === 'NFC_ONLY' || userScanPreference === 'BOTH'"
               color="primary" 
               size="large" 
-              @click="startNfcScan"
               :loading="loading && scanMode === 'NFC'"
               class="scan-button"
+              @click="startNfcScan"
             >
               <v-icon start class="mr-3">mdi-nfc</v-icon>
               Scanner
@@ -39,9 +39,9 @@
               v-if="userScanPreference === 'QR_ONLY' || userScanPreference === 'BOTH'"
               color="primary" 
               size="large" 
-              @click="startQrScan"
               :loading="loading && scanMode === 'QR'"
               class="scan-button"
+              @click="startQrScan"
             >
               <v-icon start class="mr-3">mdi-qrcode-scan</v-icon>
               Scanner
@@ -50,13 +50,13 @@
         </div>
         
         <div v-else class="text-center">
-          <div class="video-container" v-if="isQrScanning">
+          <div v-if="isQrScanning" class="video-container">
             <video ref="videoPreview" playsinline class="video-preview"></video>
             <div class="scan-region-highlight">
               <div class="scanning-line"></div>
             </div>
           </div>
-          <p class="mb-4" v-else>
+          <p v-else class="mb-4">
             <span v-if="scanMode === 'NFC'">
               Approchez votre téléphone du badge NFC
             </span>
@@ -73,8 +73,8 @@
             <v-btn 
               color="error" 
               variant="outlined" 
-              @click="cancelScan"
               class="ml-4"
+              @click="cancelScan"
             >
               Annuler
             </v-btn>
@@ -135,7 +135,7 @@ const getNFCImplementation = () => {
   // Android : Utilisation de Web NFC si disponible
   if (isAndroid) {
     if ('NDEFReader' in window) {
-      return new NDEFReader()
+      return new window.NDEFReader()
     }
     return {
       async scan() {
@@ -213,40 +213,6 @@ export default {
       }
     }
     
-    // Fonction pour démarrer le scan
-    const startScan = async () => {
-      loading.value = true
-      
-      try {
-        // On ne récupère plus la position ici
-        scanning.value = true
-        
-        if (userScanPreference.value === 'QR_ONLY') {
-          startQrScan()
-        } else if (userScanPreference.value === 'NFC_ONLY') {
-          const nfcStatus = checkNFCCompatibility()
-          if (!nfcStatus.compatible) {
-            showError(nfcStatus.message)
-            scanning.value = false
-            return
-          }
-          startNfcScan()
-        } else {
-          // Mode BOTH : on essaie d'abord le NFC, sinon on bascule sur QR
-          const nfcStatus = checkNFCCompatibility()
-          if (nfcStatus.compatible) {
-            startNfcScan()
-          } else {
-            startQrScan()
-          }
-        }
-      } catch (err) {
-        showError('Une erreur est survenue lors du démarrage du scan')
-      } finally {
-        loading.value = false
-      }
-    }
-    
     // Fonction pour démarrer le scan NFC
     const startNfcScan = async () => {
       loading.value = true
@@ -288,6 +254,7 @@ export default {
             handleScanResult(siteId, 'NFC')
           } catch (gpsError) {
             showError('Impossible d\'obtenir votre position. Veuillez activer la géolocalisation.')
+            console.error('Erreur lors de la récupération de la position:', gpsError)
             scanning.value = false
           }
         })
@@ -414,6 +381,7 @@ export default {
                     return
                   } catch (gpsError) {
                     showError('Impossible d\'obtenir votre position. Veuillez activer la géolocalisation.')
+                    console.error('Erreur lors de la récupération de la position:', gpsError)
                     scanning.value = false
                     stream.getTracks().forEach(track => track.stop())
                     isQrScanning.value = false

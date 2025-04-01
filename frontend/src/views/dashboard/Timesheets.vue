@@ -4,7 +4,7 @@
       <Title :level="1">Pointages</Title>
     </div>
     
-    <v-card class="mb-4" v-if="!isDetailView">
+    <v-card v-if="!isDetailView" class="mb-4">
       <v-card-title>Filtres</v-card-title>
       <v-card-text>
         <DashboardFilters @reset="resetFilters">
@@ -15,11 +15,11 @@
               variant="outlined"
               prepend-inner-icon="mdi-account-search"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-text-field>
           </v-col>
           
-          <v-col cols="12" :md="currentSiteId ? 4 : 3" v-if="!currentSiteId">
+          <v-col v-if="!currentSiteId" cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.site"
               label="Site"
@@ -27,7 +27,7 @@
               variant="outlined"
               prepend-inner-icon="mdi-map-marker"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-select>
           </v-col>
           
@@ -39,7 +39,7 @@
               variant="outlined"
               prepend-inner-icon="mdi-clock-time-four"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-select>
           </v-col>
           
@@ -51,7 +51,7 @@
               variant="outlined"
               prepend-inner-icon="mdi-alert-circle"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-select>
           </v-col>
 
@@ -63,7 +63,7 @@
               variant="outlined"
               prepend-inner-icon="mdi-calendar"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-text-field>
           </v-col>
           
@@ -75,7 +75,7 @@
               variant="outlined"
               prepend-inner-icon="mdi-calendar"
               clearable
-              @update:modelValue="applyFilters"
+              @update:model-value="applyFilters"
             ></v-text-field>
           </v-col>
         </DashboardFilters>
@@ -100,11 +100,11 @@
           { title: '15', value: 15 },
           { title: 'Tout', value: -1 }
         ]"
+        class="elevation-1"
         @update:options="handleTableUpdate"
         @click:row="(_: any, { item }: any) => showDetails(item)"
-        class="elevation-1"
       >
-        <template v-slot:item.entry_type="{ item }">
+        <template #item.entry_type="{ item }">
           <v-chip
             :color="item.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'"
             size="small"
@@ -112,7 +112,7 @@
             {{ getEntryTypeLabel(item.entry_type) }}
           </v-chip>
         </template>
-        <template v-slot:item.status="{ item }">
+        <template #item.status="{ item }">
           <v-chip
             :color="getStatusColor(item)"
             size="small"
@@ -120,7 +120,7 @@
             {{ getStatusLabel(item) }}
           </v-chip>
         </template>
-        <template v-slot:item.actions="{ item }">
+        <template #item.actions="{ item }">
           <v-btn
             v-if="canEditTimesheet"
             icon="mdi-pencil"
@@ -162,7 +162,7 @@
             <v-col cols="12" :md="selectedTimesheet.latitude && selectedTimesheet.longitude ? 6 : 12">
               <v-list>
                 <v-list-item>
-                  <template v-slot:prepend>
+                  <template #prepend>
                     <v-icon color="primary">mdi-account</v-icon>
                   </template>
                   <v-list-item-title class="text-subtitle-2 mb-1">Employé</v-list-item-title>
@@ -170,7 +170,7 @@
                 </v-list-item>
                 
                 <v-list-item>
-                  <template v-slot:prepend>
+                  <template #prepend>
                     <v-icon color="primary">mdi-map-marker</v-icon>
                   </template>
                   <v-list-item-title class="text-subtitle-2 mb-1">Site</v-list-item-title>
@@ -178,7 +178,7 @@
                 </v-list-item>
                 
                 <v-list-item>
-                  <template v-slot:prepend>
+                  <template #prepend>
                     <v-icon color="primary">mdi-clock-outline</v-icon>
                   </template>
                   <v-list-item-title class="text-subtitle-2 mb-1">Date et heure</v-list-item-title>
@@ -186,7 +186,7 @@
                 </v-list-item>
                 
                 <v-list-item>
-                  <template v-slot:prepend>
+                  <template #prepend>
                     <v-icon color="primary">mdi-gesture-tap-button</v-icon>
                   </template>
                   <v-list-item-title class="text-subtitle-2 mb-1">Type</v-list-item-title>
@@ -201,7 +201,7 @@
                 </v-list-item>
                 
                 <v-list-item v-if="selectedTimesheet.is_late || selectedTimesheet.is_early_departure">
-                  <template v-slot:prepend>
+                  <template #prepend>
                     <v-icon :color="selectedTimesheet.is_late ? 'warning' : 'error'">mdi-alert-circle</v-icon>
                   </template>
                   <v-list-item-title class="text-subtitle-2 mb-1">Statut</v-list-item-title>
@@ -216,7 +216,7 @@
                 </v-list-item>
                 
                 <v-list-item v-if="selectedTimesheet.correction_note">
-                  <template v-slot:prepend>
+                  <template #prepend>
                     <v-icon color="primary">mdi-note-text</v-icon>
                   </template>
                   <v-list-item-title class="text-subtitle-2 mb-1">Note de correction</v-list-item-title>
@@ -225,7 +225,7 @@
               </v-list>
             </v-col>
             
-            <v-col cols="12" md="6" v-if="selectedTimesheet.latitude && selectedTimesheet.longitude">
+            <v-col v-if="selectedTimesheet.latitude && selectedTimesheet.longitude" cols="12" md="6">
               <div id="mapContainer" style="height: 300px; width: 100%; border-radius: 4px; position: relative; z-index: 1;"></div>
             </v-col>
           </v-row>

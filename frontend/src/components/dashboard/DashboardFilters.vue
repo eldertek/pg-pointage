@@ -5,9 +5,9 @@
       <v-btn 
         color="error" 
         variant="outlined" 
-        @click="$emit('reset')"
         prepend-icon="mdi-refresh"
         class="px-4"
+        @click="$emit('reset')"
       >
         Réinitialiser les filtres
       </v-btn>
