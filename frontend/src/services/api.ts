@@ -426,7 +426,7 @@ const usersApi = {
       ...convertKeysToSnakeCase(data),
       organizations: data.organizations
     }
-    return api.post('/users/auth/register/', userData)
+    return api.post('/users/register/', userData)
   },
   
   // Update a user

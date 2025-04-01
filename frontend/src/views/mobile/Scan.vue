@@ -235,14 +235,14 @@ export default {
           
           // Formater l'ID
           let siteId = serialNumber
-          if (!siteId.startsWith('PG')) {
-            showError('Badge NFC invalide. Format attendu: PG suivi de 6 chiffres')
+          if (!siteId.includes('-')) {
+            showError('Badge NFC invalide. Format attendu: Oxxx-Syyyy')
             scanning.value = false
             return
           }
 
           // Valider le format
-          if (!/^PG\d{6}$/.test(siteId)) {
+          if (!validateSiteId(siteId)) {
             showError('Format de badge NFC invalide')
             scanning.value = false
             return
@@ -412,11 +412,22 @@ export default {
     
     // Validation des IDs de sites
     const validateSiteId = (siteId) => {
-      if (!siteId || siteId.length !== 5) return false;
-      if (!siteId.startsWith('S')) return false;
+      if (!siteId || !siteId.includes('-')) return false;
+      
       try {
-        const number = parseInt(siteId.slice(1));
-        return number > 0 && number < 10000;
+        const [orgPart, sitePart] = siteId.split('-');
+        
+        // Valider la partie organisation (Oxxx)
+        if (!orgPart.startsWith('O') || orgPart.length !== 4) return false;
+        const orgNumber = parseInt(orgPart.slice(1));
+        if (isNaN(orgNumber) || orgNumber < 0 || orgNumber > 999) return false;
+        
+        // Valider la partie site (Syyyy)
+        if (!sitePart.startsWith('S') || sitePart.length !== 5) return false;
+        const siteNumber = parseInt(sitePart.slice(1));
+        if (isNaN(siteNumber) || siteNumber < 1 || siteNumber > 9999) return false;
+        
+        return true;
       } catch {
         return false;
       }
@@ -434,10 +445,18 @@ export default {
       }
 
       try {
+        // Formater les coordonnées GPS avec 10 décimales maximum
+        const latitude = position.value?.coords.latitude 
+          ? Number(position.value.coords.latitude.toFixed(10))
+          : null
+        const longitude = position.value?.coords.longitude
+          ? Number(position.value.coords.longitude.toFixed(10))
+          : null
+
         const result = await timesheetStore.createTimesheet({
           site_id: siteId,
-          latitude: position.value?.coords.latitude || null,
-          longitude: position.value?.coords.longitude || null,
+          latitude,
+          longitude,
           scan_type: scanMethod,
           entry_type: 'ARRIVAL' // Par défaut on met ARRIVAL, le backend déterminera si c'est un départ
         })
@@ -447,9 +466,8 @@ export default {
           // Cas ambigu, demander à l'utilisateur de préciser
           ambiguousTimesheetData.value = {
             site_id: siteId,
-            latitude: position.value?.coords.latitude || null,
-            longitude: position.value?.coords.longitude || null,
-            timestamp: new Date().toISOString(),
+            latitude,
+            longitude,
             scan_type: scanMethod
           }
           showAmbiguousDialog.value = true

@@ -436,30 +436,36 @@ const handleEmailChange = (email: string) => {
 }
 
 const openDialog = (item?: ExtendedUser) => {
-  editedItem.value = item ? {
-    id: item.id,
-    username: item.username,
-    email: item.email,
-    first_name: item.first_name,
-    last_name: item.last_name,
-    role: item.role,
-    organizations: item.organizations,
-    phone_number: item.phone_number,
-    is_active: item.is_active,
-    scan_preference: item.scan_preference,
-    simplified_mobile_view: item.simplified_mobile_view,
-    sites: item.role === RoleEnum.SUPER_ADMIN ? undefined : item.sites?.map(site => site.id)
-  } : {
-    username: '',
-    email: '',
-    first_name: '',
-    last_name: '',
-    role: RoleEnum.EMPLOYEE,
-    organizations: [],
-    is_active: true,
-    scan_preference: 'BOTH',
-    simplified_mobile_view: false,
-    password: ''
+  if (item) {
+    editedItem.value = {
+      id: item.id,
+      username: item.username,
+      email: item.email,
+      first_name: item.first_name,
+      last_name: item.last_name,
+      role: item.role,
+      organizations: item.organizations,
+      phone_number: item.phone_number,
+      is_active: item.is_active,
+      scan_preference: item.scan_preference,
+      simplified_mobile_view: item.simplified_mobile_view,
+      sites: item.role === RoleEnum.SUPER_ADMIN ? undefined : item.sites?.map(site => site.id)
+    }
+  } else {
+    editedItem.value = {
+      username: '',
+      email: '',
+      first_name: '',
+      last_name: '',
+      role: RoleEnum.EMPLOYEE,
+      organizations: [],
+      phone_number: '',
+      is_active: true,
+      scan_preference: ScanPreferenceEnum.BOTH,
+      simplified_mobile_view: false,
+      password: '',
+      sites: []
+    }
   }
   dashboardView.value.showForm = true
 }

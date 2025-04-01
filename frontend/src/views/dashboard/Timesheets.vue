@@ -427,14 +427,18 @@ const formatTimesheet = (timesheet: ExtendedTimesheet): ExtendedTimesheet => {
     return {
       ...timesheet,
       date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
-      time: format(timestamp, 'HH:mm', { locale: fr })
+      time: format(timestamp, 'HH:mm', { locale: fr }),
+      employee: timesheet.employee_name || 'Employé inconnu',
+      site: timesheet.site_name || 'Site inconnu'
     }
   } catch (error) {
     console.error('Erreur lors du formatage du pointage:', error)
     return {
       ...timesheet,
       date: 'Erreur',
-      time: '--:--'
+      time: '--:--',
+      employee: 'Erreur',
+      site: 'Erreur'
     }
   }
 }
@@ -449,7 +453,8 @@ const fetchTimesheets = async (options: Partial<TableOptions> = {}) => {
       start_date: filters.value.startDate || undefined,
       end_date: filters.value.endDate || undefined,
       page: options.page || currentPage.value,
-      page_size: options.itemsPerPage || itemsPerPage.value
+      page_size: options.itemsPerPage || itemsPerPage.value,
+      expand: 'employee,site'
     }
     
     const response = await timesheetsApi.getTimesheets(params)

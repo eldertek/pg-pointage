@@ -11,13 +11,20 @@ class TimesheetSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Timesheet
-        fields = ['id', 'employee', 'employee_name', 'site', 'site_name',
-                 'timestamp', 'entry_type', 'created_at']
-        read_only_fields = ['created_at']
+        fields = [
+            'id', 'employee', 'employee_name', 'site', 'site_name',
+            'timestamp', 'entry_type', 'latitude', 'longitude',
+            'is_late', 'late_minutes', 'is_early_departure',
+            'early_departure_minutes', 'correction_note',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
     
     @extend_schema_field(OpenApiTypes.STR)
     def get_employee_name(self, obj) -> str:
-        return obj.employee.get_full_name() if obj.employee else ''
+        if not obj.employee:
+            return ''
+        return f"{obj.employee.first_name} {obj.employee.last_name}".strip() or obj.employee.username
     
     @extend_schema_field(OpenApiTypes.STR)
     def get_site_name(self, obj) -> str:
@@ -26,22 +33,32 @@ class TimesheetSerializer(serializers.ModelSerializer):
 class TimesheetCreateSerializer(serializers.ModelSerializer):
     """Serializer pour la création de pointages"""
     site_id = serializers.CharField(write_only=True)
+    latitude = serializers.DecimalField(max_digits=13, decimal_places=10, required=False, allow_null=True)
+    longitude = serializers.DecimalField(max_digits=13, decimal_places=10, required=False, allow_null=True)
     
     class Meta:
         model = Timesheet
-        fields = ['site_id', 'site', 'entry_type', 'timestamp']
+        fields = ['site_id', 'entry_type', 'scan_type', 'latitude', 'longitude']
+        extra_kwargs = {
+            'entry_type': {'required': True},
+            'scan_type': {'required': True}
+        }
     
     def validate_site_id(self, value):
         try:
-            site = Site.objects.get(nfc_id=value)
-            return site
+            return Site.objects.get(nfc_id=value)
         except Site.DoesNotExist:
             raise serializers.ValidationError("Site introuvable avec cet ID NFC/QR Code.")
     
     def create(self, validated_data):
-        site_id = validated_data.pop('site_id')
-        timesheet = Timesheet.objects.create(site=site_id, **validated_data)
-        return timesheet
+        site = validated_data.pop('site_id')
+        # Arrondir les coordonnées GPS si présentes
+        if 'latitude' in validated_data:
+            validated_data['latitude'] = round(float(validated_data['latitude']), 10)
+        if 'longitude' in validated_data:
+            validated_data['longitude'] = round(float(validated_data['longitude']), 10)
+            
+        return Timesheet.objects.create(site=site, **validated_data)
 
 class AnomalySerializer(serializers.ModelSerializer):
     """Serializer pour les anomalies"""

@@ -13,6 +13,7 @@ from sites.permissions import IsSiteOrganizationManager
 from rest_framework.permissions import BasePermission
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from drf_spectacular.types import OpenApiTypes
+from django.db import models
 
 class IsAdminOrManager(BasePermission):
     """Permission composée pour autoriser les admin ou les managers d'organisation"""
@@ -33,12 +34,39 @@ class TimesheetListView(generics.ListCreateAPIView):
     
     def get_queryset(self):
         user = self.request.user
+        queryset = Timesheet.objects.select_related('employee', 'site')
+        
         if user.is_super_admin:
-            return Timesheet.objects.all()
+            return queryset.all()
         elif user.is_admin or user.is_manager:
-            return Timesheet.objects.filter(site__organization__in=user.organizations.all())
+            return queryset.filter(site__organization__in=user.organizations.all())
         else:
-            return Timesheet.objects.filter(employee=user)
+            return queryset.filter(employee=user)
+            
+    def filter_queryset(self, queryset):
+        # Récupérer les paramètres de filtrage
+        employee_name = self.request.query_params.get('employee_name')
+        site = self.request.query_params.get('site')
+        entry_type = self.request.query_params.get('entry_type')
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        
+        # Appliquer les filtres si présents
+        if employee_name:
+            queryset = queryset.filter(
+                models.Q(employee__first_name__icontains=employee_name) |
+                models.Q(employee__last_name__icontains=employee_name)
+            )
+        if site:
+            queryset = queryset.filter(site_id=site)
+        if entry_type:
+            queryset = queryset.filter(entry_type=entry_type)
+        if start_date:
+            queryset = queryset.filter(timestamp__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(timestamp__date__lte=end_date)
+            
+        return queryset
 
 class TimesheetDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Vue pour obtenir, mettre à jour et supprimer un pointage"""
@@ -65,19 +93,28 @@ class TimesheetCreateView(generics.CreateAPIView):
     
     def perform_create(self, serializer):
         try:
-            serializer.save(employee=self.request.user)
+            timesheet = serializer.save(
+                employee=self.request.user,
+                timestamp=timezone.now()
+            )
+            return timesheet
         except ValidationError as e:
-            error_messages = {}
             if hasattr(e, 'message_dict'):
-                error_messages = e.message_dict
-            else:
-                error_messages = {'non_field_errors': [str(e)]}
-            raise serializers.ValidationError(error_messages)
+                raise serializers.ValidationError(e.message_dict)
+            raise serializers.ValidationError({'non_field_errors': [str(e)]})
 
     def create(self, request, *args, **kwargs):
         try:
-            response = super().create(request, *args, **kwargs)
-            return response
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            timesheet = self.perform_create(serializer)
+            
+            return Response({
+                'message': 'Pointage enregistré avec succès',
+                'data': TimesheetSerializer(timesheet).data,
+                'is_ambiguous': False  # À implémenter selon la logique métier
+            }, status=status.HTTP_201_CREATED)
+            
         except serializers.ValidationError as e:
             return Response(
                 {'detail': e.detail},

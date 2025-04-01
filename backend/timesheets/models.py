@@ -10,6 +10,10 @@ class Timesheet(models.Model):
         ARRIVAL = 'ARRIVAL', _('Arrivée')
         DEPARTURE = 'DEPARTURE', _('Départ')
     
+    class ScanType(models.TextChoices):
+        NFC = 'NFC', _('NFC')
+        QR_CODE = 'QR_CODE', _('QR Code')
+    
     employee = models.ForeignKey(
         'users.User',
         on_delete=models.CASCADE,
@@ -28,18 +32,24 @@ class Timesheet(models.Model):
         max_length=20,
         choices=EntryType.choices
     )
+    scan_type = models.CharField(
+        _('type de scan'),
+        max_length=10,
+        choices=ScanType.choices,
+        default=ScanType.QR_CODE
+    )
     
     # Informations de géolocalisation
     latitude = models.DecimalField(
         _('latitude'),
-        max_digits=13,
+        max_digits=12,
         decimal_places=10,
         null=True,
         blank=True
     )
     longitude = models.DecimalField(
         _('longitude'),
-        max_digits=13,
+        max_digits=12,
         decimal_places=10,
         null=True,
         blank=True
