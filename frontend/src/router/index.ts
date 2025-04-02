@@ -71,7 +71,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/dashboard",
     component: DashboardLayout,
-    meta: { requiresAuth: true, roles: ["SUPER_ADMIN", "MANAGER"] },
+    meta: { requiresAuth: true, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
     children: [
       {
         path: "",

@@ -13,6 +13,8 @@ from timesheets.serializers import AnomalySerializer, TimesheetSerializer
 from reports.models import Report
 from reports.serializers import ReportSerializer
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 
 class OrganizationStatisticsSerializer(serializers.Serializer):
     total_employees = serializers.IntegerField()
@@ -28,10 +30,24 @@ class OrganizationListView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
 class OrganizationDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Vue pour obtenir, mettre à jour et supprimer une organisation spécifique"""
-    queryset = Organization.objects.all()
+    """Vue pour afficher, modifier et supprimer une organisation"""
     serializer_class = OrganizationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    queryset = Organization.objects.all()
+
+    def get_object(self):
+        obj = super().get_object()
+        user = self.request.user
+        
+        # Super admin peut tout voir
+        if user.is_super_admin:
+            return obj
+            
+        # Les autres utilisateurs ne peuvent voir que leurs organisations
+        if not user.organizations.filter(id=obj.id).exists():
+            raise PermissionDenied("Vous n'avez pas accès à cette organisation")
+            
+        return obj
 
 class OrganizationUsersView(generics.ListAPIView):
     """Vue pour lister tous les utilisateurs d'une organisation spécifique"""

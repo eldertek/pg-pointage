@@ -95,16 +95,18 @@
 
       <!-- Organizations -->
       <template #item.organizations_names="{ item }">
-        <v-chip
-          v-for="orgName in item.organizations_names"
-          :key="orgName"
-          color="primary"
-          size="small"
-          class="mr-1"
-        >
-          {{ orgName }}
-        </v-chip>
-        <span v-if="!item.organizations_names.length" class="text-grey">
+        <template v-if="item.organizations_names && item.organizations_names.length > 0">
+          <v-chip
+            v-for="orgName in item.organizations_names"
+            :key="orgName"
+            color="primary"
+            size="small"
+            class="mr-1"
+          >
+            {{ orgName }}
+          </v-chip>
+        </template>
+        <span v-else class="text-grey">
           Aucune organisation
         </span>
       </template>
@@ -275,10 +277,22 @@ import { useConfirmDialog } from '@/utils/dialogs'
 import type { DialogState } from '@/utils/dialogs'
 
 // Interface étendue pour les utilisateurs avec les propriétés supplémentaires
-interface ExtendedUser extends User {
+interface ExtendedUser {
   id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
   is_active: boolean;
-  organizations: { id: number; name: string }[];
+  organizations: number[];
+  organizations_names: string[];
+  phone_number: string;
+  scan_preference: string;
+  simplified_mobile_view: boolean;
+  date_joined?: string;
+  employee_id?: string;
+  sites?: { id: number; name: string }[];
 }
 
 // Interface pour les organisations dans le formulaire
@@ -288,10 +302,25 @@ interface FormOrganization {
 }
 
 // Interface pour le formulaire utilisateur
-interface UserFormData extends Omit<UserRequest, 'organizations'> {
+interface UserFormData {
   id?: number;
-  phone_number?: string;
-  organizations: FormOrganization[];
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  organizations: number[];
+  phone_number: string;
+  is_active: boolean;
+  scan_preference: string;
+  simplified_mobile_view: boolean;
+  password?: string;
+}
+
+interface AuthUser {
+  id: number;
+  role: string;
+  organizations: number[];
 }
 
 const authStore = useAuthStore()
@@ -366,28 +395,45 @@ const canView = computed(() => {
 
 // Filtrer les utilisateurs selon les permissions
 const filteredUsers = computed(() => {
-  const user = authStore.user
-  if (!user) return []
+  const user = authStore.user as AuthUser | null
+  if (!user) {
+    console.log('[Debug] Pas d\'utilisateur connecté')
+    return []
+  }
   
+  console.log('[Debug] Utilisateur connecté:', user.role)
+  console.log('[Debug] Organisations de l\'utilisateur:', user.organizations)
+  console.log('[Debug] Utilisateurs avant filtrage:', users.value)
+  
+  // Super Admin voit tout
+  if (user.role === RoleEnum.SUPER_ADMIN) {
+    return users.value
+  }
+
+  // Pour les autres rôles, filtrer selon les organisations
   return users.value.filter(u => {
-    // Super Admin voit tout
-    if (user.role === RoleEnum.SUPER_ADMIN) return true
-    
-    // Admin voit les utilisateurs de ses organisations
-    if (user.role === RoleEnum.ADMIN) {
-      return u.organizations.some(org => 
-        user.organizations.some(userOrg => userOrg.id === org.id)
-      )
+    if (!u || !u.organizations || !user.organizations) {
+      console.log('[Debug] Données manquantes pour', u?.email)
+      return false
     }
+
+    // Vérifier si l'utilisateur a accès à au moins une organisation commune
+    const userOrgIds = Array.isArray(user.organizations) 
+      ? user.organizations 
+      : [user.organizations]
+
+    console.log('[Debug] userOrgIds brut:', JSON.stringify(userOrgIds))
+    console.log('[Debug] u.organizations brut:', JSON.stringify(u.organizations))
+
+    const hasCommonOrg = u.organizations.some(orgId => userOrgIds.includes(orgId))
     
-    // Manager voit uniquement les utilisateurs de son organisation
-    if (user.role === RoleEnum.MANAGER) {
-      return u.organizations.some(org => 
-        user.organizations.some(userOrg => userOrg.id === org.id)
-      )
-    }
+    console.log('[Debug] Vérification accès pour', u.email, ':', {
+      userOrgIds: JSON.stringify(userOrgIds),
+      userOrgs: JSON.stringify(u.organizations),
+      hasAccess: hasCommonOrg
+    })
     
-    return false
+    return hasCommonOrg
   })
 })
 
@@ -494,17 +540,17 @@ const saveUser = async () => {
   try {
     if (editedItem.value) {
       const userData = editedItem.value as UserFormData
-      console.log('[Users][Save] Données utilisateur:', userData)
+      console.log('[Users][Save] Données utilisateur:', JSON.stringify(userData))
       
       if (userData.id) {
         await usersApi.updateUser(userData.id, {
           ...userData,
-          organizations: userData.organizations ? userData.organizations.map(org => typeof org === 'object' ? org.id : org) : []
+          organizations: userData.organizations || []
         })
       } else {
         await usersApi.createUser({
           ...userData,
-          organizations: userData.organizations ? userData.organizations.map(org => typeof org === 'object' ? org.id : org) : []
+          organizations: userData.organizations || []
         })
       }
       await loadUsers()

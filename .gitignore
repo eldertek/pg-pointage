@@ -3,6 +3,7 @@
 # remove node_modules
 node_modules/
 
+
 # next.js
 /.next/
 /out/
@@ -34,3 +35,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Pytest
+.coverage
+.pytest_cache/

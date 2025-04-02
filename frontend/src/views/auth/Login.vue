@@ -2,7 +2,7 @@
   <div class="login-container">
     <v-card class="login-card">
       <v-card-title class="text-center">
-        <Title level="1" class="text-h4 mb-2">Planète Gardiens</Title>
+        <Title :level="1" class="text-h4 mb-2">Planète Gardiens</Title>
         <p class="text-subtitle-1">Connexion</p>
       </v-card-title>
       

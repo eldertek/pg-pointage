@@ -1,5 +1,6 @@
-from rest_framework import generics, permissions, viewsets, serializers
+from rest_framework import generics, permissions, serializers
 from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from django.http import Http404
 
@@ -110,7 +111,7 @@ class SiteListView(generics.ListCreateAPIView):
         elif user.is_admin or user.is_manager:
             return base_queryset.filter(organization__in=user.organizations.all())
         elif user.is_employee:
-            return base_queryset.filter(employees__employee=user, employees__is_active=True)
+            return base_queryset.filter(site_employees__employee=user, site_employees__is_active=True)
         return Site.objects.none()
     
     def perform_create(self, serializer):
@@ -121,27 +122,31 @@ class SiteListView(generics.ListCreateAPIView):
 
 class SiteDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SiteSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = Site.objects.all()
     
-    def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticated()]
-        return [IsAdminOrManager()]
-    
-    def get_queryset(self):
+    def get_object(self):
+        obj = super().get_object()
         user = self.request.user
-        base_queryset = Site.objects.prefetch_related(
-            'schedules',
-            'schedules__schedule_employees',
-            'schedules__schedule_employees__employee'
-        )
         
+        # Super admin peut tout voir
         if user.is_super_admin:
-            return base_queryset.all()
-        elif user.is_admin or user.is_manager:
-            return base_queryset.filter(organization__in=user.organizations.all())
+            return obj
+            
+        # Admin et Manager peuvent voir les sites de leurs organisations
+        if user.is_admin or user.is_manager:
+            if not user.organizations.filter(sites=obj).exists():
+                raise PermissionDenied("Vous n'avez pas accès à ce site")
+                
+        # Employé ne peut voir que les sites auxquels il est assigné
         elif user.is_employee:
-            return base_queryset.filter(employees__employee=user, employees__is_active=True)
-        return Site.objects.none()
+            if not (
+                user.organizations.filter(id=obj.organization.id).exists() and
+                user.employee_sites.filter(site=obj, is_active=True).exists()
+            ):
+                raise PermissionDenied("Vous n'avez pas accès à ce site")
+                
+        return obj
 
 class SiteEmployeesView(generics.ListCreateAPIView):
     serializer_class = SiteEmployeeSerializer
@@ -152,6 +157,16 @@ class SiteEmployeesView(generics.ListCreateAPIView):
         try:
             site = Site.objects.get(pk=site_pk)
             
+            # Vérifier les permissions
+            user = self.request.user
+            if not user.is_super_admin:
+                if user.is_admin or user.is_manager:
+                    if not user.organizations.filter(sites=site).exists():
+                        raise PermissionDenied("Vous n'avez pas accès à ce site")
+                elif user.is_employee:
+                    if not user.employee_sites.filter(site=site, is_active=True).exists():
+                        raise PermissionDenied("Vous n'avez pas accès à ce site")
+            
             # Récupérer le rôle demandé dans les paramètres de requête
             role = self.request.query_params.get('role', None)
             
@@ -160,7 +175,7 @@ class SiteEmployeesView(generics.ListCreateAPIView):
                 organizations__in=[site.organization],
                 is_active=True,
                 employee_sites__site=site,
-                employee_sites__schedule__isnull=False
+                employee_sites__is_active=True
             )
             
             # Ajouter le manager du site s'il existe
@@ -210,6 +225,16 @@ class SiteEmployeesView(generics.ListCreateAPIView):
         site_pk = self.kwargs.get('pk')
         try:
             site = Site.objects.get(pk=site_pk)
+            
+            # Vérifier les permissions
+            user = self.request.user
+            if not user.is_super_admin:
+                if user.is_admin or user.is_manager:
+                    if not user.organizations.filter(sites=site).exists():
+                        raise PermissionDenied("Vous n'avez pas accès à ce site")
+                elif user.is_employee:
+                    if not user.employee_sites.filter(site=site, is_active=True).exists():
+                        raise PermissionDenied("Vous n'avez pas accès à ce site")
             
             # Vérifier que l'employé appartient à l'organisation du site
             employee = serializer.validated_data['employee']
