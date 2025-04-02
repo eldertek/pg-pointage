@@ -100,7 +100,7 @@ class Timesheet(models.Model):
         last_timesheet = Timesheet.objects.filter(
             employee=self.employee,
             site=self.site,
-            timestamp__date=self.timestamp.date()
+            timestamp__date=timezone.localtime(self.timestamp).date()
         ).exclude(id=self.id).order_by('-timestamp').first()
 
         if last_timesheet and last_timesheet.entry_type == self.entry_type:
@@ -109,7 +109,7 @@ class Timesheet(models.Model):
                 employee=self.employee,
                 site=self.site,
                 timesheet=self,
-                date=self.timestamp.date(),
+                date=timezone.localtime(self.timestamp).date(),
                 anomaly_type=Anomaly.AnomalyType.CONSECUTIVE_SAME_TYPE,
                 description=_(
                     f'Pointage {self.get_entry_type_display()} consécutif détecté. '

@@ -1,26 +1,33 @@
 """Vues pour les sites"""
+# Third party imports
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, permissions, serializers
 from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
+
+# Django imports
 from django.http import Http404
 from django.shortcuts import get_object_or_404
-from django.db import models
+from django.db import models, IntegrityError, DatabaseError
+from django.core.exceptions import ValidationError
 
-from .models import Site, Schedule, ScheduleDetail, SiteEmployee
-from .serializers import (
-    SiteSerializer, ScheduleSerializer, ScheduleDetailSerializer,
-    SiteEmployeeSerializer, SiteStatisticsSerializer
-)
-from .permissions import IsSiteOrganizationManager
+# First party imports
 from reports.models import Report
 from reports.serializers import ReportSerializer
 from timesheets.models import Timesheet, Anomaly
 from timesheets.serializers import TimesheetSerializer, AnomalySerializer
 from users.models import User
 from users.serializers import UserSerializer
-from drf_spectacular.utils import extend_schema
+
+# Local imports
+from .models import Site, Schedule, ScheduleDetail, SiteEmployee
+from .serializers import (
+    SiteSerializer, ScheduleSerializer, ScheduleDetailSerializer,
+    SiteEmployeeSerializer, SiteStatisticsSerializer
+)
+from .permissions import IsSiteOrganizationManager
 
 
 class CustomPageNumberPagination(PageNumberPagination):
@@ -219,7 +226,7 @@ class SiteEmployeesView(generics.ListCreateAPIView):
             # Créer ou récupérer les SiteEmployee pour tous les utilisateurs
             site_employees = []
             for user in users:
-                site_employee, created = SiteEmployee.objects.get_or_create(
+                site_employee, _ = SiteEmployee.objects.get_or_create(
                     site=site,
                     employee=user,
                     defaults={'is_active': True}
@@ -236,8 +243,8 @@ class SiteEmployeesView(generics.ListCreateAPIView):
         except Site.DoesNotExist:
             print(f"[SiteEmployeesView][Error] Site {site_pk} non trouvé")
             return SiteEmployee.objects.none()
-        except Exception as e:
-            print(f"[SiteEmployeesView][Error] Erreur inattendue: {str(e)}")
+        except (ValidationError, IntegrityError, DatabaseError, PermissionError) as exc:
+            print(f"[SiteEmployeesView][Error] Erreur de base de données: {str(exc)}")
             return SiteEmployee.objects.none()
 
     def perform_create(self, serializer):
@@ -272,10 +279,10 @@ class SiteEmployeesView(generics.ListCreateAPIView):
 
             serializer.save(site=site)
 
-        except Site.DoesNotExist:
+        except Site.DoesNotExist as exc:
             raise serializers.ValidationError({
                 'site': 'Site non trouvé'
-            })
+            }) from exc
 
 
 class SiteSchedulesView(generics.ListCreateAPIView):
@@ -353,10 +360,10 @@ class SiteScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
             print(
                 f"[SiteScheduleDetailView][Update] Planning mis à jour avec succès: {instance.id}")
             return instance
-        except Exception as e:
+        except (ValidationError, IntegrityError) as exc:
             print(
-                f"[SiteScheduleDetailView][Error] Erreur lors de la mise à jour: {str(e)}")
-            raise
+                f"[SiteScheduleDetailView][Error] Erreur lors de la mise à jour: {str(exc)}")
+            raise exc
 
 
 class SiteScheduleDetailListView(generics.ListCreateAPIView):
@@ -381,7 +388,7 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
         schedule_id = kwargs.get('schedule_pk')
         employees = request.data.get('employees', [])
 
-        print(f"[SiteScheduleBatchEmployeeView][Debug] Début de l'assignation en lot")
+        print("[SiteScheduleBatchEmployeeView][Debug] Début de l'assignation en lot")
         print(
             f"[SiteScheduleBatchEmployeeView][Debug] Site: {site_id}, Planning: {schedule_id}")
         print(
@@ -449,25 +456,25 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
                 'message': f'{len(organization_employees)} employé(s) assigné(s) au planning avec succès'
             }, status=201)
 
-        except Site.DoesNotExist:
+        except Site.DoesNotExist as exc:
             print("[SiteScheduleBatchEmployeeView][Error] Site non trouvé")
-            return Response({
-                'error': 'Site non trouvé'
-            }, status=404)
-        except Schedule.DoesNotExist:
+            raise serializers.ValidationError({
+                'site': 'Site non trouvé'
+            }) from exc
+        except Schedule.DoesNotExist as exc:
             print("[SiteScheduleBatchEmployeeView][Error] Planning non trouvé")
-            return Response({
+            raise serializers.ValidationError({
                 'error': 'Planning non trouvé'
-            }, status=404)
-        except User.DoesNotExist:
+            }) from exc
+        except User.DoesNotExist as exc:
             print(
                 "[SiteScheduleBatchEmployeeView][Error] Un ou plusieurs employés n'existent pas")
-            return Response({
+            raise serializers.ValidationError({
                 'error': 'Un ou plusieurs employés n\'existent pas'
-            }, status=400)
-        except Exception as e:
+            }) from exc
+        except (ValidationError, IntegrityError, PermissionError) as e:
             print(
-                f"[SiteScheduleBatchEmployeeView][Error] Erreur inattendue: {str(e)}")
+                f"[SiteScheduleBatchEmployeeView][Error] Erreur de validation ou d'intégrité: {str(e)}")
             return Response({
                 'error': str(e)
             }, status=400)
