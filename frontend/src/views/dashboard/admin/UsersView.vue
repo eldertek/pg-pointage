@@ -38,6 +38,7 @@
     <!-- Actions -->
     <template #actions>
       <v-btn
+        v-if="canCreateDelete"
         color="primary"
         prepend-icon="mdi-plus"
         @click="openDialog()"
@@ -48,9 +49,10 @@
 
     <!-- Tableau des utilisateurs -->
     <v-data-table
+      v-if="canView"
       v-model:page="page"
       :headers="headers"
-      :items="users"
+      :items="filteredUsers"
       :loading="loading"
       :items-per-page="itemsPerPage"
       :items-length="totalItems"
@@ -110,6 +112,7 @@
       <!-- Actions -->
       <template #item.actions="{ item }">
         <v-btn
+          v-if="canView"
           icon
           variant="text"
           size="small"
@@ -120,29 +123,32 @@
           <v-icon>mdi-eye</v-icon>
         </v-btn>
         <v-btn
+          v-if="canEdit && (item as ExtendedUser)?.id !== authStore.user?.id"
           icon
           variant="text"
           size="small"
-          :color="(item as ExtendedUser)?.id === authStore.user?.id ? 'grey' : 'primary'"
-          @click.stop="(item as ExtendedUser)?.id === authStore.user?.id ? null : openDialog(item as ExtendedUser)"
+          color="primary"
+          @click.stop="openDialog(item as ExtendedUser)"
         >
           <v-icon>mdi-pencil</v-icon>
         </v-btn>
         <v-btn
+          v-if="canCreateDelete && (item as ExtendedUser)?.id !== authStore.user?.id"
           icon
           variant="text"
           size="small"
-          :color="(item as ExtendedUser)?.id === authStore.user?.id ? 'grey' : 'warning'"
-          @click.stop="(item as ExtendedUser)?.id === authStore.user?.id ? null : toggleStatus(item as ExtendedUser)"
+          color="warning"
+          @click.stop="toggleStatus(item as ExtendedUser)"
         >
           <v-icon>{{ (item as ExtendedUser).is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
         </v-btn>
         <v-btn
+          v-if="canCreateDelete && (item as ExtendedUser)?.id !== authStore.user?.id"
           icon
           variant="text"
           size="small"
-          :color="(item as ExtendedUser)?.id === authStore.user?.id ? 'grey' : 'error'"
-          @click.stop="(item as ExtendedUser)?.id === authStore.user?.id ? null : confirmDelete(item as ExtendedUser)"
+          color="error"
+          @click.stop="confirmDelete(item as ExtendedUser)"
         >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
@@ -255,7 +261,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { usersApi, organizationsApi } from '@/services/api'
 import type { User, UserRequest, Organization } from '@/types/api'
 import { RoleEnum, ScanPreferenceEnum } from '@/types/api'
@@ -341,6 +347,49 @@ const roles = [
 // Méthodes
 const router = useRouter()
 const { dialogState } = useConfirmDialog()
+
+// Computed properties pour les permissions
+const canCreateDelete = computed(() => {
+  const role = authStore.user?.role
+  return role === RoleEnum.SUPER_ADMIN || role === RoleEnum.ADMIN
+})
+
+const canEdit = computed(() => {
+  const role = authStore.user?.role
+  return role === RoleEnum.SUPER_ADMIN || role === RoleEnum.ADMIN || role === RoleEnum.MANAGER
+})
+
+const canView = computed(() => {
+  const role = authStore.user?.role
+  return role === RoleEnum.SUPER_ADMIN || role === RoleEnum.ADMIN || role === RoleEnum.MANAGER
+})
+
+// Filtrer les utilisateurs selon les permissions
+const filteredUsers = computed(() => {
+  const user = authStore.user
+  if (!user) return []
+  
+  return users.value.filter(u => {
+    // Super Admin voit tout
+    if (user.role === RoleEnum.SUPER_ADMIN) return true
+    
+    // Admin voit les utilisateurs de ses organisations
+    if (user.role === RoleEnum.ADMIN) {
+      return u.organizations.some(org => 
+        user.organizations.some(userOrg => userOrg.id === org.id)
+      )
+    }
+    
+    // Manager voit uniquement les utilisateurs de son organisation
+    if (user.role === RoleEnum.MANAGER) {
+      return u.organizations.some(org => 
+        user.organizations.some(userOrg => userOrg.id === org.id)
+      )
+    }
+    
+    return false
+  })
+})
 
 const handleRowClick = (event: any, { item }: any) => {
   if (item?.id) {

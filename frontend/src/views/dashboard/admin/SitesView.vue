@@ -9,6 +9,7 @@
     <!-- Actions -->
     <template #actions>
       <v-btn
+        v-if="canCreateDelete"
         color="primary"
         prepend-icon="mdi-plus"
         @click="openDialog()"
@@ -37,7 +38,7 @@
     <v-data-table
       v-model:page="page"
       :headers="headers"
-      :items="sites"
+      :items="filteredSites"
       :loading="loading"
       :items-per-page="itemsPerPage"
       :items-length="totalItems"
@@ -77,6 +78,7 @@
           <v-icon>mdi-eye</v-icon>
         </v-btn>
         <v-btn
+          v-if="canEdit"
           icon
           variant="text"
           size="small"
@@ -86,6 +88,7 @@
           <v-icon>mdi-pencil</v-icon>
         </v-btn>
         <v-btn
+          v-if="canCreateDelete"
           icon
           variant="text"
           size="small"
@@ -95,6 +98,7 @@
           <v-icon>{{ item.is_active ? 'mdi-domain-off' : 'mdi-domain' }}</v-icon>
         </v-btn>
         <v-btn
+          v-if="canCreateDelete"
           icon
           variant="text"
           size="small"
@@ -225,7 +229,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { sitesApi, organizationsApi, usersApi } from '@/services/api'
 import type { Site, Organization } from '@/services/api'
@@ -236,6 +240,8 @@ import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useConfirmDialog } from '@/utils/dialogs'
 import type { DialogState } from '@/utils/dialogs'
+import { useAuthStore } from '@/stores/auth'
+import { RoleEnum } from '@/types/api'
 
 const props = defineProps({
   editId: {
@@ -268,8 +274,17 @@ interface EditedSite {
   geolocation_radius: number
   allow_offline_mode: boolean
   max_offline_duration: number
+  late_margin: number
+  early_departure_margin: number
+  ambiguous_margin: number
   is_active: boolean
   alert_emails: string
+}
+
+interface ApiError {
+  response?: {
+    data: Record<string, string[]>
+  }
 }
 
 // État
@@ -287,7 +302,7 @@ const defaultSiteValues = {
   city: '',
   country: 'France',
   organization: undefined,
-  manager: null,
+  manager: undefined,
   require_geolocation: true,
   geolocation_radius: 100,
   allow_offline_mode: true,
@@ -297,9 +312,9 @@ const defaultSiteValues = {
   ambiguous_margin: 20,
   is_active: true,
   alert_emails: ''
-}
+} as EditedSite
 
-const editedItem = ref({ ...defaultSiteValues })
+const editedItem = ref<EditedSite>({ ...defaultSiteValues })
 const form = ref()
 
 // Filtres
@@ -402,7 +417,7 @@ const openDialog = async (item?: Site) => {
           ...defaultSiteValues,
           ...item,
           organization: item.organization,
-          manager: null // On met temporairement le manager à null pendant le chargement
+          manager: undefined // On met temporairement le manager à undefined pendant le chargement
         }
         await loadManagers()
       }
@@ -412,7 +427,7 @@ const openDialog = async (item?: Site) => {
         ...defaultSiteValues,
         ...item,
         organization: item.organization || undefined,
-        manager: item.manager || null
+        manager: item.manager || undefined
       }
     } else {
       editedItem.value = { ...defaultSiteValues }
@@ -465,12 +480,13 @@ const saveSite = async () => {
     await loadSites()
     dashboardView.value.showForm = false
   } catch (error) {
-    console.error('[Sites][Error] Erreur lors de la sauvegarde:', error)
-    console.error('[Sites][Error] Détails de la réponse:', error.response?.data)
+    const apiError = error as ApiError
+    console.error('[Sites][Error] Erreur lors de la sauvegarde:', apiError)
+    console.error('[Sites][Error] Détails de la réponse:', apiError.response?.data)
     
     // Afficher les erreurs de validation si présentes
-    if (error.response?.data) {
-      const errors = error.response.data
+    if (apiError.response?.data) {
+      const errors = apiError.response.data
       Object.keys(errors).forEach(field => {
         const messages = errors[field]
         if (Array.isArray(messages)) {
@@ -587,6 +603,42 @@ watch(() => editedItem.value.organization, async (newOrgId, oldOrgId) => {
   } else {
     managers.value = []
   }
+})
+
+const authStore = useAuthStore()
+
+// Computed properties pour les permissions
+const canCreateDelete = computed(() => {
+  const role = authStore.user?.role
+  return role === RoleEnum.SUPER_ADMIN || role === RoleEnum.ADMIN
+})
+
+const canEdit = computed(() => {
+  const role = authStore.user?.role
+  return role === RoleEnum.SUPER_ADMIN || role === RoleEnum.ADMIN || role === RoleEnum.MANAGER
+})
+
+// Filtrer les sites selon les permissions
+const filteredSites = computed(() => {
+  const user = authStore.user
+  if (!user) return []
+  
+  return sites.value.filter(site => {
+    // Super Admin voit tout
+    if (user.role === RoleEnum.SUPER_ADMIN) return true
+    
+    // Admin et Manager voient les sites de leurs organisations
+    if (user.role === RoleEnum.ADMIN || user.role === RoleEnum.MANAGER) {
+      return user.organizations.some(org => org.id === site.organization)
+    }
+    
+    // Employé voit les sites auxquels il est rattaché
+    if (user.role === RoleEnum.EMPLOYEE) {
+      return user.sites?.some(s => s.id === site.id) ?? false
+    }
+    
+    return false
+  })
 })
 </script>
 

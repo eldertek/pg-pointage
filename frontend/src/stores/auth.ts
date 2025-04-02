@@ -36,6 +36,10 @@ interface User {
     name: string;
     is_active: boolean;
   }[];
+  sites?: {
+    id: number;
+    name: string;
+  }[];
 }
 
 interface AuthState {

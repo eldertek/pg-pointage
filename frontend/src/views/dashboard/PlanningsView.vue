@@ -9,6 +9,7 @@
     <!-- Actions -->
     <template #actions>
       <v-btn
+        v-if="canCreateDelete"
         color="primary"
         prepend-icon="mdi-plus"
         @click="openDialog()"
@@ -51,7 +52,7 @@
     <v-data-table
       v-model:page="page"
       :headers="headers"
-      :items="schedules"
+      :items="filteredSchedules"
       :loading="loading"
       :items-per-page="itemsPerPage"
       :items-length="totalItems"
@@ -109,7 +110,6 @@
       <!-- Actions -->
       <template #item.actions="{ item }">
         <v-btn
-          v-tooltip="'Voir les détails'"
           icon
           variant="text"
           size="small"
@@ -120,7 +120,7 @@
           <v-icon>mdi-eye</v-icon>
         </v-btn>
         <v-btn
-          v-tooltip="'Modifier'"
+          v-if="canEdit"
           icon
           variant="text"
           size="small"
@@ -130,7 +130,7 @@
           <v-icon>mdi-pencil</v-icon>
         </v-btn>
         <v-btn
-          v-tooltip="item.is_active ? 'Désactiver' : 'Activer'"
+          v-if="canCreateDelete"
           icon
           variant="text"
           size="small"
@@ -140,7 +140,7 @@
           <v-icon>{{ item.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
         </v-btn>
         <v-btn
-          v-tooltip="'Supprimer'"
+          v-if="canCreateDelete"
           icon
           variant="text"
           size="small"
@@ -202,9 +202,9 @@
               density="comfortable"
               variant="outlined"
             >
-              <template #chip="{ props, item }">
+              <template #chip="{ props: chipProps, item }">
                 <v-chip
-                  v-bind="props"
+                  v-bind="chipProps"
                   :text="item.raw.employee_name"
                   color="primary"
                   variant="outlined"
@@ -309,11 +309,11 @@
                               :close-on-content-click="false"
                               location="bottom"
                             >
-                              <template #activator="{ props }">
+                              <template #activator="{ props: startTime1Props }">
                                 <v-text-field
                                   v-model="detail.start_time_1"
                                   label="Début"
-                                  v-bind="props"
+                                  v-bind="startTime1Props"
                                   density="comfortable"
                                   variant="outlined"
                                   color="primary"
@@ -339,11 +339,11 @@
                               :close-on-content-click="false"
                               location="bottom"
                             >
-                              <template #activator="{ props }">
+                              <template #activator="{ props: endTime1Props }">
                                 <v-text-field
                                   v-model="detail.end_time_1"
                                   label="Fin"
-                                  v-bind="props"
+                                  v-bind="endTime1Props"
                                   density="comfortable"
                                   variant="outlined"
                                   color="primary"
@@ -377,11 +377,11 @@
                               :close-on-content-click="false"
                               location="bottom"
                             >
-                              <template #activator="{ props }">
+                              <template #activator="{ props: startTime2Props }">
                                 <v-text-field
                                   v-model="detail.start_time_2"
                                   label="Début"
-                                  v-bind="props"
+                                  v-bind="startTime2Props"
                                   density="comfortable"
                                   variant="outlined"
                                   color="primary"
@@ -407,11 +407,11 @@
                               :close-on-content-click="false"
                               location="bottom"
                             >
-                              <template #activator="{ props }">
+                              <template #activator="{ props: endTime2Props }">
                                 <v-text-field
                                   v-model="detail.end_time_2"
                                   label="Fin"
-                                  v-bind="props"
+                                  v-bind="endTime2Props"
                                   density="comfortable"
                                   variant="outlined"
                                   color="primary"
@@ -458,10 +458,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { sitesApi, schedulesApi, usersApi } from '@/services/api'
-import type { Site, Employee } from '@/services/api'
-import type { Schedule as BaseSchedule, ScheduleDetail as BaseScheduleDetail } from '@/types/api'
+import { useRouter } from 'vue-router'
+import { sitesApi, schedulesApi } from '@/services/api'
+import type { Site } from '@/services/api'
+import type { Schedule as BaseSchedule, Employee } from '@/types/api'
 import { ScheduleTypeEnum, DayTypeEnum, DayOfWeekEnum, RoleEnum } from '@/types/api'
 import { useAuthStore } from '@/stores/auth'
 import DashboardView from '@/components/dashboard/DashboardView.vue'
@@ -469,20 +469,11 @@ import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { VTimePicker } from 'vuetify/labs/VTimePicker'
-import { fr } from 'vuetify/locale'
 import { useConfirmDialog } from '@/utils/dialogs'
 import type { DialogState } from '@/utils/dialogs'
 
 // Configuration de la locale pour Vuetify
-const locale = {
-  ...fr,
-  timePicker: {
-    ...fr.timePicker,
-    select: 'Sélectionner l\'heure'
-  }
-}
 
-const route = useRoute()
 const router = useRouter()
 const { dialogState } = useConfirmDialog()
 
@@ -556,7 +547,17 @@ interface ScheduleFormData {
 }
 
 const authStore = useAuthStore()
-const isSuperAdmin = computed(() => authStore.user?.role === RoleEnum.SUPER_ADMIN)
+
+// Computed properties pour les permissions
+const canCreateDelete = computed(() => {
+  const role = authStore.user?.role
+  return role === RoleEnum.SUPER_ADMIN || role === RoleEnum.ADMIN
+})
+
+const canEdit = computed(() => {
+  const role = authStore.user?.role
+  return role === RoleEnum.SUPER_ADMIN || role === RoleEnum.ADMIN || role === RoleEnum.MANAGER
+})
 
 // État
 const loading = ref(false)
@@ -604,6 +605,32 @@ const scheduleTypes = [
   { title: 'Fixe', value: ScheduleTypeEnum.FIXED },
   { title: 'Fréquence', value: ScheduleTypeEnum.FREQUENCY }
 ]
+
+// Filtrer les plannings selon les permissions
+const filteredSchedules = computed(() => {
+  const user = authStore.user
+  if (!user) return []
+  
+  return schedules.value.filter(schedule => {
+    // Super Admin voit tout
+    if (user.role === RoleEnum.SUPER_ADMIN) return true
+    
+    // Admin et Manager voient les plannings de leurs organisations
+    if (user.role === RoleEnum.ADMIN || user.role === RoleEnum.MANAGER) {
+      return user.organizations.some(org => {
+        const site = sites.value.find(s => s.id === schedule.site)
+        return site?.organization === org.id
+      })
+    }
+    
+    // Employé voit les plannings des sites auxquels il est rattaché
+    if (user.role === RoleEnum.EMPLOYEE) {
+      return user.sites?.some(s => s.id === schedule.site) ?? false
+    }
+    
+    return false
+  })
+})
 
 // Fonction de garde de type pour vérifier qu'un siteId est valide
 function isValidSiteId(siteId: number | string | undefined): siteId is number {
@@ -714,13 +741,14 @@ const loadEmployees = async (siteId: number | string | undefined) => {
       return
     }
 
-    // Utiliser la méthode dédiée pour récupérer les employés disponibles du site
     const response = await schedulesApi.getAvailableEmployeesForSite(numericSiteId)
-    employees.value = response.data.results.map(employee => ({
+    employees.value = response.data.results.map((employee: any) => ({
       id: employee.id,
-      employee_name: `${employee.first_name} ${employee.last_name}`,
-      employee: employee.id,
-      organization: employee.organizations[0] // On prend la première organisation car c'est celle du site
+      first_name: employee.first_name,
+      last_name: employee.last_name,
+      email: employee.email,
+      organization: employee.organization,
+      employee_name: `${employee.first_name} ${employee.last_name}`
     }))
 
     console.log('[Plannings][LoadEmployees] Employés chargés:', JSON.stringify(employees.value, null, 2))
@@ -977,7 +1005,7 @@ const validateTimeRange = (startTime: string, endTime: string): boolean => {
   return startTime < endTime
 }
 
-const validateDaySequence = (morningStart: string | undefined, morningEnd: string | undefined, afternoonStart: string | undefined, afternoonEnd: string | undefined): boolean => {
+const validateDaySequence = (morningStart: string | undefined, morningEnd: string | undefined, afternoonStart: string | undefined): boolean => {
   if (!morningEnd || !afternoonStart) return true
   return morningEnd < afternoonStart
 }
@@ -999,7 +1027,7 @@ const getTimeError = (detail: ExtendedScheduleDetail): string | null => {
   
   // Pour une journée complète, vérifier que les horaires de l'après-midi sont après ceux du matin
   if (detail.day_type === DayTypeEnum.FULL && detail.end_time_1 && detail.start_time_2) {
-    if (!validateDaySequence(detail.start_time_1, detail.end_time_1, detail.start_time_2, detail.end_time_2)) {
+    if (!validateDaySequence(detail.start_time_1, detail.end_time_1, detail.start_time_2)) {
       return "Les horaires de l'après-midi doivent être après ceux du matin"
     }
   }
@@ -1038,12 +1066,18 @@ onMounted(async () => {
       console.log('[Plannings][Mount] Planning non trouvé dans la liste, chargement direct...')
       try {
         // Utiliser le site_id si disponible dans le planning trouvé
-        const schedule = schedules.value.find(s => s.id === Number(props.editId))
-        if (schedule?.site) {
-          const response = await schedulesApi.getSiteSchedule(schedule.site, Number(props.editId))
-          console.log('[Plannings][Mount] Planning chargé:', response.data)
-          openDialog(response.data)
+        const response = await schedulesApi.getSchedule(Number(props.editId))
+        const extendedSchedule = {
+          ...response.data,
+          schedule_type: response.data.schedule_type as ScheduleTypeEnum,
+          assigned_employees: response.data.assigned_employees?.map((emp: any) => ({
+            ...emp,
+            schedule: response.data.id,
+            site: response.data.site
+          })) || []
         }
+        console.log('[Plannings][Mount] Planning chargé:', extendedSchedule)
+        openDialog(extendedSchedule)
       } catch (error) {
         console.error('[Plannings][Error] Erreur lors du chargement du planning:', error)
       }

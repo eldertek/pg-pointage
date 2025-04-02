@@ -4,8 +4,10 @@ from sites.models import Site
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
 from django.utils import timezone
+from core.mixins import OrganizationPermissionMixin, RolePermissionMixin, SitePermissionMixin
+from users.models import User
 
-class TimesheetSerializer(serializers.ModelSerializer):
+class TimesheetSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, SitePermissionMixin):
     """Serializer pour les pointages"""
     employee_name = serializers.SerializerMethodField()
     site_name = serializers.SerializerMethodField()
@@ -21,6 +23,29 @@ class TimesheetSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
     
+    def validate(self, data):
+        user = self.context['request'].user
+        
+        # Vérifier l'accès au site
+        if 'site' in data:
+            self.validate_site(data['site'])
+        
+        # Seuls les managers et admins peuvent modifier les pointages d'autres employés
+        if 'employee' in data and data['employee'].id != user.id:
+            if not (user.is_super_admin or user.is_admin or user.is_manager):
+                raise serializers.ValidationError({
+                    "employee": "Vous ne pouvez pas modifier les pointages d'autres employés"
+                })
+            
+            # Les managers ne peuvent modifier que les pointages des employés de leurs sites
+            if user.is_manager:
+                if not user.organizations.filter(sites__employees=data['employee']).exists():
+                    raise serializers.ValidationError({
+                        "employee": "Vous ne pouvez pas modifier les pointages de cet employé"
+                    })
+        
+        return data
+    
     @extend_schema_field(OpenApiTypes.STR)
     def get_employee_name(self, obj) -> str:
         if not obj.employee:
@@ -31,7 +56,7 @@ class TimesheetSerializer(serializers.ModelSerializer):
     def get_site_name(self, obj) -> str:
         return obj.site.name if obj.site else ''
 
-class TimesheetCreateSerializer(serializers.ModelSerializer):
+class TimesheetCreateSerializer(serializers.ModelSerializer, SitePermissionMixin):
     """Serializer pour la création de pointages"""
     site_id = serializers.CharField(write_only=True)
     latitude = serializers.DecimalField(max_digits=12, decimal_places=10, required=False, allow_null=True)
@@ -47,7 +72,10 @@ class TimesheetCreateSerializer(serializers.ModelSerializer):
     
     def validate_site_id(self, value):
         try:
-            return Site.objects.get(nfc_id=value)
+            site = Site.objects.get(nfc_id=value)
+            # Vérifier que l'utilisateur a accès à ce site
+            self.validate_site(site)
+            return site
         except Site.DoesNotExist:
             raise serializers.ValidationError("Site introuvable avec cet ID NFC/QR Code.")
     
@@ -56,6 +84,14 @@ class TimesheetCreateSerializer(serializers.ModelSerializer):
         employee = self.context['request'].user
         today = timezone.now().date()
         
+        # Vérifier que l'employé est actif
+        if not employee.is_active:
+            raise serializers.ValidationError("Votre compte est inactif.")
+        
+        # Vérifier que l'employé est rattaché au site
+        if not employee.organizations.filter(sites=site).exists():
+            raise serializers.ValidationError("Vous n'êtes pas autorisé à pointer sur ce site.")
+        
         # Déterminer automatiquement le type d'entrée
         last_timesheet = Timesheet.objects.filter(
             employee=employee,
@@ -63,8 +99,6 @@ class TimesheetCreateSerializer(serializers.ModelSerializer):
             timestamp__date=today
         ).order_by('-timestamp').first()
         
-        # Si pas de pointage aujourd'hui ou dernier pointage = départ -> arrivée
-        # Si dernier pointage = arrivée -> départ
         entry_type = Timesheet.EntryType.ARRIVAL
         message = "Premier pointage de la journée enregistré comme une arrivée."
         
@@ -78,29 +112,8 @@ class TimesheetCreateSerializer(serializers.ModelSerializer):
         attrs['entry_type'] = entry_type
         attrs['message'] = message
         return attrs
-    
-    def create(self, validated_data):
-        site = validated_data.pop('site_id')
-        message = validated_data.pop('message')
-        employee = self.context['request'].user
-        
-        # Arrondir les coordonnées GPS à 10 décimales
-        if 'latitude' in validated_data:
-            validated_data['latitude'] = round(float(validated_data['latitude']), 10)
-        if 'longitude' in validated_data:
-            validated_data['longitude'] = round(float(validated_data['longitude']), 10)
-        
-        timesheet = Timesheet.objects.create(
-            employee=employee,
-            site=site,
-            **validated_data
-        )
-        
-        # Ajouter le message à la réponse
-        timesheet.message = message
-        return timesheet
 
-class AnomalySerializer(serializers.ModelSerializer):
+class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin, SitePermissionMixin):
     """Serializer pour les anomalies"""
     employee_name = serializers.SerializerMethodField()
     site_name = serializers.SerializerMethodField()
@@ -113,6 +126,28 @@ class AnomalySerializer(serializers.ModelSerializer):
                  'anomaly_type', 'anomaly_type_display', 'status', 'status_display',
                  'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
+    
+    def validate(self, data):
+        user = self.context['request'].user
+        
+        # Vérifier l'accès au site
+        if 'site' in data:
+            self.validate_site(data['site'])
+        
+        # Seuls les managers et admins peuvent modifier le statut des anomalies
+        if 'status' in data and not (user.is_super_admin or user.is_admin or user.is_manager):
+            raise serializers.ValidationError({
+                "status": "Vous n'avez pas les droits pour modifier le statut d'une anomalie"
+            })
+        
+        # Les managers ne peuvent gérer que les anomalies de leurs sites
+        if user.is_manager:
+            if 'site' in data and not user.organizations.filter(sites=data['site']).exists():
+                raise serializers.ValidationError({
+                    "site": "Vous ne pouvez pas gérer les anomalies de ce site"
+                })
+        
+        return data
     
     @extend_schema_field(OpenApiTypes.STR)
     def get_employee_name(self, obj) -> str:
@@ -130,7 +165,7 @@ class AnomalySerializer(serializers.ModelSerializer):
     def get_status_display(self, obj) -> str:
         return obj.get_status_display()
 
-class EmployeeReportSerializer(serializers.ModelSerializer):
+class EmployeeReportSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, SitePermissionMixin):
     """Serializer pour les rapports d'employés"""
     employee_name = serializers.SerializerMethodField()
     site_name = serializers.SerializerMethodField()
@@ -139,6 +174,26 @@ class EmployeeReportSerializer(serializers.ModelSerializer):
         model = EmployeeReport
         fields = '__all__'
         read_only_fields = ['created_at']
+    
+    def validate(self, data):
+        user = self.context['request'].user
+        
+        # Vérifier l'accès au site
+        if 'site' in data:
+            self.validate_site(data['site'])
+        
+        # Seuls les managers et admins peuvent créer/modifier des rapports
+        if not (user.is_super_admin or user.is_admin or user.is_manager):
+            raise serializers.ValidationError("Vous n'avez pas les droits pour gérer les rapports d'employés")
+        
+        # Les managers ne peuvent gérer que les rapports de leurs sites
+        if user.is_manager:
+            if 'site' in data and not user.organizations.filter(sites=data['site']).exists():
+                raise serializers.ValidationError({
+                    "site": "Vous ne pouvez pas gérer les rapports de ce site"
+                })
+        
+        return data
     
     @extend_schema_field(OpenApiTypes.STR)
     def get_employee_name(self, obj) -> str:

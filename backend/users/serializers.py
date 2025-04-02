@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from drf_spectacular.utils import extend_schema_field
 from organizations.models import Organization
+from core.mixins import OrganizationPermissionMixin, RolePermissionMixin
+from .models import User
 
 User = get_user_model()
 
@@ -39,7 +41,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             
         return super().validate(attrs)
 
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, RolePermissionMixin):
     """Serializer pour les utilisateurs (admin)"""
     password = serializers.CharField(write_only=True, required=False)
     organizations_names = serializers.SerializerMethodField()
@@ -63,8 +65,62 @@ class UserSerializer(serializers.ModelSerializer):
     def get_organizations_names(self, obj):
         return [org.name for org in obj.organizations.all()]
 
+    def to_representation(self, instance):
+        # Filtrer les utilisateurs en fonction du rôle de l'utilisateur connecté
+        user = self.context['request'].user
+        data = super().to_representation(instance)
+
+        # Si l'utilisateur est un manager, il ne doit voir que les employés
+        if user.role == User.Role.MANAGER and instance.role != User.Role.EMPLOYEE:
+            return None
+
+        # Si l'utilisateur est un admin, il ne doit pas voir les super admin
+        if user.role == User.Role.ADMIN and instance.role == User.Role.SUPER_ADMIN:
+            return None
+
+        return data
+
+    def validate(self, data):
+        user = self.context['request'].user
+        
+        # Validation du rôle
+        if 'role' in data:
+            # Seuls les super admin et admin peuvent changer les rôles
+            if not user.is_super_admin and not user.is_admin:
+                raise serializers.ValidationError({
+                    "role": "Vous n'avez pas les droits pour modifier le rôle"
+                })
+            
+            # Les admins ne peuvent pas créer de super admin
+            if data['role'] == User.Role.SUPER_ADMIN and not user.is_super_admin:
+                raise serializers.ValidationError({
+                    "role": "Seul un super admin peut créer d'autres super admin"
+                })
+
+        # Validation des organisations
+        if 'organizations' in data:
+            if user.is_super_admin:
+                return data
+            elif user.is_admin:
+                # Vérifier que les organisations sont celles de l'admin
+                if not all(org.id in user.organizations.values_list('id', flat=True) 
+                          for org in data['organizations']):
+                    raise serializers.ValidationError({
+                        "organizations": "Vous ne pouvez pas assigner des organisations auxquelles vous n'appartenez pas"
+                    })
+            else:
+                raise serializers.ValidationError({
+                    "organizations": "Vous n'avez pas les droits pour modifier les organisations"
+                })
+        
+        return data
+
     def create(self, validated_data):
-        print(f"[DEBUG] UserSerializer.create - validated_data: {validated_data}")
+        # Vérifier les permissions selon le rôle de l'utilisateur connecté
+        user = self.context['request'].user
+        if not user.is_super_admin and not user.is_admin:
+            raise serializers.ValidationError("Vous n'avez pas les droits pour créer un utilisateur")
+
         password = validated_data.pop('password', None)
         organizations = validated_data.pop('organizations', [])
         
@@ -72,21 +128,35 @@ class UserSerializer(serializers.ModelSerializer):
         validated_data['is_active'] = validated_data.get('is_active', True)
         user = User.objects.create_user(**validated_data)
         
-        # Gérer le mot de passe
         if password:
             user.set_password(password)
         
-        # Gérer les organisations
         if organizations:
-            print(f"[DEBUG] Ajout des organisations: {organizations}")
+            # Vérifier les permissions sur les organisations
+            for org in organizations:
+                self.validate_organization(org.id)
             user.organizations.set(organizations)
         
         user.save()
-        print(f"[DEBUG] Utilisateur créé: {user.username} (actif: {user.is_active}, orgs: {list(user.organizations.all())})")
         return user
 
     def update(self, instance, validated_data):
-        print(f"[DEBUG] UserSerializer.update - validated_data: {validated_data}")
+        # Vérifier les permissions selon le rôle
+        user = self.context['request'].user
+        if not user.is_super_admin:
+            if user.is_admin:
+                # Admin ne peut modifier que les utilisateurs de ses organisations
+                if not instance.organizations.filter(id__in=user.organizations.values_list('id', flat=True)).exists():
+                    raise serializers.ValidationError("Vous ne pouvez pas modifier cet utilisateur")
+            elif user.is_manager:
+                # Manager ne peut modifier que les employés de ses sites
+                if instance.role != User.Role.EMPLOYEE or not instance.organizations.filter(id__in=user.organizations.values_list('id', flat=True)).exists():
+                    raise serializers.ValidationError("Vous ne pouvez pas modifier cet utilisateur")
+            else:
+                # Les autres ne peuvent modifier que leur propre profil
+                if instance.id != user.id:
+                    raise serializers.ValidationError("Vous ne pouvez pas modifier cet utilisateur")
+
         password = validated_data.pop('password', None)
         organizations = validated_data.pop('organizations', None)
         
@@ -94,17 +164,15 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         
         if organizations is not None:
-            print(f"[DEBUG] Mise à jour des organisations: {organizations}")
+            # Vérifier les permissions sur les organisations
+            for org in organizations:
+                self.validate_organization(org.id)
             instance.organizations.set(organizations)
-        
-        if 'is_active' in validated_data:
-            print(f"[DEBUG] Mise à jour is_active: {instance.is_active} -> {validated_data['is_active']}")
         
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
         instance.save()
-        print(f"[DEBUG] Utilisateur mis à jour: {instance.username} (orgs: {list(instance.organizations.all())})")
         return instance
 
 class UserProfileSerializer(serializers.ModelSerializer):

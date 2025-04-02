@@ -2,8 +2,10 @@ from rest_framework import serializers
 from .models import Report
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.types import OpenApiTypes
+from core.mixins import OrganizationPermissionMixin, RolePermissionMixin, SitePermissionMixin
+from users.models import User
 
-class ReportSerializer(serializers.ModelSerializer):
+class ReportSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, RolePermissionMixin, SitePermissionMixin):
     """Serializer pour les rapports"""
     organization_name = serializers.SerializerMethodField()
     site_name = serializers.CharField(source='site.name', read_only=True)
@@ -22,6 +24,35 @@ class ReportSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'file', 'created_by']
     
+    def validate(self, data):
+        user = self.context['request'].user
+        
+        # Vérifier que l'utilisateur a le droit de générer des rapports
+        if user.role == User.Role.EMPLOYEE:
+            raise serializers.ValidationError("Les employés ne peuvent pas générer de rapports")
+        
+        # Vérifier l'accès à l'organisation
+        if 'organization' in data:
+            self.validate_organization(data['organization'].id)
+        
+        # Vérifier l'accès au site
+        if 'site' in data:
+            self.validate_site(data['site'])
+            
+            # Vérifier que le site appartient à l'organisation
+            if data['site'].organization != data['organization']:
+                raise serializers.ValidationError({
+                    "site": "Le site n'appartient pas à l'organisation sélectionnée"
+                })
+        
+        # Validation des dates
+        if data['end_date'] < data['start_date']:
+            raise serializers.ValidationError({
+                'end_date': 'La date de fin doit être postérieure à la date de début'
+            })
+        
+        return data
+    
     @extend_schema_field(OpenApiTypes.STR)
     def get_organization_name(self, obj) -> str:
         return obj.organization.name if obj.organization else ''
@@ -33,7 +64,7 @@ class ReportSerializer(serializers.ModelSerializer):
     def get_period(self, obj):
         return f"{obj.start_date.strftime('%d/%m/%Y')} - {obj.end_date.strftime('%d/%m/%Y')}"
 
-class ReportGenerateSerializer(serializers.Serializer):
+class ReportGenerateSerializer(serializers.Serializer, OrganizationPermissionMixin, SitePermissionMixin):
     """Serializer pour la génération de rapports"""
     name = serializers.CharField(max_length=255)
     report_type = serializers.ChoiceField(choices=Report.ReportType.choices)
@@ -43,7 +74,13 @@ class ReportGenerateSerializer(serializers.Serializer):
     site = serializers.IntegerField(required=False, allow_null=True)
 
     def validate(self, data):
-        """Validation des dates et autres champs"""
+        user = self.context['request'].user
+        
+        # Vérifier que l'utilisateur a le droit de générer des rapports
+        if user.role == User.Role.EMPLOYEE:
+            raise serializers.ValidationError("Les employés ne peuvent pas générer de rapports")
+        
+        # Validation des dates
         if data['end_date'] < data['start_date']:
             raise serializers.ValidationError({
                 'end_date': 'La date de fin doit être postérieure à la date de début'
@@ -53,7 +90,10 @@ class ReportGenerateSerializer(serializers.Serializer):
         site = data.get('site')
         if site is not None:
             from sites.models import Site
-            if not Site.objects.filter(id=site).exists():
+            try:
+                site_obj = Site.objects.get(id=site)
+                self.validate_site(site_obj)
+            except Site.DoesNotExist:
                 raise serializers.ValidationError({
                     'site': 'Site invalide'
                 })
