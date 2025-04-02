@@ -109,7 +109,7 @@
     >
       {{ snackbar.text }}
       
-      <template v-slot:actions>
+      <template #actions>
         <v-btn
           color="white"
           variant="text"
