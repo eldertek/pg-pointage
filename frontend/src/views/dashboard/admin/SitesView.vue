@@ -76,6 +76,7 @@
           @click.stop
         >
           <v-icon>mdi-eye</v-icon>
+          <v-tooltip activator="parent">Voir les détails</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canEdit"
@@ -86,6 +87,7 @@
           @click.stop="openDialog(item)"
         >
           <v-icon>mdi-pencil</v-icon>
+          <v-tooltip activator="parent">Modifier</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canCreateDelete"
@@ -96,6 +98,7 @@
           @click.stop="toggleSiteStatus(item)"
         >
           <v-icon>{{ item.is_active ? 'mdi-domain-off' : 'mdi-domain' }}</v-icon>
+          <v-tooltip activator="parent">{{ item.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canCreateDelete"
@@ -106,6 +109,7 @@
           @click.stop="confirmDelete(item)"
         >
           <v-icon>mdi-delete</v-icon>
+          <v-tooltip activator="parent">Supprimer</v-tooltip>
         </v-btn>
       </template>
     </v-data-table>
@@ -623,13 +627,34 @@ const filteredSites = computed(() => {
   const user = authStore.user
   if (!user) return []
   
-  return sites.value.filter(site => {
+  console.log('[Sites][Filter] User:', {
+    id: user.id,
+    role: user.role,
+    organizations: user.organizations
+  })
+  
+  console.log('[Sites][Filter] Sites avant filtrage:', sites.value)
+  
+  const filtered = sites.value.filter(site => {
     // Super Admin voit tout
     if (user.role === RoleEnum.SUPER_ADMIN) return true
     
     // Admin et Manager voient les sites de leurs organisations
     if (user.role === RoleEnum.ADMIN || user.role === RoleEnum.MANAGER) {
-      return user.organizations.some(org => org.id === site.organization)
+      // Convertir les IDs en nombres pour la comparaison
+      const userOrgIds = user.organizations?.map(org => Number(org)) ?? []
+      const siteOrgId = Number(site.organization)
+      
+      const hasAccess = userOrgIds.includes(siteOrgId)
+      
+      console.log('[Sites][Filter] Vérification accès pour le site:', {
+        siteId: site.id,
+        siteName: site.name,
+        siteOrg: siteOrgId,
+        userOrgs: userOrgIds,
+        hasAccess
+      })
+      return hasAccess
     }
     
     // Employé voit les sites auxquels il est rattaché
@@ -639,6 +664,9 @@ const filteredSites = computed(() => {
     
     return false
   })
+  
+  console.log('[Sites][Filter] Sites après filtrage:', filtered)
+  return filtered
 })
 </script>
 

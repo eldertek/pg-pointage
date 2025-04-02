@@ -611,16 +611,38 @@ const filteredSchedules = computed(() => {
   const user = authStore.user
   if (!user) return []
   
-  return schedules.value.filter(schedule => {
+  console.log('[Plannings][Filter] User:', {
+    id: user.id,
+    role: user.role,
+    organizations: user.organizations
+  })
+  
+  console.log('[Plannings][Filter] Plannings avant filtrage:', schedules.value)
+  
+  const filtered = schedules.value.filter(schedule => {
     // Super Admin voit tout
     if (user.role === RoleEnum.SUPER_ADMIN) return true
     
     // Admin et Manager voient les plannings de leurs organisations
     if (user.role === RoleEnum.ADMIN || user.role === RoleEnum.MANAGER) {
-      return user.organizations.some(org => {
-        const site = sites.value.find(s => s.id === schedule.site)
-        return site?.organization === org.id
+      // Convertir les IDs en nombres pour la comparaison
+      const userOrgIds = user.organizations?.map(org => Number(org)) ?? []
+      
+      // Trouver le site associé au planning
+      const site = sites.value.find(s => s.id === schedule.site)
+      if (!site) return false
+      
+      const siteOrgId = Number(site.organization)
+      const hasAccess = userOrgIds.includes(siteOrgId)
+      
+      console.log('[Plannings][Filter] Vérification accès pour le planning:', {
+        scheduleId: schedule.id,
+        siteId: schedule.site,
+        siteOrg: siteOrgId,
+        userOrgs: userOrgIds,
+        hasAccess
       })
+      return hasAccess
     }
     
     // Employé voit les plannings des sites auxquels il est rattaché
@@ -630,6 +652,9 @@ const filteredSchedules = computed(() => {
     
     return false
   })
+  
+  console.log('[Plannings][Filter] Plannings après filtrage:', filtered)
+  return filtered
 })
 
 // Fonction de garde de type pour vérifier qu'un siteId est valide
@@ -741,7 +766,7 @@ const loadEmployees = async (siteId: number | string | undefined) => {
       return
     }
 
-    const response = await schedulesApi.getAvailableEmployeesForSite(numericSiteId)
+    const response = await sitesApi.getSiteEmployees(numericSiteId, { role: 'EMPLOYEE' })
     employees.value = response.data.results.map((employee: any) => ({
       id: employee.id,
       first_name: employee.first_name,

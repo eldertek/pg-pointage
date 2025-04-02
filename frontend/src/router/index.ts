@@ -18,6 +18,7 @@ import SiteDetail from "@/views/dashboard/sites/SiteDetail.vue"
 import OrganizationDetail from "@/views/dashboard/organizations/OrganizationDetail.vue"
 import UserDetail from "@/views/dashboard/admin/UserDetail.vue"
 import Plannings from "@/views/dashboard/PlanningsView.vue"
+import PlanningDetail from "@/views/dashboard/plannings/PlanningDetail.vue"
 import Timesheets from "@/views/dashboard/Timesheets.vue"
 import Anomalies from "@/views/dashboard/Anomalies.vue"
 import Reports from "@/views/dashboard/Reports.vue"
@@ -144,6 +145,13 @@ const routes: RouteRecordRaw[] = [
         path: "plannings",
         name: "Plannings",
         component: Plannings,
+      },
+      {
+        path: "plannings/:id",
+        name: "PlanningDetail",
+        component: PlanningDetail,
+        props: { type: 'planning' },
+        meta: { section: "plannings" },
       },
       {
         path: "plannings/:id/edit",

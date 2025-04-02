@@ -48,7 +48,7 @@ export const generateStyledQRCode = async (site: {
     await new Promise<void>((resolve, reject) => {
       logo.onload = () => resolve();
       logo.onerror = (error) => reject(error);
-      logo.src = '/icons/logo.png';
+      logo.src = '/assets/logo/logo.svg';
     });
 
     // Calculer la taille du logo (20% de la taille du QR code)

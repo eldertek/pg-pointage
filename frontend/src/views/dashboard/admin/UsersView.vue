@@ -123,6 +123,7 @@
           @click.stop
         >
           <v-icon>mdi-eye</v-icon>
+          <v-tooltip activator="parent">Voir les détails</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canEdit && (item as ExtendedUser)?.id !== authStore.user?.id"
@@ -133,6 +134,7 @@
           @click.stop="openDialog(item as ExtendedUser)"
         >
           <v-icon>mdi-pencil</v-icon>
+          <v-tooltip activator="parent">Modifier</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canCreateDelete && (item as ExtendedUser)?.id !== authStore.user?.id"
@@ -143,6 +145,7 @@
           @click.stop="toggleStatus(item as ExtendedUser)"
         >
           <v-icon>{{ (item as ExtendedUser).is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+          <v-tooltip activator="parent">{{ (item as ExtendedUser).is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canCreateDelete && (item as ExtendedUser)?.id !== authStore.user?.id"
@@ -153,6 +156,7 @@
           @click.stop="confirmDelete(item as ExtendedUser)"
         >
           <v-icon>mdi-delete</v-icon>
+          <v-tooltip activator="parent">Supprimer</v-tooltip>
         </v-btn>
       </template>
     </v-data-table>
@@ -366,12 +370,35 @@ const headers = [
 ]
 
 // Rôles disponibles
-const roles = [
-  { label: 'Super Admin', value: RoleEnum.SUPER_ADMIN },
-  { label: 'Admin', value: RoleEnum.ADMIN },
-  { label: 'Manager', value: RoleEnum.MANAGER },
-  { label: 'Employé', value: RoleEnum.EMPLOYEE }
-]
+const roles = computed(() => {
+  const userRole = authStore.user?.role
+  const allRoles = [
+    { label: 'Super Admin', value: RoleEnum.SUPER_ADMIN },
+    { label: 'Admin', value: RoleEnum.ADMIN },
+    { label: 'Manager', value: RoleEnum.MANAGER },
+    { label: 'Employé', value: RoleEnum.EMPLOYEE }
+  ]
+
+  // Si l'utilisateur est super admin, il peut créer tous les types d'utilisateurs
+  if (userRole === RoleEnum.SUPER_ADMIN) {
+    return allRoles
+  }
+
+  // Si l'utilisateur est admin, il ne peut créer que des managers et des employés
+  if (userRole === RoleEnum.ADMIN) {
+    return allRoles.filter(role => 
+      role.value === RoleEnum.MANAGER || role.value === RoleEnum.EMPLOYEE
+    )
+  }
+
+  // Si l'utilisateur est manager, il ne peut créer que des employés
+  if (userRole === RoleEnum.MANAGER) {
+    return allRoles.filter(role => role.value === RoleEnum.EMPLOYEE)
+  }
+
+  // Pour les autres rôles, pas de création d'utilisateurs
+  return []
+})
 
 // Méthodes
 const router = useRouter()
@@ -627,7 +654,7 @@ const getRoleColor = (role: string): string => {
 
 const getRoleLabel = (role: string): string => {
   if (!role) return ''
-  const found = roles.find(r => r.value === role)
+  const found = roles.value.find(r => r.value === role)
   return found ? found.label : role
 }
 

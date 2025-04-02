@@ -336,3 +336,9 @@ class SiteSerializer(serializers.ModelSerializer):
             validated_data['nfc_id'] = generate_site_id(validated_data['organization'])
         return super().update(instance, validated_data)
 
+class SiteStatisticsSerializer(serializers.Serializer):
+    """Serializer pour les statistiques d'un site"""
+    total_employees = serializers.IntegerField()
+    total_hours = serializers.IntegerField()
+    anomalies = serializers.IntegerField()
+

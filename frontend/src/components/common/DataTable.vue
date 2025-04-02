@@ -50,26 +50,28 @@
           <v-icon>mdi-pencil</v-icon>
           <v-tooltip activator="parent">Modifier</v-tooltip>
         </v-btn>
-        <v-btn
-          icon
-          variant="text"
-          size="small"
-          color="warning"
-          @click.stop="$emit('toggle-status', rowItem)"
-        >
-          <v-icon>{{ rowItem.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
-          <v-tooltip activator="parent">{{ rowItem.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
-        </v-btn>
-        <v-btn
-          icon
-          variant="text"
-          size="small"
-          color="error"
-          @click.stop="$emit('delete', rowItem)"
-        >
-          <v-icon>mdi-delete</v-icon>
-          <v-tooltip activator="parent">Supprimer</v-tooltip>
-        </v-btn>
+        <template v-if="!isManager">
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="warning"
+            @click.stop="$emit('toggle-status', rowItem)"
+          >
+            <v-icon>{{ rowItem.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+            <v-tooltip activator="parent">{{ rowItem.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+          </v-btn>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="error"
+            @click.stop="$emit('delete', rowItem)"
+          >
+            <v-icon>mdi-delete</v-icon>
+            <v-tooltip activator="parent">Supprimer</v-tooltip>
+          </v-btn>
+        </template>
       </slot>
     </template>
   </v-data-table>
@@ -115,6 +117,7 @@ const props = defineProps<{
   customSlots?: TableSlot[];
   detailRoute?: string;
   editRoute?: string;
+  isManager?: boolean;
 }>()
 
 // Valeurs par défaut pour les textes

@@ -25,9 +25,18 @@ class OrganizationStatisticsSerializer(serializers.Serializer):
 
 class OrganizationListView(generics.ListCreateAPIView):
     """Vue pour lister toutes les organisations et en créer de nouvelles"""
-    queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        
+        # Super Admin voit toutes les organisations
+        if user.is_super_admin:
+            return Organization.objects.all()
+        
+        # Les autres utilisateurs ne voient que leurs organisations
+        return user.organizations.all()
 
 class OrganizationDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Vue pour afficher, modifier et supprimer une organisation"""

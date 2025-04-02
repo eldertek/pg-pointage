@@ -12,6 +12,7 @@
       <Title :level="1" class="font-weight-bold">{{ title }}</Title>
       <v-spacer></v-spacer>
       <v-btn
+        v-if="canEdit"
         color="primary"
         prepend-icon="mdi-pencil"
         class="mr-2"
@@ -20,7 +21,7 @@
         Modifier
       </v-btn>
       <v-btn
-        v-if="allowDelete"
+        v-if="canCreateDelete"
         color="error"
         prepend-icon="mdi-delete"
         @click.stop="confirmDelete"
@@ -162,6 +163,7 @@
               >
                 <template #item.actions="{ item: rowItem }">
                   <v-btn
+                    v-if="canEdit"
                     icon
                     variant="text"
                     size="small"
@@ -173,6 +175,7 @@
                     <v-tooltip activator="parent">Voir les détails</v-tooltip>
                   </v-btn>
                   <v-btn
+                    v-if="canCreateDelete"
                     icon
                     variant="text"
                     size="small"

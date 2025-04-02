@@ -352,7 +352,16 @@ const schedulesApi = {
     api.get(`/sites/${siteId}/schedules/`),
   
   // Get a single schedule by ID
-  getSchedule: (id: number): Promise<AxiosResponse<Schedule>> => api.get(`/sites/schedules/${id}/`),
+  getSchedule: (id: number): Promise<AxiosResponse<Schedule>> => 
+    api.get(`/sites/schedules/${id}/`),
+  
+  // Get schedule statistics
+  getScheduleStatistics: (id: number): Promise<AxiosResponse<any>> => 
+    api.get(`/sites/schedules/${id}/statistics/`),
+
+  // Get schedule employees
+  getScheduleEmployees: (id: number): Promise<AxiosResponse<ApiResponse<Employee>>> => 
+    api.get(`/sites/schedules/${id}/employees/`),
   
   // Create a new schedule
   createSchedule: (data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => {
@@ -373,32 +382,10 @@ const schedulesApi = {
   },
   
   // Delete a schedule
-  deleteSchedule: (id: number): Promise<AxiosResponse<void>> => api.delete(`/sites/schedules/${id}/`),
-  
-  // Get schedule details
-  getScheduleDetails: (scheduleId: number): Promise<AxiosResponse<Schedule>> => 
-    api.get(`/sites/schedules/${scheduleId}/details/`),
-  
-  // Create schedule detail
-  createScheduleDetail: (scheduleId: number, data: Partial<ScheduleDetail>): Promise<AxiosResponse<ScheduleDetail>> => 
-    api.post(`/sites/schedules/${scheduleId}/details/`, convertKeysToSnakeCase(data)),
-  
-  // Update schedule detail
-  updateScheduleDetail: (scheduleId: number, detailId: number, data: Partial<ScheduleDetail>): Promise<AxiosResponse<ScheduleDetail>> => 
-    api.put(`/sites/schedules/${scheduleId}/details/${detailId}/`, convertKeysToSnakeCase(data)),
-  
-  // Delete schedule detail
-  deleteScheduleDetail: (scheduleId: number, detailId: number): Promise<AxiosResponse<void>> => 
-    api.delete(`/sites/schedules/${scheduleId}/details/${detailId}/`),
+  deleteSchedule: (id: number): Promise<AxiosResponse<void>> => 
+    api.delete(`/sites/schedules/${id}/`),
 
   // Employee management
-  getAvailableEmployees: (): Promise<AxiosResponse<ApiResponse<Employee>>> => api.get('/users/', {
-    params: {
-      role: 'EMPLOYEE',
-      is_active: true
-    }
-  }),
-
   assignEmployee: (siteId: number, scheduleId: number, employeeId: number): Promise<AxiosResponse<void>> => 
     api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/`, { 
       site: siteId,
@@ -406,11 +393,8 @@ const schedulesApi = {
       schedule: scheduleId
     }),
 
-  unassignEmployee: (siteId: number, scheduleId: number, employeeId: number): Promise<AxiosResponse<void>> => 
-    api.delete(`/sites/${siteId}/schedules/${scheduleId}/employees/${employeeId}/`),
-
-  getScheduleEmployees: (siteId: number, scheduleId: number): Promise<AxiosResponse<ApiResponse<Employee>>> =>
-    api.get(`/sites/${siteId}/schedules/${scheduleId}/employees/`),
+  unassignEmployee: (scheduleId: number, employeeId: number): Promise<AxiosResponse<void>> => 
+    api.delete(`/sites/schedules/${scheduleId}/employees/${employeeId}/`),
 
   // Assigner plusieurs employés à un planning
   assignMultipleEmployees: (siteId: number, scheduleId: number, employeeIds: number[]): Promise<AxiosResponse<void>> => 
@@ -418,15 +402,6 @@ const schedulesApi = {
       site: siteId,
       employees: employeeIds,
       schedule: scheduleId
-    }),
-
-  // Get available employees for a site's organization
-  getAvailableEmployeesForSite: (siteId: number): Promise<AxiosResponse<ApiResponse<Employee>>> => 
-    api.get(`/sites/${siteId}/available-employees/`, {
-      params: {
-        role: 'EMPLOYEE',
-        is_active: true
-      }
     }),
 }
 

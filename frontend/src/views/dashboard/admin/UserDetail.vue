@@ -12,6 +12,7 @@
       <Title :level="1" class="font-weight-bold">{{ title }}</Title>
       <v-spacer></v-spacer>
       <v-btn
+        v-if="canEdit"
         :color="isOwnProfile ? 'grey' : 'primary'"
         prepend-icon="mdi-pencil"
         class="mr-2"
@@ -19,18 +20,17 @@
         @click.stop="editItem"
       >
         Modifier
+        <v-tooltip v-if="isOwnProfile" activator="parent">
+          Vous ne pouvez pas modifier votre propre compte
+        </v-tooltip>
       </v-btn>
       <v-btn
-        v-if="allowDelete"
-        :color="isOwnProfile ? 'grey' : 'error'"
+        v-if="canCreateDelete && !isOwnProfile"
+        color="error"
         prepend-icon="mdi-delete"
-        :disabled="isOwnProfile"
         @click.stop="confirmDelete"
       >
         Supprimer
-        <v-tooltip v-if="isOwnProfile" activator="parent">
-          Vous ne pouvez pas supprimer votre propre compte
-        </v-tooltip>
       </v-btn>
     </div>
 
@@ -151,6 +151,7 @@
                 
                 <template #item.actions="{ item: rowItem }">
                   <v-btn
+                    v-if="canEdit"
                     icon
                     variant="text"
                     size="small"
@@ -162,6 +163,7 @@
                     <v-tooltip activator="parent">Voir les détails</v-tooltip>
                   </v-btn>
                   <v-btn
+                    v-if="canCreateDelete && !isManager"
                     icon
                     variant="text"
                     size="small"
@@ -191,19 +193,20 @@
                   :headers="planningsHeaders"
                   :items="plannings"
                   :no-data-text="'Aucun planning trouvé'"
+                  :is-manager="isManager"
                   class="elevation-1"
-                  @click:row="(item) => router.push(`/dashboard/plannings/${item.id}`)"
+                  @click:row="(item: Planning) => router.push(`/dashboard/plannings/${item.id}`)"
                 >
                   <!-- Site -->
-                  <template #item.site_name="{ item }">
-                    {{ item.site_name }}
+                  <template #item.site_name="{ item: rowItem }">
+                    {{ rowItem.site_name }}
                   </template>
 
                   <!-- Employés -->
-                  <template #item.employees="{ item }">
+                  <template #item.employees="{ item: rowItem }">
                     <v-chip-group>
                       <v-chip
-                        v-for="employee in item.assigned_employees"
+                        v-for="employee in rowItem.assigned_employees"
                         :key="employee.id"
                         size="small"
                         color="primary"
@@ -212,7 +215,7 @@
                         {{ employee.employee_name }}
                       </v-chip>
                       <v-chip
-                        v-if="!item.assigned_employees?.length"
+                        v-if="!rowItem.assigned_employees?.length"
                         size="small"
                         color="grey"
                         variant="outlined"
@@ -223,23 +226,23 @@
                   </template>
 
                   <!-- Type de planning -->
-                  <template #item.schedule_type="{ item }">
+                  <template #item.schedule_type="{ item: rowItem }">
                     <v-chip
-                      :color="item.schedule_type === 'FIXED' ? 'primary' : 'secondary'"
+                      :color="rowItem.schedule_type === 'FIXED' ? 'primary' : 'secondary'"
                       size="small"
                     >
-                      {{ item.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                      {{ rowItem.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
                     </v-chip>
                   </template>
 
                   <!-- Actions -->
-                  <template #item.actions="{ item }">
+                  <template #item.actions="{ item: rowItem }">
                     <v-btn
                       icon
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="viewPlanningDetails(item)"
+                      @click.stop="viewPlanningDetails(rowItem)"
                     >
                       <v-icon>mdi-eye</v-icon>
                       <v-tooltip activator="parent">Voir les détails</v-tooltip>
@@ -249,22 +252,24 @@
                       variant="text"
                       size="small"
                       color="primary"
-                      @click.stop="navigateToPlanning(item)"
+                      @click.stop="navigateToPlanning(rowItem)"
                     >
                       <v-icon>mdi-pencil</v-icon>
                       <v-tooltip activator="parent">Modifier</v-tooltip>
                     </v-btn>
                     <v-btn
+                      v-if="canManageStatus"
                       icon
                       variant="text"
                       size="small"
                       color="warning"
                       @click.stop="confirmTogglePlanningStatus(item)"
                     >
-                      <v-icon>{{ item.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
-                      <v-tooltip activator="parent">{{ item.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+                      <v-icon>{{ rowItem.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
+                      <v-tooltip activator="parent">{{ rowItem.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
                     </v-btn>
                     <v-btn
+                      v-if="canManageStatus"
                       icon
                       variant="text"
                       size="small"
@@ -421,9 +426,16 @@ interface User {
   [key: string]: any;
 }
 
+interface Planning {
+  id: number;
+  site_name: string;
+  assigned_employees: Array<{ id: number; employee_name: string }>;
+  schedule_type: string;
+  is_active: boolean;
+}
+
 // Props
 const showBackButton = ref(true)
-const allowDelete = ref(true)
 
 // State variables
 const router = useRouter()
@@ -436,7 +448,6 @@ const loadingTabs = ref({
   anomalies: false,
   reports: false
 })
-const showDeleteDialog = ref(false)
 const item = ref<any>({})
 const statistics = ref<Array<{ label: string; value: number }>>([])
 const auth = useAuthStore()
@@ -484,10 +495,10 @@ const sitesHeaders = [
 ]
 
 const planningsHeaders = [
-  { title: 'Site', key: 'site_name', align: 'start' },
-  { title: 'Employés', key: 'employees', align: 'start' },
-  { title: 'Type', key: 'schedule_type', align: 'start' },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
+  { title: 'Site', key: 'site_name', align: 'start' as const },
+  { title: 'Employés', key: 'employees', align: 'start' as const },
+  { title: 'Type', key: 'schedule_type', align: 'start' as const },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const }
 ]
 
 const pointagesHeaders = [
@@ -547,6 +558,24 @@ const backRoute = computed(() => '/dashboard/admin/users')
 // Computed pour vérifier si c'est le profil de l'utilisateur connecté
 const isOwnProfile = computed(() => {
   return (auth.user as User)?.id === itemId.value
+})
+
+const isManager = computed(() => {
+  return auth.user?.role === 'MANAGER'
+})
+
+const canManageStatus = computed(() => {
+  return !isManager.value && (auth.user?.role === 'SUPER_ADMIN' || auth.user?.role === 'ADMIN')
+})
+
+const canEdit = computed(() => {
+  const role = auth.user?.role
+  return role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'MANAGER'
+})
+
+const canCreateDelete = computed(() => {
+  const role = auth.user?.role
+  return role === 'SUPER_ADMIN' || role === 'ADMIN'
 })
 
 const displayFields = computed((): Field[] => {
@@ -774,23 +803,8 @@ const confirmTogglePlanningStatus = (planning: any) => {
   }
 }
 
-const confirmUnassignSite = (site: any) => {
-  showConfirmDialog({
-    title: 'Retirer l\'accès au site',
-    message: `Êtes-vous sûr de vouloir retirer l'accès au site "${site.name}" pour cet utilisateur ?`,
-    confirmText: 'Retirer',
-    confirmColor: 'error',
-    onConfirm: () => unassignSiteFromUser(site)
-  })
-}
-
 const formatDate = (date: string) => {
   return format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: fr })
-}
-
-const getDayName = (dayNumber: number) => {
-  const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
-  return days[dayNumber]
 }
 
 const getPointageStatusColor = (status: string) => {
@@ -853,18 +867,6 @@ const handleDelete = async (site: any) => {
   } catch (error) {
     console.error('[UserDetail][HandleDelete] Erreur lors de la suppression:', error)
     showError('Erreur lors de la suppression du site')
-  }
-}
-
-const unassignSiteFromUser = async (site: any) => {
-  try {
-    await sitesApi.unassignEmployee(site.id, itemId.value)
-    // Retirer le site de la liste
-    sites.value = sites.value.filter((s: any) => s.id !== site.id)
-    showSuccess(`Site ${site.name} retiré avec succès`)
-  } catch (error) {
-    console.error('[UserDetail][UnassignSiteFromUser] Erreur lors du retrait du site:', error)
-    showError(`Erreur lors du retrait du site`)
   }
 }
 
