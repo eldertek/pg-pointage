@@ -761,6 +761,11 @@ const loadEmployees = async (siteId: number | string | undefined) => {
   try {
     console.log('[Plannings][LoadEmployees] Début du chargement des employés pour le site:', siteId)
     
+    // Réinitialiser la sélection des employés
+    if (editedItem.value) {
+      editedItem.value.employees = []
+    }
+    
     const numericSiteId = typeof siteId === 'string' ? Number(siteId) : siteId
     console.log('[Plannings][LoadEmployees] SiteId converti:', numericSiteId)
     
