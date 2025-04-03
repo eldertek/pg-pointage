@@ -220,6 +220,103 @@
           </v-col>
         </v-row>
 
+        <!-- Paramètres de tolérance -->
+        <v-row v-if="editedItem" class="mb-6">
+          <v-col cols="12">
+            <v-card variant="outlined" class="pa-4">
+              <v-card-title class="text-subtitle-1 mb-4">Paramètres de tolérance</v-card-title>
+              
+              <!-- Paramètres pour planning type fréquence -->
+              <template v-if="editedItem.schedule_type === ScheduleTypeEnum.FREQUENCY">
+                <v-row>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                      v-model="editedItem.frequency_tolerance_percentage"
+                      type="number"
+                      label="Marge de tolérance (%)"
+                      min="0"
+                      max="100"
+                      step="1"
+                      density="comfortable"
+                      variant="outlined"
+                      color="primary"
+                      :rules="[
+                        v => v >= 0 || 'La marge doit être positive',
+                        v => v <= 100 || 'La marge ne peut pas dépasser 100%'
+                      ]"
+                      hide-details="auto"
+                    >
+                      <template #append-inner>
+                        <span class="text-grey">%</span>
+                      </template>
+                    </v-text-field>
+                  </v-col>
+                </v-row>
+              </template>
+              
+              <!-- Paramètres pour planning type fixe -->
+              <template v-else>
+                <v-row>
+                  <v-col cols="12" sm="4">
+                    <v-text-field
+                      v-model="editedItem.late_arrival_margin"
+                      type="number"
+                      label="Marge de retard"
+                      min="0"
+                      step="1"
+                      density="comfortable"
+                      variant="outlined"
+                      color="primary"
+                      :rules="[v => v >= 0 || 'La marge doit être positive']"
+                      hide-details="auto"
+                    >
+                      <template #append-inner>
+                        <span class="text-grey">min</span>
+                      </template>
+                    </v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="4">
+                    <v-text-field
+                      v-model="editedItem.early_departure_margin"
+                      type="number"
+                      label="Marge de départ anticipé"
+                      min="0"
+                      step="1"
+                      density="comfortable"
+                      variant="outlined"
+                      color="primary"
+                      :rules="[v => v >= 0 || 'La marge doit être positive']"
+                      hide-details="auto"
+                    >
+                      <template #append-inner>
+                        <span class="text-grey">min</span>
+                      </template>
+                    </v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="4">
+                    <v-text-field
+                      v-model="editedItem.tolerance_margin"
+                      type="number"
+                      label="Marge de tolérance générale"
+                      min="0"
+                      step="1"
+                      density="comfortable"
+                      variant="outlined"
+                      color="primary"
+                      :rules="[v => v >= 0 || 'La marge doit être positive']"
+                      hide-details="auto"
+                    >
+                      <template #append-inner>
+                        <span class="text-grey">min</span>
+                      </template>
+                    </v-text-field>
+                  </v-col>
+                </v-row>
+              </template>
+            </v-card>
+          </v-col>
+        </v-row>
+
         <!-- Planning type Fréquence -->
         <template v-if="editedItem && editedItem.schedule_type === ScheduleTypeEnum.FREQUENCY">
           <v-row>
@@ -536,6 +633,12 @@ interface ExtendedSchedule extends Omit<BaseSchedule, 'details'> {
   site: number;
   details: ExtendedScheduleDetail[];
   assigned_employees?: AssignedEmployee[];
+  // Champs pour les plannings de type fréquence
+  frequency_tolerance_percentage?: number;
+  // Champs pour les plannings de type fixe
+  late_arrival_margin?: number;
+  early_departure_margin?: number;
+  tolerance_margin?: number;
 }
 
 // Interface pour le formulaire de planning
@@ -547,6 +650,12 @@ interface ScheduleFormData {
   is_active?: boolean;
   schedule_type?: ScheduleTypeEnum;
   enabled?: boolean;
+  // Champs pour les plannings de type fréquence
+  frequency_tolerance_percentage?: number;
+  // Champs pour les plannings de type fixe
+  late_arrival_margin?: number;
+  early_departure_margin?: number;
+  tolerance_margin?: number;
 }
 
 const authStore = useAuthStore()
@@ -847,7 +956,12 @@ const openDialog = (item?: ExtendedSchedule) => {
     }),
     is_active: item.is_active,
     schedule_type: item.schedule_type,
-    enabled: true
+    enabled: true,
+    // Initialisation des marges de tolérance
+    frequency_tolerance_percentage: item.frequency_tolerance_percentage,
+    late_arrival_margin: item.late_arrival_margin,
+    early_departure_margin: item.early_departure_margin,
+    tolerance_margin: item.tolerance_margin
   } : {
     site: undefined,
     employees: [],
@@ -866,7 +980,12 @@ const openDialog = (item?: ExtendedSchedule) => {
     })),
     schedule_type: ScheduleTypeEnum.FIXED,
     enabled: true,
-    is_active: true
+    is_active: true,
+    // Initialisation des marges par défaut
+    frequency_tolerance_percentage: undefined,
+    late_arrival_margin: 0,
+    early_departure_margin: 0,
+    tolerance_margin: 0
   }
 
   console.log('[Plannings][OpenDialog] Item préparé:', editedItem.value)

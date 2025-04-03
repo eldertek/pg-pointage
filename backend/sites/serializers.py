@@ -141,8 +141,32 @@ class ScheduleSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'site', 'site_name', 'schedule_type',
             'details', 'employee', 'created_at', 'updated_at', 'is_active',
-            'assigned_employees'
+            'assigned_employees', 'frequency_tolerance_percentage',
+            'late_arrival_margin', 'early_departure_margin', 'tolerance_margin'
         ]
+    
+    def validate(self, data):
+        """Validation personnalisée des données"""
+        schedule_type = data.get('schedule_type')
+        
+        if schedule_type == Schedule.ScheduleType.FIXED:
+            # Validation des marges pour les plannings fixes
+            if data.get('frequency_tolerance_percentage') is not None:
+                raise serializers.ValidationError({
+                    'frequency_tolerance_percentage': 'La marge de tolérance en pourcentage ne doit pas être définie pour un planning fixe'
+                })
+        else:
+            # Validation des marges pour les plannings fréquence
+            if any([
+                data.get('late_arrival_margin') is not None,
+                data.get('early_departure_margin') is not None,
+                data.get('tolerance_margin') is not None
+            ]):
+                raise serializers.ValidationError(
+                    'Les marges en minutes ne doivent pas être définies pour un planning fréquence'
+                )
+        
+        return data
     
     def get_assigned_employees(self, obj):
         print(f"[ScheduleSerializer][Debug] Récupération des employés assignés pour le planning {obj.id}")
