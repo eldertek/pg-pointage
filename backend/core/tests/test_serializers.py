@@ -3,7 +3,8 @@ from django.test import TestCase
 from rest_framework import serializers
 from users.models import User
 from organizations.models import Organization
-from sites.models import Site
+from sites.models import Site, Schedule, ScheduleDetail, SiteEmployee
+from sites.serializers import ScheduleSerializer
 from core.mixins import OrganizationPermissionMixin, SitePermissionMixin
 from types import SimpleNamespace
 from rest_framework.test import APIClient
@@ -552,3 +553,269 @@ class TestUserRegisterSerializerRestrictions(TestCase):
         response = self.client.post("/api/v1/users/register/", manager_data, format="json")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(User.objects.filter(username="newmanager", role=User.Role.MANAGER).count(), 1)
+
+
+class TestMultipleScheduleAssignmentTests(TestCase):
+    """Tests pour vérifier l'assignation des employés à plusieurs plannings"""
+
+    def setUp(self):
+        # Créer l'organisation
+        self.organization = Organization.objects.create(
+            name='Test Organization',
+            org_id='TST'
+        )
+        
+        # Créer un site
+        self.site = Site.objects.create(
+            name='Test Site',
+            address='123 Test St',
+            postal_code='75000',
+            city='Paris',
+            organization=self.organization,
+            nfc_id='TST-S001'
+        )
+        
+        # Créer des employés
+        self.employee1 = User.objects.create_user(
+            username='employee1',
+            email='employee1@test.com',
+            password='testpass123',
+            role=User.Role.EMPLOYEE,
+            first_name='Employee',
+            last_name='One'
+        )
+        self.employee1.organizations.add(self.organization)
+        
+        self.employee2 = User.objects.create_user(
+            username='employee2',
+            email='employee2@test.com',
+            password='testpass123',
+            role=User.Role.EMPLOYEE,
+            first_name='Employee',
+            last_name='Two'
+        )
+        self.employee2.organizations.add(self.organization)
+        
+        # Créer un admin pour les tests
+        self.admin = User.objects.create_user(
+            username='admin_test',
+            email='admin_test@test.com',
+            password='testpass123',
+            role=User.Role.ADMIN,
+            first_name='Admin',
+            last_name='Test'
+        )
+        self.admin.organizations.add(self.organization)
+        
+        # Associer les employés au site
+        SiteEmployee.objects.create(
+            site=self.site,
+            employee=self.employee1,
+            is_active=True
+        )
+        
+        SiteEmployee.objects.create(
+            site=self.site,
+            employee=self.employee2,
+            is_active=True
+        )
+        
+        # Créer deux plannings pour le site
+        self.schedule1 = Schedule.objects.create(
+            site=self.site,
+            schedule_type=Schedule.ScheduleType.FIXED,
+            is_active=True
+        )
+        
+        ScheduleDetail.objects.create(
+            schedule=self.schedule1,
+            day_of_week=0,  # Lundi
+            day_type=ScheduleDetail.DayType.FULL,
+            start_time_1='09:00:00',
+            end_time_1='12:00:00',
+            start_time_2='14:00:00',
+            end_time_2='17:00:00'
+        )
+        
+        self.schedule2 = Schedule.objects.create(
+            site=self.site,
+            schedule_type=Schedule.ScheduleType.FIXED,
+            is_active=True
+        )
+        
+        ScheduleDetail.objects.create(
+            schedule=self.schedule2,
+            day_of_week=1,  # Mardi
+            day_type=ScheduleDetail.DayType.FULL,
+            start_time_1='09:00:00',
+            end_time_1='12:00:00',
+            start_time_2='14:00:00',
+            end_time_2='17:00:00'
+        )
+
+    def test_assign_employee_to_multiple_schedules(self):
+        """Test qu'un employé peut être assigné à plusieurs plannings"""
+        # Assigner l'employé 1 au planning 1
+        serializer1 = ScheduleSerializer(
+            instance=self.schedule1,
+            data={
+                'site': self.site.id,
+                'schedule_type': 'FIXED',
+                'employees': [self.employee1.id],
+                'is_active': True
+            },
+            context={'request': SimpleNamespace(user=self.admin)}
+        )
+        
+        self.assertTrue(serializer1.is_valid(), serializer1.errors)
+        schedule1_updated = serializer1.save()
+        
+        # Vérifier que l'employé 1 est bien assigné au planning 1
+        site_employee1 = SiteEmployee.objects.filter(
+            site=self.site, 
+            employee=self.employee1,
+            schedule=self.schedule1,
+            is_active=True
+        ).first()
+        self.assertIsNotNone(site_employee1)
+        self.assertEqual(site_employee1.schedule, self.schedule1)
+        
+        # Assigner l'employé 1 au planning 2
+        serializer2 = ScheduleSerializer(
+            instance=self.schedule2,
+            data={
+                'site': self.site.id,
+                'schedule_type': 'FIXED',
+                'employees': [self.employee1.id],
+                'is_active': True
+            },
+            context={'request': SimpleNamespace(user=self.admin)}
+        )
+        
+        self.assertTrue(serializer2.is_valid(), serializer2.errors)
+        schedule2_updated = serializer2.save()
+        
+        # Vérifier que l'employé 1 est toujours assigné au planning 1
+        # et qu'une nouvelle relation a été créée pour le planning 2
+        employee1_assignments = SiteEmployee.objects.filter(
+            employee=self.employee1,
+            is_active=True
+        )
+        
+        self.assertEqual(employee1_assignments.count(), 2)
+        schedules = [assignment.schedule.id for assignment in employee1_assignments]
+        self.assertIn(self.schedule1.id, schedules)
+        self.assertIn(self.schedule2.id, schedules)
+        
+    def test_update_employees_without_removing_existing(self):
+        """Test que la mise à jour des employés d'un planning n'enlève pas les employés des autres plannings"""
+        # Assigner l'employé 1 au planning 1
+        serializer1 = ScheduleSerializer(
+            instance=self.schedule1,
+            data={
+                'site': self.site.id,
+                'schedule_type': 'FIXED',
+                'employees': [self.employee1.id],
+                'is_active': True
+            },
+            context={'request': SimpleNamespace(user=self.admin)}
+        )
+        
+        self.assertTrue(serializer1.is_valid(), serializer1.errors)
+        schedule1_updated = serializer1.save()
+        
+        # Assigner l'employé 2 au planning 2
+        serializer2 = ScheduleSerializer(
+            instance=self.schedule2,
+            data={
+                'site': self.site.id,
+                'schedule_type': 'FIXED',
+                'employees': [self.employee2.id],
+                'is_active': True
+            },
+            context={'request': SimpleNamespace(user=self.admin)}
+        )
+        
+        self.assertTrue(serializer2.is_valid(), serializer2.errors)
+        schedule2_updated = serializer2.save()
+        
+        # Mettre à jour le planning 1 pour ajouter l'employé 2
+        serializer1_update = ScheduleSerializer(
+            instance=self.schedule1,
+            data={
+                'site': self.site.id,
+                'schedule_type': 'FIXED',
+                'employees': [self.employee1.id, self.employee2.id],
+                'is_active': True
+            },
+            context={'request': SimpleNamespace(user=self.admin)}
+        )
+        
+        self.assertTrue(serializer1_update.is_valid(), serializer1_update.errors)
+        schedule1_updated = serializer1_update.save()
+        
+        # Vérifier que l'employé 2 est toujours assigné au planning 2
+        # et maintenant aussi au planning 1
+        employee2_assignments = SiteEmployee.objects.filter(
+            employee=self.employee2,
+            is_active=True
+        )
+        
+        self.assertEqual(employee2_assignments.count(), 2)
+        schedules = [assignment.schedule.id for assignment in employee2_assignments]
+        self.assertIn(self.schedule1.id, schedules)
+        self.assertIn(self.schedule2.id, schedules)
+        
+    def test_batch_assignment_preserves_existing(self):
+        """Test que l'assignation par lot préserve les assignations existantes"""
+        # Créer un client API pour tester la vue d'assignation par lot
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        
+        # Assigner l'employé 1 au planning 1
+        serializer1 = ScheduleSerializer(
+            instance=self.schedule1,
+            data={
+                'site': self.site.id,
+                'schedule_type': 'FIXED',
+                'employees': [self.employee1.id],
+                'is_active': True
+            },
+            context={'request': SimpleNamespace(user=self.admin)}
+        )
+        self.assertTrue(serializer1.is_valid(), serializer1.errors)
+        schedule1_updated = serializer1.save()
+        
+        # Vérifier que l'employé 1 est assigné au planning 1
+        site_employee1 = SiteEmployee.objects.filter(
+            site=self.site,
+            employee=self.employee1,
+            schedule=self.schedule1,
+            is_active=True
+        )
+        self.assertTrue(site_employee1.exists())
+        
+        # Assigner l'employé 2 au planning 2 via l'API
+        response = client.post(
+            f'/sites/{self.site.id}/schedules/{self.schedule2.id}/employees/',
+            {'employees': [self.employee2.id]},
+            format='json'
+        )
+        
+        # Vérifier que l'employé 1 est toujours assigné au planning 1
+        site_employee1 = SiteEmployee.objects.filter(
+            site=self.site,
+            employee=self.employee1,
+            schedule=self.schedule1,
+            is_active=True
+        )
+        self.assertTrue(site_employee1.exists())
+        
+        # Et vérifier que l'employé 2 est bien assigné au planning 2
+        site_employee2 = SiteEmployee.objects.filter(
+            site=self.site,
+            employee=self.employee2,
+            schedule=self.schedule2,
+            is_active=True
+        )
+        self.assertTrue(site_employee2.exists())

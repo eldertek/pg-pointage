@@ -419,19 +419,31 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
             print(
                 f"[SiteScheduleBatchEmployeeView][Debug] Employés trouvés dans l'organisation: {organization_employees.count()}")
 
-            for employee in organization_employees:
-                site_employee, created = SiteEmployee.objects.get_or_create(
-                    site=site,
-                    employee=employee,
-                    defaults={'is_active': True}
-                )
-                site_employee.schedule = schedule
-                site_employee.is_active = True
-                site_employee.save()
+            # Désactiver les assignations qui ne sont plus dans la liste
+            SiteEmployee.objects.filter(
+                site=site,
+                schedule=schedule
+            ).exclude(
+                employee_id__in=user_ids
+            ).update(schedule=None)
 
-                action = "créée" if created else "mise à jour"
-                print(
-                    f"[SiteScheduleBatchEmployeeView][Debug] Assignation {action} pour l'employé {employee.id} ({employee.get_full_name()})")
+            # Assigner les employés au planning
+            for employee in organization_employees:
+                from sites.serializers import create_or_update_site_employee
+                
+                site_employee, created = create_or_update_site_employee(
+                    site=site,
+                    employee_id=employee.id,
+                    schedule=schedule
+                )
+                
+                if site_employee:
+                    action = "créée" if created else "mise à jour"
+                    print(
+                        f"[SiteScheduleBatchEmployeeView][Debug] Assignation {action} pour l'employé {employee.id} ({employee.get_full_name()})")
+                else:
+                    print(
+                        f"[SiteScheduleBatchEmployeeView][Error] Erreur lors de l'assignation de l'employé {employee.id} ({employee.get_full_name()})")
 
             final_assignments = SiteEmployee.objects.filter(
                 site=site,
@@ -453,23 +465,6 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
             raise serializers.ValidationError({
                 'site': 'Site non trouvé'
             }) from exc
-        except Schedule.DoesNotExist as exc:
-            print("[SiteScheduleBatchEmployeeView][Error] Planning non trouvé")
-            raise serializers.ValidationError({
-                'error': 'Planning non trouvé'
-            }) from exc
-        except User.DoesNotExist as exc:
-            print(
-                "[SiteScheduleBatchEmployeeView][Error] Un ou plusieurs employés n'existent pas")
-            raise serializers.ValidationError({
-                'error': 'Un ou plusieurs employés n\'existent pas'
-            }) from exc
-        except (ValidationError, IntegrityError, PermissionError) as e:
-            print(
-                f"[SiteScheduleBatchEmployeeView][Error] Erreur de validation ou d'intégrité: {str(e)}")
-            return Response({
-                'error': str(e)
-            }, status=400)
 
 
 class SitePointagesView(generics.ListAPIView):

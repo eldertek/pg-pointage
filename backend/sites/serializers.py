@@ -256,18 +256,15 @@ class ScheduleSerializer(serializers.ModelSerializer):
         if employees_data:
             print(f"[ScheduleSerializer][Debug] Assignation des employés: {employees_data}")
             for employee_id in employees_data:
-                try:
-                    site_employee, _ = SiteEmployee.objects.get_or_create(
-                        site=schedule.site,
-                        employee_id=employee_id,
-                        defaults={'is_active': True}
-                    )
-                    site_employee.schedule = schedule
-                    site_employee.save()
-                    print(f"[ScheduleSerializer][Debug] Employé {employee_id} assigné au planning {schedule.id}")
-                except SiteEmployee.DoesNotExist:
-                    print(f"[ScheduleSerializer][Warning] Employé {employee_id} non trouvé ou inactif")
-                    continue
+                site_employee, created = create_or_update_site_employee(
+                    site=schedule.site,
+                    employee_id=employee_id,
+                    schedule=schedule
+                )
+                if site_employee:
+                    print(f"[ScheduleSerializer][Debug] Employé {employee_id} {'ajouté au' if created else 'mis à jour dans le'} planning {schedule.id}")
+                else:
+                    print(f"[ScheduleSerializer][Warning] Erreur lors de l'assignation de l'employé {employee_id}")
         
         return schedule
 
@@ -299,27 +296,25 @@ class ScheduleSerializer(serializers.ModelSerializer):
         if employees_data is not None:
             print(f"[ScheduleSerializer][Debug] Mise à jour des employés: {employees_data}")
             
-            # Ne plus désassigner les employés actuels
-            # SiteEmployee.objects.filter(
-            #     site=instance.site,
-            #     schedule=instance
-            # ).update(schedule=None)
+            # Désactiver les relations SiteEmployee pour ce planning qui ne sont plus dans la liste
+            SiteEmployee.objects.filter(
+                site=instance.site,
+                schedule=instance
+            ).exclude(
+                employee_id__in=employees_data
+            ).update(schedule=None)
             
-            # Assigner les nouveaux employés ou mettre à jour les existants
+            # Assigner ou mettre à jour les employés fournis
             for employee_id in employees_data:
-                try:
-                    site_employee, created = SiteEmployee.objects.get_or_create(
-                        site=instance.site,
-                        employee_id=employee_id,
-                        defaults={'is_active': True}
-                    )
-                    site_employee.schedule = instance
-                    site_employee.is_active = True
-                    site_employee.save()
+                site_employee, created = create_or_update_site_employee(
+                    site=instance.site,
+                    employee_id=employee_id,
+                    schedule=instance
+                )
+                if site_employee:
                     print(f"[ScheduleSerializer][Debug] Employé {employee_id} {'ajouté au' if created else 'mis à jour dans le'} planning {instance.id}")
-                except SiteEmployee.DoesNotExist:
-                    print(f"[ScheduleSerializer][Warning] Employé {employee_id} non trouvé ou inactif")
-                    continue
+                else:
+                    print(f"[ScheduleSerializer][Warning] Erreur lors de l'assignation de l'employé {employee_id}")
         
         return instance
 
@@ -423,4 +418,34 @@ class SiteStatisticsSerializer(serializers.Serializer):
     total_employees = serializers.IntegerField()
     total_hours = serializers.IntegerField()
     anomalies = serializers.IntegerField()
+
+def create_or_update_site_employee(site, employee_id, schedule):
+    """
+    Crée ou met à jour une relation SiteEmployee
+    """
+    try:
+        # Vérifier d'abord si la relation existe déjà avec ce planning spécifique
+        site_employee = SiteEmployee.objects.filter(
+            site=site,
+            employee_id=employee_id,
+            schedule=schedule
+        ).first()
+        
+        if site_employee:
+            # Si elle existe, on s'assure qu'elle est active
+            site_employee.is_active = True
+            site_employee.save()
+            return site_employee, False
+        
+        # Si elle n'existe pas avec ce planning, on la crée
+        site_employee = SiteEmployee.objects.create(
+            site=site,
+            employee_id=employee_id,
+            schedule=schedule,
+            is_active=True
+        )
+        return site_employee, True
+    except Exception as e:
+        print(f"[create_or_update_site_employee][Error] {str(e)}")
+        return None, False
 

@@ -349,8 +349,8 @@ class SiteEmployee(models.Model):
         verbose_name_plural = _('employés du site')
         constraints = [
             models.UniqueConstraint(
-                fields=['site', 'employee'],
-                name='unique_site_employee'
+                fields=['site', 'employee', 'schedule'],
+                name='unique_site_employee_schedule'
             )
         ]
         indexes = [
