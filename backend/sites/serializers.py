@@ -257,13 +257,14 @@ class ScheduleSerializer(serializers.ModelSerializer):
             print(f"[ScheduleSerializer][Debug] Assignation des employés: {employees_data}")
             for employee_id in employees_data:
                 try:
-                    site_employee = SiteEmployee.objects.get(
+                    site_employee, created = SiteEmployee.objects.get_or_create(
                         site=schedule.site,
                         employee_id=employee_id,
-                        is_active=True
+                        defaults={'is_active': True}
                     )
                     site_employee.schedule = schedule
                     site_employee.save()
+                    print(f"[ScheduleSerializer][Debug] Employé {employee_id} assigné au planning {schedule.id}")
                 except SiteEmployee.DoesNotExist:
                     print(f"[ScheduleSerializer][Warning] Employé {employee_id} non trouvé ou inactif")
                     continue

@@ -398,14 +398,6 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
             site = Site.objects.get(pk=site_id)
             schedule = Schedule.objects.get(pk=schedule_id, site=site)
 
-            current_assignments = SiteEmployee.objects.filter(
-                schedule=schedule)
-            print(
-                f"[SiteScheduleBatchEmployeeView][Debug] Nombre d'assignations actuelles: {current_assignments.count()}")
-            current_assignments.update(schedule=None)
-            print(
-                "[SiteScheduleBatchEmployeeView][Debug] Assignations existantes désactivées")
-
             user_ids = []
             for emp_id in employees:
                 try:
