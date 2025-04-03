@@ -129,31 +129,58 @@ class ScheduleSerializer(serializers.ModelSerializer):
     """Serializer pour les plannings"""
     details = ScheduleDetailSerializer(many=True, required=False)
     site_name = serializers.CharField(source='site.name', read_only=True)
-    employee = serializers.PrimaryKeyRelatedField(
+    employees = serializers.ListField(
+        child=serializers.IntegerField(),
         write_only=True,
-        required=False,
-        queryset=SiteEmployee.objects.all()
+        required=False
     )
     assigned_employees = serializers.SerializerMethodField()
+    assigned_employee_ids = serializers.SerializerMethodField()
     
     class Meta:
         model = Schedule
         fields = [
             'id', 'site', 'site_name', 'schedule_type',
-            'details', 'employee', 'created_at', 'updated_at', 'is_active',
-            'assigned_employees', 'frequency_tolerance_percentage',
+            'details', 'employees', 'created_at', 'updated_at', 'is_active',
+            'assigned_employees', 'assigned_employee_ids',
+            'frequency_tolerance_percentage',
             'late_arrival_margin', 'early_departure_margin', 'tolerance_margin'
         ]
+        read_only_fields = ['created_at', 'updated_at']
     
     def validate(self, data):
         """Validation personnalisée des données"""
         schedule_type = data.get('schedule_type')
+        details = data.get('details', [])
         
+        # Validation des marges selon le type de planning
         if schedule_type == Schedule.ScheduleType.FIXED:
             # Validation des marges pour les plannings fixes
             if data.get('frequency_tolerance_percentage') is not None:
                 raise serializers.ValidationError({
                     'frequency_tolerance_percentage': 'La marge de tolérance en pourcentage ne doit pas être définie pour un planning fixe'
+                })
+            
+            # Vérifier que les marges sont définies pour les plannings fixes
+            if data.get('late_arrival_margin') is None:
+                data['late_arrival_margin'] = 0
+            if data.get('early_departure_margin') is None:
+                data['early_departure_margin'] = 0
+            if data.get('tolerance_margin') is None:
+                data['tolerance_margin'] = 0
+                
+            # Validation des valeurs des marges
+            if data['late_arrival_margin'] < 0:
+                raise serializers.ValidationError({
+                    'late_arrival_margin': 'La marge de retard ne peut pas être négative'
+                })
+            if data['early_departure_margin'] < 0:
+                raise serializers.ValidationError({
+                    'early_departure_margin': 'La marge de départ anticipé ne peut pas être négative'
+                })
+            if data['tolerance_margin'] < 0:
+                raise serializers.ValidationError({
+                    'tolerance_margin': 'La marge de tolérance ne peut pas être négative'
                 })
         else:
             # Validation des marges pour les plannings fréquence
@@ -165,87 +192,131 @@ class ScheduleSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     'Les marges en minutes ne doivent pas être définies pour un planning fréquence'
                 )
+            
+            # Vérifier que la marge de tolérance est définie pour les plannings fréquence
+            if data.get('frequency_tolerance_percentage') is None:
+                data['frequency_tolerance_percentage'] = 10  # Valeur par défaut
+            
+            # Validation de la valeur de la marge
+            if not (0 <= data['frequency_tolerance_percentage'] <= 100):
+                raise serializers.ValidationError({
+                    'frequency_tolerance_percentage': 'La marge de tolérance doit être comprise entre 0 et 100%'
+                })
+        
+        # Validation des détails du planning
+        if details:
+            # Ajouter le type de planning à chaque détail
+            for detail in details:
+                detail['schedule_type'] = schedule_type
+            
+            detail_serializer = ScheduleDetailSerializer(data=details, many=True)
+            detail_serializer.is_valid(raise_exception=True)
+            data['details'] = detail_serializer.validated_data
         
         return data
     
+    def get_assigned_employee_ids(self, obj):
+        """Retourne la liste des IDs des employés assignés au planning"""
+        return [
+            se.employee.id 
+            for se in SiteEmployee.objects.filter(
+                site=obj.site,
+                schedule=obj,
+                is_active=True
+            ).select_related('employee')
+        ]
+
     def get_assigned_employees(self, obj):
-        print(f"[ScheduleSerializer][Debug] Récupération des employés assignés pour le planning {obj.id}")
         employees = SiteEmployee.objects.filter(
             site=obj.site,
             schedule=obj,
             is_active=True
         ).select_related('employee')
-        print(f"[ScheduleSerializer][Debug] Nombre d'employés trouvés: {employees.count()}")
-        for employee in employees:
-            print(f"[ScheduleSerializer][Debug] - Employé: {employee.employee.get_full_name()} (ID: {employee.employee.id})")
-        serialized_data = SiteEmployeeSerializer(employees, many=True).data
-        print(f"[ScheduleSerializer][Debug] Données sérialisées: {serialized_data}")
-        return serialized_data
+        return SiteEmployeeSerializer(employees, many=True).data
 
     def create(self, validated_data):
         print("[ScheduleSerializer][Debug] Début de la création d'un planning")
         details_data = validated_data.pop('details', [])
-        employee = validated_data.pop('employee', None)
+        employees_data = validated_data.pop('employees', [])
         
         # Créer le planning
         schedule = Schedule.objects.create(**validated_data)
         print(f"[ScheduleSerializer][Debug] Planning créé avec l'ID: {schedule.id}")
         
-        # Créer les détails du planning avec le type de planning dans le contexte
+        # Créer les détails du planning
         for detail_data in details_data:
+            # Retirer schedule_type des données avant création
+            detail_data.pop('schedule_type', None)
             ScheduleDetail.objects.create(
                 schedule=schedule,
                 **detail_data
             )
         
-        # Assigner l'employé si spécifié
-        if employee:
-            print(f"[ScheduleSerializer][Debug] Assignation de l'employé {employee.employee.id} au planning")
-            SiteEmployee.objects.filter(
-                site=schedule.site,
-                employee=employee.employee
-            ).update(schedule=schedule)
-        elif SiteEmployee.objects.filter(site=schedule.site).count() == 1:
-            print("[ScheduleSerializer][Debug] Un seul employé sur le site, assignation automatique")
-            site_employee = SiteEmployee.objects.get(site=schedule.site)
-            site_employee.schedule = schedule
-            site_employee.save()
+        # Assigner les employés au planning
+        if employees_data:
+            print(f"[ScheduleSerializer][Debug] Assignation des employés: {employees_data}")
+            for employee_id in employees_data:
+                try:
+                    site_employee = SiteEmployee.objects.get(
+                        site=schedule.site,
+                        employee_id=employee_id,
+                        is_active=True
+                    )
+                    site_employee.schedule = schedule
+                    site_employee.save()
+                except SiteEmployee.DoesNotExist:
+                    print(f"[ScheduleSerializer][Warning] Employé {employee_id} non trouvé ou inactif")
+                    continue
         
         return schedule
-    
+
     def update(self, instance, validated_data):
-        print(f"[ScheduleSerializer][Debug] Début de la mise à jour du planning {instance.id}")
+        print(f"[ScheduleSerializer][Debug] Mise à jour du planning {instance.id}")
         details_data = validated_data.pop('details', [])
-        employee = validated_data.pop('employee', None)
+        employees_data = validated_data.pop('employees', None)
         
-        # Mettre à jour le planning
+        # Mettre à jour les champs du planning
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        print("[ScheduleSerializer][Debug] Données de base du planning mises à jour")
         
-        # Mettre à jour les détails avec le type de planning dans le contexte
-        instance.details.all().delete()  # Supprimer les anciens détails
-        for detail_data in details_data:
-            ScheduleDetail.objects.create(
-                schedule=instance,
-                **detail_data
-            )
-        print("[ScheduleSerializer][Debug] Détails du planning mis à jour")
+        # Mettre à jour les détails si fournis
+        if details_data is not None:
+            # Supprimer les anciens détails
+            instance.details.all().delete()
+            
+            # Créer les nouveaux détails
+            for detail_data in details_data:
+                # Retirer schedule_type des données avant création
+                detail_data.pop('schedule_type', None)
+                ScheduleDetail.objects.create(
+                    schedule=instance,
+                    **detail_data
+                )
         
-        # Mettre à jour l'assignation de l'employé
-        if employee:
-            print(f"[ScheduleSerializer][Debug] Mise à jour de l'assignation pour l'employé {employee.employee.id}")
-            # Désassigner tous les employés de ce planning
-            SiteEmployee.objects.filter(schedule=instance).update(schedule=None)
-            # Assigner le nouvel employé
-            site_employee = SiteEmployee.objects.get(
+        # Mettre à jour les employés si fournis
+        if employees_data is not None:
+            print(f"[ScheduleSerializer][Debug] Mise à jour des employés: {employees_data}")
+            
+            # Désassigner tous les employés actuels
+            SiteEmployee.objects.filter(
                 site=instance.site,
-                employee=employee.employee
-            )
-            site_employee.schedule = instance
-            site_employee.save()
-            print("[ScheduleSerializer][Debug] Assignation mise à jour avec succès")
+                schedule=instance
+            ).update(schedule=None)
+            
+            # Assigner les nouveaux employés
+            for employee_id in employees_data:
+                try:
+                    site_employee = SiteEmployee.objects.get(
+                        site=instance.site,
+                        employee_id=employee_id,
+                        is_active=True
+                    )
+                    site_employee.schedule = instance
+                    site_employee.save()
+                except SiteEmployee.DoesNotExist:
+                    print(f"[ScheduleSerializer][Warning] Employé {employee_id} non trouvé ou inactif")
+                    continue
         
         return instance
 
@@ -254,22 +325,6 @@ class ScheduleSerializer(serializers.ModelSerializer):
         if isinstance(data.get('site'), dict) and 'id' in data['site']:
             data['site'] = data['site']['id']
         return super().to_internal_value(data)
-
-    def validate(self, attrs):
-        # Ajouter le type de planning au contexte pour la validation des détails
-        details = attrs.get('details', [])
-        schedule_type = attrs.get('schedule_type')
-        
-        if details:
-            # Ajouter le type de planning à chaque détail
-            for detail in details:
-                detail['schedule_type'] = schedule_type
-            
-            detail_serializer = ScheduleDetailSerializer(data=details, many=True)
-            detail_serializer.is_valid(raise_exception=True)
-            attrs['details'] = detail_serializer.validated_data
-        
-        return attrs
 
 class SiteSerializer(serializers.ModelSerializer):
     """Serializer pour les sites"""

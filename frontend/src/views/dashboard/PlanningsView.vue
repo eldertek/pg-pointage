@@ -615,6 +615,7 @@ interface ApiAssignedEmployee {
 interface ApiSchedule extends BaseSchedule {
   site_name: string;
   assigned_employees: ApiAssignedEmployee[];
+  assigned_employee_ids: number[];
 }
 
 // Interface pour les employés assignés dans notre composant
@@ -633,6 +634,7 @@ interface ExtendedSchedule extends Omit<BaseSchedule, 'details'> {
   site: number;
   details: ExtendedScheduleDetail[];
   assigned_employees?: AssignedEmployee[];
+  assigned_employee_ids?: number[];
   // Champs pour les plannings de type fréquence
   frequency_tolerance_percentage?: number;
   // Champs pour les plannings de type fixe
@@ -870,11 +872,6 @@ const loadEmployees = async (siteId: number | string | undefined) => {
   try {
     console.log('[Plannings][LoadEmployees] Début du chargement des employés pour le site:', siteId)
     
-    // Réinitialiser la sélection des employés
-    if (editedItem.value) {
-      editedItem.value.employees = []
-    }
-    
     const numericSiteId = typeof siteId === 'string' ? Number(siteId) : siteId
     console.log('[Plannings][LoadEmployees] SiteId converti:', numericSiteId)
     
@@ -921,7 +918,7 @@ const openDialog = (item?: ExtendedSchedule) => {
   editedItem.value = item ? {
     id: item.id,
     site: item.site,
-    employees: item.assigned_employees?.map(e => e.employee) || [],
+    employees: item.assigned_employee_ids || [],
     details: daysOfWeek.map(day => {
       // Rechercher un détail existant pour ce jour
       const existingDetail = item.details?.find(detail => detail.day_of_week === day.value)
@@ -958,10 +955,10 @@ const openDialog = (item?: ExtendedSchedule) => {
     schedule_type: item.schedule_type,
     enabled: true,
     // Initialisation des marges de tolérance
-    frequency_tolerance_percentage: item.frequency_tolerance_percentage,
-    late_arrival_margin: item.late_arrival_margin,
-    early_departure_margin: item.early_departure_margin,
-    tolerance_margin: item.tolerance_margin
+    frequency_tolerance_percentage: item.frequency_tolerance_percentage ?? 10,
+    late_arrival_margin: item.late_arrival_margin ?? 0,
+    early_departure_margin: item.early_departure_margin ?? 0,
+    tolerance_margin: item.tolerance_margin ?? 0
   } : {
     site: undefined,
     employees: [],
@@ -993,7 +990,13 @@ const openDialog = (item?: ExtendedSchedule) => {
   const currentItem = editedItem.value
   // Si un site est sélectionné, charger les employés
   if (currentItem?.site) {
-    loadEmployees(currentItem.site)
+    loadEmployees(currentItem.site).then(() => {
+      // Après le chargement des employés, vérifier que les employés sélectionnés sont toujours disponibles
+      if (currentItem.employees?.length) {
+        console.log('[Plannings][OpenDialog] Employés sélectionnés:', currentItem.employees)
+        console.log('[Plannings][OpenDialog] Employés disponibles:', employees.value)
+      }
+    })
   }
 
   if (dashboardView.value) {
@@ -1050,8 +1053,18 @@ const saveSchedule = async () => {
           schedule_type: currentItem.schedule_type
         })),
       is_active: currentItem.is_active,
-      enabled: currentItem.enabled
+      enabled: currentItem.enabled,
+      // Ajout des paramètres de tolérance selon le type de planning
+      ...(currentItem.schedule_type === ScheduleTypeEnum.FREQUENCY ? {
+        frequency_tolerance_percentage: currentItem.frequency_tolerance_percentage
+      } : {
+        late_arrival_margin: currentItem.late_arrival_margin,
+        early_departure_margin: currentItem.early_departure_margin,
+        tolerance_margin: currentItem.tolerance_margin
+      })
     }
+
+    console.log('[Plannings][Save] Données à sauvegarder:', scheduleData)
 
     let savedSchedule
     try {
