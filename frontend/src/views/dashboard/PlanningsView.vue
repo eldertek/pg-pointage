@@ -181,6 +181,7 @@
               item-title="name"
               item-value="id"
               label="Site"
+              :rules="[v => !!v || 'Le site est requis']"
               required
               density="comfortable"
               variant="outlined"
@@ -198,7 +199,9 @@
               multiple
               chips
               closable-chips
-              required
+              :disabled="!editedItem.site"
+              :hint="!editedItem.site ? 'Veuillez d\'abord sélectionner un site' : undefined"
+              :persistent-hint="!editedItem.site"
               density="comfortable"
               variant="outlined"
             >
@@ -459,7 +462,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { sitesApi, schedulesApi } from '@/services/api'
+import { sitesApi, schedulesApi, organizationsApi } from '@/services/api'
 import type { Site } from '@/services/api'
 import type { Schedule as BaseSchedule, Employee } from '@/types/api'
 import { ScheduleTypeEnum, DayTypeEnum, DayOfWeekEnum, RoleEnum } from '@/types/api'
@@ -763,10 +766,16 @@ const loadEmployees = async (siteId: number | string | undefined) => {
     
     if (!isValidSiteId(numericSiteId)) {
       console.log('[Plannings][LoadEmployees] SiteId invalide')
+      employees.value = []
       return
     }
 
-    const response = await sitesApi.getSiteEmployees(numericSiteId, { role: 'EMPLOYEE' })
+    // Récupérer d'abord le site pour avoir l'ID de l'organisation
+    const siteResponse = await sitesApi.getSite(numericSiteId)
+    const organizationId = siteResponse.data.organization
+
+    // Récupérer les employés de l'organisation
+    const response = await organizationsApi.getOrganizationEmployees(organizationId, { role: 'EMPLOYEE' })
     employees.value = response.data.results.map((employee: any) => ({
       id: employee.id,
       first_name: employee.first_name,
@@ -870,6 +879,12 @@ const openDialog = (item?: ExtendedSchedule) => {
 
 const saveSchedule = async () => {
   if (!form.value?.validate()) return
+
+  // Vérifier que le site est sélectionné
+  if (!editedItem.value?.site) {
+    alert('Veuillez sélectionner un site avant de sauvegarder')
+    return
+  }
 
   // Vérifier les horaires
   if (!editedItem.value) return

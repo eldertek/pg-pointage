@@ -190,8 +190,8 @@ export default {
   setup() {
     const authStore = useAuthStore()
     const display = useDisplay()
-    const drawer = ref(true)
-    const rail = ref(false)
+    const drawer = ref(false)
+    const rail = ref(true)
     const showLogoutDialog = ref(false)
     const isSuperAdminMode = ref(false)
     
