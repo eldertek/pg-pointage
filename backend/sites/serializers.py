@@ -257,7 +257,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
             print(f"[ScheduleSerializer][Debug] Assignation des employés: {employees_data}")
             for employee_id in employees_data:
                 try:
-                    site_employee, created = SiteEmployee.objects.get_or_create(
+                    site_employee, _ = SiteEmployee.objects.get_or_create(
                         site=schedule.site,
                         employee_id=employee_id,
                         defaults={'is_active': True}
@@ -299,22 +299,24 @@ class ScheduleSerializer(serializers.ModelSerializer):
         if employees_data is not None:
             print(f"[ScheduleSerializer][Debug] Mise à jour des employés: {employees_data}")
             
-            # Désassigner tous les employés actuels
-            SiteEmployee.objects.filter(
-                site=instance.site,
-                schedule=instance
-            ).update(schedule=None)
+            # Ne plus désassigner les employés actuels
+            # SiteEmployee.objects.filter(
+            #     site=instance.site,
+            #     schedule=instance
+            # ).update(schedule=None)
             
-            # Assigner les nouveaux employés
+            # Assigner les nouveaux employés ou mettre à jour les existants
             for employee_id in employees_data:
                 try:
-                    site_employee = SiteEmployee.objects.get(
+                    site_employee, created = SiteEmployee.objects.get_or_create(
                         site=instance.site,
                         employee_id=employee_id,
-                        is_active=True
+                        defaults={'is_active': True}
                     )
                     site_employee.schedule = instance
+                    site_employee.is_active = True
                     site_employee.save()
+                    print(f"[ScheduleSerializer][Debug] Employé {employee_id} {'ajouté au' if created else 'mis à jour dans le'} planning {instance.id}")
                 except SiteEmployee.DoesNotExist:
                     print(f"[ScheduleSerializer][Warning] Employé {employee_id} non trouvé ou inactif")
                     continue
