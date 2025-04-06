@@ -445,16 +445,7 @@ export default {
     };
     
     // Fonction pour traiter le résultat du scan
-    const handleScanResult = async (siteId, scanMethod = 'QR_CODE') => {
-      console.log('Traitement du scan pour le site:', siteId)
-      
-      // Valider le format de l'ID
-      if (!validateSiteId(siteId)) {
-        showError('Format d\'ID de site invalide')
-        scanning.value = false
-        return
-      }
-
+    const handleScanResult = async (siteId, scanMethod) => {
       try {
         // Formater les coordonnées GPS avec 10 décimales maximum
         const latitude = position.value?.coords.latitude 
@@ -485,29 +476,11 @@ export default {
           // Enregistrement réussi
           showSuccess(result.message || 'Enregistrement effectué avec succès')
         }
-      } catch (err) {
-        console.error('Erreur lors de l\'enregistrement:', err)
         
-        // Gestion des erreurs de validation du backend
-        if (err.response?.data?.detail) {
-          const detail = err.response.data.detail
-          
-          // Si c'est un objet avec des champs d'erreur
-          if (typeof detail === 'object') {
-            // Extraire les messages d'erreur
-            const messages = Object.values(detail)
-              .flat()
-              .filter(msg => msg)
-              .join('\n')
-            showError(messages)
-          } else {
-            // Si c'est une chaîne simple
-            showError(detail)
-          }
-        } else {
-          showError('Erreur lors de l\'enregistrement')
-        }
-      } finally {
+        scanning.value = false
+      } catch (error) {
+        console.error('Erreur lors de l\'enregistrement:', error)
+        showError(error.response?.data?.detail || 'Erreur lors de l\'enregistrement')
         scanning.value = false
       }
     }
