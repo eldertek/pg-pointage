@@ -316,7 +316,15 @@ export default {
           video: { 
             facingMode: 'environment',
             width: { ideal: 1280 },
-            height: { ideal: 720 }
+            height: { ideal: 720 },
+            zoom: 1,
+            focusMode: 'continuous',
+            advanced: [{
+              facingMode: 'environment',
+              zoom: { ideal: 1 },
+              focusMode: { ideal: 'continuous' },
+              resizeMode: { ideal: 'crop-and-scale' }
+            }]
           } 
         })
         const video = videoPreview.value
