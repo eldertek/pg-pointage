@@ -3,6 +3,7 @@ from django.core import mail
 from django.test import TestCase, RequestFactory
 from rest_framework.exceptions import PermissionDenied
 from users.serializers import UserSerializer
+from users.models import Organization
 
 User = get_user_model()
 
@@ -19,11 +20,13 @@ class UserSerializerTests(TestCase):
 
     def test_reset_password(self):
         """Test la réinitialisation de mot de passe"""
+        # Créer un utilisateur dans la même organisation que l'admin
         user = User.objects.create_user(
             username='testuser',
             password='oldpassword',
             email='test@example.com'
         )
+        user.organizations.add(self.request.user.organizations.first())
         
         serializer = UserSerializer(
             instance=user,
@@ -41,11 +44,14 @@ class UserSerializerTests(TestCase):
 
     def test_reset_password_without_permission(self):
         """Test la réinitialisation de mot de passe sans permission"""
+        # Créer un utilisateur dans une autre organisation
+        other_org = Organization.objects.create(name='Other Org', org_id='O002')
         user = User.objects.create_user(
             username='testuser',
             password='oldpassword',
             email='test@example.com'
         )
+        user.organizations.add(other_org)
         
         # Créer un utilisateur sans permission
         self.request.user = User.objects.create_user(
@@ -67,11 +73,13 @@ class UserSerializerTests(TestCase):
 
     def test_reset_password_sends_email(self):
         """Test que l'email est envoyé lors de la réinitialisation de mot de passe"""
+        # Créer un utilisateur dans la même organisation que l'admin
         user = User.objects.create_user(
             username='testuser',
             password='oldpassword',
             email='test@example.com'
         )
+        user.organizations.add(self.request.user.organizations.first())
         
         serializer = UserSerializer(
             instance=user,

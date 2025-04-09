@@ -805,7 +805,7 @@ class TestMultipleScheduleAssignmentTests(TestCase):
         
         # Assigner l'employé 2 au planning 2 via l'API
         response = client.post(
-            f'/api/v1/sites/{self.site.id}/schedules/{self.schedule2.id}/employees/',
+            f'/api/v1/schedules/{self.schedule2.id}/assign_employees/',
             {'employees': [self.employee2.id]},
             format='json'
         )

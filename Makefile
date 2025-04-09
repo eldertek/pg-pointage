@@ -69,6 +69,8 @@ clean:
 	find . -type d -name "node_modules" -exec rm -rf {} +
 
 tests:
-	@echo "Exécution des tests spécifiques du module core..."
-	$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test core.tests.test_views core.tests.test_permissions core.tests.test_serializers
+	@echo "Exécution des tests spécifiques..."
+	$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+		core.tests.test_views core.tests.test_permissions core.tests.test_serializers \
+		users.tests.test_permissions users.tests.test_serializers
 
