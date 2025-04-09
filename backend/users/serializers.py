@@ -48,7 +48,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, RolePermissionMixin):
     """Serializer pour les utilisateurs (admin)"""
-    password = serializers.CharField(write_only=True, required=False)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     reset_password = serializers.BooleanField(write_only=True, required=False)
     organizations_names = serializers.SerializerMethodField()
     organizations = serializers.PrimaryKeyRelatedField(

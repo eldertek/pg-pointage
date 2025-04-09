@@ -1,3 +1,16 @@
+from django.test import TestCase, RequestFactory
+from django.contrib.auth import get_user_model
+from organizations.models import Organization
+from users.permissions import HasUserPermission
+
+User = get_user_model()
+
+class UserPermissionsTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.org1 = Organization.objects.create(name='Org1', org_id='O001')
+        self.org2 = Organization.objects.create(name='Org2', org_id='O002')
+
 def test_admin_can_reset_password_of_their_organization_users(self):
     """Test qu'un admin peut réinitialiser le mot de passe des utilisateurs de son organisation"""
     admin = User.objects.create_user(

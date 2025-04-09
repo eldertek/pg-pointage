@@ -235,18 +235,44 @@
             :return-object="false"
           ></v-select>
         </v-col>
-        <!-- Champ mot de passe uniquement à la création -->
-        <v-col v-if="!(editedItem as UserFormData).id" cols="12" sm="6">
+        <!-- Champs de réinitialisation de mot de passe -->
+        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
+          <v-switch
+            v-model="(editedItem as UserFormData).simplified_mobile_view"
+            label="Vue mobile simplifiée"
+            :error-messages="formErrors.simplified_mobile_view"
+          ></v-switch>
+        </v-col>
+
+        <!-- Section de réinitialisation du mot de passe -->
+        <v-col cols="12">
+          <v-divider class="my-4"></v-divider>
+          <v-card-title class="text-subtitle-1 font-weight-medium">
+            Réinitialisation du mot de passe
+            <v-chip
+              color="grey"
+              size="small"
+              class="ml-2"
+            >
+              Optionnel
+            </v-chip>
+          </v-card-title>
+          <v-card-text class="text-caption text-grey">
+            Vous pouvez réinitialiser le mot de passe de l'utilisateur. Laissez ces champs vides si vous ne souhaitez pas modifier le mot de passe.
+          </v-card-text>
+        </v-col>
+
+        <v-col v-if="(editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).password"
-            label="Mot de passe"
+            label="Nouveau mot de passe"
             :type="showPassword ? 'text' : 'password'"
-            required
             :error-messages="formErrors.password"
             :rules="[
-              v => !!v || 'Le mot de passe est obligatoire',
-              v => (v && v.length >= 8) || 'Le mot de passe doit contenir au moins 8 caractères'
+              v => !v || v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
             ]"
+            hint="Laissez vide pour ne pas modifier le mot de passe"
+            persistent-hint
           >
             <template v-slot:append-inner>
               <v-btn
@@ -259,17 +285,17 @@
             </template>
           </v-text-field>
         </v-col>
-        <v-col v-if="!(editedItem as UserFormData).id" cols="12" sm="6">
+        <v-col v-if="(editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
           <v-text-field
             v-model="confirmPassword"
-            label="Confirmer le mot de passe"
+            label="Confirmer le nouveau mot de passe"
             :type="showConfirmPassword ? 'text' : 'password'"
-            required
             :error-messages="formErrors.confirm_password"
             :rules="[
-              v => !!v || 'La confirmation du mot de passe est obligatoire',
-              v => v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
+              v => !v || v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
             ]"
+            hint="Laissez vide pour ne pas modifier le mot de passe"
+            persistent-hint
           >
             <template v-slot:append-inner>
               <v-btn
@@ -281,26 +307,6 @@
               </v-btn>
             </template>
           </v-text-field>
-        </v-col>
-        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
-          <v-select
-            v-model="(editedItem as UserFormData).scan_preference"
-            :items="[
-              { title: 'NFC et QR Code', value: ScanPreferenceEnum.BOTH },
-              { title: 'QR Code uniquement', value: ScanPreferenceEnum.QR_ONLY },
-              { title: 'NFC uniquement', value: ScanPreferenceEnum.NFC_ONLY }
-            ]"
-            label="Préférence de scan"
-            required
-            :error-messages="formErrors.scan_preference"
-          ></v-select>
-        </v-col>
-        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
-          <v-switch
-            v-model="(editedItem as UserFormData).simplified_mobile_view"
-            label="Vue mobile simplifiée"
-            :error-messages="formErrors.simplified_mobile_view"
-          ></v-switch>
         </v-col>
       </DashboardForm>
     </template>
