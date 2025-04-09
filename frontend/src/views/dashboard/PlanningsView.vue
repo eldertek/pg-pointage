@@ -713,7 +713,8 @@ const filteredSchedules = computed(() => {
   
   console.log('[Plannings][Filter] Plannings avant filtrage:', schedules.value)
   
-  const filtered = schedules.value.filter(schedule => {
+  // Filtrer d'abord par permissions
+  let filtered = schedules.value.filter(schedule => {
     // Super Admin voit tout
     if (user.role === RoleEnum.SUPER_ADMIN) return true
     
@@ -747,6 +748,18 @@ const filteredSchedules = computed(() => {
     return false
   })
   
+  // Filtrage supplémentaire côté client
+  // Filtrer par site
+  if (filters.value.site) {
+    const siteId = Number(filters.value.site)
+    filtered = filtered.filter(schedule => schedule.site === siteId)
+  }
+  
+  // Filtrer par type de planning
+  if (filters.value.type) {
+    filtered = filtered.filter(schedule => schedule.schedule_type === filters.value.type)
+  }
+  
   console.log('[Plannings][Filter] Plannings après filtrage:', filtered)
   return filtered
 })
@@ -764,21 +777,37 @@ function isValidSiteId(siteId: number | string | undefined): siteId is number {
 const loadSchedules = async () => {
   loading.value = true
   try {
-    console.log('[Plannings][LoadSchedules] Chargement des plannings...')
-    const response = await schedulesApi.getAllSchedules({
+    console.log('[Plannings][LoadSchedules] Filtres actuels:', {
+      site: filters.value.site,
+      type: filters.value.type,
       page: page.value,
-      page_size: itemsPerPage.value,
-      site: filters.value.site ? Number(filters.value.site) : undefined,
-      schedule_type: filters.value.type
+      page_size: itemsPerPage.value
     })
+
+    // Préparer les paramètres de requête
+    const params: any = {
+      page: page.value,
+      page_size: itemsPerPage.value
+    }
+
+    // Ajouter le filtre site si présent
+    if (filters.value.site) {
+      const siteId = Number(filters.value.site)
+      if (!isNaN(siteId)) {
+        params.site = siteId
+      }
+    }
+
+    // Ajouter le filtre type si présent
+    if (filters.value.type) {
+      // Le type est déjà dans le bon format (FIXED ou FREQUENCY)
+      params.schedule_type = filters.value.type
+    }
+
+    console.log('[Plannings][LoadSchedules] Paramètres de requête:', params)
+
+    const response = await schedulesApi.getAllSchedules(params)
     console.log('[Plannings][LoadSchedules] Réponse brute:', JSON.stringify(response.data, null, 2))
-    console.log('[Plannings][LoadSchedules] Détails des employés assignés:', JSON.stringify(
-      response.data.results.map(schedule => ({
-        scheduleId: schedule.id,
-        employeesCount: schedule.assigned_employees?.length || 0,
-        employees: schedule.assigned_employees
-      })), null, 2
-    ))
 
     schedules.value = (response.data.results as ApiSchedule[] || []).map(schedule => {
       console.log(`[Plannings][LoadSchedules] Traitement du planning ${schedule.id}:`, JSON.stringify({
@@ -816,21 +845,6 @@ const loadSchedules = async () => {
       }
     })
 
-    // Si on a un editId, ouvrir le formulaire avec le planning correspondant
-    if (props.editId) {
-      const scheduleToEdit = schedules.value.find(s => s.id === Number(props.editId))
-      if (scheduleToEdit) {
-        openDialog(scheduleToEdit)
-      }
-    }
-
-    console.log('[Plannings][LoadSchedules] Plannings transformés:', JSON.stringify(
-      schedules.value.map(schedule => ({
-        id: schedule.id,
-        employeesCount: schedule.assigned_employees?.length || 0,
-        employees: schedule.assigned_employees
-      })), null, 2
-    ))
     totalItems.value = response.data.count
   } catch (error) {
     console.error('[Plannings][Error] Erreur lors du chargement des plannings:', error)
