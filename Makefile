@@ -17,6 +17,7 @@ help:
 	@echo "  migrate          - Appliquer les migrations Django"
 	@echo "  makemigrations   - Créer les migrations Django"
 	@echo "  tests            - Exécuter les tests spécifiques du module core"
+	@echo "  tests timesheets - Exécuter les tests du module timesheets"
 	@echo "  lint-backend     - Vérifier le code backend"
 	@echo "  lint-frontend    - Vérifier le code frontend"
 	@echo "  clean            - Nettoyer les fichiers temporaires"
@@ -76,6 +77,9 @@ tests:
 	elif [ "$(filter users,$(MAKECMDGOALS))" = "users" ]; then \
 		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
 			users.tests.test_permissions users.tests.test_serializers; \
+	elif [ "$(filter timesheets,$(MAKECMDGOALS))" = "timesheets" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			timesheets.tests.test_fixed_schedule_anomalies; \
 	else \
 		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
 			core.tests.test_views core.tests.test_permissions core.tests.test_serializers \

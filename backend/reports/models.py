@@ -19,6 +19,8 @@ class Report(models.Model):
         'organizations.Organization',
         on_delete=models.CASCADE,
         related_name='reports',
+        null=True,
+        blank=True,
         verbose_name=_('organisation')
     )
     site = models.ForeignKey(

@@ -757,7 +757,7 @@ const reportsApi = {
 
   deleteReport: (id: number) => {
     console.log('[ReportsAPI][Delete] ID:', id)
-    return api.delete(`/reports/${id}/`)
+    return api.delete(`/reports/${id}/delete/`)
   }
 }
 

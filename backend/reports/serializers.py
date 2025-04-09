@@ -74,29 +74,45 @@ class ReportGenerateSerializer(serializers.Serializer, OrganizationPermissionMix
     site = serializers.IntegerField(required=False, allow_null=True)
 
     def validate(self, data):
+        print(f"[Reports][Validate] Début de la validation - Données: {data}")
         user = self.context['request'].user
         
         # Vérifier que l'utilisateur a le droit de générer des rapports
         if user.role == User.Role.EMPLOYEE:
+            print("[Reports][Validate] Erreur: L'utilisateur est un employé")
             raise serializers.ValidationError("Les employés ne peuvent pas générer de rapports")
         
         # Validation des dates
         if data['end_date'] < data['start_date']:
+            print("[Reports][Validate] Erreur: La date de fin est antérieure à la date de début")
             raise serializers.ValidationError({
                 'end_date': 'La date de fin doit être postérieure à la date de début'
             })
 
-        # Validation du site si fourni
+        # Validation du site si spécifié
         site = data.get('site')
-        if site is not None:
+        print(f"[Reports][Validate] Site reçu: {site} (type: {type(site)})")
+        
+        # Si site n'est pas dans les données, ou est None, 0, ou chaîne vide - traiter comme null
+        if site in [None, '', 0, '0']:
+            print("[Reports][Validate] Site null détecté - Rapport pour tous les sites")
+            # Aucune validation nécessaire, rapport pour tous les sites
+            data['site'] = None  # Normaliser à None
+        else:
+            print(f"[Reports][Validate] Validation du site spécifié: {site}")
             from sites.models import Site
             try:
                 site_obj = Site.objects.get(id=site)
-                self.validate_site(site_obj)
+                if not user.is_super_admin:
+                    print("[Reports][Validate] Vérification des permissions sur le site")
+                    self.validate_site(site_obj)
+                print(f"[Reports][Validate] Site validé: {site_obj.name}")
             except Site.DoesNotExist:
+                print(f"[Reports][Validate] Erreur: Le site {site} n'existe pas")
                 raise serializers.ValidationError({
-                    'site': 'Site invalide'
+                    'site': 'Le site spécifié n\'existe pas'
                 })
 
+        print("[Reports][Validate] Validation terminée avec succès")
         return data
 

@@ -4,6 +4,10 @@ from .models import Alert
 from .serializers import AlertSerializer
 from sites.permissions import IsSiteOrganizationManager
 from django.db import models
+from django.core.mail import send_mail
+from django.conf import settings
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 
 class IsAdminOrManager(BasePermission):
     """Permission composée pour autoriser les admin ou les managers d'organisation"""
@@ -30,6 +34,33 @@ class AlertListView(generics.ListCreateAPIView):
             return Alert.objects.filter(site__organization__in=user.organizations.all())
         else:
             return Alert.objects.filter(employee=user)
+
+    def perform_create(self, serializer):
+        alert = serializer.save()
+        
+        # Préparer le contexte pour le template
+        context = {
+            'alert': alert,
+            'site_name': alert.site.name if alert.site else 'Non spécifié',
+            'employee_name': f"{alert.employee.first_name} {alert.employee.last_name}",
+            'anomaly_type': alert.get_anomaly_type_display(),
+            'description': alert.description,
+            'date': alert.created_at.strftime('%d/%m/%Y %H:%M'),
+        }
+        
+        # Rendre le template HTML
+        html_message = render_to_string('emails/alert_notification.html', context)
+        plain_message = strip_tags(html_message)
+        
+        # Envoyer l'email
+        send_mail(
+            subject=f'Alerte : {alert.get_anomaly_type_display()}',
+            message=plain_message,
+            html_message=html_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[alert.employee.email],
+            fail_silently=False,
+        )
 
 class AlertDetailView(generics.RetrieveUpdateAPIView):
     """Vue pour obtenir et mettre à jour une alerte"""

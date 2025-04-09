@@ -63,37 +63,49 @@ class ReportGenerateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         
         try:
+            print(f"[Reports][Generate] Début de la génération du rapport - Données reçues: {request.data}")
+            
             # Récupérer l'organisation de l'utilisateur
             if request.user.is_super_admin:
-                # Pour le super admin, utiliser l'organisation du site si spécifié
+                print(f"[Reports][Generate] Utilisateur super admin: {request.user.email}")
+                # Pour le super admin, si site est null, on génère un rapport pour tous les sites de toutes les organisations
                 site_id = serializer.validated_data.get('site')
                 if site_id:
+                    print(f"[Reports][Generate] Site spécifié: {site_id}")
+                    # Si un site est spécifié, utiliser son organisation
                     from sites.models import Site
                     site = Site.objects.get(id=site_id)
                     organization = site.organization
+                    print(f"[Reports][Generate] Organisation du site: {organization.name}")
                 else:
-                    raise serializers.ValidationError({
-                        'site': 'Le super admin doit spécifier un site'
-                    })
+                    print("[Reports][Generate] Aucun site spécifié - Rapport pour tous les sites")
+                    # Si site est null, on utilise None pour l'organisation
+                    # Cela indiquera que le rapport doit inclure tous les sites de toutes les organisations
+                    organization = None
             else:
+                print(f"[Reports][Generate] Utilisateur non super admin: {request.user.email}")
                 # Pour les autres utilisateurs, utiliser leur première organisation
                 organizations = request.user.organizations.all()
                 if not organizations.exists():
+                    print("[Reports][Generate] Erreur: Utilisateur non associé à une organisation")
                     raise serializers.ValidationError({
                         'error': 'Utilisateur non associé à une organisation'
                     })
                 organization = organizations.first()
+                print(f"[Reports][Generate] Organisation de l'utilisateur: {organization.name}")
             
+            print("[Reports][Generate] Création du rapport...")
             report = Report.objects.create(
                 name=serializer.validated_data['name'],
                 report_type=serializer.validated_data['report_type'],
                 report_format=serializer.validated_data['report_format'],
                 start_date=serializer.validated_data['start_date'],
                 end_date=serializer.validated_data['end_date'],
-                site_id=serializer.validated_data.get('site'),
-                organization=organization,
+                site_id=serializer.validated_data.get('site'),  # Sera None pour tous les sites
+                organization=organization,  # Peut être None pour le super admin si tous les sites
                 created_by=request.user
             )
+            print(f"[Reports][Generate] Rapport créé avec succès - ID: {report.id}")
             
             return Response({
                 'id': report.id,
@@ -101,6 +113,7 @@ class ReportGenerateView(generics.CreateAPIView):
             }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
+            print(f"[Reports][Generate] Erreur lors de la génération du rapport: {str(e)}")
             return Response({
                 'error': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
@@ -130,4 +143,32 @@ class ReportDownloadView(generics.RetrieveAPIView):
             {'error': 'Fichier non trouvé'},
             status=status.HTTP_404_NOT_FOUND
         )
+
+class ReportDeleteView(generics.DestroyAPIView):
+    """Vue pour supprimer un rapport"""
+    queryset = Report.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_super_admin:
+            return Report.objects.all()
+        elif user.is_admin or user.is_manager:
+            return Report.objects.filter(organization__in=user.organizations.all())
+        else:
+            return Report.objects.filter(created_by=user)
+            
+    def destroy(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            # Supprimer le fichier physique s'il existe
+            if instance.file and os.path.exists(instance.file.path):
+                os.remove(instance.file.path)
+            self.perform_destroy(instance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 

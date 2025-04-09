@@ -6,6 +6,27 @@
     :saving="generating"
     @save="generateReport"
   >
+    <!-- Statistiques -->
+    <v-card class="mb-4">
+      <v-card-title>Statistiques des rapports</v-card-title>
+      <v-card-text>
+        <v-row>
+          <v-col cols="12" sm="4">
+            <div class="text-h4">{{ totalReports }}</div>
+            <div class="text-subtitle-1">Rapports générés</div>
+          </v-col>
+          <v-col cols="12" sm="4">
+            <div class="text-h4">{{ pendingReports }}</div>
+            <div class="text-subtitle-1">En attente</div>
+          </v-col>
+          <v-col cols="12" sm="4">
+            <div class="text-h4">{{ completedReports }}</div>
+            <div class="text-subtitle-1">Complétés</div>
+          </v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
+
     <!-- Actions -->
     <template #actions>
       <v-btn
@@ -75,16 +96,6 @@
     >
       <template #item.actions="{ item }">
         <v-btn
-          v-tooltip="'Voir les détails'"
-          icon
-          variant="text"
-          size="small"
-          color="primary"
-          :to="`/dashboard/reports/${item.id}`"
-        >
-          <v-icon>mdi-eye</v-icon>
-        </v-btn>
-        <v-btn
           v-tooltip="'Télécharger'"
           icon
           variant="text"
@@ -100,7 +111,7 @@
           variant="text"
           size="small"
           color="error"
-          @click="confirmDelete(item.id)"
+          @click="deleteReport(item.id)"
         >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
@@ -208,6 +219,7 @@
 import { ref, watch, onMounted, computed } from 'vue'
 import { reportsApi, sitesApi } from '@/services/api'
 import { useSitesStore } from '@/stores/sites'
+import { useConfirmDialog } from '@/utils/dialogs'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 import DashboardView from '@/components/dashboard/DashboardView.vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
@@ -234,6 +246,7 @@ export default {
     const generating = ref(false)
     const dashboardView = ref(null)
     const formErrors = ref({})
+    const { dialogState, handleConfirm } = useConfirmDialog()
     
     // Computed pour le site courant - priorité au siteId passé en prop
     const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
@@ -378,14 +391,34 @@ export default {
       showSuccess('Téléchargement démarré')
     }
     
-    const deleteReport = (id) => {
-      // Simulation de suppression
-      console.log(`Suppression du rapport ${id}`)
-      
-      // Pour la démo, on supprime localement
-      reports.value = reports.value.filter(r => r.id !== id)
-      
-      showSuccess('Rapport supprimé avec succès')
+    const confirmDelete = (id) => {
+      dialogState.value = {
+        show: true,
+        title: 'Supprimer le rapport',
+        message: 'Êtes-vous sûr de vouloir supprimer ce rapport ? Cette action est irréversible.',
+        confirmText: 'Supprimer',
+        cancelText: 'Annuler',
+        confirmColor: 'error',
+        loading: false,
+        onConfirm: async () => {
+          try {
+            dialogState.value.loading = true
+            await reportsApi.deleteReport(id)
+            await loadReports()
+            showSuccess('Rapport supprimé avec succès')
+          } catch (error) {
+            console.error('Erreur lors de la suppression du rapport:', error)
+            showError(error.response?.data?.error || 'Erreur lors de la suppression du rapport')
+          } finally {
+            dialogState.value.loading = false
+            dialogState.value.show = false
+          }
+        }
+      }
+    }
+
+    const deleteReport = async (id) => {
+      confirmDelete(id)
     }
     
     const showSuccess = (text) => {
@@ -456,6 +489,29 @@ export default {
       }
     })
 
+    const totalReports = ref(0)
+    const pendingReports = ref(0)
+    const completedReports = ref(0)
+
+    const loadReportStatistics = async () => {
+      try {
+        const response = await reportsApi.getAllReports()
+        const reports = response.data?.results || []
+        
+        totalReports.value = reports.length
+        pendingReports.value = reports.filter(r => r.status === 'PENDING').length
+        completedReports.value = reports.filter(r => r.status === 'COMPLETED').length
+      } catch (error) {
+        console.error('Erreur lors du chargement des statistiques:', error)
+      }
+    }
+
+    // Charger les statistiques initiales
+    loadReportStatistics()
+
+    // Recharger périodiquement (toutes les 5 minutes)
+    setInterval(loadReportStatistics, 5 * 60 * 1000)
+
     onMounted(async () => {
       await loadSites()
       if (sitesStore.getCurrentSiteId) {
@@ -488,7 +544,12 @@ export default {
       resetFilters,
       dashboardView,
       openDialog,
-      formErrors
+      formErrors,
+      totalReports,
+      pendingReports,
+      completedReports,
+      dialogState,
+      handleConfirm
     }
   }
 }

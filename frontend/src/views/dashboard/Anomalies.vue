@@ -128,6 +128,11 @@
         ]"
         class="elevation-1"
       >
+        <template #created_at="{ item }">
+          <div @click="console.log('Item clicked:', item)">
+            {{ formatDate(item.raw.created_at) }}
+          </div>
+        </template>
         <template #type="{ item }">
           <v-chip
             :color="getTypeColor(item.raw.anomaly_type_display)"
@@ -135,44 +140,6 @@
           >
             {{ item.raw.anomaly_type_display }}
           </v-chip>
-        </template>
-        <template #status="{ item }">
-          <v-chip
-            :color="getStatusColor(item.raw.status_display)"
-            size="small"
-          >
-            {{ item.raw.status_display }}
-          </v-chip>
-        </template>
-        <template #actions="{ item }">
-          <v-btn
-            v-if="item.raw.status === 'PENDING'"
-            icon
-            variant="text"
-            size="small"
-            color="success"
-            @click="resolveAnomaly(item.raw.id)"
-          >
-            <v-icon>mdi-check</v-icon>
-          </v-btn>
-          <v-btn
-            v-if="item.raw.status === 'PENDING'"
-            icon
-            variant="text"
-            size="small"
-            color="error"
-            @click="ignoreAnomaly(item.raw.id)"
-          >
-            <v-icon>mdi-close</v-icon>
-          </v-btn>
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            color="primary"
-          >
-            <v-icon>mdi-eye</v-icon>
-          </v-btn>
         </template>
       </v-data-table>
     </v-card>
@@ -225,13 +192,10 @@ export default {
     const employeeOptions = ref([])
     
     const headers = ref([
-      { title: 'Date', align: 'start', key: 'date' },
+      { title: 'Date', align: 'start', key: 'formatted_date' },
       { title: 'Employé', align: 'start', key: 'employee_name' },
       { title: 'Site', align: 'start', key: 'site_name' },
-      { title: 'Type', align: 'center', key: 'anomaly_type_display' },
-      { title: 'Description', align: 'start', key: 'description' },
-      { title: 'Statut', align: 'center', key: 'status_display' },
-      { title: 'Actions', align: 'end', key: 'actions', sortable: false }
+      { title: 'Type', align: 'center', key: 'anomaly_type_display' }
     ])
     
     const filters = ref({
@@ -358,8 +322,20 @@ export default {
       try {
         const params = buildQueryParams()
         const response = await timesheetsApi.getAnomalies(params)
+        console.log('Réponse API anomalies:', response.data)
+        
         if (response.data?.results) {
-          anomalies.value = response.data.results
+          anomalies.value = response.data.results.map(anomaly => ({
+            ...anomaly,
+            formatted_date: new Date(anomaly.created_at).toLocaleString('fr-FR', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+          }))
+          console.log('Anomalies formatées:', anomalies.value)
         } else if (Array.isArray(response.data)) {
           anomalies.value = response.data
         } else {
@@ -462,6 +438,38 @@ export default {
     // Ajout de la variable manquante
     const showDeleteDialog = ref(false)
     
+    const formatDate = (dateString) => {
+      console.log('=== DEBUG DATE ===')
+      console.log('Raw date string:', dateString)
+      console.log('Type of date string:', typeof dateString)
+      
+      if (!dateString) {
+        console.log('Date string is empty or undefined')
+        return ''
+      }
+      
+      try {
+        const date = new Date(dateString)
+        console.log('Parsed date:', date)
+        console.log('Is valid date:', !isNaN(date.getTime()))
+        
+        const options = {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }
+        
+        const formattedDate = date.toLocaleDateString('fr-FR', options)
+        console.log('Formatted date:', formattedDate)
+        return formattedDate
+      } catch (error) {
+        console.error('Error formatting date:', error)
+        return dateString
+      }
+    }
+    
     init()
     
     return {
@@ -486,7 +494,8 @@ export default {
       scanForAnomalies,
       searchEmployees,
       showDeleteDialog,
-      currentSiteId
+      currentSiteId,
+      formatDate
     }
   }
 }
