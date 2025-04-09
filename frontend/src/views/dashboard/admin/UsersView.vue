@@ -188,6 +188,16 @@
             :error-messages="formErrors.phone_number"
           ></v-text-field>
         </v-col>
+        <v-col v-if="(editedItem as UserFormData).id" cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as UserFormData).employee_id"
+            label="ID Employé"
+            readonly
+            disabled
+            hint="Généré automatiquement au format UXXXXX"
+            persistent-hint
+          ></v-text-field>
+        </v-col>
         <v-col cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).email"
@@ -319,6 +329,7 @@ interface UserFormData {
   scan_preference: string;
   simplified_mobile_view: boolean;
   password?: string;
+  employee_id?: string;
 }
 
 interface AuthUser {
@@ -386,7 +397,7 @@ const roles = computed(() => {
 
   // Si l'utilisateur est admin, il ne peut créer que des managers et des employés
   if (userRole === RoleEnum.ADMIN) {
-    return allRoles.filter(role => 
+    return allRoles.filter(role =>
       role.value === RoleEnum.MANAGER || role.value === RoleEnum.EMPLOYEE
     )
   }
@@ -427,11 +438,11 @@ const filteredUsers = computed(() => {
     console.log('[Debug] Pas d\'utilisateur connecté')
     return []
   }
-  
+
   console.log('[Debug] Utilisateur connecté:', user.role)
   console.log('[Debug] Organisations de l\'utilisateur:', user.organizations)
   console.log('[Debug] Utilisateurs avant filtrage:', users.value)
-  
+
   // Super Admin voit tout
   if (user.role === RoleEnum.SUPER_ADMIN) {
     return users.value
@@ -445,21 +456,21 @@ const filteredUsers = computed(() => {
     }
 
     // Vérifier si l'utilisateur a accès à au moins une organisation commune
-    const userOrgIds = Array.isArray(user.organizations) 
-      ? user.organizations 
+    const userOrgIds = Array.isArray(user.organizations)
+      ? user.organizations
       : [user.organizations]
 
     console.log('[Debug] userOrgIds brut:', JSON.stringify(userOrgIds))
     console.log('[Debug] u.organizations brut:', JSON.stringify(u.organizations))
 
     const hasCommonOrg = u.organizations.some(orgId => userOrgIds.includes(orgId))
-    
+
     console.log('[Debug] Vérification accès pour', u.email, ':', {
       userOrgIds: JSON.stringify(userOrgIds),
       userOrgs: JSON.stringify(u.organizations),
       hasAccess: hasCommonOrg
     })
-    
+
     return hasCommonOrg
   })
 })
@@ -508,10 +519,10 @@ const resetFilters = () => {
 const generateUsername = (email: string): string => {
   // Prend la partie avant @ de l'email
   let baseUsername = email.split('@')[0]
-  
+
   // Supprime les caractères spéciaux et les espaces
   baseUsername = baseUsername.replace(/[^a-zA-Z0-9]/g, '')
-  
+
   // Ajoute un timestamp pour garantir l'unicité
   const timestamp = new Date().getTime().toString().slice(-4)
   return `${baseUsername}${timestamp}`
@@ -538,7 +549,8 @@ const openDialog = (item?: ExtendedUser) => {
       phone_number: item.phone_number,
       is_active: item.is_active,
       scan_preference: item.scan_preference,
-      simplified_mobile_view: item.simplified_mobile_view
+      simplified_mobile_view: item.simplified_mobile_view,
+      employee_id: item.employee_id
     }
   } else {
     editedItem.value = {
@@ -563,12 +575,12 @@ const saveUser = async () => {
 
   saving.value = true
   formErrors.value = {}
-  
+
   try {
     if (editedItem.value) {
       const userData = editedItem.value as UserFormData
       console.log('[Users][Save] Données utilisateur:', JSON.stringify(userData))
-      
+
       if (userData.id) {
         await usersApi.updateUser(userData.id, {
           ...userData,
@@ -704,7 +716,7 @@ onMounted(async () => {
 watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
   if (editedItem.value) {
     const userData = editedItem.value as UserFormData
-    
+
     // Réinitialiser les champs en fonction du rôle
     if (newRole === RoleEnum.SUPER_ADMIN) {
       userData.organizations = []
@@ -757,4 +769,4 @@ watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
 :deep(.disabled-button .v-icon) {
   color: #999 !important;
 }
-</style> 
+</style>

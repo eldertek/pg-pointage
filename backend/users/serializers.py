@@ -65,7 +65,7 @@ class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, R
             'is_active', 'employee_id', 'date_joined', 'password',
             'scan_preference', 'simplified_mobile_view'
         )
-        read_only_fields = ['date_joined']
+        read_only_fields = ['date_joined', 'employee_id']
 
     def get_organizations_names(self, obj):
         return [org.name for org in obj.organizations.all()]
@@ -82,6 +82,10 @@ class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, R
         # Si l'utilisateur est un admin, il ne doit pas voir les super admin
         if user.role == User.Role.ADMIN and instance.role == User.Role.SUPER_ADMIN:
             return None
+
+        # Remplacer l'ID de base de données par l'ID employé
+        if 'id' in data and 'employee_id' in data:
+            data['id'] = data['employee_id']
 
         return data
 
@@ -196,11 +200,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'role', 'organizations', 'organizations_names', 'is_active',
             'phone_number', 'employee_id', 'scan_preference', 'simplified_mobile_view'
         ]
-        read_only_fields = ['id', 'username', 'email', 'role', 'organizations']
+        read_only_fields = ['id', 'username', 'email', 'role', 'organizations', 'employee_id']
 
     @extend_schema_field({'type': 'array', 'items': {'type': 'string'}})
     def get_organizations_names(self, obj):
         return [org.name for org in obj.organizations.all()]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        
+        # Remplacer l'ID de base de données par l'ID employé
+        if 'id' in data and 'employee_id' in data:
+            data['id'] = data['employee_id']
+            
+        return data
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -217,7 +230,8 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'email', 'password', 'first_name', 'last_name',
                   'is_active', 'role', 'organizations', 'phone_number',
-                  'scan_preference', 'simplified_mobile_view']
+                  'scan_preference', 'simplified_mobile_view', 'employee_id']
+        read_only_fields = ['employee_id']
 
     def validate(self, data):
         user = self.context['request'].user
