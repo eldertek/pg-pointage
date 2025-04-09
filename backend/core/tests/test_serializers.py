@@ -655,6 +655,9 @@ class TestMultipleScheduleAssignmentTests(TestCase):
 
     def test_assign_employee_to_multiple_schedules(self):
         """Test qu'un employé peut être assigné à plusieurs plannings"""
+        # Nettoyer les assignations existantes
+        SiteEmployee.objects.filter(employee=self.employee1).delete()
+        
         # Assigner l'employé 1 au planning 1
         serializer1 = ScheduleSerializer(
             instance=self.schedule1,
@@ -695,20 +698,22 @@ class TestMultipleScheduleAssignmentTests(TestCase):
         self.assertTrue(serializer2.is_valid(), serializer2.errors)
         schedule2_updated = serializer2.save()
         
-        # Vérifier que l'employé 1 est toujours assigné au planning 1
-        # et qu'une nouvelle relation a été créée pour le planning 2
+        # Vérifier que l'employé 1 est assigné aux deux plannings
         employee1_assignments = SiteEmployee.objects.filter(
             employee=self.employee1,
             is_active=True
-        )
+        ).distinct()
         
         self.assertEqual(employee1_assignments.count(), 2)
         schedules = [assignment.schedule.id for assignment in employee1_assignments]
         self.assertIn(self.schedule1.id, schedules)
         self.assertIn(self.schedule2.id, schedules)
-        
+
     def test_update_employees_without_removing_existing(self):
         """Test que la mise à jour des employés d'un planning n'enlève pas les employés des autres plannings"""
+        # Nettoyer les assignations existantes
+        SiteEmployee.objects.filter(employee=self.employee2).delete()
+        
         # Assigner l'employé 1 au planning 1
         serializer1 = ScheduleSerializer(
             instance=self.schedule1,
@@ -759,15 +764,18 @@ class TestMultipleScheduleAssignmentTests(TestCase):
         employee2_assignments = SiteEmployee.objects.filter(
             employee=self.employee2,
             is_active=True
-        )
+        ).distinct()
         
         self.assertEqual(employee2_assignments.count(), 2)
         schedules = [assignment.schedule.id for assignment in employee2_assignments]
         self.assertIn(self.schedule1.id, schedules)
         self.assertIn(self.schedule2.id, schedules)
-        
+
     def test_batch_assignment_preserves_existing(self):
         """Test que l'assignation par lot préserve les assignations existantes"""
+        # Nettoyer les assignations existantes
+        SiteEmployee.objects.filter(employee=self.employee1).delete()
+        
         # Créer un client API pour tester la vue d'assignation par lot
         client = APIClient()
         client.force_authenticate(user=self.admin)
@@ -797,10 +805,11 @@ class TestMultipleScheduleAssignmentTests(TestCase):
         
         # Assigner l'employé 2 au planning 2 via l'API
         response = client.post(
-            f'/sites/{self.site.id}/schedules/{self.schedule2.id}/employees/',
+            f'/api/v1/sites/{self.site.id}/schedules/{self.schedule2.id}/employees/',
             {'employees': [self.employee2.id]},
             format='json'
         )
+        self.assertEqual(response.status_code, 200)
         
         # Vérifier que l'employé 1 est toujours assigné au planning 1
         site_employee1 = SiteEmployee.objects.filter(

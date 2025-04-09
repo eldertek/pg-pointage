@@ -49,6 +49,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, RolePermissionMixin):
     """Serializer pour les utilisateurs (admin)"""
     password = serializers.CharField(write_only=True, required=False)
+    reset_password = serializers.BooleanField(write_only=True, required=False)
     organizations_names = serializers.SerializerMethodField()
     organizations = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -63,7 +64,7 @@ class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, R
             'id', 'username', 'email', 'first_name', 'last_name',
             'role', 'organizations', 'organizations_names', 'phone_number',
             'is_active', 'employee_id', 'date_joined', 'password',
-            'scan_preference', 'simplified_mobile_view'
+            'scan_preference', 'simplified_mobile_view', 'reset_password'
         )
         read_only_fields = ['date_joined', 'employee_id']
 
@@ -171,9 +172,28 @@ class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, R
                         "Vous ne pouvez pas modifier cet utilisateur")
 
         password = validated_data.pop('password', None)
+        reset_password = validated_data.pop('reset_password', False)
         organizations = validated_data.pop('organizations', None)
 
-        if password:
+        if reset_password:
+            if not (user.is_super_admin or (user.is_admin and instance.organizations.filter(id__in=user.organizations.values_list('id', flat=True)).exists())):
+                raise serializers.ValidationError(
+                    "Vous n'avez pas les droits pour réinitialiser le mot de passe de cet utilisateur")
+            # Générer un mot de passe aléatoire
+            from django.utils.crypto import get_random_string
+            password = get_random_string(12)
+            instance.set_password(password)
+            # Envoyer un email avec le nouveau mot de passe
+            from django.core.mail import send_mail
+            from django.conf import settings
+            send_mail(
+                'Réinitialisation de votre mot de passe',
+                f'Votre nouveau mot de passe est : {password}\n\nVeuillez le changer à votre prochaine connexion.',
+                settings.DEFAULT_FROM_EMAIL,
+                [instance.email],
+                fail_silently=False,
+            )
+        elif password:
             instance.set_password(password)
 
         if organizations is not None:

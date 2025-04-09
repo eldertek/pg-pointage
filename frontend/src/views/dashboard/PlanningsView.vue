@@ -293,24 +293,6 @@
                       </template>
                     </v-text-field>
                   </v-col>
-                  <v-col cols="12" sm="4">
-                    <v-text-field
-                      v-model="editedItem.tolerance_margin"
-                      type="number"
-                      label="Marge de tolérance générale"
-                      min="0"
-                      step="1"
-                      density="comfortable"
-                      variant="outlined"
-                      color="primary"
-                      :rules="[v => v >= 0 || 'La marge doit être positive']"
-                      hide-details="auto"
-                    >
-                      <template #append-inner>
-                        <span class="text-grey">min</span>
-                      </template>
-                    </v-text-field>
-                  </v-col>
                 </v-row>
               </template>
             </v-card>
@@ -640,7 +622,6 @@ interface ExtendedSchedule extends Omit<BaseSchedule, 'details'> {
   // Champs pour les plannings de type fixe
   late_arrival_margin?: number;
   early_departure_margin?: number;
-  tolerance_margin?: number;
 }
 
 // Interface pour le formulaire de planning
@@ -657,7 +638,6 @@ interface ScheduleFormData {
   // Champs pour les plannings de type fixe
   late_arrival_margin?: number;
   early_departure_margin?: number;
-  tolerance_margin?: number;
 }
 
 const authStore = useAuthStore()
@@ -957,8 +937,7 @@ const openDialog = (item?: ExtendedSchedule) => {
     // Initialisation des marges de tolérance
     frequency_tolerance_percentage: item.frequency_tolerance_percentage ?? 10,
     late_arrival_margin: item.late_arrival_margin ?? 0,
-    early_departure_margin: item.early_departure_margin ?? 0,
-    tolerance_margin: item.tolerance_margin ?? 0
+    early_departure_margin: item.early_departure_margin ?? 0
   } : {
     site: undefined,
     employees: [],
@@ -981,8 +960,7 @@ const openDialog = (item?: ExtendedSchedule) => {
     // Initialisation des marges par défaut
     frequency_tolerance_percentage: undefined,
     late_arrival_margin: 0,
-    early_departure_margin: 0,
-    tolerance_margin: 0
+    early_departure_margin: 0
   }
 
   console.log('[Plannings][OpenDialog] Item préparé:', editedItem.value)
@@ -1059,8 +1037,7 @@ const saveSchedule = async () => {
         frequency_tolerance_percentage: currentItem.frequency_tolerance_percentage
       } : {
         late_arrival_margin: currentItem.late_arrival_margin,
-        early_departure_margin: currentItem.early_departure_margin,
-        tolerance_margin: currentItem.tolerance_margin
+        early_departure_margin: currentItem.early_departure_margin
       })
     }
 

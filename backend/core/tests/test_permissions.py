@@ -996,11 +996,11 @@ class TestUserAPIPermissions(TestCase):
         users_data = response.json()
 
         # Vérifier que seuls les utilisateurs de org1 sont retournés
-        user_ids = [user['id'] for user in users_data['results']]
-        self.assertIn(self.manager_org1.id, user_ids)
-        self.assertIn(self.employee1_org1.id, user_ids)
-        self.assertIn(self.employee2_org1.id, user_ids)
-        self.assertNotIn(self.employee_org2.id, user_ids)
+        user_employee_ids = [user['employee_id'] for user in users_data['results']]
+        self.assertIn(self.manager_org1.employee_id, user_employee_ids)
+        self.assertIn(self.employee1_org1.employee_id, user_employee_ids)
+        self.assertIn(self.employee2_org1.employee_id, user_employee_ids)
+        self.assertNotIn(self.employee_org2.employee_id, user_employee_ids)
 
     def test_admin_can_view_organization_user_detail(self):
         """Un admin doit pouvoir voir les détails des utilisateurs de son organisation"""
@@ -1027,11 +1027,11 @@ class TestUserAPIPermissions(TestCase):
         users_data = response.json()
 
         # Vérifier que seuls les employés sont retournés
-        user_ids = [user['id'] for user in users_data['results']]
-        self.assertIn(self.employee1_org1.id, user_ids)
-        self.assertIn(self.employee2_org1.id, user_ids)
-        self.assertNotIn(self.admin_org1.id, user_ids)
-        self.assertNotIn(self.employee_org2.id, user_ids)
+        user_employee_ids = [user['employee_id'] for user in users_data['results']]
+        self.assertIn(self.employee1_org1.employee_id, user_employee_ids)
+        self.assertIn(self.employee2_org1.employee_id, user_employee_ids)
+        self.assertNotIn(self.admin_org1.employee_id, user_employee_ids)
+        self.assertNotIn(self.employee_org2.employee_id, user_employee_ids)
 
     def test_manager_can_view_employee_detail(self):
         """Un manager doit pouvoir voir les détails des employés de son organisation"""
@@ -1079,12 +1079,12 @@ class TestUserAPIPermissions(TestCase):
         users_data = response.json()
 
         # Vérifier que tous les utilisateurs sont retournés
-        user_ids = [user['id'] for user in users_data['results']]
-        self.assertIn(self.admin_org1.id, user_ids)
-        self.assertIn(self.manager_org1.id, user_ids)
-        self.assertIn(self.employee1_org1.id, user_ids)
-        self.assertIn(self.employee2_org1.id, user_ids)
-        self.assertIn(self.employee_org2.id, user_ids)
+        user_employee_ids = [user['employee_id'] for user in users_data['results']]
+        self.assertIn(self.admin_org1.employee_id, user_employee_ids)
+        self.assertIn(self.manager_org1.employee_id, user_employee_ids)
+        self.assertIn(self.employee1_org1.employee_id, user_employee_ids)
+        self.assertIn(self.employee2_org1.employee_id, user_employee_ids)
+        self.assertIn(self.employee_org2.employee_id, user_employee_ids)
 
     def test_user_creation_permissions(self):
         """Tester les permissions de création d'utilisateurs"""

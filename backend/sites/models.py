@@ -180,13 +180,6 @@ class Schedule(models.Model):
             'Marge de tolérance pour les départs anticipés (plannings fixes)'),
         validators=[MinValueValidator(0)]
     )
-    tolerance_margin = models.PositiveSmallIntegerField(
-        _('marge de tolérance (minutes)'),
-        null=True,
-        blank=True,
-        help_text=_('Marge de tolérance générale (plannings fixes)'),
-        validators=[MinValueValidator(0)]
-    )
 
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
     updated_at = models.DateTimeField(_('mis à jour le'), auto_now=True)
@@ -214,8 +207,7 @@ class Schedule(models.Model):
             # Validation des marges pour les plannings fréquence
             if any([
                 self.late_arrival_margin is not None,
-                self.early_departure_margin is not None,
-                self.tolerance_margin is not None
+                self.early_departure_margin is not None
             ]):
                 raise ValidationError(
                     _('Les marges en minutes ne doivent pas être définies pour un planning fréquence'))

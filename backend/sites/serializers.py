@@ -153,7 +153,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
             'details', 'employees', 'created_at', 'updated_at', 'is_active',
             'assigned_employees', 'assigned_employee_ids',
             'frequency_tolerance_percentage',
-            'late_arrival_margin', 'early_departure_margin', 'tolerance_margin'
+            'late_arrival_margin', 'early_departure_margin'
         ]
         read_only_fields = ['created_at', 'updated_at']
 
@@ -175,8 +175,6 @@ class ScheduleSerializer(serializers.ModelSerializer):
                 data['late_arrival_margin'] = 0
             if data.get('early_departure_margin') is None:
                 data['early_departure_margin'] = 0
-            if data.get('tolerance_margin') is None:
-                data['tolerance_margin'] = 0
 
             # Validation des valeurs des marges
             if data['late_arrival_margin'] < 0:
@@ -187,16 +185,11 @@ class ScheduleSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'early_departure_margin': 'La marge de départ anticipé ne peut pas être négative'
                 })
-            if data['tolerance_margin'] < 0:
-                raise serializers.ValidationError({
-                    'tolerance_margin': 'La marge de tolérance ne peut pas être négative'
-                })
         else:
             # Validation des marges pour les plannings fréquence
             if any([
                 data.get('late_arrival_margin') is not None,
-                data.get('early_departure_margin') is not None,
-                data.get('tolerance_margin') is not None
+                data.get('early_departure_margin') is not None
             ]):
                 raise serializers.ValidationError(
                     'Les marges en minutes ne doivent pas être définies pour un planning fréquence'

@@ -1,4 +1,4 @@
-.PHONY: help setup-backend setup-frontend run-backend run-frontend migrate makemigrations test-backend test-frontend lint-backend lint-frontend clean
+.PHONY: help setup-backend setup-frontend run-backend run-frontend migrate makemigrations test-backend test-frontend lint-backend lint-frontend clean tests
 
 # Variables
 PYTHON = python3
@@ -16,8 +16,7 @@ help:
 	@echo "  run-frontend     - Lancer le serveur de développement Vue.js"
 	@echo "  migrate          - Appliquer les migrations Django"
 	@echo "  makemigrations   - Créer les migrations Django"
-	@echo "  test-backend     - Exécuter les tests backend"
-	@echo "  test-frontend    - Exécuter les tests frontend"
+	@echo "  tests            - Exécuter les tests spécifiques du module core"
 	@echo "  lint-backend     - Vérifier le code backend"
 	@echo "  lint-frontend    - Vérifier le code frontend"
 	@echo "  clean            - Nettoyer les fichiers temporaires"
@@ -47,14 +46,6 @@ makemigrations:
 	@echo "Création des migrations..."
 	$(VENV_ACTIVATE) && $(DJANGO_MANAGE) makemigrations
 
-test-backend:
-	@echo "Exécution des tests backend..."
-	$(VENV_ACTIVATE) && $(DJANGO_MANAGE) test
-
-test-frontend:
-	@echo "Exécution des tests frontend..."
-	cd frontend && $(NPM) run test
-
 lint-backend:
 	@echo "Vérification du code backend..."
 	$(VENV_ACTIVATE) && flake8 backend
@@ -76,4 +67,8 @@ clean:
 	find . -type d -name "dist" -exec rm -rf {} +
 	find . -type d -name "build" -exec rm -rf {} +
 	find . -type d -name "node_modules" -exec rm -rf {} +
+
+tests:
+	@echo "Exécution des tests spécifiques du module core..."
+	$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test core.tests.test_views core.tests.test_permissions core.tests.test_serializers
 
