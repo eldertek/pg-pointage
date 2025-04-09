@@ -69,8 +69,17 @@ clean:
 	find . -type d -name "node_modules" -exec rm -rf {} +
 
 tests:
-	@echo "Exécution des tests spécifiques..."
-	$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
-		core.tests.test_views core.tests.test_permissions core.tests.test_serializers \
-		users.tests.test_permissions users.tests.test_serializers
+	@echo "Exécution des tests..."
+	@if [ "$(filter core,$(MAKECMDGOALS))" = "core" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			core.tests.test_views core.tests.test_permissions core.tests.test_serializers; \
+	elif [ "$(filter users,$(MAKECMDGOALS))" = "users" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			users.tests.test_permissions users.tests.test_serializers; \
+	else \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			core.tests.test_views core.tests.test_permissions core.tests.test_serializers \
+			users.tests.test_permissions users.tests.test_serializers; \
+	fi
+
 

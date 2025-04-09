@@ -580,17 +580,13 @@ const canCreateDelete = computed(() => {
 
 const displayFields = computed((): Field[] => {
   const fields: Field[] = [
+    { key: 'employee_id', label: 'ID', icon: 'mdi-card-account-details', type: 'default' },
     { key: 'first_name', label: 'Prénom', icon: 'mdi-account', type: 'default' },
     { key: 'last_name', label: 'Nom', icon: 'mdi-account-box', type: 'default' },
     { key: 'email', label: 'Email', icon: 'mdi-email', type: 'default' },
     { key: 'phone_number', label: 'Téléphone', icon: 'mdi-phone', type: 'default', format: 'phone' },
     { key: 'role', label: 'Rôle', icon: 'mdi-badge-account', type: 'default', format: 'role' }
   ]
-
-  // Ajouter employee_id seulement s'il existe et n'est pas vide
-  if (item.value?.employee_id) {
-    fields.push({ key: 'employee_id', label: 'ID Employé', icon: 'mdi-card-account-details', type: 'default' })
-  }
 
   return [
     ...fields,

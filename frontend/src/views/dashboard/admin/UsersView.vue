@@ -191,10 +191,9 @@
         <v-col v-if="(editedItem as UserFormData).id" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).employee_id"
-            label="ID Employé"
+            label="ID"
             readonly
             disabled
-            hint="Généré automatiquement au format UXXXXX"
             persistent-hint
           ></v-text-field>
         </v-col>
@@ -403,7 +402,7 @@ const organizations = ref<Organization[]>([])
 
 // En-têtes des tableaux
 const headers = [
-  { title: 'ID', key: 'id' },
+  { title: 'ID', key: 'employee_id' },
   { title: 'Nom', key: 'last_name' },
   { title: 'Prénom', key: 'first_name' },
   { title: 'Téléphone', key: 'phone_number' },

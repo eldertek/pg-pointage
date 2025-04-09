@@ -84,10 +84,6 @@ class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, R
         if user.role == User.Role.ADMIN and instance.role == User.Role.SUPER_ADMIN:
             return None
 
-        # Remplacer l'ID de base de données par l'ID employé
-        if 'id' in data and 'employee_id' in data:
-            data['id'] = data['employee_id']
-
         return data
 
     def validate(self, data):
@@ -228,11 +224,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        
-        # Remplacer l'ID de base de données par l'ID employé
-        if 'id' in data and 'employee_id' in data:
-            data['id'] = data['employee_id']
-            
         return data
 
 
