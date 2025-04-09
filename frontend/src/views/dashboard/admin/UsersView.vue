@@ -241,14 +241,47 @@
           <v-text-field
             v-model="(editedItem as UserFormData).password"
             label="Mot de passe"
-            type="password"
+            :type="showPassword ? 'text' : 'password'"
             required
             :error-messages="formErrors.password"
             :rules="[
               v => !!v || 'Le mot de passe est obligatoire',
               v => (v && v.length >= 8) || 'Le mot de passe doit contenir au moins 8 caractères'
             ]"
-          ></v-text-field>
+          >
+            <template v-slot:append-inner>
+              <v-btn
+                icon
+                variant="text"
+                @click="showPassword = !showPassword"
+              >
+                <v-icon>{{ showPassword ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+              </v-btn>
+            </template>
+          </v-text-field>
+        </v-col>
+        <v-col v-if="!(editedItem as UserFormData).id" cols="12" sm="6">
+          <v-text-field
+            v-model="confirmPassword"
+            label="Confirmer le mot de passe"
+            :type="showConfirmPassword ? 'text' : 'password'"
+            required
+            :error-messages="formErrors.confirm_password"
+            :rules="[
+              v => !!v || 'La confirmation du mot de passe est obligatoire',
+              v => v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
+            ]"
+          >
+            <template v-slot:append-inner>
+              <v-btn
+                icon
+                variant="text"
+                @click="showConfirmPassword = !showConfirmPassword"
+              >
+                <v-icon>{{ showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+              </v-btn>
+            </template>
+          </v-text-field>
         </v-col>
         <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
           <v-select
@@ -536,6 +569,10 @@ const handleEmailChange = (email: string) => {
   }
 }
 
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
+const confirmPassword = ref('')
+
 const openDialog = (item?: ExtendedUser) => {
   if (item) {
     editedItem.value = {
@@ -566,6 +603,10 @@ const openDialog = (item?: ExtendedUser) => {
       simplified_mobile_view: false,
       password: ''
     }
+    // Réinitialiser les états d'affichage du mot de passe
+    showPassword.value = false
+    showConfirmPassword.value = false
+    confirmPassword.value = ''
   }
   dashboardView.value.showForm = true
 }
@@ -581,6 +622,13 @@ const saveUser = async () => {
       const userData = editedItem.value as UserFormData
       console.log('[Users][Save] Données utilisateur:', JSON.stringify(userData))
 
+      // Vérifier la correspondance des mots de passe
+      if (!userData.id && userData.password !== confirmPassword.value) {
+        formErrors.value.confirm_password = ['Les mots de passe ne correspondent pas']
+        saving.value = false
+        return
+      }
+
       if (userData.id) {
         await usersApi.updateUser(userData.id, {
           ...userData,
@@ -594,6 +642,7 @@ const saveUser = async () => {
       }
       await loadUsers()
       dashboardView.value.showForm = false
+      confirmPassword.value = '' // Réinitialiser le champ de confirmation
     }
   } catch (error: any) {
     console.error('[Users][Error] Erreur lors de la sauvegarde:', error)
