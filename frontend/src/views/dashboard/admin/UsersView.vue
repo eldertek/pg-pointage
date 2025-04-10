@@ -238,7 +238,10 @@
             :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
             no-data-text="Aucune organisation disponible"
             :return-object="false"
-            @update:model-value="(val) => console.log('[Debug][Orgs] Valeur mise à jour:', val)"
+            @update:model-value="(val) => {
+              console.log('[Debug][v-select] Nouvelle valeur:', JSON.stringify(val));
+              console.log('[Debug][v-select] État actuel de editedItem:', JSON.stringify(editedItem.value?.organizations));
+            }"
           >
             <template v-slot:chip="{ props, item }">
               <v-chip
@@ -250,7 +253,7 @@
             </template>
             <!-- Message de débogage pour les organisations sélectionnées -->
             <template v-slot:append>
-              <div class="text-caption text-grey">
+              <div class="d-none">
                 Sélectionnés: {{ (editedItem as UserFormData).organizations }}
               </div>
             </template>
@@ -394,7 +397,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { usersApi, organizationsApi } from '@/services/api'
 import type { User, UserRequest, Organization } from '@/types/api'
 import { RoleEnum, ScanPreferenceEnum } from '@/types/api'
@@ -552,12 +555,13 @@ const canView = computed(() => {
 
 // Créer des éléments formatés pour le sélecteur d'organisations
 const organizationItems = computed(() => {
+  console.log('[Debug][organizationItems] Organizations brutes:', organizations.value)
   const items = organizations.value.map(org => ({
     id: org.id,
     name: org.name
-  }));
-  console.log('[Debug][Orgs] Items d\'organisations disponibles:', items);
-  return items;
+  }))
+  console.log('[Debug][organizationItems] Items formatés:', items)
+  return items
 })
 
 // Filtrer les utilisateurs selon les permissions
@@ -703,8 +707,8 @@ const openDialog = (item?: ExtendedUser) => {
       first_name: item.first_name,
       last_name: item.last_name,
       role: item.role,
-      organizations: orgs,
-      organizations_names: item.organizations_names || [],
+      organizations: [...orgs], // Créer une nouvelle copie du tableau
+      organizations_names: item.organizations_names ? [...item.organizations_names] : [],
       phone_number: item.phone_number,
       is_active: item.is_active,
       scan_preference: item.scan_preference,
@@ -712,14 +716,14 @@ const openDialog = (item?: ExtendedUser) => {
       employee_id: item.employee_id
     }
     
-    console.log('[Debug][Orgs] Type des organisations:', typeof orgs, Array.isArray(orgs) ? 'Array' : 'Not Array');
-    console.log('[Debug][Orgs] Valeurs des organisations après affectation:', editedItem.value.organizations);
+    console.log('[Debug][Orgs] État initial de editedItem.organizations:', JSON.stringify(editedItem.value.organizations))
     
     // Mettre à jour le organizationsMap si des noms sont disponibles
     if (item.organizations && item.organizations_names) {
       item.organizations.forEach((orgId, index) => {
         if (item.organizations_names && item.organizations_names[index]) {
           organizationsMap.value.set(orgId, item.organizations_names[index])
+          console.log(`[Debug][Orgs] Mise à jour map: ${orgId} -> ${item.organizations_names[index]}`)
         }
       })
     }
@@ -743,15 +747,14 @@ const openDialog = (item?: ExtendedUser) => {
     showConfirmPassword.value = false
     confirmPassword.value = ''
   }
-  dashboardView.value.showForm = true
   
-  // Ajouter un délai pour vérifier les valeurs après le rendu
-  setTimeout(() => {
-    console.log('[Debug][Orgs] Organisations après rendu du formulaire:', 
-                editedItem.value?.organizations,
-                'Type:', typeof editedItem.value?.organizations);
-    console.log('[Debug][Orgs] Items d\'organisations disponibles après rendu:', organizationItems.value);
-  }, 500);
+  // Ajouter un délai pour s'assurer que le v-select est monté
+  nextTick(() => {
+    console.log('[Debug][Orgs] État de editedItem après nextTick:', 
+      editedItem.value ? JSON.stringify(editedItem.value.organizations) : 'null')
+  })
+  
+  dashboardView.value.showForm = true
 }
 
 const saveUser = async () => {
@@ -901,8 +904,6 @@ onMounted(async () => {
     loadUsers(),
     loadOrganizations()
   ])
-  
-  console.log('[Debug][Orgs] Organisations chargées:', organizations.value);
 
   // Si on a un ID d'édition, ouvrir le dialogue
   if (props.editId) {
@@ -924,7 +925,6 @@ onMounted(async () => {
         }
 
         console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(response.data.organizations))
-        console.log('[Debug][Orgs] Type des organisations reçues:', typeof response.data.organizations);
         
         // Mettre à jour la map des organisations avec les noms
         if (response.data.organizations && response.data.organizations_names) {
@@ -959,6 +959,18 @@ watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
     }
   }
 })
+
+// Ajouter un watcher pour surveiller les changements d'organisations
+watch(
+  () => editedItem.value?.organizations,
+  (newVal, oldVal) => {
+    console.log('[Debug][Orgs] Changement des organisations:', {
+      old: JSON.stringify(oldVal),
+      new: JSON.stringify(newVal)
+    })
+  },
+  { deep: true }
+)
 
 </script>
 
