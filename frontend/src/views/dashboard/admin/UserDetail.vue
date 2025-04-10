@@ -135,7 +135,7 @@
                 @delete="handleDelete"
                 @row-click="(item: TableItem) => router.push(`/dashboard/sites/${item.id}`)"
               >
-                
+
                 <template #item.address="{ item: rowItem }">
                   <AddressWithMap
                     :address="rowItem.address"
@@ -144,11 +144,11 @@
                     :country="rowItem.country"
                   />
                 </template>
-                
+
                 <template #item.created_at="{ item: rowItem }">
                   {{ formatDate(rowItem.created_at) }}
                 </template>
-                
+
                 <template #item.actions="{ item: rowItem }">
                   <v-btn
                     v-if="canEdit"
@@ -365,7 +365,7 @@
                     icon
                     variant="text"
                     size="small"
-                    color="primary" 
+                    color="primary"
                     @click.stop="downloadReport"
                   >
                     <v-icon>mdi-download</v-icon>
@@ -392,8 +392,8 @@ import { formatPhoneNumber } from '@/utils/formatters'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useAuthStore } from '@/stores/auth'
-import { 
-  usersApi, 
+import {
+  usersApi,
   timesheetsApi,
   sitesApi,
   schedulesApi } from '@/services/api'
@@ -526,10 +526,10 @@ const tabOrder = ['details', 'sites', 'plannings', 'pointages', 'anomalies', 're
 
 watch(activeTab, (newTab, oldTab) => {
   if (!oldTab || !newTab) return
-  
+
   const oldIndex = tabOrder.indexOf(oldTab)
   const newIndex = tabOrder.indexOf(newTab)
-  
+
   reverse.value = newIndex < oldIndex
   previousTab.value = oldTab
 })
@@ -597,7 +597,7 @@ const displayFields = computed((): Field[] => {
       inactiveLabel: 'Désactivée'
     },
     { key: 'date_joined', label: 'Date d\'inscription', icon: 'mdi-calendar', type: 'default', format: 'date', dateFormat: 'dd/MM/yyyy HH:mm' },
-    { 
+    {
       key: 'is_active',
       label: 'Statut',
       icon: 'mdi-check-circle',
@@ -762,7 +762,10 @@ const editItem = () => {
   if (isOwnProfile.value) {
     return
   }
-  
+
+  // Ajouter des logs pour déboguer
+  console.log('[UserDetail][Edit] Redirection vers la page d\'édition avec les données:', JSON.stringify(item.value))
+
   router.push(`/dashboard/admin/users/${itemId.value}/edit`).catch(error => {
     console.error('[UserDetail][Edit] Erreur lors de la redirection:', error)
   })
@@ -896,13 +899,13 @@ const togglePlanningStatus = async (planning: any) => {
     await schedulesApi.updateSchedule(planning.site, planning.id, {
       is_active: !planning.is_active
     })
-    
+
     // Mettre à jour le planning dans la liste locale
     const index = plannings.value.findIndex((p: any) => p.id === planning.id)
     if (index !== -1) {
       plannings.value[index].is_active = !planning.is_active
     }
-    
+
     showSuccess(`Planning ${planning.is_active ? 'désactivé' : 'activé'} avec succès`)
   } catch (error) {
     console.error('[UserDetail][TogglePlanningStatus] Erreur lors du changement de statut:', error)
@@ -933,10 +936,10 @@ const confirmDeletePlanning = (planning: any) => {
 const deletePlanning = async (planning: any) => {
   try {
     await schedulesApi.deleteSchedule(planning.id)
-    
+
     // Retirer le planning de la liste
     plannings.value = plannings.value.filter((p: any) => p.id !== planning.id)
-    
+
     showSuccess('Planning supprimé avec succès')
   } catch (error) {
     console.error('[UserDetail][DeletePlanning] Erreur lors de la suppression:', error)
@@ -1060,4 +1063,4 @@ watch(
   opacity: 1 !important;
   color: inherit !important;
 }
-</style> 
+</style>

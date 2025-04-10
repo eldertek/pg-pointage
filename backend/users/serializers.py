@@ -84,6 +84,11 @@ class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, R
         if user.role == User.Role.ADMIN and instance.role == User.Role.SUPER_ADMIN:
             return None
 
+        # S'assurer que les IDs des organisations sont correctement renvoyés
+        data['organizations'] = [org.id for org in instance.organizations.all()]
+
+        print(f"[UserSerializer][to_representation] Organisations pour {instance.username}: {data['organizations']}")
+
         return data
 
     def validate(self, data):

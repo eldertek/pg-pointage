@@ -318,8 +318,8 @@ class TimesheetCreateView(generics.CreateAPIView):
 
                     elif schedule.schedule_type == Schedule.ScheduleType.FREQUENCY:
                         # Pour les plannings fréquence, vérifier la durée
-                        # La logique pour les plannings fréquence sera implémentée ultérieurement
-                        # Pour l'instant, on considère que tout pointage est valide pour un planning fréquence
+                        # On considère que tout pointage est valide pour un planning fréquence
+                        # mais on vérifiera la durée entre arrivée et départ lors du scan d'anomalies
                         matching_schedules.append(schedule)
                         is_out_of_schedule = False
                         matched_schedule = schedule
@@ -755,6 +755,71 @@ class ScanAnomaliesView(generics.CreateAPIView):
                         )
                         if created:
                             anomalies_created += 1
+
+                # 7. Vérifier la durée pour les plannings fréquence
+                # Récupérer les relations site-employé avec planning fréquence
+                from sites.models import SiteEmployee, Schedule, ScheduleDetail
+                site_employee_relations = SiteEmployee.objects.filter(
+                    site=site,
+                    employee=employee,
+                    is_active=True,
+                    schedule__schedule_type=Schedule.ScheduleType.FREQUENCY
+                ).select_related('schedule')
+
+                # Si l'employé a un planning fréquence pour ce site
+                if site_employee_relations.exists() and arrivals and departures:
+                    # Calculer la durée totale en minutes
+                    total_minutes = sum(
+                        (dep.timestamp - arr.timestamp).total_seconds() / 60
+                        for arr, dep in zip(arrivals, departures)
+                        if arr.timestamp < dep.timestamp
+                    )
+
+                    # Pour chaque planning fréquence de l'employé
+                    for site_employee in site_employee_relations:
+                        schedule = site_employee.schedule
+                        if not schedule or not schedule.is_active:
+                            continue
+
+                        # Récupérer les détails du planning pour le jour actuel
+                        try:
+                            schedule_detail = ScheduleDetail.objects.get(
+                                schedule=schedule,
+                                day_of_week=date.weekday()
+                            )
+
+                            # Vérifier si la durée est conforme à la fréquence attendue
+                            expected_duration = schedule_detail.frequency_duration
+                            if expected_duration and expected_duration > 0:
+                                # Calculer la marge de tolérance
+                                tolerance_percentage = schedule.frequency_tolerance_percentage or site.frequency_tolerance or 10
+                                min_duration = expected_duration * (1 - tolerance_percentage / 100)
+
+                                # Si la durée est inférieure à la durée minimale attendue
+                                if total_minutes < min_duration:
+                                    # Créer une anomalie pour durée insuffisante
+                                    anomaly, created = Anomaly.objects.get_or_create(
+                                        employee=employee,
+                                        site=site,
+                                        date=date,
+                                        anomaly_type=Anomaly.AnomalyType.INSUFFICIENT_HOURS,
+                                        defaults={
+                                            'description': f'Durée de présence insuffisante pour planning fréquence. '
+                                                         f'Durée: {total_minutes:.0f} minutes, Minimum requis: {min_duration:.0f} minutes '
+                                                         f'(fréquence: {expected_duration} minutes, tolérance: {tolerance_percentage}%)',
+                                            'minutes': int(expected_duration - total_minutes),
+                                            'status': Anomaly.AnomalyStatus.PENDING
+                                        }
+                                    )
+                                    if created:
+                                        anomalies_created += 1
+                                        logging.getLogger(__name__).info(
+                                            f"Anomalie de durée insuffisante créée pour {employee.get_full_name()} le {date} au site {site.name}. "
+                                            f"Durée: {total_minutes:.0f} minutes, Minimum requis: {min_duration:.0f} minutes"
+                                        )
+                        except ScheduleDetail.DoesNotExist:
+                            # Pas de planning pour ce jour
+                            continue
 
             return Response({
                 'message': f'{anomalies_created} anomalies détectées',

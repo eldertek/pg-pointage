@@ -416,7 +416,10 @@ const usersApi = {
   getAllUsers: (params: any = {}) => api.get('/users/', { params }),
 
   // Get a single user by ID
-  getUser: (id: number) => api.get(`/users/${id}/`),
+  getUser: (id: number) => {
+    console.log('[API][GetUser] Chargement de l\'utilisateur:', id)
+    return api.get(`/users/${id}/`)
+  },
 
   // Create a new user
   createUser: (data: any) => {

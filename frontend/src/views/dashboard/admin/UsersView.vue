@@ -235,7 +235,7 @@
             :return-object="false"
           ></v-select>
         </v-col>
-        
+
         <!-- Mot de passe en mode création -->
         <v-col v-if="!(editedItem as UserFormData).id" cols="12" sm="6">
           <v-text-field
@@ -260,7 +260,7 @@
             </template>
           </v-text-field>
         </v-col>
-        
+
         <!-- Confirmation mot de passe en mode création -->
         <v-col v-if="!(editedItem as UserFormData).id" cols="12" sm="6">
           <v-text-field
@@ -337,7 +337,7 @@
             </template>
           </v-text-field>
         </v-col>
-        
+
         <!-- Confirmation mot de passe en mode modification -->
         <v-col v-if="(editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
           <v-text-field
@@ -634,6 +634,12 @@ const confirmPassword = ref('')
 
 const openDialog = (item?: ExtendedUser) => {
   if (item) {
+    console.log('[Users][OpenDialog] Item organizations:', JSON.stringify(item.organizations))
+
+    // S'assurer que les organisations sont un tableau valide
+    const orgs = Array.isArray(item.organizations) ? [...item.organizations] : [];
+    console.log('[Users][OpenDialog] Organisations formatées:', JSON.stringify(orgs))
+
     editedItem.value = {
       id: item.id,
       username: item.username,
@@ -641,7 +647,7 @@ const openDialog = (item?: ExtendedUser) => {
       first_name: item.first_name,
       last_name: item.last_name,
       role: item.role,
-      organizations: item.organizations,
+      organizations: orgs,
       phone_number: item.phone_number,
       is_active: item.is_active,
       scan_preference: item.scan_preference,
@@ -688,15 +694,19 @@ const saveUser = async () => {
         return
       }
 
+      // S'assurer que les organisations sont un tableau valide
+      const organizations = Array.isArray(userData.organizations) ? userData.organizations : [];
+      console.log('[Users][Save] Organisations à envoyer:', JSON.stringify(organizations))
+
       if (userData.id) {
         await usersApi.updateUser(userData.id, {
           ...userData,
-          organizations: userData.organizations || []
+          organizations: organizations
         })
       } else {
         await usersApi.createUser({
           ...userData,
-          organizations: userData.organizations || []
+          organizations: organizations
         })
       }
       await loadUsers()
@@ -813,6 +823,23 @@ onMounted(async () => {
   if (props.editId) {
     try {
       const response = await usersApi.getUser(Number(props.editId))
+      console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(response.data))
+
+      // S'assurer que les organisations sont correctement formatées
+      if (response.data) {
+        // Vérifier si organizations est défini et le formater correctement
+        if (response.data.organizations === undefined) {
+          response.data.organizations = []
+          console.warn('[Users][EditMode] Organisations non définies, initialisation à un tableau vide')
+        } else if (!Array.isArray(response.data.organizations)) {
+          // Si ce n'est pas un tableau, le convertir en tableau
+          response.data.organizations = [response.data.organizations]
+          console.warn('[Users][EditMode] Organisations non sous forme de tableau, conversion effectuée')
+        }
+
+        console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(response.data.organizations))
+      }
+
       openDialog(response.data)
     } catch (error) {
       console.error('[Users][Error] Erreur lors du chargement des données:', error)
