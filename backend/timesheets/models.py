@@ -104,19 +104,10 @@ class Timesheet(models.Model):
         ).exclude(id=self.id).order_by('-timestamp').first()
 
         if last_timesheet and last_timesheet.entry_type == self.entry_type:
-            # Créer une anomalie pour les pointages consécutifs du même type
-            Anomaly.objects.create(
-                employee=self.employee,
-                site=self.site,
-                timesheet=self,
-                date=timezone.localtime(self.timestamp).date(),
-                anomaly_type=Anomaly.AnomalyType.CONSECUTIVE_SAME_TYPE,
-                description=_(
-                    f'Pointage {self.get_entry_type_display()} consécutif détecté. '
-                    f'Dernier pointage : {last_timesheet.timestamp.strftime("%H:%M")}'
-                ),
-                status=Anomaly.AnomalyStatus.PENDING
-            )
+            # On ne crée pas d'anomalie ici pour éviter les problèmes avec les objets non sauvegardés
+            # L'anomalie sera créée dans la méthode create_consecutive_anomaly après la sauvegarde
+            self._create_consecutive_anomaly = True
+            self._last_timesheet = last_timesheet
 
             if self.entry_type == self.EntryType.ARRIVAL:
                 raise ValidationError({
@@ -138,9 +129,28 @@ class Timesheet(models.Model):
                     'entry_type': _('Vous devez d\'abord pointer votre arrivée avant de pointer un nouveau départ.')
                 })
 
+    def create_consecutive_anomaly(self):
+        """Crée une anomalie pour les pointages consécutifs du même type"""
+        if hasattr(self, '_create_consecutive_anomaly') and self._create_consecutive_anomaly:
+            last_timesheet = self._last_timesheet
+            Anomaly.objects.create(
+                employee=self.employee,
+                site=self.site,
+                timesheet=self,
+                date=timezone.localtime(self.timestamp).date(),
+                anomaly_type=Anomaly.AnomalyType.CONSECUTIVE_SAME_TYPE,
+                description=_(
+                    f'Pointage {self.get_entry_type_display()} consécutif détecté. '
+                    f'Dernier pointage : {last_timesheet.timestamp.strftime("%H:%M")}'
+                ),
+                status=Anomaly.AnomalyStatus.PENDING
+            )
+
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
+        # Créer l'anomalie après la sauvegarde
+        self.create_consecutive_anomaly()
 
     class Meta:
         verbose_name = _('pointage')
