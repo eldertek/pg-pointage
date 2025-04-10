@@ -222,6 +222,7 @@
         <!-- Sélection des organisations pour tous les rôles sauf Super Admin -->
         <v-col v-if="(editedItem as UserFormData).role !== RoleEnum.SUPER_ADMIN" cols="12" sm="6">
           <v-select
+            :key="selectKey"
             v-model="(editedItem as UserFormData).organizations"
             :items="organizations"
             item-title="name"
@@ -234,6 +235,7 @@
             return-array
             required
             :return-object="false"
+            density="comfortable"
             :error-messages="formErrors.organizations"
             :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
             no-data-text="Aucune organisation disponible"
@@ -463,6 +465,8 @@ const editedItem = ref<UserFormData | null>(null)
 const form = ref()
 const dashboardView = ref()
 const formErrors = ref<Record<string, string[]>>({})
+// Ajout d'une clé unique pour forcer le re-rendu du composant v-select
+const selectKey = ref(Date.now())
 
 // Filtres
 const filters = ref({
@@ -652,6 +656,9 @@ const showConfirmPassword = ref(false)
 const confirmPassword = ref('')
 
 const openDialog = (item?: ExtendedUser) => {
+  // Générer une nouvelle clé pour forcer le re-rendu du composant v-select
+  selectKey.value = Date.now()
+  
   if (item) {
     console.log('[Users][OpenDialog] Item organizations:', JSON.stringify(item.organizations))
 
@@ -663,14 +670,15 @@ const openDialog = (item?: ExtendedUser) => {
     console.log('[Users][OpenDialog] Organisations disponibles pour le sélecteur:', 
       organizations.value.map(org => ({ id: org.id, name: org.name })))
 
-    editedItem.value = {
+    // Utiliser une structure complètement nouvelle pour éviter les problèmes de référence
+    const newItem: UserFormData = {
       id: item.id,
       username: item.username,
       email: item.email,
       first_name: item.first_name,
       last_name: item.last_name,
       role: item.role,
-      organizations: [],  // On initialise d'abord avec un tableau vide
+      organizations: [...orgs], // Important: utilisez une copie fraîche
       phone_number: item.phone_number,
       is_active: item.is_active,
       scan_preference: item.scan_preference,
@@ -678,14 +686,9 @@ const openDialog = (item?: ExtendedUser) => {
       employee_id: item.employee_id
     }
     
-    // Forcer une mise à jour du v-select en utilisant un setTimeout
-    setTimeout(() => {
-      if (editedItem.value) {
-        editedItem.value.organizations = orgs;
-        console.log('[Users][OpenDialog] Organisations définies après timeout:', JSON.stringify(orgs));
-      }
-    }, 50);
-      
+    editedItem.value = newItem
+    console.log('[Users][OpenDialog] Nouvelle valeur de editedItem:', 
+      JSON.stringify(editedItem.value.organizations))
   } else {
     editedItem.value = {
       username: '',
@@ -855,57 +858,68 @@ onMounted(async () => {
 
   // Si on a un ID d'édition, ouvrir le dialogue après avoir chargé toutes les données
   if (props.editId) {
-    try {
-      const response = await usersApi.getUser(Number(props.editId))
-      const userData = response.data;
-      console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(userData))
-
-      // S'assurer que les organisations sont correctement formatées
-      if (userData) {
-        // Vérifier si organizations est défini et le formater correctement
-        let orgs: number[] = [];
-        if (userData.organizations === undefined) {
-          orgs = [];
-          console.warn('[Users][EditMode] Organisations non définies, initialisation à un tableau vide')
-        } else if (!Array.isArray(userData.organizations)) {
-          // Si ce n'est pas un tableau, le convertir en tableau
-          orgs = [userData.organizations as number];
-          console.warn('[Users][EditMode] Organisations non sous forme de tableau, conversion effectuée')
-        } else {
-          orgs = [...userData.organizations] as number[];
-        }
-
-        // Créer une copie de userData avec les organisations formatées
-        const formattedUser = {
-          ...userData,
-          organizations: orgs
-        };
-
-        console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(orgs))
-        console.log('[Users][EditMode] Organisations disponibles:', JSON.stringify(organizations.value.map(org => org.id)))
-        
-        // Vérifier que les organisations de l'utilisateur existent bien dans la liste des organisations disponibles
-        const availableOrgIds: number[] = organizations.value.map(org => org.id);
-        const validOrgs = orgs.filter(orgId => availableOrgIds.includes(orgId));
-        
-        if (validOrgs.length !== orgs.length) {
-          console.warn('[Users][EditMode] Certaines organisations de l\'utilisateur ne sont pas disponibles:', 
-            orgs.filter(orgId => !availableOrgIds.includes(orgId)));
-          formattedUser.organizations = validOrgs;
-        }
-        
-        // Attendre que les organisations soient chargées avant d'ouvrir le dialogue
-        if (organizations.value.length > 0) {
-          openDialog(formattedUser)
-        } else {
-          console.error("[Users][EditMode] Impossible d'ouvrir le dialogue: organisations non chargées")
-        }
-      }
-    } catch (error) {
-      console.error('[Users][Error] Erreur lors du chargement des données:', error)
-    }
+    await loadUserForEdit(Number(props.editId))
   }
 })
+
+// Charger un utilisateur spécifique pour l'édition
+const loadUserForEdit = async (userId: number) => {
+  try {
+    console.log(`[API][GetUser] Chargement de l'utilisateur: ${userId}`)
+    const response = await usersApi.getUser(userId)
+    const userData = response.data
+    console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(userData))
+
+    // S'assurer que les organisations sont correctement formatées
+    if (userData) {
+      // Vérifier si organizations est défini et le formater correctement
+      let orgs: number[] = []
+      if (userData.organizations === undefined) {
+        orgs = []
+        console.warn('[Users][EditMode] Organisations non définies, initialisation à un tableau vide')
+      } else if (!Array.isArray(userData.organizations)) {
+        // Si ce n'est pas un tableau, le convertir en tableau
+        orgs = [userData.organizations as number]
+        console.warn('[Users][EditMode] Organisations non sous forme de tableau, conversion effectuée')
+      } else {
+        orgs = [...userData.organizations] as number[]
+      }
+
+      // Vérifier que les organisations de l'utilisateur existent bien dans la liste des organisations disponibles
+      const availableOrgIds: number[] = organizations.value.map(org => org.id)
+      console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(orgs))
+      console.log('[Users][EditMode] Organisations disponibles:', JSON.stringify(availableOrgIds))
+      
+      const validOrgs = orgs.filter(orgId => availableOrgIds.includes(orgId))
+      
+      if (validOrgs.length !== orgs.length) {
+        console.warn('[Users][EditMode] Certaines organisations de l\'utilisateur ne sont pas disponibles:', 
+          orgs.filter(orgId => !availableOrgIds.includes(orgId)))
+        orgs = validOrgs
+      }
+      
+      // Attendre que les organisations soient chargées avant d'ouvrir le dialogue
+      if (organizations.value.length > 0) {
+        // Créer un nouvel objet avec les organisations mises à jour
+        const userWithValidOrgs: ExtendedUser = {
+          ...userData,
+          organizations: orgs
+        }
+        openDialog(userWithValidOrgs)
+        
+        // Vérification supplémentaire après le rendu
+        setTimeout(() => {
+          console.log('[Users][EditMode] Vérification finale des organisations:', 
+            editedItem.value?.organizations)
+        }, 100)
+      } else {
+        console.error("[Users][EditMode] Impossible d'ouvrir le dialogue: organisations non chargées")
+      }
+    }
+  } catch (error) {
+    console.error('[Users][Error] Erreur lors du chargement des données:', error)
+  }
+}
 
 // Observateur pour le changement de rôle
 watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
