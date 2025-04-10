@@ -202,7 +202,6 @@
             v-model="(editedItem as UserFormData).email"
             label="Email"
             type="email"
-            autocomplete="username"
             required
             :error-messages="formErrors.email"
             @update:model-value="handleEmailChange"
@@ -222,7 +221,6 @@
         <!-- Sélection des organisations pour tous les rôles sauf Super Admin -->
         <v-col v-if="(editedItem as UserFormData).role !== RoleEnum.SUPER_ADMIN" cols="12" sm="6">
           <v-select
-            :key="selectKey"
             v-model="(editedItem as UserFormData).organizations"
             :items="organizations"
             item-title="name"
@@ -230,20 +228,22 @@
             label="Organisations"
             multiple
             chips
-            closable-chips
-            eager
-            return-array
             required
-            :return-object="false"
-            density="comfortable"
             :error-messages="formErrors.organizations"
             :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
             no-data-text="Aucune organisation disponible"
-            @update:model-value="val => console.log('[Users][Select] Valeur mise à jour:', JSON.stringify(val))"
-            class="org-select"
+            :return-object="false"
           >
+            <template v-slot:chip="{ props, item }">
+              <v-chip
+                v-bind="props"
+                :text="organizationsMap.get(item.value) || item.title"
+                color="primary"
+                size="small"
+              ></v-chip>
+            </template>
             <template v-slot:selection="{ item }">
-              <v-chip small closable>{{ item.props.title }}</v-chip>
+              {{ organizationsMap.get(item.value) || item.title }}
             </template>
           </v-select>
         </v-col>
@@ -254,7 +254,6 @@
             v-model="(editedItem as UserFormData).password"
             label="Mot de passe"
             :type="showPassword ? 'text' : 'password'"
-            autocomplete="new-password"
             required
             :error-messages="formErrors.password"
             :rules="[
@@ -280,7 +279,6 @@
             v-model="confirmPassword"
             label="Confirmer le mot de passe"
             :type="showConfirmPassword ? 'text' : 'password'"
-            autocomplete="new-password"
             required
             :error-messages="formErrors.confirm_password"
             :rules="[
@@ -333,7 +331,6 @@
             v-model="(editedItem as UserFormData).password"
             label="Nouveau mot de passe"
             :type="showPassword ? 'text' : 'password'"
-            autocomplete="new-password"
             :error-messages="formErrors.password"
             :rules="[
               v => !v || v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
@@ -359,7 +356,6 @@
             v-model="confirmPassword"
             label="Confirmer le nouveau mot de passe"
             :type="showConfirmPassword ? 'text' : 'password'"
-            autocomplete="new-password"
             :error-messages="formErrors.confirm_password"
             :rules="[
               v => !v || v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
@@ -432,6 +428,7 @@ interface UserFormData {
   last_name: string;
   role: string;
   organizations: number[];
+  organizations_names?: string[];
   phone_number: string;
   is_active: boolean;
   scan_preference: string;
@@ -465,8 +462,6 @@ const editedItem = ref<UserFormData | null>(null)
 const form = ref()
 const dashboardView = ref()
 const formErrors = ref<Record<string, string[]>>({})
-// Ajout d'une clé unique pour forcer le re-rendu du composant v-select
-const selectKey = ref(Date.now())
 
 // Filtres
 const filters = ref({
@@ -477,6 +472,7 @@ const filters = ref({
 // Données
 const users = ref<ExtendedUser[]>([])
 const organizations = ref<Organization[]>([])
+const organizationsMap = ref<Map<number, string>>(new Map())
 
 // En-têtes des tableaux
 const headers = [
@@ -602,6 +598,18 @@ const loadUsers = async () => {
     })
     users.value = response.data.results || []
     totalItems.value = response.data.count
+    
+    // Mettre à jour la map des organisations avec les noms depuis les résultats des utilisateurs
+    users.value.forEach(user => {
+      if (user.organizations && user.organizations_names) {
+        user.organizations.forEach((orgId, index) => {
+          if (user.organizations_names[index]) {
+            organizationsMap.value.set(orgId, user.organizations_names[index])
+          }
+        })
+      }
+    })
+    
   } catch (error) {
     console.error('Erreur lors du chargement des utilisateurs:', error)
   } finally {
@@ -610,16 +618,17 @@ const loadUsers = async () => {
 }
 
 const loadOrganizations = async () => {
-  const loadingOrgs = ref(true)
   try {
-    console.log('[Users][LoadOrgs] Début du chargement des organisations')
     const response = await organizationsApi.getAllOrganizations()
     organizations.value = response.data.results || []
-    console.log('[Users][LoadOrgs] Organisations chargées:', organizations.value.map(o => ({ id: o.id, name: o.name })))
+    
+    // Créer un map des organisations pour la recherche rapide
+    organizationsMap.value.clear()
+    organizations.value.forEach(org => {
+      organizationsMap.value.set(org.id, org.name)
+    })
   } catch (error) {
-    console.error('[Users][LoadOrgs] Erreur lors du chargement des organisations:', error)
-  } finally {
-    loadingOrgs.value = false
+    console.error('Erreur lors du chargement des organisations:', error)
   }
 }
 
@@ -656,29 +665,23 @@ const showConfirmPassword = ref(false)
 const confirmPassword = ref('')
 
 const openDialog = (item?: ExtendedUser) => {
-  // Générer une nouvelle clé pour forcer le re-rendu du composant v-select
-  selectKey.value = Date.now()
-  
   if (item) {
     console.log('[Users][OpenDialog] Item organizations:', JSON.stringify(item.organizations))
+    console.log('[Users][OpenDialog] Item organizations_names:', JSON.stringify(item.organizations_names))
 
     // S'assurer que les organisations sont un tableau valide
     const orgs = Array.isArray(item.organizations) ? [...item.organizations] : [];
     console.log('[Users][OpenDialog] Organisations formatées:', JSON.stringify(orgs))
 
-    // Vérification des organisations dans le sélecteur
-    console.log('[Users][OpenDialog] Organisations disponibles pour le sélecteur:', 
-      organizations.value.map(org => ({ id: org.id, name: org.name })))
-
-    // Utiliser une structure complètement nouvelle pour éviter les problèmes de référence
-    const newItem: UserFormData = {
+    editedItem.value = {
       id: item.id,
       username: item.username,
       email: item.email,
       first_name: item.first_name,
       last_name: item.last_name,
       role: item.role,
-      organizations: [...orgs], // Important: utilisez une copie fraîche
+      organizations: orgs,
+      organizations_names: item.organizations_names || [],
       phone_number: item.phone_number,
       is_active: item.is_active,
       scan_preference: item.scan_preference,
@@ -686,9 +689,14 @@ const openDialog = (item?: ExtendedUser) => {
       employee_id: item.employee_id
     }
     
-    editedItem.value = newItem
-    console.log('[Users][OpenDialog] Nouvelle valeur de editedItem:', 
-      JSON.stringify(editedItem.value.organizations))
+    // Mettre à jour le organizationsMap si des noms sont disponibles
+    if (item.organizations && item.organizations_names) {
+      item.organizations.forEach((orgId, index) => {
+        if (item.organizations_names && item.organizations_names[index]) {
+          organizationsMap.value.set(orgId, item.organizations_names[index])
+        }
+      })
+    }
   } else {
     editedItem.value = {
       username: '',
@@ -697,6 +705,7 @@ const openDialog = (item?: ExtendedUser) => {
       last_name: '',
       role: RoleEnum.EMPLOYEE,
       organizations: [],
+      organizations_names: [],
       phone_number: '',
       is_active: true,
       scan_preference: ScanPreferenceEnum.BOTH,
@@ -732,6 +741,11 @@ const saveUser = async () => {
       // S'assurer que les organisations sont un tableau valide
       const organizations = Array.isArray(userData.organizations) ? userData.organizations : [];
       console.log('[Users][Save] Organisations à envoyer:', JSON.stringify(organizations))
+
+      // Générer les noms d'organisations basés sur les IDs sélectionnés
+      userData.organizations_names = organizations.map(orgId => 
+        organizationsMap.value.get(orgId) || '?'
+      )
 
       if (userData.id) {
         await usersApi.updateUser(userData.id, {
@@ -849,77 +863,38 @@ const toggleStatus = async (item: ExtendedUser) => {
 
 // Initialisation
 onMounted(async () => {
-  // Charger d'abord les organisations
-  await loadOrganizations()
-  console.log('[Users][Init] Organisations chargées:', organizations.value)
+  await Promise.all([
+    loadUsers(),
+    loadOrganizations()
+  ])
 
-  // Ensuite charger les utilisateurs
-  await loadUsers()
-
-  // Si on a un ID d'édition, ouvrir le dialogue après avoir chargé toutes les données
+  // Si on a un ID d'édition, ouvrir le dialogue
   if (props.editId) {
-    await loadUserForEdit(Number(props.editId))
+    try {
+      const response = await usersApi.getUser(Number(props.editId))
+      console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(response.data))
+
+      // S'assurer que les organisations sont correctement formatées
+      if (response.data) {
+        // Vérifier si organizations est défini et le formater correctement
+        if (response.data.organizations === undefined) {
+          response.data.organizations = []
+          console.warn('[Users][EditMode] Organisations non définies, initialisation à un tableau vide')
+        } else if (!Array.isArray(response.data.organizations)) {
+          // Si ce n'est pas un tableau, le convertir en tableau
+          response.data.organizations = [response.data.organizations]
+          console.warn('[Users][EditMode] Organisations non sous forme de tableau, conversion effectuée')
+        }
+
+        console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(response.data.organizations))
+      }
+
+      openDialog(response.data)
+    } catch (error) {
+      console.error('[Users][Error] Erreur lors du chargement des données:', error)
+    }
   }
 })
-
-// Charger un utilisateur spécifique pour l'édition
-const loadUserForEdit = async (userId: number) => {
-  try {
-    console.log(`[API][GetUser] Chargement de l'utilisateur: ${userId}`)
-    const response = await usersApi.getUser(userId)
-    const userData = response.data
-    console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(userData))
-
-    // S'assurer que les organisations sont correctement formatées
-    if (userData) {
-      // Vérifier si organizations est défini et le formater correctement
-      let orgs: number[] = []
-      if (userData.organizations === undefined) {
-        orgs = []
-        console.warn('[Users][EditMode] Organisations non définies, initialisation à un tableau vide')
-      } else if (!Array.isArray(userData.organizations)) {
-        // Si ce n'est pas un tableau, le convertir en tableau
-        orgs = [userData.organizations as number]
-        console.warn('[Users][EditMode] Organisations non sous forme de tableau, conversion effectuée')
-      } else {
-        orgs = [...userData.organizations] as number[]
-      }
-
-      // Vérifier que les organisations de l'utilisateur existent bien dans la liste des organisations disponibles
-      const availableOrgIds: number[] = organizations.value.map(org => org.id)
-      console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(orgs))
-      console.log('[Users][EditMode] Organisations disponibles:', JSON.stringify(availableOrgIds))
-      
-      const validOrgs = orgs.filter(orgId => availableOrgIds.includes(orgId))
-      
-      if (validOrgs.length !== orgs.length) {
-        console.warn('[Users][EditMode] Certaines organisations de l\'utilisateur ne sont pas disponibles:', 
-          orgs.filter(orgId => !availableOrgIds.includes(orgId)))
-        orgs = validOrgs
-      }
-      
-      // Attendre que les organisations soient chargées avant d'ouvrir le dialogue
-      if (organizations.value.length > 0) {
-        // Créer un nouvel objet avec les organisations mises à jour
-        const userWithValidOrgs: ExtendedUser = {
-          ...userData,
-          organizations: orgs
-        }
-        openDialog(userWithValidOrgs)
-        
-        // Vérification supplémentaire après le rendu
-        setTimeout(() => {
-          console.log('[Users][EditMode] Vérification finale des organisations:', 
-            editedItem.value?.organizations)
-        }, 100)
-      } else {
-        console.error("[Users][EditMode] Impossible d'ouvrir le dialogue: organisations non chargées")
-      }
-    }
-  } catch (error) {
-    console.error('[Users][Error] Erreur lors du chargement des données:', error)
-  }
-}
 
 // Observateur pour le changement de rôle
 watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
@@ -977,21 +952,5 @@ watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
 
 :deep(.disabled-button .v-icon) {
   color: #999 !important;
-}
-
-/* Style pour les sélections multiples */
-:deep(.org-select .v-select__selection) {
-  display: inline-flex !important;
-  margin: 2px !important;
-}
-
-:deep(.org-select .v-chip) {
-  margin: 2px !important;
-}
-
-/* Pour assurer que les éléments selected sont visibles */
-:deep(.org-select .v-field__input) {
-  min-height: 40px !important;
-  padding-top: 4px !important;
 }
 </style>
