@@ -274,6 +274,94 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
         self.assertIn('Durée: 20 minutes', anomaly.description)
         self.assertIn('Minimum requis: 27 minutes', anomaly.description)
 
+        # Verify that the schedule is associated with the anomaly
+        self.assertEqual(anomaly.schedule, self.schedule)
+
+        # Verify that the related timesheets are associated with the anomaly
+        related_timesheets = anomaly.related_timesheets.all()
+        self.assertEqual(related_timesheets.count(), 2)
+        self.assertIn(arrival_timesheet, related_timesheets)
+        self.assertIn(departure_timesheet, related_timesheets)
+
+    def test_anomaly_with_schedule_and_timesheets(self):
+        """Test that anomalies include the schedule and timesheets that triggered them."""
+        # Set up a frequency schedule with 30 minutes duration
+        from sites.models import ScheduleDetail
+        ScheduleDetail.objects.filter(schedule=self.schedule).delete()
+
+        # Create a new schedule detail with 30 minutes duration
+        ScheduleDetail.objects.create(
+            schedule=self.schedule,
+            day_of_week=1,  # Tuesday
+            frequency_duration=30
+        )
+
+        # Employee clocks in at 10:00
+        arrival_timestamp = self.tuesday_date.replace(hour=10, minute=0)
+        arrival_timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=arrival_timestamp,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Call the scan_anomalies endpoint to detect anomalies
+        from rest_framework.test import APIClient
+        from django.urls import reverse
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.tuesday_date.date(),
+                'end_date': self.tuesday_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
+        )
+
+        # Verify the response
+        self.assertEqual(response.status_code, 200)
+
+        # Verify anomaly is created for missing departure
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.tuesday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE
+        )
+        self.assertEqual(anomalies.count(), 1)
+
+        # Verify the anomaly details
+        anomaly = anomalies.first()
+        self.assertEqual(anomaly.schedule, self.schedule)
+
+        # Verify that the related timesheets are associated with the anomaly
+        related_timesheets = anomaly.related_timesheets.all()
+        self.assertEqual(related_timesheets.count(), 1)
+        self.assertIn(arrival_timesheet, related_timesheets)
+
+        # Verify that the serializer includes the schedule and related timesheets
+        from rest_framework.test import APIRequestFactory
+        from timesheets.serializers import AnomalySerializer
+
+        factory = APIRequestFactory()
+        request = factory.get('/')
+        request.user = self.manager
+
+        serializer = AnomalySerializer(anomaly, context={'request': request})
+        data = serializer.data
+
+        self.assertIsNotNone(data['schedule_details'])
+        self.assertEqual(data['schedule_details']['id'], self.schedule.id)
+        self.assertEqual(data['schedule_details']['schedule_type'], self.schedule.schedule_type)
+
+        self.assertIsNotNone(data['related_timesheets_details'])
+        self.assertEqual(len(data['related_timesheets_details']), 1)
+        self.assertEqual(data['related_timesheets_details'][0]['id'], arrival_timesheet.id)
+
     def test_single_clock(self):
         """Test Workflow 11: Single clock-in or clock-out."""
         # Employee clocks in at 10:00 (only one clock)

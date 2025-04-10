@@ -600,6 +600,11 @@ const timesheetsApi = {
     return api.get('/timesheets/', { params: queryParams });
   },
 
+  // Get timesheet details
+  getTimesheetDetails: (id: number) => {
+    return api.get(`/timesheets/${id}/`);
+  },
+
   // Get a single timesheet by ID
   getTimesheet: (id: number) => api.get(`/timesheets/${id}/`),
 
@@ -705,6 +710,10 @@ const timesheetsApi = {
   // Ignore anomaly
   ignoreAnomaly: (id: number) =>
     api.patch(`/timesheets/anomalies/${id}/`, { status: 'IGNORED' }),
+
+  // Delete anomaly
+  deleteAnomaly: (id: number) =>
+    api.delete(`/timesheets/anomalies/${id}/`),
 }
 
 // Anomalies API methods

@@ -494,6 +494,72 @@ class ScanAnomaliesView(generics.CreateAPIView):
     serializer_class = ScanAnomaliesSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def _is_schedule_active_for_date(self, schedule, date):
+        """Vérifie si un planning est actif pour une date donnée."""
+        if not schedule or not schedule.is_active:
+            return False
+
+        # Récupérer le jour de la semaine (0-6, lundi=0)
+        day_of_week = date.weekday()
+
+        # Vérifier si le planning a des détails pour ce jour
+        try:
+            from sites.models import ScheduleDetail
+            schedule_detail = ScheduleDetail.objects.get(schedule=schedule, day_of_week=day_of_week)
+            return True
+        except ScheduleDetail.DoesNotExist:
+            return False
+
+    def _is_timesheet_matching_schedule(self, timesheet, schedule):
+        """Vérifie si un pointage correspond à un planning."""
+        if not schedule or not schedule.is_active:
+            return False
+
+        # Récupérer le jour de la semaine (0-6, lundi=0)
+        day_of_week = timesheet.timestamp.weekday()
+
+        # Récupérer les détails du planning pour ce jour
+        try:
+            from sites.models import ScheduleDetail
+            schedule_detail = ScheduleDetail.objects.get(schedule=schedule, day_of_week=day_of_week)
+        except ScheduleDetail.DoesNotExist:
+            return False
+
+        # Si c'est un planning fixe, vérifier les heures
+        if schedule.schedule_type == 'FIXED':
+            # Convertir l'heure du pointage en minutes depuis minuit
+            timesheet_minutes = timesheet.timestamp.hour * 60 + timesheet.timestamp.minute
+
+            # Vérifier si l'heure du pointage est dans les plages horaires du planning
+            # avec une marge de tolérance
+            tolerance_minutes = 30  # 30 minutes de tolérance par défaut
+
+            # Plage 1
+            if schedule_detail.start_time_1 and schedule_detail.end_time_1:
+                start_minutes_1 = schedule_detail.start_time_1.hour * 60 + schedule_detail.start_time_1.minute
+                end_minutes_1 = schedule_detail.end_time_1.hour * 60 + schedule_detail.end_time_1.minute
+
+                # Vérifier si le pointage est dans la plage 1 (avec tolérance)
+                if (start_minutes_1 - tolerance_minutes <= timesheet_minutes <= end_minutes_1 + tolerance_minutes):
+                    return True
+
+            # Plage 2
+            if schedule_detail.start_time_2 and schedule_detail.end_time_2:
+                start_minutes_2 = schedule_detail.start_time_2.hour * 60 + schedule_detail.start_time_2.minute
+                end_minutes_2 = schedule_detail.end_time_2.hour * 60 + schedule_detail.end_time_2.minute
+
+                # Vérifier si le pointage est dans la plage 2 (avec tolérance)
+                if (start_minutes_2 - tolerance_minutes <= timesheet_minutes <= end_minutes_2 + tolerance_minutes):
+                    return True
+
+            return False
+
+        # Si c'est un planning fréquence, tout pointage est valide
+        elif schedule.schedule_type == 'FREQUENCY':
+            return True
+
+        return False
+
     @extend_schema(
         request=ScanAnomaliesSerializer,
         responses={
@@ -588,6 +654,22 @@ class ScanAnomaliesView(generics.CreateAPIView):
                 if arrivals:
                     first_arrival = arrivals[0]
                     if first_arrival.is_late:
+                        # Récupérer le planning associé au pointage
+                        from sites.models import SiteEmployee, Schedule
+                        site_employee_relations = SiteEmployee.objects.filter(
+                            site=site,
+                            employee=employee,
+                            is_active=True
+                        ).select_related('schedule')
+
+                        associated_schedule = None
+                        for site_employee in site_employee_relations:
+                            if site_employee.schedule and site_employee.schedule.is_active:
+                                # Vérifier si ce planning correspond au pointage
+                                if self._is_timesheet_matching_schedule(first_arrival, site_employee.schedule):
+                                    associated_schedule = site_employee.schedule
+                                    break
+
                         anomaly, created = Anomaly.objects.get_or_create(
                             employee=employee,
                             site=site,
@@ -597,10 +679,14 @@ class ScanAnomaliesView(generics.CreateAPIView):
                             defaults={
                                 'description': f'Retard de {first_arrival.late_minutes} minutes.',
                                 'minutes': first_arrival.late_minutes,
-                                'status': Anomaly.AnomalyStatus.PENDING
+                                'status': Anomaly.AnomalyStatus.PENDING,
+                                'schedule': associated_schedule
                             }
                         )
+
+                        # Associer le pointage concerné à l'anomalie
                         if created:
+                            anomaly.related_timesheets.add(first_arrival)
                             anomalies_created += 1
 
                 # 3. Vérifier les départs anticipés
@@ -608,6 +694,22 @@ class ScanAnomaliesView(generics.CreateAPIView):
                 if departures:
                     last_departure = departures[-1]
                     if last_departure.is_early_departure:
+                        # Récupérer le planning associé au pointage
+                        from sites.models import SiteEmployee, Schedule
+                        site_employee_relations = SiteEmployee.objects.filter(
+                            site=site,
+                            employee=employee,
+                            is_active=True
+                        ).select_related('schedule')
+
+                        associated_schedule = None
+                        for site_employee in site_employee_relations:
+                            if site_employee.schedule and site_employee.schedule.is_active:
+                                # Vérifier si ce planning correspond au pointage
+                                if self._is_timesheet_matching_schedule(last_departure, site_employee.schedule):
+                                    associated_schedule = site_employee.schedule
+                                    break
+
                         anomaly, created = Anomaly.objects.get_or_create(
                             employee=employee,
                             site=site,
@@ -617,10 +719,14 @@ class ScanAnomaliesView(generics.CreateAPIView):
                             defaults={
                                 'description': f'Départ anticipé de {last_departure.early_departure_minutes} minutes.',
                                 'minutes': last_departure.early_departure_minutes,
-                                'status': Anomaly.AnomalyStatus.PENDING
+                                'status': Anomaly.AnomalyStatus.PENDING,
+                                'schedule': associated_schedule
                             }
                         )
+
+                        # Associer le pointage concerné à l'anomalie
                         if created:
+                            anomaly.related_timesheets.add(last_departure)
                             anomalies_created += 1
 
                 # 4. Vérifier les arrivées manquantes
@@ -659,6 +765,23 @@ class ScanAnomaliesView(generics.CreateAPIView):
 
                     # Ne créer l'anomalie que si aucun risque de mauvaise classification n'est détecté
                     if not has_potential_missed_classification:
+                        # Récupérer les plannings de l'employé pour ce site
+                        from sites.models import SiteEmployee, Schedule
+                        site_employee_relations = SiteEmployee.objects.filter(
+                            site=site,
+                            employee=employee,
+                            is_active=True
+                        ).select_related('schedule')
+
+                        # Trouver le planning le plus pertinent pour cette date
+                        associated_schedule = None
+                        for site_employee in site_employee_relations:
+                            if site_employee.schedule and site_employee.schedule.is_active:
+                                # Vérifier si ce planning est actif pour ce jour
+                                if self._is_schedule_active_for_date(site_employee.schedule, date):
+                                    associated_schedule = site_employee.schedule
+                                    break
+
                         anomaly, created = Anomaly.objects.get_or_create(
                             employee=employee,
                             site=site,
@@ -666,10 +789,15 @@ class ScanAnomaliesView(generics.CreateAPIView):
                             anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL,
                             defaults={
                                 'description': 'Aucun pointage d\'arrivée enregistré.',
-                                'status': Anomaly.AnomalyStatus.PENDING
+                                'status': Anomaly.AnomalyStatus.PENDING,
+                                'schedule': associated_schedule
                             }
                         )
-                        if created:
+
+                        # Associer les pointages existants à l'anomalie
+                        if created and day_timesheets:
+                            for ts in day_timesheets:
+                                anomaly.related_timesheets.add(ts)
                             anomalies_created += 1
                     else:
                         # Journaliser un avertissement sans créer d'anomalie
@@ -714,17 +842,42 @@ class ScanAnomaliesView(generics.CreateAPIView):
 
                     # Ne créer l'anomalie que si aucun risque de mauvaise classification n'est détecté
                     if not has_potential_missed_classification:
+                        # Récupérer les plannings de l'employé pour ce site
+                        from sites.models import SiteEmployee, Schedule
+                        site_employee_relations = SiteEmployee.objects.filter(
+                            site=site,
+                            employee=employee,
+                            is_active=True
+                        ).select_related('schedule')
+
+                        # Trouver le planning le plus pertinent pour cette date
+                        associated_schedule = None
+                        for site_employee in site_employee_relations:
+                            if site_employee.schedule and site_employee.schedule.is_active:
+                                # Vérifier si ce planning est actif pour ce jour
+                                if self._is_schedule_active_for_date(site_employee.schedule, date):
+                                    associated_schedule = site_employee.schedule
+                                    break
+
+                        # Description simple pour les départs manquants
+                        description = 'Aucun pointage de départ enregistré.'
+
                         anomaly, created = Anomaly.objects.get_or_create(
                             employee=employee,
                             site=site,
                             date=date,
                             anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE,
                             defaults={
-                                'description': 'Aucun pointage de départ enregistré.',
-                                'status': Anomaly.AnomalyStatus.PENDING
+                                'description': description,
+                                'status': Anomaly.AnomalyStatus.PENDING,
+                                'schedule': associated_schedule
                             }
                         )
-                        if created:
+
+                        # Associer les pointages existants à l'anomalie
+                        if created and day_timesheets:
+                            for ts in day_timesheets:
+                                anomaly.related_timesheets.add(ts)
                             anomalies_created += 1
                     else:
                         # Journaliser un avertissement sans créer d'anomalie
@@ -808,9 +961,16 @@ class ScanAnomaliesView(generics.CreateAPIView):
                                                          f'Durée: {total_minutes:.0f} minutes, Minimum requis: {min_duration:.0f} minutes '
                                                          f'(fréquence: {expected_duration} minutes, tolérance: {tolerance_percentage}%)',
                                             'minutes': int(expected_duration - total_minutes),
-                                            'status': Anomaly.AnomalyStatus.PENDING
+                                            'status': Anomaly.AnomalyStatus.PENDING,
+                                            'schedule': schedule
                                         }
                                     )
+
+                                    # Associer les pointages concernés à l'anomalie
+                                    if created:
+                                        for arr, dep in zip(arrivals, departures):
+                                            if arr.timestamp < dep.timestamp:
+                                                anomaly.related_timesheets.add(arr, dep)
                                     if created:
                                         anomalies_created += 1
                                         logging.getLogger(__name__).info(

@@ -199,6 +199,20 @@ class Anomaly(models.Model):
         related_name='anomalies',
         verbose_name=_('pointage')
     )
+    schedule = models.ForeignKey(
+        'sites.Schedule',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='anomalies',
+        verbose_name=_('planning')
+    )
+    related_timesheets = models.ManyToManyField(
+        Timesheet,
+        related_name='related_anomalies',
+        verbose_name=_('pointages associés'),
+        blank=True
+    )
     date = models.DateField(_('date'))
     anomaly_type = models.CharField(
         _('type d\'anomalie'),

@@ -144,13 +144,19 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
     site_name = serializers.SerializerMethodField()
     anomaly_type_display = serializers.SerializerMethodField()
     status_display = serializers.SerializerMethodField()
+    timesheet_details = serializers.SerializerMethodField()
+    schedule_details = serializers.SerializerMethodField()
+    related_timesheets_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Anomaly
         fields = ['id', 'employee', 'employee_name', 'site', 'site_name',
                  'anomaly_type', 'anomaly_type_display', 'status', 'status_display',
-                 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+                 'description', 'date', 'minutes', 'timesheet', 'timesheet_details',
+                 'schedule', 'schedule_details', 'related_timesheets_details',
+                 'created_at', 'updated_at', 'corrected_by']
+        read_only_fields = ['created_at', 'updated_at', 'description', 'date', 'minutes',
+                           'timesheet_details', 'schedule_details', 'related_timesheets_details']
 
     def validate(self, data):
         user = self.context['request'].user
@@ -189,6 +195,94 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
     @extend_schema_field(OpenApiTypes.STR)
     def get_status_display(self, obj) -> str:
         return obj.get_status_display()
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_timesheet_details(self, obj):
+        """Récupère les détails du pointage associé à l'anomalie"""
+        if not obj.timesheet:
+            return None
+
+        timesheet = obj.timesheet
+        return {
+            'id': timesheet.id,
+            'timestamp': timesheet.timestamp,
+            'entry_type': timesheet.entry_type,
+            'entry_type_display': timesheet.get_entry_type_display(),
+            'is_late': timesheet.is_late,
+            'late_minutes': timesheet.late_minutes,
+            'is_early_departure': timesheet.is_early_departure,
+            'early_departure_minutes': timesheet.early_departure_minutes,
+            'is_out_of_schedule': timesheet.is_out_of_schedule
+        }
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_schedule_details(self, obj):
+        """Récupère les détails du planning associé à l'anomalie"""
+        if not obj.schedule:
+            return None
+
+        schedule = obj.schedule
+        from sites.models import ScheduleDetail
+
+        # Récupérer les détails du planning pour le jour de l'anomalie
+        schedule_detail = None
+        try:
+            if obj.date:
+                schedule_detail = ScheduleDetail.objects.filter(
+                    schedule=schedule,
+                    day_of_week=obj.date.weekday()
+                ).first()
+        except Exception as e:
+            # En cas d'erreur, on continue sans les détails
+            pass
+
+        result = {
+            'id': schedule.id,
+            'name': f"Planning {schedule.id} - {schedule.site.name}",
+            'schedule_type': schedule.schedule_type,
+            'schedule_type_display': schedule.get_schedule_type_display(),
+            'is_active': schedule.is_active
+        }
+
+        # Ajouter les détails spécifiques au jour si disponibles
+        if schedule_detail:
+            if schedule.schedule_type == 'FIXED':
+                result.update({
+                    'start_time_1': schedule_detail.start_time_1,
+                    'end_time_1': schedule_detail.end_time_1,
+                    'start_time_2': schedule_detail.start_time_2,
+                    'end_time_2': schedule_detail.end_time_2
+                })
+            elif schedule.schedule_type == 'FREQUENCY':
+                result.update({
+                    'frequency_duration': schedule_detail.frequency_duration,
+                    'tolerance_percentage': schedule.frequency_tolerance_percentage
+                })
+
+        return result
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_related_timesheets_details(self, obj):
+        """Récupère les détails des pointages associés à l'anomalie"""
+        related_timesheets = obj.related_timesheets.all()
+        if not related_timesheets:
+            return []
+
+        result = []
+        for timesheet in related_timesheets:
+            result.append({
+                'id': timesheet.id,
+                'timestamp': timesheet.timestamp,
+                'entry_type': timesheet.entry_type,
+                'entry_type_display': timesheet.get_entry_type_display(),
+                'is_late': timesheet.is_late,
+                'late_minutes': timesheet.late_minutes,
+                'is_early_departure': timesheet.is_early_departure,
+                'early_departure_minutes': timesheet.early_departure_minutes,
+                'is_out_of_schedule': timesheet.is_out_of_schedule
+            })
+
+        return result
 
 class EmployeeReportSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, SitePermissionMixin):
     """Serializer pour les rapports d'employés"""

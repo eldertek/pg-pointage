@@ -2,16 +2,16 @@
   <div>
     <div v-if="!isDetailView" class="d-flex justify-space-between align-center mb-4">
       <PageTitle :level="1">Anomalies</PageTitle>
-      <v-btn 
-        color="warning" 
-        prepend-icon="mdi-magnify-scan" 
+      <v-btn
+        color="warning"
+        prepend-icon="mdi-magnify-scan"
         :loading="scanning"
         @click="scanForAnomalies"
       >
         Scanner les anomalies
       </v-btn>
     </div>
-    
+
     <v-card v-if="!isDetailView" class="mb-4">
       <v-card-title>Filtres</v-card-title>
       <v-card-text>
@@ -40,7 +40,7 @@
               </template>
             </v-autocomplete>
           </v-col>
-          
+
           <v-col v-if="!currentSiteId" cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.site"
@@ -54,7 +54,7 @@
               @update:model-value="applyFilters"
             ></v-select>
           </v-col>
-          
+
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.type"
@@ -68,7 +68,7 @@
               @update:model-value="applyFilters"
             ></v-select>
           </v-col>
-          
+
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.status"
@@ -94,7 +94,7 @@
               @update:model-value="applyFilters"
             ></v-text-field>
           </v-col>
-          
+
           <v-col cols="12" md="4">
             <v-text-field
               v-model="filters.endDate"
@@ -109,7 +109,7 @@
         </DashboardFilters>
       </v-card-text>
     </v-card>
-    
+
     <v-card>
       <v-data-table
         :headers="headers"
@@ -127,6 +127,7 @@
           { title: 'Tout', value: -1 }
         ]"
         class="elevation-1"
+        @click:row="showAnomalyDetails"
       >
         <template #created_at="{ item }">
           <div @click="console.log('Item clicked:', item)">
@@ -141,6 +142,19 @@
             {{ item.raw.anomaly_type_display }}
           </v-chip>
         </template>
+
+        <template #item.actions="{ item }">
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="primary"
+            @click.stop="showAnomalyDetails(item)"
+          >
+            <v-icon>mdi-eye</v-icon>
+            <v-tooltip activator="parent">Voir les détails</v-tooltip>
+          </v-btn>
+        </template>
       </v-data-table>
     </v-card>
 
@@ -148,6 +162,170 @@
     <v-dialog v-model="showDeleteDialog" max-width="400" persistent>
       <v-card>
         <!-- Dialog content -->
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog pour afficher les détails d'une anomalie -->
+    <v-dialog v-model="showDetailsDialog" max-width="700">
+      <v-card v-if="selectedAnomaly">
+        <v-card-title class="text-h5 pa-4">
+          <v-chip
+            :color="getTypeColor(selectedAnomaly.anomaly_type_display)"
+            class="mr-2"
+          >
+            {{ selectedAnomaly.anomaly_type_display }}
+          </v-chip>
+          Détails de l'anomalie
+        </v-card-title>
+
+        <v-card-text class="pa-4">
+          <v-row>
+            <v-col cols="12" md="6">
+              <p><strong>Date:</strong> {{ formatDate(selectedAnomaly.created_at) }}</p>
+              <p><strong>Employé:</strong> {{ selectedAnomaly.employee_name }}</p>
+              <p><strong>Site:</strong> {{ selectedAnomaly.site_name }}</p>
+              <p><strong>Statut:</strong>
+                <v-chip
+                  :color="getStatusColor(selectedAnomaly.status_display)"
+                  size="small"
+                >
+                  {{ selectedAnomaly.status_display }}
+                </v-chip>
+              </p>
+            </v-col>
+
+            <v-col cols="12" md="6">
+              <p><strong>Description:</strong></p>
+              <p>{{ selectedAnomaly.description || 'Aucune description disponible' }}</p>
+            </v-col>
+          </v-row>
+
+          <v-divider class="my-4"></v-divider>
+
+          <!-- Planning associé -->
+          <div v-if="selectedAnomaly.schedule_details">
+            <h3 class="text-h6 mb-3">Planning associé</h3>
+            <v-card variant="outlined" class="mb-4 pa-3">
+              <p><strong>Nom:</strong> {{ selectedAnomaly.schedule_details.name }}</p>
+              <p><strong>Type:</strong> {{ selectedAnomaly.schedule_details.schedule_type_display }}</p>
+
+              <div v-if="selectedAnomaly.schedule_details.schedule_type === 'FIXED'">
+                <p v-if="selectedAnomaly.schedule_details.start_time_1">
+                  <strong>Matin:</strong>
+                  {{ formatTime(selectedAnomaly.schedule_details.start_time_1) }} -
+                  {{ formatTime(selectedAnomaly.schedule_details.end_time_1) }}
+                </p>
+                <p v-if="selectedAnomaly.schedule_details.start_time_2">
+                  <strong>Après-midi:</strong>
+                  {{ formatTime(selectedAnomaly.schedule_details.start_time_2) }} -
+                  {{ formatTime(selectedAnomaly.schedule_details.end_time_2) }}
+                </p>
+              </div>
+
+              <div v-if="selectedAnomaly.schedule_details.schedule_type === 'FREQUENCY'">
+                <p>
+                  <strong>Durée de fréquence:</strong>
+                  {{ selectedAnomaly.schedule_details.frequency_duration }} minutes
+                </p>
+                <p>
+                  <strong>Tolérance:</strong>
+                  {{ selectedAnomaly.schedule_details.tolerance_percentage || 10 }}%
+                </p>
+              </div>
+            </v-card>
+          </div>
+
+          <!-- Pointages concernés -->
+          <div v-if="relatedTimesheets.length > 0">
+            <h3 class="text-h6 mb-3">Pointages concernés</h3>
+            <v-table density="compact">
+              <thead>
+                <tr>
+                  <th>Date et heure</th>
+                  <th>Type</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="timesheet in relatedTimesheets" :key="timesheet.id">
+                  <td>{{ formatDate(timesheet.timestamp) }}</td>
+                  <td>
+                    <v-chip
+                      :color="timesheet.entry_type === 'ARRIVAL' ? 'success' : 'info'"
+                      size="x-small"
+                    >
+                      {{ timesheet.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
+                    </v-chip>
+                  </td>
+                  <td>
+                    <v-chip
+                      v-if="timesheet.is_late"
+                      color="warning"
+                      size="x-small"
+                      class="mr-1"
+                    >
+                      Retard {{ timesheet.late_minutes }}min
+                    </v-chip>
+                    <v-chip
+                      v-if="timesheet.is_early_departure"
+                      color="error"
+                      size="x-small"
+                      class="mr-1"
+                    >
+                      Départ anticipé {{ timesheet.early_departure_minutes }}min
+                    </v-chip>
+                    <v-chip
+                      v-if="timesheet.is_out_of_schedule"
+                      color="grey"
+                      size="x-small"
+                    >
+                      Hors planning
+                    </v-chip>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </div>
+          <div v-else-if="!selectedAnomaly.schedule_details" class="text-center py-4">
+            <p>Aucune information complémentaire disponible pour cette anomalie</p>
+          </div>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-btn
+            v-if="selectedAnomaly.status === 'RESOLVED'"
+            color="error"
+            variant="text"
+            prepend-icon="mdi-delete"
+            @click="deleteSelectedAnomaly"
+          >
+            Supprimer
+          </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="primary"
+            variant="text"
+            @click="showDetailsDialog = false"
+          >
+            Fermer
+          </v-btn>
+          <v-btn
+            v-if="selectedAnomaly.status === 'PENDING'"
+            color="success"
+            variant="text"
+            @click="resolveSelectedAnomaly"
+          >
+            Résoudre
+          </v-btn>
+          <v-btn
+            v-if="selectedAnomaly.status === 'PENDING'"
+            color="grey"
+            variant="text"
+            @click="ignoreSelectedAnomaly"
+          >
+            Ignorer
+          </v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
   </div>
@@ -182,22 +360,23 @@ export default {
     const sitesStore = useSitesStore()
     const loading = ref(true)
     const scanning = ref(false)
-    
+
     // Computed pour le site courant - priorité au siteId passé en prop
     const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
-    
+
     const error = ref(null)
     const searchingEmployees = ref(false)
     const employeeSearch = ref('')
     const employeeOptions = ref([])
-    
+
     const headers = ref([
       { title: 'Date', align: 'start', key: 'formatted_date' },
       { title: 'Employé', align: 'start', key: 'employee_name' },
       { title: 'Site', align: 'start', key: 'site_name' },
-      { title: 'Type', align: 'center', key: 'anomaly_type_display' }
+      { title: 'Type', align: 'center', key: 'anomaly_type_display' },
+      { title: 'Actions', align: 'center', key: 'actions', sortable: false }
     ])
-    
+
     const filters = ref({
       employee: '',
       site: '',
@@ -206,7 +385,7 @@ export default {
       startDate: '',
       endDate: ''
     })
-    
+
     const siteOptions = ref([])
     const anomalyTypeOptions = ref([
       { text: 'Retard', value: 'LATE' },
@@ -221,9 +400,9 @@ export default {
       { text: 'Résolu', value: 'RESOLVED' },
       { text: 'Ignoré', value: 'IGNORED' }
     ])
-    
+
     const anomalies = ref([])
-    
+
     // Charger les sites
     const loadSites = async () => {
       try {
@@ -242,7 +421,7 @@ export default {
         siteOptions.value = []
       }
     }
-    
+
     const getTypeColor = (type) => {
       if (type === 'Retard') return 'warning'
       if (type === 'Départ anticipé') return 'error'
@@ -252,14 +431,14 @@ export default {
       if (type === 'Pointages consécutifs') return 'orange'
       return 'grey'
     }
-    
+
     const getStatusColor = (status) => {
       if (status === 'En attente') return 'warning'
       if (status === 'Résolu') return 'success'
       if (status === 'Ignoré') return 'grey'
       return 'grey'
     }
-    
+
     const resolveAnomaly = async (id) => {
       try {
         loading.value = true
@@ -273,7 +452,7 @@ export default {
         loading.value = false
       }
     }
-    
+
     const ignoreAnomaly = async (id) => {
       try {
         loading.value = true
@@ -287,10 +466,10 @@ export default {
         loading.value = false
       }
     }
-    
+
     const buildQueryParams = () => {
       const params = {}
-      
+
       if (filters.value.employee) {
         params.employee = filters.value.employee
       }
@@ -312,10 +491,10 @@ export default {
       if (filters.value.endDate) {
         params.end_date = filters.value.endDate
       }
-      
+
       return params
     }
-    
+
     const applyFilters = async () => {
       loading.value = true
       error.value = null
@@ -323,7 +502,7 @@ export default {
         const params = buildQueryParams()
         const response = await timesheetsApi.getAnomalies(params)
         console.log('Réponse API anomalies:', response.data)
-        
+
         if (response.data?.results) {
           anomalies.value = response.data.results.map(anomaly => ({
             ...anomaly,
@@ -351,7 +530,7 @@ export default {
         loading.value = false
       }
     }
-    
+
     const resetFilters = () => {
       filters.value = {
         employee: '',
@@ -363,28 +542,28 @@ export default {
       }
       applyFilters()
     }
-    
+
     const scanForAnomalies = async () => {
       try {
         scanning.value = true
         const params = buildQueryParams()
         const response = await timesheetsApi.scanAnomalies(params)
-        
+
         // Afficher une notification de succès
         if (response.data?.anomalies_count !== undefined) {
           const count = response.data.anomalies_count
-          const message = count > 0 
+          const message = count > 0
             ? `${count} anomalie${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''} et créée${count > 1 ? 's' : ''}.`
             : 'Aucune nouvelle anomalie détectée.'
-          
+
           toast.success(message)
         }
-        
+
         // Recharger les anomalies après le scan
         await applyFilters()
       } catch (error) {
         console.error('Erreur lors du scan des anomalies:', error)
-        
+
         // Afficher une notification d'erreur
         toast.error(
           error.response?.data?.error || 'Une erreur est survenue lors du scan des anomalies.'
@@ -393,7 +572,7 @@ export default {
         scanning.value = false
       }
     }
-    
+
     // Recherche d'employés
     const searchEmployees = async (query) => {
       if (!query || query.length < 2) {
@@ -417,7 +596,7 @@ export default {
         searchingEmployees.value = false
       }
     }
-    
+
     // Watch for changes in current site
     watch(() => currentSiteId.value, (newSiteId) => {
       if (newSiteId) {
@@ -425,7 +604,7 @@ export default {
         applyFilters()
       }
     })
-    
+
     // Charger les données initiales
     const init = async () => {
       if (currentSiteId.value) {
@@ -434,25 +613,111 @@ export default {
       await loadSites()
       await applyFilters()
     }
-    
+
+    // Variables pour le dialog de détails
+    const showDetailsDialog = ref(false)
+    const selectedAnomaly = ref(null)
+    const relatedTimesheets = ref([])
+    const loadingDetails = ref(false)
+
+    // Fonction pour afficher les détails d'une anomalie
+    const showAnomalyDetails = async (item) => {
+      // Si on clique sur le bouton d'action, on utilise item directement
+      // Si on clique sur la ligne, on utilise item.raw
+      const anomalyData = item.raw || item
+
+      selectedAnomaly.value = anomalyData
+      showDetailsDialog.value = true
+      loadingDetails.value = true
+      relatedTimesheets.value = []
+
+      try {
+        // Charger les détails de l'anomalie
+        const anomalyResponse = await timesheetsApi.getAnomalyDetails(anomalyData.id)
+        selectedAnomaly.value = anomalyResponse.data
+
+        // Si l'anomalie a des pointages associés dans related_timesheets_details
+        if (selectedAnomaly.value.related_timesheets_details &&
+            selectedAnomaly.value.related_timesheets_details.length > 0) {
+          relatedTimesheets.value = selectedAnomaly.value.related_timesheets_details
+        }
+        // Sinon, si l'anomalie est liée à un pointage spécifique
+        else if (selectedAnomaly.value.timesheet) {
+          if (selectedAnomaly.value.timesheet_details) {
+            relatedTimesheets.value = [selectedAnomaly.value.timesheet_details]
+          } else {
+            const timesheetResponse = await timesheetsApi.getTimesheetDetails(selectedAnomaly.value.timesheet)
+            relatedTimesheets.value = [timesheetResponse.data]
+          }
+        } else {
+          // Sinon, récupérer tous les pointages de l'employé pour cette date
+          const params = {
+            employee: selectedAnomaly.value.employee,
+            site: selectedAnomaly.value.site,
+            start_date: selectedAnomaly.value.date,
+            end_date: selectedAnomaly.value.date
+          }
+          const timesheetsResponse = await timesheetsApi.getTimesheets(params)
+          relatedTimesheets.value = timesheetsResponse.data.results || []
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des détails de l\'anomalie:', error)
+        toast.error('Erreur lors du chargement des détails')
+      } finally {
+        loadingDetails.value = false
+      }
+    }
+
+    // Fonctions pour résoudre, ignorer ou supprimer l'anomalie sélectionnée
+    const resolveSelectedAnomaly = async () => {
+      try {
+        await resolveAnomaly(selectedAnomaly.value.id)
+        selectedAnomaly.value.status = 'RESOLVED'
+        selectedAnomaly.value.status_display = 'Résolu'
+        toast.success('Anomalie résolue avec succès')
+      } catch (error) {
+        console.error('Erreur lors de la résolution de l\'anomalie:', error)
+        toast.error('Erreur lors de la résolution de l\'anomalie')
+      }
+    }
+
+    const ignoreSelectedAnomaly = async () => {
+      try {
+        await ignoreAnomaly(selectedAnomaly.value.id)
+        selectedAnomaly.value.status = 'IGNORED'
+        selectedAnomaly.value.status_display = 'Ignoré'
+        toast.success('Anomalie ignorée avec succès')
+      } catch (error) {
+        console.error('Erreur lors de l\'ignorance de l\'anomalie:', error)
+        toast.error('Erreur lors de l\'ignorance de l\'anomalie')
+      }
+    }
+
+    const deleteSelectedAnomaly = async () => {
+      try {
+        await timesheetsApi.deleteAnomaly(selectedAnomaly.value.id)
+        showDetailsDialog.value = false
+        toast.success('Anomalie supprimée avec succès')
+        // Rafraîchir la liste des anomalies
+        await applyFilters()
+      } catch (error) {
+        console.error('Erreur lors de la suppression de l\'anomalie:', error)
+        toast.error('Erreur lors de la suppression de l\'anomalie')
+      }
+    }
+
     // Ajout de la variable manquante
     const showDeleteDialog = ref(false)
-    
+
     const formatDate = (dateString) => {
-      console.log('=== DEBUG DATE ===')
-      console.log('Raw date string:', dateString)
-      console.log('Type of date string:', typeof dateString)
-      
+
       if (!dateString) {
-        console.log('Date string is empty or undefined')
         return ''
       }
-      
+
       try {
         const date = new Date(dateString)
-        console.log('Parsed date:', date)
-        console.log('Is valid date:', !isNaN(date.getTime()))
-        
+
         const options = {
           day: '2-digit',
           month: '2-digit',
@@ -460,18 +725,49 @@ export default {
           hour: '2-digit',
           minute: '2-digit'
         }
-        
+
         const formattedDate = date.toLocaleDateString('fr-FR', options)
-        console.log('Formatted date:', formattedDate)
         return formattedDate
       } catch (error) {
         console.error('Error formatting date:', error)
         return dateString
       }
     }
-    
+
+    // Fonction pour formater les heures
+    const formatTime = (timeString) => {
+      if (!timeString) return ''
+
+      try {
+        // Si c'est déjà au format HH:MM, on le retourne tel quel
+        if (typeof timeString === 'string' && timeString.includes(':')) {
+          return timeString
+        }
+
+        // Si c'est un objet Date
+        if (timeString instanceof Date) {
+          const hours = timeString.getHours().toString().padStart(2, '0')
+          const minutes = timeString.getMinutes().toString().padStart(2, '0')
+          return `${hours}:${minutes}`
+        }
+
+        // Si c'est une chaîne ISO
+        const date = new Date(timeString)
+        if (!isNaN(date.getTime())) {
+          const hours = date.getHours().toString().padStart(2, '0')
+          const minutes = date.getMinutes().toString().padStart(2, '0')
+          return `${hours}:${minutes}`
+        }
+
+        return timeString
+      } catch (error) {
+        console.error('Error formatting time:', error)
+        return timeString
+      }
+    }
+
     init()
-    
+
     return {
       loading,
       scanning,
@@ -495,7 +791,17 @@ export default {
       searchEmployees,
       showDeleteDialog,
       currentSiteId,
-      formatDate
+      formatDate,
+      formatTime,
+      // Nouvelles variables et fonctions pour le dialog de détails
+      showDetailsDialog,
+      selectedAnomaly,
+      relatedTimesheets,
+      loadingDetails,
+      showAnomalyDetails,
+      resolveSelectedAnomaly,
+      ignoreSelectedAnomaly,
+      deleteSelectedAnomaly
     }
   }
 }

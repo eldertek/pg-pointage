@@ -814,12 +814,14 @@ const toggleStatus = async (item: ExtendedUser) => {
 
 // Initialisation
 onMounted(async () => {
-  await Promise.all([
-    loadUsers(),
-    loadOrganizations()
-  ])
+  // Charger d'abord les organisations
+  await loadOrganizations()
+  console.log('[Users][Init] Organisations chargées:', organizations.value)
 
-  // Si on a un ID d'édition, ouvrir le dialogue
+  // Ensuite charger les utilisateurs
+  await loadUsers()
+
+  // Si on a un ID d'édition, ouvrir le dialogue après avoir chargé toutes les données
   if (props.editId) {
     try {
       const response = await usersApi.getUser(Number(props.editId))
@@ -838,9 +840,15 @@ onMounted(async () => {
         }
 
         console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(response.data.organizations))
+        console.log('[Users][EditMode] Organisations disponibles:', JSON.stringify(organizations.value.map(org => org.id)))
       }
 
-      openDialog(response.data)
+      // Attendre que les organisations soient chargées avant d'ouvrir le dialogue
+      if (organizations.value.length > 0) {
+        openDialog(response.data)
+      } else {
+        console.error("[Users][EditMode] Impossible d'ouvrir le dialogue: organisations non chargées")
+      }
     } catch (error) {
       console.error('[Users][Error] Erreur lors du chargement des données:', error)
     }
