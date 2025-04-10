@@ -202,6 +202,7 @@
             v-model="(editedItem as UserFormData).email"
             label="Email"
             type="email"
+            autocomplete="username"
             required
             :error-messages="formErrors.email"
             @update:model-value="handleEmailChange"

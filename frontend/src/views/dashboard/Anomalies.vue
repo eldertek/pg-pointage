@@ -607,14 +607,21 @@ export default {
     const loadingDetails = ref(false)
 
     // Fonction pour gérer le clic sur une ligne du tableau
-    const handleRowClick = (props) => {
-      console.log('handleRowClick appelé avec:', props)
+    const handleRowClick = (event, { item }) => {
+      console.log('handleRowClick appelé avec:', event, item)
 
-      // Dans Vuetify v3, props contient { item } où item est l'objet de la ligne
-      if (props && props.item) {
-        showAnomalyDetails(props.item)
+      // Vérifier si le clic vient d'un élément interactif
+      const target = event.target
+      const clickedElement = target.closest('.v-btn, a, button, [data-no-row-click]')
+
+      if (clickedElement || target.hasAttribute('data-no-row-click')) {
+        return
+      }
+
+      if (item && item.id) {
+        showAnomalyDetails(item)
       } else {
-        console.error('Format de données inattendu pour le clic de ligne:', props)
+        console.error('Format de données inattendu pour le clic de ligne:', item)
       }
     }
 
@@ -622,24 +629,19 @@ export default {
     const showAnomalyDetails = async (item) => {
       console.log('showAnomalyDetails appelé avec:', item)
 
-      // Déterminer la structure de l'item
-      const anomalyData = item.raw || item
-
-      console.log('anomalyData:', anomalyData)
-
-      if (!anomalyData || !anomalyData.id) {
-        console.error('Impossible d\'afficher les détails: ID manquant', anomalyData)
+      if (!item || !item.id) {
+        console.error('Impossible d\'afficher les détails: ID manquant', item)
         return
       }
 
-      selectedAnomaly.value = anomalyData
+      selectedAnomaly.value = item
       showDetailsDialog.value = true
       loadingDetails.value = true
       relatedTimesheets.value = []
 
       try {
         // Charger les détails de l'anomalie
-        const anomalyResponse = await timesheetsApi.getAnomalyDetails(anomalyData.id)
+        const anomalyResponse = await timesheetsApi.getAnomalyDetails(item.id)
         selectedAnomaly.value = anomalyResponse.data
 
         // Si l'anomalie a des pointages associés dans related_timesheets_details
