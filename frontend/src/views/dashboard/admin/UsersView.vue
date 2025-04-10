@@ -239,11 +239,10 @@
             no-data-text="Aucune organisation disponible"
             :return-object="false"
             @update:model-value="(val: number[]) => {
-              const userFormData = editedItem.value as UserFormData;
-              if (userFormData) {
-                userFormData.organizations = [...val];
+              if (editedItem.value && Array.isArray(val)) {
+                editedItem.value.organizations = [...val];
                 console.log('[Debug][v-select] Nouvelle valeur:', JSON.stringify(val));
-                console.log('[Debug][v-select] État de editedItem:', JSON.stringify(userFormData.organizations));
+                console.log('[Debug][v-select] État de editedItem:', JSON.stringify(editedItem.value.organizations));
               }
             }"
           >
@@ -689,14 +688,57 @@ const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 const confirmPassword = ref('')
 
+// Modifier le v-select pour utiliser une valeur intermédiaire
+const selectedOrganizations = ref<number[]>([]);
+
+// Watcher pour synchroniser les changements
+watch(() => editedItem.value?.organizations, (newVal) => {
+  console.log('[Debug][Orgs] Watcher déclenché avec:', JSON.stringify(newVal));
+  if (newVal) {
+    selectedOrganizations.value = [...newVal];
+    console.log('[Debug][Orgs] Mise à jour selectedOrganizations:', JSON.stringify(selectedOrganizations.value));
+  }
+}, { immediate: true });
+
+// Initialisation
+onMounted(async () => {
+  await Promise.all([
+    loadUsers(),
+    loadOrganizations()
+  ])
+
+  // Si on a un ID d'édition, ouvrir le dialogue
+  if (props.editId) {
+    try {
+      console.log("[Users][EditId] Mode édition pour l'utilisateur:", props.editId);
+      const response = await usersApi.getUser(Number(props.editId));
+      console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(response.data));
+
+      if (response.data) {
+        // Initialiser selectedOrganizations avant d'ouvrir le dialogue
+        selectedOrganizations.value = Array.isArray(response.data.organizations) 
+          ? [...response.data.organizations] 
+          : [];
+        
+        console.log('[Debug][Orgs] selectedOrganizations initialisé avec:', JSON.stringify(selectedOrganizations.value));
+        
+        // Ensuite ouvrir le dialogue
+        openDialog(response.data);
+      }
+    } catch (error) {
+      console.error('[Users][Error] Erreur lors du chargement des données:', error);
+    }
+  }
+});
+
 const openDialog = (item?: ExtendedUser) => {
   if (item) {
-    console.log('[Users][OpenDialog] Item organizations:', JSON.stringify(item.organizations))
-    console.log('[Users][OpenDialog] Item organizations_names:', JSON.stringify(item.organizations_names))
+    console.log('[Users][OpenDialog] Item organizations:', JSON.stringify(item.organizations));
+    console.log('[Users][OpenDialog] Item organizations_names:', JSON.stringify(item.organizations_names));
 
     // S'assurer que les organisations sont un tableau valide
     const orgs = Array.isArray(item.organizations) ? [...item.organizations] : [];
-    console.log('[Users][OpenDialog] Organisations formatées:', JSON.stringify(orgs))
+    console.log('[Users][OpenDialog] Organisations formatées:', JSON.stringify(orgs));
 
     // Créer une copie profonde de l'objet pour éviter les problèmes de réactivité
     const formData = {
@@ -706,7 +748,7 @@ const openDialog = (item?: ExtendedUser) => {
       first_name: item.first_name,
       last_name: item.last_name,
       role: item.role,
-      organizations: [...orgs], // Créer une nouvelle copie du tableau
+      organizations: orgs,
       organizations_names: item.organizations_names ? [...item.organizations_names] : [],
       phone_number: item.phone_number,
       is_active: item.is_active,
@@ -715,24 +757,30 @@ const openDialog = (item?: ExtendedUser) => {
       employee_id: item.employee_id
     };
 
-    console.log('[Debug][Orgs] FormData avant affectation:', JSON.stringify(formData.organizations))
+    console.log('[Debug][Orgs] FormData avant affectation:', JSON.stringify(formData.organizations));
     
-    // Utiliser nextTick pour s'assurer que la réactivité est correctement gérée
-    nextTick(() => {
-      editedItem.value = formData;
-      console.log('[Debug][Orgs] editedItem après affectation:', JSON.stringify(editedItem.value?.organizations))
-    });
+    // Mettre à jour selectedOrganizations si ce n'est pas déjà fait
+    if (!props.editId) {
+      selectedOrganizations.value = [...orgs];
+      console.log('[Debug][Orgs] selectedOrganizations mis à jour dans openDialog:', JSON.stringify(selectedOrganizations.value));
+    }
+
+    // Affecter les données
+    editedItem.value = formData;
+    console.log('[Debug][Orgs] editedItem après affectation:', JSON.stringify(editedItem.value?.organizations));
     
-    // Mettre à jour le organizationsMap si des noms sont disponibles
+    // Mettre à jour le organizationsMap
     if (item.organizations && item.organizations_names) {
       item.organizations.forEach((orgId, index) => {
         if (item.organizations_names && item.organizations_names[index]) {
-          organizationsMap.value.set(orgId, item.organizations_names[index])
-          console.log(`[Debug][Orgs] Mise à jour map: ${orgId} -> ${item.organizations_names[index]}`)
+          organizationsMap.value.set(orgId, item.organizations_names[index]);
+          console.log(`[Debug][Orgs] Mise à jour map: ${orgId} -> ${item.organizations_names[index]}`);
         }
-      })
+      });
     }
   } else {
+    // Réinitialiser pour un nouvel utilisateur
+    selectedOrganizations.value = [];
     editedItem.value = {
       username: '',
       email: '',
@@ -746,15 +794,18 @@ const openDialog = (item?: ExtendedUser) => {
       scan_preference: ScanPreferenceEnum.BOTH,
       simplified_mobile_view: false,
       password: ''
-    }
+    };
   }
 
-  // Attendre que le formulaire soit monté avant de l'afficher
+  // Afficher le formulaire
   nextTick(() => {
     dashboardView.value.showForm = true;
-    console.log('[Debug][Orgs] État final de editedItem:', JSON.stringify(editedItem.value?.organizations))
+    console.log('[Debug][Orgs] État final:', {
+      editedItem: JSON.stringify(editedItem.value?.organizations),
+      selectedOrganizations: JSON.stringify(selectedOrganizations.value)
+    });
   });
-}
+};
 
 const saveUser = async () => {
   if (!form.value?.validate()) return
@@ -896,80 +947,6 @@ const toggleStatus = async (item: ExtendedUser) => {
     }
   }
 }
-
-// Initialisation
-onMounted(async () => {
-  await Promise.all([
-    loadUsers(),
-    loadOrganizations()
-  ])
-
-  // Si on a un ID d'édition, ouvrir le dialogue
-  if (props.editId) {
-    try {
-      console.log("[Users][EditId] Mode édition pour l'utilisateur:", props.editId)
-      const response = await usersApi.getUser(Number(props.editId))
-      console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(response.data))
-
-      // S'assurer que les organisations sont correctement formatées
-      if (response.data) {
-        // Vérifier si organizations est défini et le formater correctement
-        if (response.data.organizations === undefined) {
-          response.data.organizations = []
-          console.warn('[Users][EditMode] Organisations non définies, initialisation à un tableau vide')
-        } else if (!Array.isArray(response.data.organizations)) {
-          // Si ce n'est pas un tableau, le convertir en tableau
-          response.data.organizations = [response.data.organizations]
-          console.warn('[Users][EditMode] Organisations non sous forme de tableau, conversion effectuée')
-        }
-
-        console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(response.data.organizations))
-        
-        // Mettre à jour la map des organisations avec les noms
-        if (response.data.organizations && response.data.organizations_names) {
-          response.data.organizations.forEach((orgId: number, index: number) => {
-            if (response.data.organizations_names && response.data.organizations_names[index]) {
-              organizationsMap.value.set(orgId, response.data.organizations_names[index])
-              console.log(`[Users][EditMode] Mise à jour de la map: ${orgId} -> ${response.data.organizations_names[index]}`)
-            }
-          })
-        }
-      }
-
-      openDialog(response.data)
-      console.log('[Users][EditMode] État du formulaire après ouverture du dialogue:', 
-                 JSON.stringify((editedItem.value as UserFormData).organizations))
-    } catch (error) {
-      console.error('[Users][Error] Erreur lors du chargement des données:', error)
-    }
-  }
-})
-
-// Observateur pour le changement de rôle
-watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
-  if (editedItem.value) {
-    const userData = editedItem.value as UserFormData
-
-    // Réinitialiser les champs en fonction du rôle
-    if (newRole === RoleEnum.SUPER_ADMIN) {
-      userData.organizations = []
-    } else if (newRole === RoleEnum.MANAGER) {
-      userData.organizations = []
-    }
-  }
-})
-
-// Modifier le v-select pour utiliser une valeur intermédiaire
-const selectedOrganizations = ref<number[]>([]);
-
-// Watcher pour synchroniser les changements
-watch(() => editedItem.value?.organizations, (newVal) => {
-  if (newVal) {
-    selectedOrganizations.value = [...newVal];
-    console.log('[Debug][Orgs] Mise à jour selectedOrganizations:', JSON.stringify(selectedOrganizations.value))
-  }
-}, { immediate: true });
-
 </script>
 
 <style scoped>
