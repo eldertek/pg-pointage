@@ -222,7 +222,7 @@
         <v-col v-if="(editedItem as UserFormData).role !== RoleEnum.SUPER_ADMIN" cols="12" sm="6">
           <v-select
             v-model="(editedItem as UserFormData).organizations"
-            :items="organizations"
+            :items="organizationItems"
             item-title="name"
             item-value="id"
             label="Organisations"
@@ -242,8 +242,11 @@
                 size="small"
               ></v-chip>
             </template>
-            <template v-slot:selection="{ item }">
-              {{ organizationsMap.get(item.value) || item.title }}
+            <!-- Message de débogage pour les organisations sélectionnées -->
+            <template v-slot:append>
+              <div class="d-none">
+                Sélectionnés: {{ (editedItem as UserFormData).organizations }}
+              </div>
             </template>
           </v-select>
         </v-col>
@@ -260,6 +263,7 @@
               v => !!v || 'Le mot de passe est requis',
               v => !v || v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
             ]"
+            autocomplete="new-password"
           >
             <template v-slot:append-inner>
               <v-btn
@@ -285,6 +289,7 @@
               v => !!v || 'La confirmation du mot de passe est requise',
               v => v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
             ]"
+            autocomplete="new-password"
           >
             <template v-slot:append-inner>
               <v-btn
@@ -337,6 +342,7 @@
             ]"
             hint="Laissez vide pour ne pas modifier le mot de passe"
             persistent-hint
+            autocomplete="new-password"
           >
             <template v-slot:append-inner>
               <v-btn
@@ -362,6 +368,7 @@
             ]"
             hint="Laissez vide pour ne pas modifier le mot de passe"
             persistent-hint
+            autocomplete="new-password"
           >
             <template v-slot:append-inner>
               <v-btn
@@ -535,6 +542,14 @@ const canEdit = computed(() => {
 const canView = computed(() => {
   const role = authStore.user?.role
   return role === RoleEnum.SUPER_ADMIN || role === RoleEnum.ADMIN || role === RoleEnum.MANAGER
+})
+
+// Créer des éléments formatés pour le sélecteur d'organisations
+const organizationItems = computed(() => {
+  return organizations.value.map(org => ({
+    id: org.id,
+    name: org.name
+  }))
 })
 
 // Filtrer les utilisateurs selon les permissions
@@ -871,6 +886,7 @@ onMounted(async () => {
   // Si on a un ID d'édition, ouvrir le dialogue
   if (props.editId) {
     try {
+      console.log("[Users][EditId] Mode édition pour l'utilisateur:", props.editId)
       const response = await usersApi.getUser(Number(props.editId))
       console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(response.data))
 
@@ -887,9 +903,21 @@ onMounted(async () => {
         }
 
         console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(response.data.organizations))
+        
+        // Mettre à jour la map des organisations avec les noms
+        if (response.data.organizations && response.data.organizations_names) {
+          response.data.organizations.forEach((orgId: number, index: number) => {
+            if (response.data.organizations_names && response.data.organizations_names[index]) {
+              organizationsMap.value.set(orgId, response.data.organizations_names[index])
+              console.log(`[Users][EditMode] Mise à jour de la map: ${orgId} -> ${response.data.organizations_names[index]}`)
+            }
+          })
+        }
       }
 
       openDialog(response.data)
+      console.log('[Users][EditMode] État du formulaire après ouverture du dialogue:', 
+                 JSON.stringify((editedItem.value as UserFormData).organizations))
     } catch (error) {
       console.error('[Users][Error] Erreur lors du chargement des données:', error)
     }
