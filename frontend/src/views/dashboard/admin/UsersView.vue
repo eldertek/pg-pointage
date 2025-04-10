@@ -226,7 +226,7 @@
         <!-- Sélection des organisations pour tous les rôles sauf Super Admin -->
         <v-col v-if="(editedItem as UserFormData).role !== RoleEnum.SUPER_ADMIN" cols="12" sm="6">
           <v-select
-            v-model="(editedItem as UserFormData).organizations"
+            v-model="selectedOrganizations"
             :items="organizationItems"
             item-title="name"
             item-value="id"
@@ -238,9 +238,13 @@
             :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
             no-data-text="Aucune organisation disponible"
             :return-object="false"
-            @update:model-value="(val) => {
-              console.log('[Debug][v-select] Nouvelle valeur:', JSON.stringify(val));
-              console.log('[Debug][v-select] État actuel de editedItem:', JSON.stringify(editedItem.value?.organizations));
+            @update:model-value="(val: number[]) => {
+              const userFormData = editedItem.value as UserFormData;
+              if (userFormData) {
+                userFormData.organizations = [...val];
+                console.log('[Debug][v-select] Nouvelle valeur:', JSON.stringify(val));
+                console.log('[Debug][v-select] État de editedItem:', JSON.stringify(userFormData.organizations));
+              }
             }"
           >
             <template v-slot:chip="{ props, item }">
@@ -250,12 +254,6 @@
                 color="primary"
                 size="small"
               ></v-chip>
-            </template>
-            <!-- Message de débogage pour les organisations sélectionnées -->
-            <template v-slot:append>
-              <div class="d-none">
-                Sélectionnés: {{ (editedItem as UserFormData).organizations }}
-              </div>
             </template>
           </v-select>
         </v-col>
@@ -700,7 +698,8 @@ const openDialog = (item?: ExtendedUser) => {
     const orgs = Array.isArray(item.organizations) ? [...item.organizations] : [];
     console.log('[Users][OpenDialog] Organisations formatées:', JSON.stringify(orgs))
 
-    editedItem.value = {
+    // Créer une copie profonde de l'objet pour éviter les problèmes de réactivité
+    const formData = {
       id: item.id,
       username: item.username,
       email: item.email,
@@ -714,9 +713,15 @@ const openDialog = (item?: ExtendedUser) => {
       scan_preference: item.scan_preference,
       simplified_mobile_view: item.simplified_mobile_view,
       employee_id: item.employee_id
-    }
+    };
+
+    console.log('[Debug][Orgs] FormData avant affectation:', JSON.stringify(formData.organizations))
     
-    console.log('[Debug][Orgs] État initial de editedItem.organizations:', JSON.stringify(editedItem.value.organizations))
+    // Utiliser nextTick pour s'assurer que la réactivité est correctement gérée
+    nextTick(() => {
+      editedItem.value = formData;
+      console.log('[Debug][Orgs] editedItem après affectation:', JSON.stringify(editedItem.value?.organizations))
+    });
     
     // Mettre à jour le organizationsMap si des noms sont disponibles
     if (item.organizations && item.organizations_names) {
@@ -742,19 +747,13 @@ const openDialog = (item?: ExtendedUser) => {
       simplified_mobile_view: false,
       password: ''
     }
-    // Réinitialiser les états d'affichage du mot de passe
-    showPassword.value = false
-    showConfirmPassword.value = false
-    confirmPassword.value = ''
   }
-  
-  // Ajouter un délai pour s'assurer que le v-select est monté
+
+  // Attendre que le formulaire soit monté avant de l'afficher
   nextTick(() => {
-    console.log('[Debug][Orgs] État de editedItem après nextTick:', 
-      editedItem.value ? JSON.stringify(editedItem.value.organizations) : 'null')
-  })
-  
-  dashboardView.value.showForm = true
+    dashboardView.value.showForm = true;
+    console.log('[Debug][Orgs] État final de editedItem:', JSON.stringify(editedItem.value?.organizations))
+  });
 }
 
 const saveUser = async () => {
@@ -960,17 +959,16 @@ watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
   }
 })
 
-// Ajouter un watcher pour surveiller les changements d'organisations
-watch(
-  () => editedItem.value?.organizations,
-  (newVal, oldVal) => {
-    console.log('[Debug][Orgs] Changement des organisations:', {
-      old: JSON.stringify(oldVal),
-      new: JSON.stringify(newVal)
-    })
-  },
-  { deep: true }
-)
+// Modifier le v-select pour utiliser une valeur intermédiaire
+const selectedOrganizations = ref<number[]>([]);
+
+// Watcher pour synchroniser les changements
+watch(() => editedItem.value?.organizations, (newVal) => {
+  if (newVal) {
+    selectedOrganizations.value = [...newVal];
+    console.log('[Debug][Orgs] Mise à jour selectedOrganizations:', JSON.stringify(selectedOrganizations.value))
+  }
+}, { immediate: true });
 
 </script>
 
