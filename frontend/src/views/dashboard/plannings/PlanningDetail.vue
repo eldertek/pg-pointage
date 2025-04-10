@@ -123,7 +123,7 @@
                 :edit-route="'/dashboard/admin/users/:id/edit'"
                 @toggle-status="(item: TableItem) => handleToggleStatus(item)"
                 @delete="(item: TableItem) => handleDelete(item)"
-                @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.id}`)"
+                @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.employee}`)"
               >
                 <template #item.actions="{ item: rowItem }">
                   <v-btn
@@ -143,11 +143,22 @@
                     icon
                     variant="text"
                     size="small"
-                    color="error"
-                    @click.stop="unassignEmployeeFromSchedule(rowItem.id)"
+                    color="warning"
+                    @click.stop="toggleUserStatus(rowItem)"
                   >
-                    <v-icon>mdi-account-remove</v-icon>
-                    <v-tooltip activator="parent">Retirer du planning</v-tooltip>
+                    <v-icon>{{ rowItem.is_active ? 'mdi-account-off' : 'mdi-account-check' }}</v-icon>
+                    <v-tooltip activator="parent">{{ rowItem.is_active ? 'Désactiver' : 'Activer' }} l'utilisateur</v-tooltip>
+                  </v-btn>
+                  <v-btn
+                    v-if="canCreateDelete"
+                    icon
+                    variant="text"
+                    size="small"
+                    color="error"
+                    @click.stop="confirmDeleteUser(rowItem)"
+                  >
+                    <v-icon>mdi-delete</v-icon>
+                    <v-tooltip activator="parent">Supprimer l'utilisateur</v-tooltip>
                   </v-btn>
                 </template>
               </DataTable>
@@ -157,6 +168,19 @@
       </v-card>
     </template>
     <ConfirmDialog />
+    
+    <!-- Snackbar pour les notifications -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="3000"
+      location="top"
+    >
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn variant="text" icon="mdi-close" @click="snackbar.show = false"></v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -166,7 +190,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { schedulesApi, timesheetsApi, sitesApi } from '@/services/api'
+import { schedulesApi, timesheetsApi, sitesApi, usersApi } from '@/services/api'
 import StatusChip from '@/components/common/StatusChip.vue'
 import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -261,7 +285,6 @@ const reports = ref<any[]>([])
 // En-têtes des tableaux
 const employeesHeaders = [
   { title: 'Nom', key: 'employee_name' },
-  { title: 'Email', key: 'email' },
   { title: 'Actions', key: 'actions', sortable: false }
 ]
 
@@ -270,10 +293,10 @@ const tabOrder = ['details', 'employees', 'pointages', 'anomalies', 'reports']
 
 watch(activeTab, (newTab, oldTab) => {
   if (!oldTab || !newTab) return
-  
+
   const oldIndex = tabOrder.indexOf(oldTab)
   const newIndex = tabOrder.indexOf(newTab)
-  
+
   reverse.value = newIndex < oldIndex
   previousTab.value = oldTab
 })
@@ -288,7 +311,7 @@ const backRoute = computed(() => '/dashboard/plannings')
 const displayFields = computed((): Field[] => {
   return [
     { key: 'site_name', label: 'Site', icon: 'mdi-map-marker' },
-    { 
+    {
       key: 'schedule_type',
       label: 'Type de planning',
       icon: 'mdi-calendar-clock',
@@ -296,7 +319,7 @@ const displayFields = computed((): Field[] => {
     },
     { key: 'created_at', label: 'Date de création', icon: 'mdi-calendar-plus', format: 'date', dateFormat: 'dd/MM/yyyy HH:mm' },
     { key: 'updated_at', label: 'Dernière modification', icon: 'mdi-calendar-clock', format: 'date', dateFormat: 'dd/MM/yyyy HH:mm' },
-    { 
+    {
       key: 'is_active',
       label: 'Statut',
       icon: 'mdi-check-circle',
@@ -370,24 +393,27 @@ const confirmDelete = () => {
 const loadEmployees = async (siteId: number | string | undefined) => {
   try {
     console.log('[Plannings][LoadEmployees] Début du chargement des employés pour le site:', siteId)
-    
+
     const numericSiteId = typeof siteId === 'string' ? Number(siteId) : siteId
     console.log('[Plannings][LoadEmployees] SiteId converti:', numericSiteId)
-    
+
     if (!isValidSiteId(numericSiteId)) {
       console.log('[Plannings][LoadEmployees] SiteId invalide')
       return
     }
 
     const response = await sitesApi.getSiteEmployees(numericSiteId, { role: 'EMPLOYEE' })
-    employees.value = response.data.results.map((employee: any) => ({
-      id: employee.id,
-      first_name: employee.first_name,
-      last_name: employee.last_name,
-      email: employee.email,
-      organization: employee.organization,
-      employee_name: `${employee.first_name} ${employee.last_name}`
-    }))
+    employees.value = response.data.results.map((siteEmployee: any) => {
+      // Utiliser directement employee_name qui est fourni par le backend
+      return {
+        id: siteEmployee.id,
+        employee: siteEmployee.employee, // ID de l'employé
+        employee_name: siteEmployee.employee_name, // Nom complet de l'employé
+        email: '', // Le backend ne fournit pas l'email dans cette réponse
+        organization: siteEmployee.employee_organization,
+        is_active: siteEmployee.is_active
+      }
+    })
 
     console.log('[Plannings][LoadEmployees] Employés chargés:', JSON.stringify(employees.value, null, 2))
   } catch (error) {
@@ -459,35 +485,88 @@ const loadTabData = async (tab: string) => {
   }
 }
 
-const unassignEmployeeFromSchedule = async (employeeId: number) => {
+const toggleUserStatus = async (user: any) => {
   try {
-    await schedulesApi.unassignEmployee(itemId.value, employeeId)
+    // La fonction toggleUserStatus nécessite l'ID de l'utilisateur et le nouveau statut (inverse du statut actuel)
+    await usersApi.toggleUserStatus(user.employee, !user.is_active)
+    
+    // Recharger les données des employés après la modification
     if (item.value?.site) {
       await loadEmployees(item.value.site)
     }
+    
+    // Afficher un message de succès
+    showSuccess(`Utilisateur ${user.is_active ? 'désactivé' : 'activé'} avec succès`)
   } catch (error) {
-    console.error('[PlanningDetail][UnassignEmployee] Erreur lors du retrait de l\'employé:', error)
+    console.error('[PlanningDetail][ToggleUserStatus] Erreur lors de la modification du statut de l\'utilisateur:', error)
+    showError(`Erreur lors de la ${user.is_active ? 'désactivation' : 'activation'} de l'utilisateur`)
+  }
+}
+
+const confirmDeleteUser = (user: any) => {
+  const state = dialogState.value as DialogState
+  state.show = true
+  state.title = 'Confirmation de suppression'
+  state.message = `Êtes-vous sûr de vouloir supprimer définitivement l'utilisateur ${user.employee_name} ?`
+  state.confirmText = 'Supprimer'
+  state.cancelText = 'Annuler'
+  state.confirmColor = 'error'
+  state.loading = false
+  state.onConfirm = async () => {
+    state.loading = true
+    try {
+      await usersApi.deleteUser(user.employee)
+      
+      // Recharger les données des employés après la suppression
+      if (item.value?.site) {
+        await loadEmployees(item.value.site)
+      }
+      
+      showSuccess('Utilisateur supprimé avec succès')
+    } catch (error) {
+      console.error('[PlanningDetail][DeleteUser] Erreur lors de la suppression de l\'utilisateur:', error)
+      showError('Erreur lors de la suppression de l\'utilisateur')
+    } finally {
+      state.show = false
+      state.loading = false
+    }
   }
 }
 
 const handleToggleStatus = async (item: TableItem) => {
   try {
-    await schedulesApi.updateSchedule(itemId.value, item.id, {
-      is_active: !item.is_active
-    })
-    showSuccess('Statut du planning mis à jour avec succès')
-  } catch (_error) {
-    showError('Erreur lors de la mise à jour du statut du planning')
+    // Déterminer si nous sommes dans l'onglet des employés
+    if (activeTab.value === 'employees') {
+      // Si oui, utiliser toggleUserStatus
+      await toggleUserStatus(item)
+    } else {
+      // Sinon, mettre à jour le planning comme avant
+      await schedulesApi.updateSchedule(itemId.value, item.id, {
+        is_active: !item.is_active
+      })
+      showSuccess('Statut du planning mis à jour avec succès')
+    }
+  } catch (error) {
+    console.error('[PlanningDetail][ToggleStatus] Erreur lors de la mise à jour du statut:', error)
+    showError('Erreur lors de la mise à jour du statut')
   }
 }
 
 const handleDelete = async (item: TableItem) => {
   try {
-    await schedulesApi.deleteSchedule(item.id)
-    showSuccess('Planning supprimé avec succès')
-    router.push({ name: 'plannings' })
-  } catch (_error) {
-    showError('Erreur lors de la suppression du planning')
+    // Déterminer si nous sommes dans l'onglet des employés
+    if (activeTab.value === 'employees') {
+      // Si oui, utiliser confirmDeleteUser
+      confirmDeleteUser(item)
+    } else {
+      // Sinon, supprimer le planning comme avant
+      await schedulesApi.deleteSchedule(item.id)
+      showSuccess('Planning supprimé avec succès')
+      router.push({ name: 'plannings' })
+    }
+  } catch (error) {
+    console.error('[PlanningDetail][Delete] Erreur lors de la suppression:', error)
+    showError('Erreur lors de la suppression')
   }
 }
 
@@ -614,4 +693,4 @@ watch(
   opacity: 1 !important;
   color: inherit !important;
 }
-</style> 
+</style>

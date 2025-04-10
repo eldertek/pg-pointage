@@ -226,14 +226,38 @@ class SiteEmployeesView(generics.ListCreateAPIView):
             # Créer ou récupérer les SiteEmployee pour tous les utilisateurs
             site_employees = []
             for user in users:
-                site_employee, _ = SiteEmployee.objects.get_or_create(
+                # Vérifier s'il existe déjà des SiteEmployee pour ce site et cet employé
+                existing_site_employees = SiteEmployee.objects.filter(
                     site=site,
-                    employee=user,
-                    defaults={'is_active': True}
+                    employee=user
                 )
-                if not site_employee.is_active:
-                    site_employee.is_active = True
-                    site_employee.save()
+                count = existing_site_employees.count()
+                print(f"[SiteEmployeesView][Debug] Trouvé {count} SiteEmployee pour l'utilisateur {user.id} sur le site {site.id}")
+
+                if existing_site_employees.exists():
+                    # Utiliser le premier SiteEmployee actif ou le premier de la liste
+                    active_site_employees = existing_site_employees.filter(is_active=True)
+                    active_count = active_site_employees.count()
+                    print(f"[SiteEmployeesView][Debug] Dont {active_count} actifs")
+
+                    if active_site_employees.exists():
+                        site_employee = active_site_employees.first()
+                        print(f"[SiteEmployeesView][Debug] Utilisation du SiteEmployee actif {site_employee.id}")
+                    else:
+                        site_employee = existing_site_employees.first()
+                        print(f"[SiteEmployeesView][Debug] Activation du SiteEmployee {site_employee.id}")
+                        site_employee.is_active = True
+                        site_employee.save()
+                else:
+                    # Créer un nouveau SiteEmployee si aucun n'existe
+                    print(f"[SiteEmployeesView][Debug] Création d'un nouveau SiteEmployee pour l'utilisateur {user.id} sur le site {site.id}")
+                    site_employee = SiteEmployee.objects.create(
+                        site=site,
+                        employee=user,
+                        is_active=True
+                    )
+                    print(f"[SiteEmployeesView][Debug] Nouveau SiteEmployee créé avec ID {site_employee.id}")
+
                 site_employees.append(site_employee.id)
 
             return SiteEmployee.objects.filter(
@@ -430,13 +454,13 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
             # Assigner les employés au planning
             for employee in organization_employees:
                 from sites.serializers import create_or_update_site_employee
-                
+
                 site_employee, created = create_or_update_site_employee(
                     site=site,
                     employee_id=employee.id,
                     schedule=schedule
                 )
-                
+
                 if site_employee:
                     action = "créée" if created else "mise à jour"
                     print(
