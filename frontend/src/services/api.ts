@@ -61,7 +61,7 @@ api.interceptors.response.use(
           // If refresh token request fails, clear everything and redirect to login
           localStorage.clear();
           // Clear all cookies
-          document.cookie.split(";").forEach(function(c) { 
+          document.cookie.split(";").forEach(function(c) {
             document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
           });
           window.location.href = "/login";
@@ -81,7 +81,7 @@ api.interceptors.response.use(
             })
             const newToken = response.data.access
             localStorage.setItem("token", newToken)
-            
+
             // Retry the original request with the new token
             error.config.headers.Authorization = `Bearer ${newToken}`
             error.config.__isRetryRequest = true
@@ -90,7 +90,7 @@ api.interceptors.response.use(
             // If refresh fails, clear everything and redirect
             localStorage.clear();
             // Clear all cookies
-            document.cookie.split(";").forEach(function(c) { 
+            document.cookie.split(";").forEach(function(c) {
               document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
             });
             window.location.href = "/login";
@@ -233,21 +233,21 @@ const sitesApi = {
       expand: 'schedules',
       ...params
     }
-    
+
     if (params.organizations?.length) {
       queryParams.organizations = params.organizations.join(',')
     }
-    
+
     return api.get('/sites/', { params: queryParams })
   },
-  
+
   // Get a single site by ID
   getSite: (id: number): Promise<AxiosResponse<Site>> => api.get(`/sites/${id}/`),
-  
+
   // Get site statistics
-  getSiteStatistics: (id: number): Promise<AxiosResponse<SiteStatistics>> => 
+  getSiteStatistics: (id: number): Promise<AxiosResponse<SiteStatistics>> =>
     api.get(`/sites/${id}/statistics/`),
-  
+
   // Create a new site
   createSite: (data: Partial<Site>): Promise<AxiosResponse<Site>> => {
     console.log('[SitesAPI][Create] Données reçues:', data)
@@ -255,38 +255,38 @@ const sitesApi = {
     console.log('[SitesAPI][Create] Données converties:', siteData)
     return api.post('/sites/', siteData)
   },
-  
+
   // Update a site
   updateSite: (id: number, data: Partial<Site>): Promise<AxiosResponse<Site>> => {
     const siteData = convertKeysToSnakeCase(data);
     return api.patch(`/sites/${id}/`, siteData);
   },
-  
+
   // Delete a site
   deleteSite: (id: number): Promise<AxiosResponse<void>> => api.delete(`/sites/${id}/`),
-  
+
   // Get site employees
   getSiteEmployees: (siteId: number, params?: { role?: string }): Promise<AxiosResponse<ApiResponse<Employee>>> =>
     api.get(`/sites/${siteId}/employees/`, { params }),
 
   // Get site schedules
-  getSiteSchedules: (siteId: number): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
+  getSiteSchedules: (siteId: number): Promise<AxiosResponse<ApiResponse<Schedule>>> =>
     api.get(`/sites/${siteId}/schedules/`),
 
   // Get a single schedule
-  getSchedule: (siteId: number, scheduleId: number): Promise<AxiosResponse<Schedule>> => 
+  getSchedule: (siteId: number, scheduleId: number): Promise<AxiosResponse<Schedule>> =>
     api.get(`/sites/${siteId}/schedules/${scheduleId}/`),
 
   // Create a new schedule
-  createSchedule: (siteId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
+  createSchedule: (siteId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> =>
     api.post(`/sites/${siteId}/schedules/`, convertKeysToSnakeCase(data)),
-  
+
   // Update a schedule
-  updateSchedule: (siteId: number, scheduleId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
+  updateSchedule: (siteId: number, scheduleId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> =>
     api.patch(`/sites/${siteId}/schedules/${scheduleId}/`, convertKeysToSnakeCase(data)),
-  
+
   // Delete a schedule
-  deleteSchedule: (siteId: number, scheduleId: number): Promise<AxiosResponse<void>> => 
+  deleteSchedule: (siteId: number, scheduleId: number): Promise<AxiosResponse<void>> =>
     api.delete(`/sites/${siteId}/schedules/${scheduleId}/`),
 
   // Get schedule details
@@ -294,7 +294,7 @@ const sitesApi = {
     api.get(`/sites/${siteId}/schedules/${scheduleId}/details/`),
 
   // Create schedule detail
-  createScheduleDetail: (siteId: number, scheduleId: number, data: Partial<ScheduleDetail>): Promise<AxiosResponse<ScheduleDetail>> => 
+  createScheduleDetail: (siteId: number, scheduleId: number, data: Partial<ScheduleDetail>): Promise<AxiosResponse<ScheduleDetail>> =>
     api.post(`/sites/${siteId}/schedules/${scheduleId}/details/`, convertKeysToSnakeCase(data)),
 
   // Update schedule detail
@@ -306,33 +306,33 @@ const sitesApi = {
     api.delete(`/sites/${siteId}/schedules/${scheduleId}/details/${detailId}/`),
 
   // Assign employees to schedule
-  assignEmployeesToSchedule: (siteId: number, scheduleId: number, employeeIds: number[]): Promise<AxiosResponse<void>> => 
-    api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/batch/`, { 
+  assignEmployeesToSchedule: (siteId: number, scheduleId: number, employeeIds: number[]): Promise<AxiosResponse<void>> =>
+    api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/batch/`, {
       employees: employeeIds
     }),
 
   // Get site pointages
-  getSitePointages: (siteId: number, params: any = {}) => 
+  getSitePointages: (siteId: number, params: any = {}) =>
     api.get(`/sites/${siteId}/pointages/`, { params }),
 
   // Get site anomalies
-  getSiteAnomalies: (siteId: number, params: any = {}) => 
+  getSiteAnomalies: (siteId: number, params: any = {}) =>
     api.get(`/sites/${siteId}/anomalies/`, { params }),
 
   // Get site reports
-  getSiteReports: (siteId: number, params: any = {}) => 
+  getSiteReports: (siteId: number, params: any = {}) =>
     api.get(`/sites/${siteId}/reports/`, { params }),
 
   // Download a report
-  downloadReport: (siteId: number, reportId: number) => 
+  downloadReport: (siteId: number, reportId: number) =>
     api.get(`/sites/${siteId}/reports/${reportId}/download/`, { responseType: 'blob' }),
 
   // Unassign employee from site
-  unassignEmployee: (siteId: number, employeeId: number): Promise<AxiosResponse<void>> => 
+  unassignEmployee: (siteId: number, employeeId: number): Promise<AxiosResponse<void>> =>
     api.delete(`/sites/${siteId}/employees/${employeeId}/`),
 
   // Get site plannings with custom URL
-  getSitePlannings: (siteId: number): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
+  getSitePlannings: (siteId: number): Promise<AxiosResponse<ApiResponse<Schedule>>> =>
     api.get(`/plannings/site/${siteId}/`),
 }
 
@@ -344,25 +344,25 @@ const schedulesApi = {
     page_size?: number;
     site?: number;
     schedule_type?: string;
-  }): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
+  }): Promise<AxiosResponse<ApiResponse<Schedule>>> =>
     api.get('/sites/schedules/', { params }),
-  
+
   // Get schedules by site
-  getSchedulesBySite: (siteId: number): Promise<AxiosResponse<Schedule[]>> => 
+  getSchedulesBySite: (siteId: number): Promise<AxiosResponse<Schedule[]>> =>
     api.get(`/sites/${siteId}/schedules/`),
-  
+
   // Get a single schedule by ID
-  getSchedule: (id: number): Promise<AxiosResponse<Schedule>> => 
+  getSchedule: (id: number): Promise<AxiosResponse<Schedule>> =>
     api.get(`/sites/schedules/${id}/`),
-  
+
   // Get schedule statistics
-  getScheduleStatistics: (id: number): Promise<AxiosResponse<any>> => 
+  getScheduleStatistics: (id: number): Promise<AxiosResponse<any>> =>
     api.get(`/sites/schedules/${id}/statistics/`),
 
   // Get schedule employees
-  getScheduleEmployees: (id: number): Promise<AxiosResponse<ApiResponse<Employee>>> => 
+  getScheduleEmployees: (id: number): Promise<AxiosResponse<ApiResponse<Employee>>> =>
     api.get(`/sites/schedules/${id}/employees/`),
-  
+
   // Create a new schedule
   createSchedule: (data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => {
     if (!data.site) {
@@ -370,7 +370,7 @@ const schedulesApi = {
     }
     return api.post(`/sites/${data.site}/schedules/`, convertKeysToSnakeCase(data))
   },
-  
+
   // Update a schedule
   updateSchedule: (siteId: number, scheduleId: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => {
     console.log('[SchedulesAPI][Update] Mise à jour du planning:', {
@@ -378,27 +378,29 @@ const schedulesApi = {
       scheduleId,
       data: convertKeysToSnakeCase(data)
     })
-    return api.patch(`/sites/${siteId}/schedules/${scheduleId}/`, convertKeysToSnakeCase(data))
+    // Utiliser l'endpoint direct des plannings au lieu de l'endpoint spécifique au site
+    // Cela permet de mettre à jour un planning même s'il n'appartient pas au site spécifié
+    return api.patch(`/sites/schedules/${scheduleId}/`, convertKeysToSnakeCase(data))
   },
-  
+
   // Delete a schedule
-  deleteSchedule: (id: number): Promise<AxiosResponse<void>> => 
+  deleteSchedule: (id: number): Promise<AxiosResponse<void>> =>
     api.delete(`/sites/schedules/${id}/`),
 
   // Employee management
-  assignEmployee: (siteId: number, scheduleId: number, employeeId: number): Promise<AxiosResponse<void>> => 
-    api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/`, { 
+  assignEmployee: (siteId: number, scheduleId: number, employeeId: number): Promise<AxiosResponse<void>> =>
+    api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/`, {
       site: siteId,
       employee: employeeId,
       schedule: scheduleId
     }),
 
-  unassignEmployee: (scheduleId: number, employeeId: number): Promise<AxiosResponse<void>> => 
+  unassignEmployee: (scheduleId: number, employeeId: number): Promise<AxiosResponse<void>> =>
     api.delete(`/sites/schedules/${scheduleId}/employees/${employeeId}/`),
 
   // Assigner plusieurs employés à un planning
-  assignMultipleEmployees: (siteId: number, scheduleId: number, employeeIds: number[]): Promise<AxiosResponse<void>> => 
-    api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/batch/`, { 
+  assignMultipleEmployees: (siteId: number, scheduleId: number, employeeIds: number[]): Promise<AxiosResponse<void>> =>
+    api.post(`/sites/${siteId}/schedules/${scheduleId}/employees/batch/`, {
       site: siteId,
       employees: employeeIds,
       schedule: scheduleId
@@ -409,13 +411,13 @@ const schedulesApi = {
 const usersApi = {
   // Get user profile
   getProfile: () => api.get('/users/profile/'),
-  
+
   // Get all users with filters
   getAllUsers: (params: any = {}) => api.get('/users/', { params }),
-  
+
   // Get a single user by ID
   getUser: (id: number) => api.get(`/users/${id}/`),
-  
+
   // Create a new user
   createUser: (data: any) => {
     const userData = {
@@ -424,7 +426,7 @@ const usersApi = {
     }
     return api.post('/users/register/', userData)
   },
-  
+
   // Update a user
   updateUser: (id: number, data: any) => {
     const userData = {
@@ -433,22 +435,22 @@ const usersApi = {
     }
     return api.patch(`/users/${id}/`, userData)
   },
-  
+
   // Delete a user
   deleteUser: (id: number) => api.delete(`/users/${id}/`),
-  
+
   // Get user statistics
   getUserStatistics: (id: number) => api.get(`/users/${id}/statistics/`),
-  
+
   // Get user sites
   getUserSites: (id: number, params: any = {}) => api.get(`/users/${id}/sites/`, { params }),
-  
+
   // Get user schedules
   getUserSchedules: (id: number, params: any = {}) => api.get(`/users/${id}/schedules/`, { params }),
-  
+
   // Get user reports
   getUserReports: (id: number, params: any = {}) => api.get(`/users/${id}/reports/`, { params }),
-  
+
   // Update user profile
   updateProfile: (data: any) => {
     interface ProfileData {
@@ -460,7 +462,7 @@ const usersApi = {
       scan_preference?: string;
       simplified_mobile_view?: boolean;
     }
-    
+
     const profileData: ProfileData = {
       first_name: data.firstName,
       last_name: data.lastName,
@@ -468,23 +470,23 @@ const usersApi = {
       phone_number: data.phone,
       username: data.username,
     }
-    
+
     // Ajouter scan_preference et simplified_mobile_view uniquement pour les employés
     if (data.role === 'EMPLOYEE') {
       profileData.scan_preference = data.scanPreference
       profileData.simplified_mobile_view = data.simplifiedMobileView
     }
-    
+
     return api.put('/users/profile/', convertKeysToSnakeCase(profileData))
   },
-  
+
   // Update user preferences
   updatePreferences: (data: { simplifiedMobileView: boolean }) => {
     return api.patch('/users/profile/', convertKeysToSnakeCase({
       simplified_mobile_view: data.simplifiedMobileView
     }))
   },
-  
+
   // Change password
   changePassword: (data: any) => api.post('/users/auth/change-password/', {
     old_password: data.currentPassword,
@@ -501,7 +503,7 @@ const usersApi = {
   }),
 
   // Activer/désactiver un utilisateur
-  toggleUserStatus: (id: number, isActive: boolean) => 
+  toggleUserStatus: (id: number, isActive: boolean) =>
     api.patch(`/users/${id}/`, { is_active: isActive }),
 }
 
@@ -513,32 +515,32 @@ const organizationsApi = {
     page_size?: number;
     search?: string;
   } = {}) => api.get('/organizations/', { params }),
-  
+
   // Get a single organization by ID
   getOrganization: (id: number) => api.get(`/organizations/${id}/`),
-  
+
   // Create a new organization
-  createOrganization: (data: Partial<Organization>) => 
+  createOrganization: (data: Partial<Organization>) =>
     api.post('/organizations/', convertKeysToSnakeCase(data)),
-  
+
   // Update an organization
-  updateOrganization: (id: number, data: Partial<Organization>) => 
+  updateOrganization: (id: number, data: Partial<Organization>) =>
     api.patch(`/organizations/${id}/`, convertKeysToSnakeCase(data)),
-  
+
   // Delete an organization
-  deleteOrganization: (id: number) => 
+  deleteOrganization: (id: number) =>
     api.delete(`/organizations/${id}/`),
-  
+
   // Get organization users
-  getOrganizationUsers: (id: number) => 
+  getOrganizationUsers: (id: number) =>
     api.get(`/organizations/${id}/users/`),
-  
+
   // Get organization statistics
-  getOrganizationStatistics: (id: number) => 
+  getOrganizationStatistics: (id: number) =>
     api.get(`/organizations/${id}/statistics/`),
 
   // Get organization sites
-  getOrganizationSites: (id: number, page = 1, perPage = 10) => 
+  getOrganizationSites: (id: number, page = 1, perPage = 10) =>
     api.get(`/organizations/${id}/sites/`, {
       params: {
         page,
@@ -547,43 +549,43 @@ const organizationsApi = {
     }),
 
   // Get organization timesheets
-  getOrganizationTimesheets: (id: number, params: any = {}) => 
+  getOrganizationTimesheets: (id: number, params: any = {}) =>
     api.get(`/organizations/${id}/timesheets/`, { params }),
 
   // Get organization anomalies
-  getOrganizationAnomalies: (id: number, params: any = {}) => 
+  getOrganizationAnomalies: (id: number, params: any = {}) =>
     api.get(`/organizations/${id}/anomalies/`, { params }),
 
   // Get organization reports
-  getOrganizationReports: (id: number, params: any = {}) => 
+  getOrganizationReports: (id: number, params: any = {}) =>
     api.get(`/organizations/${id}/reports/`, { params }),
 
   // Activer/désactiver une organisation
-  toggleOrganizationStatus: (id: number, isActive: boolean) => 
+  toggleOrganizationStatus: (id: number, isActive: boolean) =>
     api.patch(`/organizations/${id}/`, { is_active: isActive }),
-    
+
   // Obtenir les employés qui ne sont pas encore assignés à l'organisation
-  getUnassignedEmployees: (id: number) => 
+  getUnassignedEmployees: (id: number) =>
     api.get(`/organizations/${id}/unassigned-employees/`, {
       params: {
         role: ['EMPLOYEE', 'MANAGER']  // Filtrer pour ne montrer que les employés et managers
       }
     }),
-    
+
   // Obtenir les sites qui ne sont pas encore assignés à l'organisation
-  getUnassignedSites: (id: number) => 
+  getUnassignedSites: (id: number) =>
     api.get(`/organizations/${id}/unassigned-sites/`),
-    
+
   // Assigner un employé à une organisation
-  assignEmployee: (organizationId: number, employeeId: number) => 
+  assignEmployee: (organizationId: number, employeeId: number) =>
     api.post(`/organizations/${organizationId}/assign-employee/`, { employee_id: employeeId }),
-    
+
   // Assigner un site à une organisation
-  assignSite: (organizationId: number, siteId: number) => 
+  assignSite: (organizationId: number, siteId: number) =>
     api.post(`/organizations/${organizationId}/assign-site/`, { site_id: siteId }),
 
   // Get organization employees
-  getOrganizationEmployees: (id: number, params: { role?: string } = {}): Promise<AxiosResponse<ApiResponse<Employee>>> => 
+  getOrganizationEmployees: (id: number, params: { role?: string } = {}): Promise<AxiosResponse<ApiResponse<Employee>>> =>
     api.get(`/organizations/${id}/employees/`, { params }),
 }
 
@@ -599,11 +601,11 @@ const timesheetsApi = {
   getTimesheet: (id: number) => api.get(`/timesheets/${id}/`),
 
   // Update a timesheet
-  updateTimesheet: (id: number, data: any) => 
+  updateTimesheet: (id: number, data: any) =>
     api.put(`/timesheets/${id}/`, convertKeysToSnakeCase(data)),
 
   // Delete a timesheet
-  deleteTimesheet: (id: number) => 
+  deleteTimesheet: (id: number) =>
     api.delete(`/timesheets/${id}/`),
 
   // Get anomalies
@@ -635,7 +637,7 @@ const timesheetsApi = {
   getUserStats: () => api.get('/timesheets/reports/'),
 
   // Report an anomaly
-  reportAnomaly: (data: any) => 
+  reportAnomaly: (data: any) =>
     api.post('/timesheets/anomalies/', convertKeysToSnakeCase(data)),
 
   // Get dashboard statistics
@@ -660,7 +662,7 @@ const timesheetsApi = {
   // Build query parameters for anomalies
   buildAnomalyQueryParams: (filters: any, currentSiteId?: number) => {
     const params: any = {};
-    
+
     if (filters.employee) {
       params.employee = filters.employee;
     }
@@ -681,33 +683,33 @@ const timesheetsApi = {
     if (filters.endDate) {
       params.end_date = filters.endDate;
     }
-    
+
     return params;
   },
 
   // Get timesheet details
-  getTimesheetDetails: (id: number) => 
+  getTimesheetDetails: (id: number) =>
     api.get(`/timesheets/${id}/details/`),
 
   // Get anomaly details
-  getAnomalyDetails: (id: number) => 
+  getAnomalyDetails: (id: number) =>
     api.get(`/timesheets/anomalies/${id}/`),
 
   // Resolve anomaly
-  resolveAnomaly: (id: number) => 
+  resolveAnomaly: (id: number) =>
     api.patch(`/timesheets/anomalies/${id}/`, { status: 'RESOLVED' }),
 
   // Ignore anomaly
-  ignoreAnomaly: (id: number) => 
+  ignoreAnomaly: (id: number) =>
     api.patch(`/timesheets/anomalies/${id}/`, { status: 'IGNORED' }),
 }
 
 // Anomalies API methods
 const anomaliesApi = {
-  getAnomaliesBySite: (siteId: number) => 
+  getAnomaliesBySite: (siteId: number) =>
     api.get(`/timesheets/anomalies/`, { params: { site: siteId } }),
-  
-  updateAnomaly: (id: number, data: any) => 
+
+  updateAnomaly: (id: number, data: any) =>
     api.patch(`/timesheets/anomalies/${id}/`, convertKeysToSnakeCase(data))
 }
 
@@ -764,39 +766,39 @@ const reportsApi = {
 // Plannings API methods
 const planningsApi = {
   // Get all plannings with pagination
-  getAllPlannings: (params: { 
+  getAllPlannings: (params: {
     page?: number;
     page_size?: number;
     site?: number;
     schedule_type?: string;
-  }): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
+  }): Promise<AxiosResponse<ApiResponse<Schedule>>> =>
     api.get('/sites/schedules/', { params }),
-  
+
   // Get a single planning by ID
-  getPlanning: (id: number): Promise<AxiosResponse<Schedule>> => 
+  getPlanning: (id: number): Promise<AxiosResponse<Schedule>> =>
     api.get(`/sites/schedules/${id}/`),
-  
+
   // Get plannings for a site
-  getSitePlannings: (siteId: number): Promise<AxiosResponse<ApiResponse<Schedule>>> => 
+  getSitePlannings: (siteId: number): Promise<AxiosResponse<ApiResponse<Schedule>>> =>
     api.get(`/sites/${siteId}/schedules/`),
-  
+
   // Create a new planning
-  createPlanning: (data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
+  createPlanning: (data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> =>
     api.post('/sites/schedules/', convertKeysToSnakeCase(data)),
-  
+
   // Update a planning
-  updatePlanning: (id: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> => 
+  updatePlanning: (id: number, data: Partial<Schedule>): Promise<AxiosResponse<Schedule>> =>
     api.put(`/sites/schedules/${id}/`, convertKeysToSnakeCase(data)),
-  
+
   // Delete a planning
-  deletePlanning: (id: number): Promise<AxiosResponse<void>> => 
+  deletePlanning: (id: number): Promise<AxiosResponse<void>> =>
     api.delete(`/sites/schedules/${id}/`),
 }
 
 // Access Management API methods
 const accessManagementApi = {
   // Get all access rights
-  getAllAccessRights: (page = 1, perPage = 10): Promise<AxiosResponse<ApiResponse<any>>> => 
+  getAllAccessRights: (page = 1, perPage = 10): Promise<AxiosResponse<ApiResponse<any>>> =>
     api.get('/access-rights/', {
       params: {
         page,
@@ -805,38 +807,38 @@ const accessManagementApi = {
     }),
 
   // Get access rights for a specific user
-  getUserAccessRights: (userId: number): Promise<AxiosResponse<any>> => 
+  getUserAccessRights: (userId: number): Promise<AxiosResponse<any>> =>
     api.get(`/users/${userId}/access-rights/`),
 
   // Update user access rights
-  updateUserAccessRights: (userId: number, data: any): Promise<AxiosResponse<any>> => 
+  updateUserAccessRights: (userId: number, data: any): Promise<AxiosResponse<any>> =>
     api.put(`/users/${userId}/access-rights/`, convertKeysToSnakeCase(data)),
 
   // Get access rights for a specific site
-  getSiteAccessRights: (siteId: number): Promise<AxiosResponse<any>> => 
+  getSiteAccessRights: (siteId: number): Promise<AxiosResponse<any>> =>
     api.get(`/sites/${siteId}/access-rights/`),
 
   // Update site access rights
-  updateSiteAccessRights: (siteId: number, data: any): Promise<AxiosResponse<any>> => 
+  updateSiteAccessRights: (siteId: number, data: any): Promise<AxiosResponse<any>> =>
     api.put(`/sites/${siteId}/access-rights/`, convertKeysToSnakeCase(data)),
 }
 
 // Export all types and APIs
-export type { 
-  Site, 
-  Schedule, 
-  Employee, 
-  Organization, 
+export type {
+  Site,
+  Schedule,
+  Employee,
+  Organization,
   ScheduleDetail,
   ApiResponse,
   SiteStatistics
 }
 
-export { 
-  sitesApi, 
-  schedulesApi, 
-  usersApi, 
-  timesheetsApi, 
+export {
+  sitesApi,
+  schedulesApi,
+  usersApi,
+  timesheetsApi,
   organizationsApi,
   anomaliesApi,
   reportsApi,

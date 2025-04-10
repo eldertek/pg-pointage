@@ -77,7 +77,7 @@
                                   :country="item[field.country]"
                                 />
                               </template>
-                              
+
                               <!-- Statut avec puce -->
                               <template v-else-if="field.type === 'status'">
                                 <StatusChip
@@ -536,10 +536,10 @@ const tabOrder = ['details', 'employees', 'plannings', 'pointages', 'anomalies',
 
 watch(activeTab, (newTab, oldTab) => {
   if (!oldTab || !newTab) return
-  
+
   const oldIndex = tabOrder.indexOf(oldTab)
   const newIndex = tabOrder.indexOf(newTab)
-  
+
   reverse.value = newIndex < oldIndex
   previousTab.value = oldTab
 })
@@ -554,7 +554,7 @@ const backRoute = computed(() => '/dashboard/sites')
 const displayFields = computed((): DisplayField[] => {
   return [
     { key: 'name', label: 'Nom', icon: 'mdi-domain' },
-    { 
+    {
       type: 'address',
       label: 'Adresse',
       icon: 'mdi-map-marker',
@@ -568,7 +568,7 @@ const displayFields = computed((): DisplayField[] => {
     { key: 'organization_name', label: 'Organisation', icon: 'mdi-domain' },
     { key: 'manager_name', label: 'Manager', icon: 'mdi-account-tie' },
     { key: 'late_margin', label: 'Marge de retard', icon: 'mdi-clock-alert', suffix: ' minutes' },
-    { 
+    {
       key: 'is_active',
       label: 'Statut',
       icon: 'mdi-check-circle',
@@ -632,7 +632,7 @@ const generateQRCode = async () => {
       qrSize: 500,
       showFrame: false
     })
-    
+
     const downloadQRCode = await generateStyledQRCode(item.value, {
       width: 500,
       height: 700,
@@ -640,7 +640,7 @@ const generateQRCode = async () => {
       showFrame: true,
       radius: 20
     })
-    
+
     item.value.qr_code = previewQRCode
     item.value.download_qr_code = downloadQRCode
   } catch (error) {
@@ -660,7 +660,7 @@ const downloadQRCode = async () => {
     link.href = item.value.download_qr_code || item.value.qr_code
     const fileName = `qr-code-${item.value.name.toLowerCase().replace(/\s+/g, '-')}.png`
     link.download = fileName
-    
+
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -792,7 +792,7 @@ const downloadReport = async (reportId: number) => {
     showSuccess(`Rapport téléchargé avec succès`)
   } catch (error) {
     showError(`Erreur lors du téléchargement du rapport`)
-    console.error('[SiteDetail][DownloadReport] Erreur lors du téléchargement du rapport:', error)  
+    console.error('[SiteDetail][DownloadReport] Erreur lors du téléchargement du rapport:', error)
   }
 }
 
@@ -968,16 +968,18 @@ const confirmTogglePlanningStatus = (planning: any) => {
 
 const togglePlanningStatus = async (planning: any) => {
   try {
-    await schedulesApi.updateSchedule(itemId.value, planning.id, {
+    // Utiliser l'ID du planning directement sans l'ID du site
+    // Cela utilise l'endpoint /sites/schedules/{id}/ au lieu de /sites/{siteId}/schedules/{scheduleId}/
+    await schedulesApi.updateSchedule(0, planning.id, {
       is_active: !planning.is_active
     })
-    
+
     // Mettre à jour le planning dans la liste locale
     const index = item.value.schedules.findIndex((p: any) => p.id === planning.id)
     if (index !== -1) {
       item.value.schedules[index].is_active = !planning.is_active
     }
-    
+
     showSuccess(`Planning ${planning.is_active ? 'désactivé' : 'activé'} avec succès`)
   } catch (error) {
     console.error('[SiteDetail][TogglePlanningStatus] Erreur lors du changement de statut:', error)
@@ -1001,10 +1003,10 @@ const confirmDeletePlanning = (planning: any) => {
 const deletePlanning = async (planning: any) => {
   try {
     await schedulesApi.deleteSchedule(planning.id)
-    
+
     // Retirer le planning de la liste
     item.value.schedules = item.value.schedules.filter((p: any) => p.id !== planning.id)
-    
+
     showSuccess('Planning supprimé avec succès')
   } catch (error) {
     console.error('[SiteDetail][DeletePlanning] Erreur lors de la suppression:', error)
@@ -1169,4 +1171,4 @@ const deletePlanning = async (planning: any) => {
   text-align: center;
   color: rgba(0, 0, 0, 0.6);
 }
-</style> 
+</style>

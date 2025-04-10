@@ -225,7 +225,7 @@
           <v-col cols="12">
             <v-card variant="outlined" class="pa-4">
               <v-card-title class="text-subtitle-1 mb-4">Paramètres de tolérance</v-card-title>
-              
+
               <!-- Paramètres pour planning type fréquence -->
               <template v-if="editedItem.schedule_type === ScheduleTypeEnum.FREQUENCY">
                 <v-row>
@@ -253,7 +253,7 @@
                   </v-col>
                 </v-row>
               </template>
-              
+
               <!-- Paramètres pour planning type fixe -->
               <template v-else>
                 <v-row>
@@ -704,32 +704,32 @@ const scheduleTypes = [
 const filteredSchedules = computed(() => {
   const user = authStore.user
   if (!user) return []
-  
+
   console.log('[Plannings][Filter] User:', {
     id: user.id,
     role: user.role,
     organizations: user.organizations
   })
-  
+
   console.log('[Plannings][Filter] Plannings avant filtrage:', schedules.value)
-  
+
   // Filtrer d'abord par permissions
   let filtered = schedules.value.filter(schedule => {
     // Super Admin voit tout
     if (user.role === RoleEnum.SUPER_ADMIN) return true
-    
+
     // Admin et Manager voient les plannings de leurs organisations
     if (user.role === RoleEnum.ADMIN || user.role === RoleEnum.MANAGER) {
       // Convertir les IDs en nombres pour la comparaison
       const userOrgIds = user.organizations?.map(org => Number(org)) ?? []
-      
+
       // Trouver le site associé au planning
       const site = sites.value.find(s => s.id === schedule.site)
       if (!site) return false
-      
+
       const siteOrgId = Number(site.organization)
       const hasAccess = userOrgIds.includes(siteOrgId)
-      
+
       console.log('[Plannings][Filter] Vérification accès pour le planning:', {
         scheduleId: schedule.id,
         siteId: schedule.site,
@@ -739,27 +739,27 @@ const filteredSchedules = computed(() => {
       })
       return hasAccess
     }
-    
+
     // Employé voit les plannings des sites auxquels il est rattaché
     if (user.role === RoleEnum.EMPLOYEE) {
       return user.sites?.some(s => s.id === schedule.site) ?? false
     }
-    
+
     return false
   })
-  
+
   // Filtrage supplémentaire côté client
   // Filtrer par site
   if (filters.value.site) {
     const siteId = Number(filters.value.site)
     filtered = filtered.filter(schedule => schedule.site === siteId)
   }
-  
+
   // Filtrer par type de planning
   if (filters.value.type) {
     filtered = filtered.filter(schedule => schedule.schedule_type === filters.value.type)
   }
-  
+
   console.log('[Plannings][Filter] Plannings après filtrage:', filtered)
   return filtered
 })
@@ -815,7 +815,7 @@ const loadSchedules = async () => {
         isActive: schedule.is_active,
         scheduleType: schedule.schedule_type
       }, null, 2))
-      
+
       return {
         ...schedule,
         schedule_type: schedule.schedule_type as ScheduleTypeEnum,
@@ -865,10 +865,10 @@ const loadSites = async () => {
 const loadEmployees = async (siteId: number | string | undefined) => {
   try {
     console.log('[Plannings][LoadEmployees] Début du chargement des employés pour le site:', siteId)
-    
+
     const numericSiteId = typeof siteId === 'string' ? Number(siteId) : siteId
     console.log('[Plannings][LoadEmployees] SiteId converti:', numericSiteId)
-    
+
     if (!isValidSiteId(numericSiteId)) {
       console.log('[Plannings][LoadEmployees] SiteId invalide')
       employees.value = []
@@ -908,7 +908,7 @@ const resetFilters = () => {
 
 const openDialog = (item?: ExtendedSchedule) => {
   console.log('[Plannings][OpenDialog] Item reçu:', item)
-  
+
   editedItem.value = item ? {
     id: item.id,
     site: item.site,
@@ -916,7 +916,7 @@ const openDialog = (item?: ExtendedSchedule) => {
     details: daysOfWeek.map(day => {
       // Rechercher un détail existant pour ce jour
       const existingDetail = item.details?.find(detail => detail.day_of_week === day.value)
-      
+
       if (existingDetail) {
         console.log(`[Plannings][OpenDialog] Détail existant trouvé pour le jour ${day.label}:`, existingDetail)
         return {
@@ -1015,7 +1015,7 @@ const saveSchedule = async () => {
     }
     return false
   })
-  
+
   if (invalidDetails.length > 0) {
     alert('Veuillez corriger les horaires invalides avant de sauvegarder')
     return
@@ -1065,7 +1065,8 @@ const saveSchedule = async () => {
           scheduleId: currentItem.id,
           data: scheduleData
         })
-        savedSchedule = await schedulesApi.updateSchedule(currentItem.site, currentItem.id, scheduleData)
+        // Utiliser l'endpoint direct des plannings au lieu de l'endpoint spécifique au site
+        savedSchedule = await schedulesApi.updateSchedule(0, currentItem.id, scheduleData)
       } else {
         console.log('[Plannings][Save] Création d\'un nouveau planning:', {
           data: scheduleData
@@ -1086,7 +1087,7 @@ const saveSchedule = async () => {
           currentItem.employees
         )
       }
-      
+
       await loadSchedules()
       if (dashboardView.value) {
         dashboardView.value.showForm = false
@@ -1136,7 +1137,7 @@ const toggleStatus = async (item: ExtendedSchedule) => {
     currentStatus: item.is_active,
     assignedEmployees: item.assigned_employees
   }, null, 2))
-  
+
   const state = dialogState.value as DialogState
   state.show = true
   state.title = 'Confirmation'
@@ -1152,11 +1153,11 @@ const toggleStatus = async (item: ExtendedSchedule) => {
         id: item.id,
         newStatus: !item.is_active
       }, null, 2))
-      
+
       await schedulesApi.updateSchedule(item.site, item.id, {
         is_active: !item.is_active
       })
-      
+
       console.log('[Plannings][ToggleStatus] Rechargement des plannings')
       await loadSchedules()
     } catch (error) {
@@ -1185,21 +1186,21 @@ const getTimeError = (detail: ExtendedScheduleDetail): string | null => {
       return "L'heure de fin du matin doit être après l'heure de début"
     }
   }
-  
+
   // Validation des horaires de l'après-midi
   if ((detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.PM) && detail.start_time_2 && detail.end_time_2) {
     if (!validateTimeRange(detail.start_time_2, detail.end_time_2)) {
       return "L'heure de fin de l'après-midi doit être après l'heure de début"
     }
   }
-  
+
   // Pour une journée complète, vérifier que les horaires de l'après-midi sont après ceux du matin
   if (detail.day_type === DayTypeEnum.FULL && detail.end_time_1 && detail.start_time_2) {
     if (!validateDaySequence(detail.start_time_1, detail.end_time_1, detail.start_time_2)) {
       return "Les horaires de l'après-midi doivent être après ceux du matin"
     }
   }
-  
+
   return null
 }
 
@@ -1207,7 +1208,7 @@ const handleRowClick = (event: Event, { item }: { item: ExtendedSchedule }) => {
   // Vérifier si le clic vient d'un élément interactif
   const target = event.target as HTMLElement
   const clickedElement = target.closest('.v-btn, a, button, [data-no-row-click]')
-  
+
   if (clickedElement || target.hasAttribute('data-no-row-click')) {
     return
   }
@@ -1405,4 +1406,4 @@ watch(() => itemsPerPage.value, () => {
 :deep(.v-data-table tbody tr) {
   cursor: pointer;
 }
-</style> 
+</style>
