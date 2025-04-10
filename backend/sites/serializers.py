@@ -440,6 +440,7 @@ class SiteStatisticsSerializer(serializers.Serializer):
 def create_or_update_site_employee(site, employee_id, schedule):
     """
     Crée ou met à jour une relation SiteEmployee
+    Permet à un employé d'être assigné à plusieurs plannings d'un même site
     """
     try:
         print(f"[create_or_update_site_employee][Debug] Début de l'assignation - Site: {site.id}, Employee: {employee_id}, Schedule: {schedule.id}")
@@ -473,21 +474,8 @@ def create_or_update_site_employee(site, employee_id, schedule):
             print(f"[create_or_update_site_employee][Debug] Relation mise à jour avec succès")
             return site_employee, False
 
-        # Vérifier si une relation SiteEmployee existe déjà pour ce site et cet employé (sans planning)
-        existing_relation = SiteEmployee.objects.filter(
-            site=site,
-            employee_id=employee_id
-        ).first()
-
-        if existing_relation:
-            print(f"[create_or_update_site_employee][Debug] Relation site-employé existante trouvée (ID: {existing_relation.id}), mise à jour avec le planning...")
-            existing_relation.schedule = schedule
-            existing_relation.is_active = True
-            existing_relation.save()
-            print(f"[create_or_update_site_employee][Debug] Relation mise à jour avec le planning {schedule.id}")
-            return existing_relation, False
-
-        # Si elle n'existe pas du tout, on la crée
+        # Créer une nouvelle relation pour ce planning spécifique
+        # Nous ne mettons plus à jour les relations existantes pour permettre à un employé d'être assigné à plusieurs plannings
         print(f"[create_or_update_site_employee][Debug] Création d'une nouvelle relation site-employé-planning")
         site_employee = SiteEmployee.objects.create(
             site=site,

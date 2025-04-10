@@ -339,15 +339,12 @@ class SiteEmployee(models.Model):
     class Meta:
         verbose_name = _('employé du site')
         verbose_name_plural = _('employés du site')
-        constraints = [
-            models.UniqueConstraint(
-                fields=['site', 'employee', 'schedule'],
-                name='unique_site_employee_schedule'
-            )
-        ]
+        # Suppression de la contrainte d'unicité pour permettre à un employé d'être assigné à plusieurs plannings
+        # Un employé peut maintenant être assigné à plusieurs plannings d'un même site
         indexes = [
             models.Index(fields=['schedule', 'is_active']),
-            models.Index(fields=['site', 'is_active'])
+            models.Index(fields=['site', 'is_active']),
+            models.Index(fields=['site', 'employee', 'schedule']),
         ]
 
     def __str__(self):

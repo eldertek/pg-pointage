@@ -477,13 +477,15 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
                         print(f"[SiteScheduleBatchEmployeeView][Warning] Aucun employé trouvé avec l'ID {missing_id}")
 
             # Désactiver les assignations qui ne sont plus dans la liste
+            # Nous ne désactivons plus les assignations existantes pour permettre à un employé d'être assigné à plusieurs plannings
+            # Nous désactivons uniquement les assignations pour ce planning spécifique
             removed = SiteEmployee.objects.filter(
                 site=site,
                 schedule=schedule
             ).exclude(
                 employee_id__in=user_ids
-            ).update(schedule=None)
-            print(f"[SiteScheduleBatchEmployeeView][Debug] {removed} assignation(s) supprimée(s)")
+            ).update(is_active=False)
+            print(f"[SiteScheduleBatchEmployeeView][Debug] {removed} assignation(s) désactivée(s) pour ce planning")
 
             # Assigner les employés au planning
             success_count = 0
