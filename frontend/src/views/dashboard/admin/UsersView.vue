@@ -235,8 +235,59 @@
             :return-object="false"
           ></v-select>
         </v-col>
-        <!-- Champs de réinitialisation de mot de passe -->
-        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
+        
+        <!-- Mot de passe en mode création -->
+        <v-col v-if="!(editedItem as UserFormData).id" cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as UserFormData).password"
+            label="Mot de passe"
+            :type="showPassword ? 'text' : 'password'"
+            required
+            :error-messages="formErrors.password"
+            :rules="[
+              v => !!v || 'Le mot de passe est requis',
+              v => !v || v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
+            ]"
+          >
+            <template v-slot:append-inner>
+              <v-btn
+                icon
+                variant="text"
+                @click="showPassword = !showPassword"
+              >
+                <v-icon>{{ showPassword ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+              </v-btn>
+            </template>
+          </v-text-field>
+        </v-col>
+        
+        <!-- Confirmation mot de passe en mode création -->
+        <v-col v-if="!(editedItem as UserFormData).id" cols="12" sm="6">
+          <v-text-field
+            v-model="confirmPassword"
+            label="Confirmer le mot de passe"
+            :type="showConfirmPassword ? 'text' : 'password'"
+            required
+            :error-messages="formErrors.confirm_password"
+            :rules="[
+              v => !!v || 'La confirmation du mot de passe est requise',
+              v => v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
+            ]"
+          >
+            <template v-slot:append-inner>
+              <v-btn
+                icon
+                variant="text"
+                @click="showConfirmPassword = !showConfirmPassword"
+              >
+                <v-icon>{{ showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+              </v-btn>
+            </template>
+          </v-text-field>
+        </v-col>
+
+        <!-- Switch pour la vue mobile simplifiée (pour les employés) -->
+        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12">
           <v-switch
             v-model="(editedItem as UserFormData).simplified_mobile_view"
             label="Vue mobile simplifiée"
@@ -244,8 +295,8 @@
           ></v-switch>
         </v-col>
 
-        <!-- Section de réinitialisation du mot de passe -->
-        <v-col cols="12">
+        <!-- Section de réinitialisation du mot de passe (uniquement en mode modification) -->
+        <v-col v-if="(editedItem as UserFormData).id" cols="12">
           <v-divider class="my-4"></v-divider>
           <v-card-title class="text-subtitle-1 font-weight-medium">
             Réinitialisation du mot de passe
@@ -262,6 +313,7 @@
           </v-card-text>
         </v-col>
 
+        <!-- Mot de passe en mode modification -->
         <v-col v-if="(editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).password"
@@ -285,6 +337,8 @@
             </template>
           </v-text-field>
         </v-col>
+        
+        <!-- Confirmation mot de passe en mode modification -->
         <v-col v-if="(editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
           <v-text-field
             v-model="confirmPassword"

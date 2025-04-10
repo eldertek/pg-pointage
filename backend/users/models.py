@@ -46,11 +46,12 @@ class User(AbstractUser):
     phone_number = models.CharField(_('numéro de téléphone'), max_length=15, blank=True)
     is_active = models.BooleanField(_('actif'), default=True)
 
-    # Pour les employés
+    # ID unique pour chaque utilisateur
     employee_id = models.CharField(
         _('ID employé'),
         max_length=6,
         blank=True,
+        unique=True,
         help_text=_('ID unique de l\'utilisateur au format UXXXXX')
     )
 

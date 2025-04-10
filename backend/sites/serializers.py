@@ -442,6 +442,22 @@ def create_or_update_site_employee(site, employee_id, schedule):
     Crée ou met à jour une relation SiteEmployee
     """
     try:
+        print(f"[create_or_update_site_employee][Debug] Début de l'assignation - Site: {site.id}, Employee: {employee_id}, Schedule: {schedule.id}")
+
+        # Vérifier si l'employé existe
+        try:
+            employee = User.objects.get(id=employee_id)
+            print(f"[create_or_update_site_employee][Debug] Employé trouvé: {employee.id} ({employee.get_full_name()})")
+
+            # Vérifier que l'employé appartient à l'organisation du site
+            if not employee.organizations.filter(id=site.organization.id).exists():
+                print(f"[create_or_update_site_employee][Error] L'employé {employee_id} n'appartient pas à l'organisation {site.organization.id}")
+                return None, False
+
+        except User.DoesNotExist:
+            print(f"[create_or_update_site_employee][Error] Employé avec ID {employee_id} non trouvé")
+            return None, False
+
         # Vérifier d'abord si la relation existe déjà avec ce planning spécifique
         site_employee = SiteEmployee.objects.filter(
             site=site,
@@ -451,18 +467,38 @@ def create_or_update_site_employee(site, employee_id, schedule):
 
         if site_employee:
             # Si elle existe, on s'assure qu'elle est active
+            print(f"[create_or_update_site_employee][Debug] Relation existante trouvée (ID: {site_employee.id}), mise à jour...")
             site_employee.is_active = True
             site_employee.save()
+            print(f"[create_or_update_site_employee][Debug] Relation mise à jour avec succès")
             return site_employee, False
 
-        # Si elle n'existe pas avec ce planning, on la crée
+        # Vérifier si une relation SiteEmployee existe déjà pour ce site et cet employé (sans planning)
+        existing_relation = SiteEmployee.objects.filter(
+            site=site,
+            employee_id=employee_id
+        ).first()
+
+        if existing_relation:
+            print(f"[create_or_update_site_employee][Debug] Relation site-employé existante trouvée (ID: {existing_relation.id}), mise à jour avec le planning...")
+            existing_relation.schedule = schedule
+            existing_relation.is_active = True
+            existing_relation.save()
+            print(f"[create_or_update_site_employee][Debug] Relation mise à jour avec le planning {schedule.id}")
+            return existing_relation, False
+
+        # Si elle n'existe pas du tout, on la crée
+        print(f"[create_or_update_site_employee][Debug] Création d'une nouvelle relation site-employé-planning")
         site_employee = SiteEmployee.objects.create(
             site=site,
             employee_id=employee_id,
             schedule=schedule,
             is_active=True
         )
+        print(f"[create_or_update_site_employee][Debug] Nouvelle relation créée avec succès (ID: {site_employee.id})")
         return site_employee, True
     except Exception as e:
-        print(f"[create_or_update_site_employee][Error] {str(e)}")
+        print(f"[create_or_update_site_employee][Error] Exception: {str(e)}")
+        import traceback
+        print(f"[create_or_update_site_employee][Error] Traceback: {traceback.format_exc()}")
         return None, False
