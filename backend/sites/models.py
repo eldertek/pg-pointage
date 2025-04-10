@@ -128,8 +128,8 @@ class Schedule(models.Model):
     """Modèle pour les plannings des sites"""
 
     class ScheduleType(models.TextChoices):
-        FIXED = 'FIXED', _('Fixe (gardien)')
-        FREQUENCY = 'FREQUENCY', _('Fréquence (nettoyage)')
+        FIXED = 'FIXED', _('Fixe')
+        FREQUENCY = 'FREQUENCY', _('Fréquence')
 
     site = models.ForeignKey(
         Site,

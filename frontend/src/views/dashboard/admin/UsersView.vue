@@ -231,12 +231,14 @@
             chips
             closable-chips
             eager
+            return-array
             required
             :return-object="false"
             :error-messages="formErrors.organizations"
             :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
             no-data-text="Aucune organisation disponible"
             @update:model-value="val => console.log('[Users][Select] Valeur mise à jour:', JSON.stringify(val))"
+            class="org-select"
           >
             <template v-slot:selection="{ item }">
               <v-chip small closable>{{ item.props.title }}</v-chip>
@@ -668,7 +670,7 @@ const openDialog = (item?: ExtendedUser) => {
       first_name: item.first_name,
       last_name: item.last_name,
       role: item.role,
-      organizations: orgs,
+      organizations: [],  // On initialise d'abord avec un tableau vide
       phone_number: item.phone_number,
       is_active: item.is_active,
       scan_preference: item.scan_preference,
@@ -676,9 +678,13 @@ const openDialog = (item?: ExtendedUser) => {
       employee_id: item.employee_id
     }
     
-    // Vérification après assignation
-    console.log('[Users][OpenDialog] Valeur de editedItem après assignation:', 
-      editedItem.value.organizations)
+    // Forcer une mise à jour du v-select en utilisant un setTimeout
+    setTimeout(() => {
+      if (editedItem.value) {
+        editedItem.value.organizations = orgs;
+        console.log('[Users][OpenDialog] Organisations définies après timeout:', JSON.stringify(orgs));
+      }
+    }, 50);
       
   } else {
     editedItem.value = {
@@ -957,5 +963,21 @@ watch(() => (editedItem.value as UserFormData)?.role, (newRole) => {
 
 :deep(.disabled-button .v-icon) {
   color: #999 !important;
+}
+
+/* Style pour les sélections multiples */
+:deep(.org-select .v-select__selection) {
+  display: inline-flex !important;
+  margin: 2px !important;
+}
+
+:deep(.org-select .v-chip) {
+  margin: 2px !important;
+}
+
+/* Pour assurer que les éléments selected sont visibles */
+:deep(.org-select .v-field__input) {
+  min-height: 40px !important;
+  padding-top: 4px !important;
 }
 </style>
