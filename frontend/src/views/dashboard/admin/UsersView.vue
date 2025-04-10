@@ -238,6 +238,7 @@
             :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
             no-data-text="Aucune organisation disponible"
             :return-object="false"
+            @update:model-value="handleOrganizationsChange"
           >
             <template v-slot:chip="{ props, item }">
               <v-chip
@@ -551,10 +552,29 @@ const canView = computed(() => {
 
 // Créer des éléments formatés pour le sélecteur d'organisations
 const organizationItems = computed(() => {
-  return organizations.value.map(org => ({
-    id: org.id,
-    name: org.name
-  }))
+  console.log('[Users][OrganizationItems] Map des organisations:', JSON.stringify(Array.from(organizationsMap.value.entries())))
+  console.log('[Users][OrganizationItems] Organisations de l\'utilisateur:', JSON.stringify(authStore.user?.organizations))
+  
+  const userOrgs = authStore.user?.organizations || []
+  const isSuperAdmin = authStore.user?.role === RoleEnum.SUPER_ADMIN
+  
+  const items = Array.from(organizationsMap.value.entries())
+    .filter(([id]) => isSuperAdmin || userOrgs.some(org => org.id === id))
+    .map(([id, name]) => {
+      console.log(`[Users][OrganizationItems] Traitement de l'organisation ${id}:`, {
+        id,
+        name,
+        inOrganizations: organizations.value.some(org => org.id === id),
+        hasAccess: isSuperAdmin || userOrgs.some(org => org.id === id)
+      })
+      return {
+        id,
+        name
+      }
+    })
+  
+  console.log('[Users][OrganizationItems] Items générés:', JSON.stringify(items))
+  return items
 })
 
 // Filtrer les utilisateurs selon les permissions
@@ -619,16 +639,26 @@ const loadUsers = async () => {
     users.value = response.data.results || []
     totalItems.value = response.data.count
     
+    console.log('[Users][LoadUsers] Organisations avant mise à jour de la map:', JSON.stringify(organizationsMap.value))
+    
     // Mettre à jour la map des organisations avec les noms depuis les résultats des utilisateurs
     users.value.forEach(user => {
+      console.log(`[Users][LoadUsers] Traitement de l'utilisateur ${user.email}:`, {
+        organizations: JSON.stringify(user.organizations),
+        organizations_names: JSON.stringify(user.organizations_names)
+      })
+      
       if (user.organizations && user.organizations_names) {
         user.organizations.forEach((orgId, index) => {
           if (user.organizations_names[index]) {
             organizationsMap.value.set(orgId, user.organizations_names[index])
+            console.log(`[Users][LoadUsers] Mise à jour de la map: ${orgId} -> ${user.organizations_names[index]}`)
           }
         })
       }
     })
+    
+    console.log('[Users][LoadUsers] Organisations après mise à jour de la map:', JSON.stringify(Array.from(organizationsMap.value.entries())))
     
   } catch (error) {
     console.error('Erreur lors du chargement des utilisateurs:', error)
@@ -642,11 +672,16 @@ const loadOrganizations = async () => {
     const response = await organizationsApi.getAllOrganizations()
     organizations.value = response.data.results || []
     
+    console.log('[Users][LoadOrganizations] Organisations reçues:', JSON.stringify(organizations.value))
+    
     // Créer un map des organisations pour la recherche rapide
     organizationsMap.value.clear()
     organizations.value.forEach(org => {
       organizationsMap.value.set(org.id, org.name)
+      console.log(`[Users][LoadOrganizations] Ajout à la map: ${org.id} -> ${org.name}`)
     })
+    
+    console.log('[Users][LoadOrganizations] Map finale des organisations:', JSON.stringify(Array.from(organizationsMap.value.entries())))
   } catch (error) {
     console.error('Erreur lors du chargement des organisations:', error)
   }
@@ -686,8 +721,11 @@ const confirmPassword = ref('')
 
 const openDialog = (item?: ExtendedUser) => {
   if (item) {
-    console.log('[Users][OpenDialog] Item organizations:', JSON.stringify(item.organizations))
-    console.log('[Users][OpenDialog] Item organizations_names:', JSON.stringify(item.organizations_names))
+    console.log('[Users][OpenDialog] État initial des organisations:', {
+      organizations: JSON.stringify(item.organizations),
+      organizations_names: JSON.stringify(item.organizations_names),
+      organizationsMap: JSON.stringify(Array.from(organizationsMap.value.entries()))
+    })
 
     // S'assurer que les organisations sont un tableau valide
     const orgs = Array.isArray(item.organizations) ? [...item.organizations] : [];
@@ -709,11 +747,17 @@ const openDialog = (item?: ExtendedUser) => {
       employee_id: item.employee_id
     }
     
+    console.log('[Users][OpenDialog] État après initialisation:', {
+      editedItem: JSON.stringify(editedItem.value),
+      organizationsMap: JSON.stringify(Array.from(organizationsMap.value.entries()))
+    })
+    
     // Mettre à jour le organizationsMap si des noms sont disponibles
     if (item.organizations && item.organizations_names) {
       item.organizations.forEach((orgId, index) => {
         if (item.organizations_names && item.organizations_names[index]) {
           organizationsMap.value.set(orgId, item.organizations_names[index])
+          console.log(`[Users][OpenDialog] Mise à jour de la map: ${orgId} -> ${item.organizations_names[index]}`)
         }
       })
     }
@@ -749,7 +793,10 @@ const saveUser = async () => {
   try {
     if (editedItem.value) {
       const userData = editedItem.value as UserFormData
-      console.log('[Users][Save] Données utilisateur:', JSON.stringify(userData))
+      console.log('[Users][Save] État initial des données:', {
+        userData: JSON.stringify(userData),
+        organizationsMap: JSON.stringify(Array.from(organizationsMap.value.entries()))
+      })
 
       // Vérifier la correspondance des mots de passe
       if (!userData.id && userData.password !== confirmPassword.value) {
@@ -763,9 +810,13 @@ const saveUser = async () => {
       console.log('[Users][Save] Organisations à envoyer:', JSON.stringify(organizations))
 
       // Générer les noms d'organisations basés sur les IDs sélectionnés
-      userData.organizations_names = organizations.map(orgId => 
-        organizationsMap.value.get(orgId) || '?'
-      )
+      userData.organizations_names = organizations.map(orgId => {
+        const name = organizationsMap.value.get(orgId) || '?'
+        console.log(`[Users][Save] Mapping organisation ${orgId} -> ${name}`)
+        return name
+      })
+
+      console.log('[Users][Save] Données finales à envoyer:', JSON.stringify(userData))
 
       if (userData.id) {
         await usersApi.updateUser(userData.id, {
@@ -878,6 +929,28 @@ const toggleStatus = async (item: ExtendedUser) => {
       state.show = false
       state.loading = false
     }
+  }
+}
+
+const handleOrganizationsChange = (newValue: number[]) => {
+  console.log('[Users][OrganizationsChange] Nouvelle sélection:', {
+    newValue: JSON.stringify(newValue),
+    organizationsMap: JSON.stringify(Array.from(organizationsMap.value.entries())),
+    editedItem: JSON.stringify(editedItem.value)
+  })
+  
+  if (editedItem.value) {
+    const userData = editedItem.value as UserFormData
+    userData.organizations_names = newValue.map(orgId => {
+      const name = organizationsMap.value.get(orgId) || '?'
+      console.log(`[Users][OrganizationsChange] Mapping organisation ${orgId} -> ${name}`)
+      return name
+    })
+    
+    console.log('[Users][OrganizationsChange] Mise à jour des noms:', {
+      organizations: JSON.stringify(userData.organizations),
+      organizations_names: JSON.stringify(userData.organizations_names)
+    })
   }
 }
 
