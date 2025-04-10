@@ -228,12 +228,19 @@
             label="Organisations"
             multiple
             chips
+            closable-chips
+            eager
             required
+            :return-object="false"
             :error-messages="formErrors.organizations"
             :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
             no-data-text="Aucune organisation disponible"
-            :return-object="false"
-          ></v-select>
+            @update:model-value="val => console.log('[Users][Select] Valeur mise à jour:', JSON.stringify(val))"
+          >
+            <template v-slot:selection="{ item }">
+              <v-chip small closable>{{ item.props.title }}</v-chip>
+            </template>
+          </v-select>
         </v-col>
 
         <!-- Mot de passe en mode création -->
@@ -242,6 +249,7 @@
             v-model="(editedItem as UserFormData).password"
             label="Mot de passe"
             :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
             required
             :error-messages="formErrors.password"
             :rules="[
@@ -267,6 +275,7 @@
             v-model="confirmPassword"
             label="Confirmer le mot de passe"
             :type="showConfirmPassword ? 'text' : 'password'"
+            autocomplete="new-password"
             required
             :error-messages="formErrors.confirm_password"
             :rules="[
@@ -319,6 +328,7 @@
             v-model="(editedItem as UserFormData).password"
             label="Nouveau mot de passe"
             :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
             :error-messages="formErrors.password"
             :rules="[
               v => !v || v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
@@ -344,6 +354,7 @@
             v-model="confirmPassword"
             label="Confirmer le nouveau mot de passe"
             :type="showConfirmPassword ? 'text' : 'password'"
+            autocomplete="new-password"
             :error-messages="formErrors.confirm_password"
             :rules="[
               v => !v || v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
@@ -592,11 +603,16 @@ const loadUsers = async () => {
 }
 
 const loadOrganizations = async () => {
+  const loadingOrgs = ref(true)
   try {
+    console.log('[Users][LoadOrgs] Début du chargement des organisations')
     const response = await organizationsApi.getAllOrganizations()
     organizations.value = response.data.results || []
+    console.log('[Users][LoadOrgs] Organisations chargées:', organizations.value.map(o => ({ id: o.id, name: o.name })))
   } catch (error) {
-    console.error('Erreur lors du chargement des organisations:', error)
+    console.error('[Users][LoadOrgs] Erreur lors du chargement des organisations:', error)
+  } finally {
+    loadingOrgs.value = false
   }
 }
 
@@ -640,6 +656,10 @@ const openDialog = (item?: ExtendedUser) => {
     const orgs = Array.isArray(item.organizations) ? [...item.organizations] : [];
     console.log('[Users][OpenDialog] Organisations formatées:', JSON.stringify(orgs))
 
+    // Vérification des organisations dans le sélecteur
+    console.log('[Users][OpenDialog] Organisations disponibles pour le sélecteur:', 
+      organizations.value.map(org => ({ id: org.id, name: org.name })))
+
     editedItem.value = {
       id: item.id,
       username: item.username,
@@ -654,6 +674,11 @@ const openDialog = (item?: ExtendedUser) => {
       simplified_mobile_view: item.simplified_mobile_view,
       employee_id: item.employee_id
     }
+    
+    // Vérification après assignation
+    console.log('[Users][OpenDialog] Valeur de editedItem après assignation:', 
+      editedItem.value.organizations)
+      
   } else {
     editedItem.value = {
       username: '',
@@ -825,29 +850,49 @@ onMounted(async () => {
   if (props.editId) {
     try {
       const response = await usersApi.getUser(Number(props.editId))
-      console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(response.data))
+      const userData = response.data;
+      console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(userData))
 
       // S'assurer que les organisations sont correctement formatées
-      if (response.data) {
+      if (userData) {
         // Vérifier si organizations est défini et le formater correctement
-        if (response.data.organizations === undefined) {
-          response.data.organizations = []
+        let orgs: number[] = [];
+        if (userData.organizations === undefined) {
+          orgs = [];
           console.warn('[Users][EditMode] Organisations non définies, initialisation à un tableau vide')
-        } else if (!Array.isArray(response.data.organizations)) {
+        } else if (!Array.isArray(userData.organizations)) {
           // Si ce n'est pas un tableau, le convertir en tableau
-          response.data.organizations = [response.data.organizations]
+          orgs = [userData.organizations as number];
           console.warn('[Users][EditMode] Organisations non sous forme de tableau, conversion effectuée')
+        } else {
+          orgs = [...userData.organizations] as number[];
         }
 
-        console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(response.data.organizations))
-        console.log('[Users][EditMode] Organisations disponibles:', JSON.stringify(organizations.value.map(org => org.id)))
-      }
+        // Créer une copie de userData avec les organisations formatées
+        const formattedUser = {
+          ...userData,
+          organizations: orgs
+        };
 
-      // Attendre que les organisations soient chargées avant d'ouvrir le dialogue
-      if (organizations.value.length > 0) {
-        openDialog(response.data)
-      } else {
-        console.error("[Users][EditMode] Impossible d'ouvrir le dialogue: organisations non chargées")
+        console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(orgs))
+        console.log('[Users][EditMode] Organisations disponibles:', JSON.stringify(organizations.value.map(org => org.id)))
+        
+        // Vérifier que les organisations de l'utilisateur existent bien dans la liste des organisations disponibles
+        const availableOrgIds: number[] = organizations.value.map(org => org.id);
+        const validOrgs = orgs.filter(orgId => availableOrgIds.includes(orgId));
+        
+        if (validOrgs.length !== orgs.length) {
+          console.warn('[Users][EditMode] Certaines organisations de l\'utilisateur ne sont pas disponibles:', 
+            orgs.filter(orgId => !availableOrgIds.includes(orgId)));
+          formattedUser.organizations = validOrgs;
+        }
+        
+        // Attendre que les organisations soient chargées avant d'ouvrir le dialogue
+        if (organizations.value.length > 0) {
+          openDialog(formattedUser)
+        } else {
+          console.error("[Users][EditMode] Impossible d'ouvrir le dialogue: organisations non chargées")
+        }
       }
     } catch (error) {
       console.error('[Users][Error] Erreur lors du chargement des données:', error)

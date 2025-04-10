@@ -127,7 +127,7 @@
           { title: 'Tout', value: -1 }
         ]"
         class="elevation-1"
-        @click:row="showAnomalyDetails"
+        @click:row="handleRowClick"
       >
         <template #created_at="{ item }">
           <div @click="console.log('Item clicked:', item)">
@@ -606,11 +606,31 @@ export default {
     const relatedTimesheets = ref([])
     const loadingDetails = ref(false)
 
+    // Fonction pour gérer le clic sur une ligne du tableau
+    const handleRowClick = (props) => {
+      console.log('handleRowClick appelé avec:', props)
+
+      // Dans Vuetify v3, props contient { item } où item est l'objet de la ligne
+      if (props && props.item) {
+        showAnomalyDetails(props.item)
+      } else {
+        console.error('Format de données inattendu pour le clic de ligne:', props)
+      }
+    }
+
     // Fonction pour afficher les détails d'une anomalie
     const showAnomalyDetails = async (item) => {
-      // Si on clique sur le bouton d'action, on utilise item directement
-      // Si on clique sur la ligne, on utilise item.raw
+      console.log('showAnomalyDetails appelé avec:', item)
+
+      // Déterminer la structure de l'item
       const anomalyData = item.raw || item
+
+      console.log('anomalyData:', anomalyData)
+
+      if (!anomalyData || !anomalyData.id) {
+        console.error('Impossible d\'afficher les détails: ID manquant', anomalyData)
+        return
+      }
 
       selectedAnomaly.value = anomalyData
       showDetailsDialog.value = true
@@ -784,6 +804,7 @@ export default {
       selectedAnomaly,
       relatedTimesheets,
       loadingDetails,
+      handleRowClick,
       showAnomalyDetails,
       resolveSelectedAnomaly,
       ignoreSelectedAnomaly,
