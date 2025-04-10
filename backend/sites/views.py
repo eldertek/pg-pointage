@@ -428,18 +428,29 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
             user_ids = []
             for emp_id in employees:
                 try:
-                    # Vérifier si c'est un ID de SiteEmployee
-                    site_employee = SiteEmployee.objects.get(id=emp_id, site=site)
-                    user_ids.append(site_employee.employee.id)
-                    print(f"[SiteScheduleBatchEmployeeView][Debug] ID SiteEmployee {emp_id} converti en ID User {site_employee.employee.id} ({site_employee.employee.get_full_name()})")
-                except SiteEmployee.DoesNotExist:
-                    # Essayer de vérifier si c'est un ID d'utilisateur valide
+                    # Essayer d'abord de vérifier si c'est un ID d'utilisateur valide
                     try:
                         user = User.objects.get(id=emp_id)
                         user_ids.append(emp_id)
-                        print(f"[SiteScheduleBatchEmployeeView][Debug] Utilisation directe de l'ID User {emp_id} ({user.get_full_name()})")
+                        print(f"[SiteScheduleBatchEmployeeView][Debug] Utilisation directe de l'ID User BDD={emp_id}, employee_id={user.employee_id}, nom={user.get_full_name()}")
+                        continue  # Passer à l'itération suivante si l'utilisateur est trouvé
                     except User.DoesNotExist:
-                        print(f"[SiteScheduleBatchEmployeeView][Warning] ID {emp_id} ne correspond ni à un SiteEmployee ni à un User")
+                        # Si ce n'est pas un ID d'utilisateur, continuer avec les autres vérifications
+                        pass
+
+                    # Vérifier si c'est un ID de SiteEmployee
+                    site_employee = SiteEmployee.objects.get(id=emp_id, site=site)
+                    user_ids.append(site_employee.employee.id)
+                    print(f"[SiteScheduleBatchEmployeeView][Debug] ID SiteEmployee {emp_id} converti en ID User BDD={site_employee.employee.id}, employee_id={site_employee.employee.employee_id}, nom={site_employee.employee.get_full_name()}")
+                except SiteEmployee.DoesNotExist:
+                    print(f"[SiteScheduleBatchEmployeeView][Warning] ID {emp_id} ne correspond ni à un User ni à un SiteEmployee")
+                    # Essayer de trouver l'utilisateur par son employee_id
+                    try:
+                        user = User.objects.get(employee_id=f"U{emp_id:05d}")
+                        user_ids.append(user.id)
+                        print(f"[SiteScheduleBatchEmployeeView][Debug] ID employee_id=U{emp_id:05d} converti en ID User BDD={user.id}, nom={user.get_full_name()}")
+                    except User.DoesNotExist:
+                        print(f"[SiteScheduleBatchEmployeeView][Warning] Aucun utilisateur trouvé avec employee_id=U{emp_id:05d}")
 
             # Vérifier les employés existants pour ce planning
             existing_assignments = SiteEmployee.objects.filter(
@@ -449,7 +460,7 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
             )
             print(f"[SiteScheduleBatchEmployeeView][Debug] Assignations existantes pour ce planning: {existing_assignments.count()}")
             for assignment in existing_assignments:
-                print(f"[SiteScheduleBatchEmployeeView][Debug] - Déjà assigné: {assignment.employee.get_full_name()} (ID: {assignment.employee.id})")
+                print(f"[SiteScheduleBatchEmployeeView][Debug] - Déjà assigné: ID BDD={assignment.employee.id}, employee_id={assignment.employee.employee_id}, nom={assignment.employee.get_full_name()}")
 
             # Récupérer les employés de l'organisation correspondant aux IDs
             organization_employees = User.objects.filter(
@@ -461,7 +472,7 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
 
             # Lister les employés trouvés
             for employee in organization_employees:
-                print(f"[SiteScheduleBatchEmployeeView][Debug] - Employé à assigner: {employee.get_full_name()} (ID: {employee.id})")
+                print(f"[SiteScheduleBatchEmployeeView][Debug] - Employé à assigner: ID BDD={employee.id}, employee_id={employee.employee_id}, nom={employee.get_full_name()}")
 
             # Vérifier les employés non trouvés
             found_ids = [emp.id for emp in organization_employees]
@@ -472,7 +483,7 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
                     try:
                         user = User.objects.get(id=missing_id)
                         user_orgs = [org.id for org in user.organizations.all()]
-                        print(f"[SiteScheduleBatchEmployeeView][Warning] L'employé {user.get_full_name()} (ID: {missing_id}) existe mais appartient aux organisations: {user_orgs}, pas à {site.organization.id}")
+                        print(f"[SiteScheduleBatchEmployeeView][Warning] L'employé ID BDD={missing_id}, employee_id={user.employee_id}, nom={user.get_full_name()} existe mais appartient aux organisations: {user_orgs}, pas à {site.organization.id}")
                     except User.DoesNotExist:
                         print(f"[SiteScheduleBatchEmployeeView][Warning] Aucun employé trouvé avec l'ID {missing_id}")
 
@@ -493,7 +504,7 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
             for employee in organization_employees:
                 from sites.serializers import create_or_update_site_employee
 
-                print(f"[SiteScheduleBatchEmployeeView][Debug] Tentative d'assignation pour {employee.get_full_name()} (ID: {employee.id})")
+                print(f"[SiteScheduleBatchEmployeeView][Debug] Tentative d'assignation pour ID BDD={employee.id}, employee_id={employee.employee_id}, nom={employee.get_full_name()}")
                 site_employee, created = create_or_update_site_employee(
                     site=site,
                     employee_id=employee.id,
@@ -503,10 +514,10 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
                 if site_employee:
                     success_count += 1
                     action = "créée" if created else "mise à jour"
-                    print(f"[SiteScheduleBatchEmployeeView][Debug] Assignation {action} pour l'employé {employee.id} ({employee.get_full_name()})")
+                    print(f"[SiteScheduleBatchEmployeeView][Debug] Assignation {action} pour l'employé ID BDD={employee.id}, employee_id={employee.employee_id}, nom={employee.get_full_name()}")
                 else:
                     error_count += 1
-                    print(f"[SiteScheduleBatchEmployeeView][Error] Erreur lors de l'assignation de l'employé {employee.id} ({employee.get_full_name()})")
+                    print(f"[SiteScheduleBatchEmployeeView][Error] Erreur lors de l'assignation de l'employé ID BDD={employee.id}, employee_id={employee.employee_id}, nom={employee.get_full_name()}")
 
             # Vérifier les assignations finales
             final_assignments = SiteEmployee.objects.filter(
@@ -516,7 +527,7 @@ class SiteScheduleBatchEmployeeView(generics.CreateAPIView):
             )
             print(f"[SiteScheduleBatchEmployeeView][Debug] Nombre d'assignations finales: {final_assignments.count()}")
             for assignment in final_assignments:
-                print(f"[SiteScheduleBatchEmployeeView][Debug] - Employé assigné: {assignment.employee.get_full_name()} (ID: {assignment.employee.id})")
+                print(f"[SiteScheduleBatchEmployeeView][Debug] - Employé assigné: ID BDD={assignment.employee.id}, employee_id={assignment.employee.employee_id}, nom={assignment.employee.get_full_name()}")
 
             return Response({
                 'message': f'{success_count} employé(s) assigné(s) au planning avec succès, {error_count} échec(s)'

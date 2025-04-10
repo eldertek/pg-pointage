@@ -443,20 +443,20 @@ def create_or_update_site_employee(site, employee_id, schedule):
     Permet à un employé d'être assigné à plusieurs plannings d'un même site
     """
     try:
-        print(f"[create_or_update_site_employee][Debug] Début de l'assignation - Site: {site.id}, Employee: {employee_id}, Schedule: {schedule.id}")
+        print(f"[create_or_update_site_employee][Debug] Début de l'assignation - Site: {site.id}, Employee ID BDD: {employee_id}, Schedule: {schedule.id}")
 
         # Vérifier si l'employé existe
         try:
             employee = User.objects.get(id=employee_id)
-            print(f"[create_or_update_site_employee][Debug] Employé trouvé: {employee.id} ({employee.get_full_name()})")
+            print(f"[create_or_update_site_employee][Debug] Employé trouvé: ID BDD={employee.id}, employee_id={employee.employee_id}, nom={employee.get_full_name()}")
 
             # Vérifier que l'employé appartient à l'organisation du site
             if not employee.organizations.filter(id=site.organization.id).exists():
-                print(f"[create_or_update_site_employee][Error] L'employé {employee_id} n'appartient pas à l'organisation {site.organization.id}")
+                print(f"[create_or_update_site_employee][Error] L'employé {employee_id} (employee_id={employee.employee_id}) n'appartient pas à l'organisation {site.organization.id}")
                 return None, False
 
         except User.DoesNotExist:
-            print(f"[create_or_update_site_employee][Error] Employé avec ID {employee_id} non trouvé")
+            print(f"[create_or_update_site_employee][Error] Employé avec ID BDD {employee_id} non trouvé")
             return None, False
 
         # Vérifier d'abord si la relation existe déjà avec ce planning spécifique

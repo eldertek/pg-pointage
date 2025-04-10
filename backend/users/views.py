@@ -76,13 +76,20 @@ class UserRegistrationView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         print(f"[Users][Register] Données reçues: {request.data}")
-        
+
         # Vérifier les permissions
         if not (request.user.is_super_admin or request.user.is_admin):
             raise PermissionDenied("Vous n'avez pas les droits pour créer un utilisateur")
-            
+
         response = super().create(request, *args, **kwargs)
-        print(f"[Users][Register] Utilisateur créé avec succès: {response.data}")
+
+        # Récupérer l'utilisateur créé pour afficher son ID de base de données
+        try:
+            user = User.objects.get(username=response.data['username'])
+            print(f"[Users][Register] Utilisateur créé avec succès: ID BDD={user.id}, employee_id={user.employee_id}, données={response.data}")
+        except User.DoesNotExist:
+            print(f"[Users][Register] Utilisateur créé avec succès: {response.data} (ID non disponible)")
+
         return response
 
 
@@ -160,28 +167,28 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_object(self):
         obj = super().get_object()
         user = self.request.user
-        
+
         # Super Admin voit tout
         if user.is_super_admin:
             return obj
-            
+
         # Un utilisateur peut toujours accéder à son propre profil
         if obj.id == user.id:
             return obj
-            
+
         # Admin voit les utilisateurs de ses organisations
         if user.is_admin:
             if obj.organizations.filter(id__in=user.organizations.values_list('id', flat=True)).exists():
                 return obj
             raise PermissionDenied("Vous n'avez pas accès à cet utilisateur")
-            
+
         # Manager voit les employés de ses organisations
         if user.is_manager:
-            if (obj.role == User.Role.EMPLOYEE and 
+            if (obj.role == User.Role.EMPLOYEE and
                 obj.organizations.filter(id__in=user.organizations.values_list('id', flat=True)).exists()):
                 return obj
             raise PermissionDenied("Vous n'avez pas accès à cet utilisateur")
-            
+
         # Employé ne voit que son profil
         raise PermissionDenied("Vous n'avez pas accès à cet utilisateur")
 
