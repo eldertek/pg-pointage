@@ -166,32 +166,39 @@
     </v-dialog>
 
     <!-- Dialog pour afficher les détails d'une anomalie -->
-    <v-dialog v-model="showDetailsDialog" max-width="700">
-      <v-card v-if="selectedAnomaly">
-        <v-card-title class="text-h5 pa-4">
-          <v-chip
-            :color="getTypeColor(selectedAnomaly.anomaly_type_display)"
-            class="mr-2"
+    <v-dialog v-model="showDetailsDialog" max-width="700" persistent>
+      <v-card v-if="selectedAnomaly" class="form-dialog">
+        <div class="form-dialog-header">
+          <div class="form-dialog-title">
+            <span class="text-h4">
+              <v-chip
+                :color="getTypeColor(selectedAnomaly.anomaly_type_display)"
+                class="mr-2"
+              >
+                {{ selectedAnomaly.anomaly_type_display }}
+              </v-chip>
+              Détails de l'anomalie
+            </span>
+          </div>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="grey"
+            class="close-button"
+            @click="showDetailsDialog = false"
           >
-            {{ selectedAnomaly.anomaly_type_display }}
-          </v-chip>
-          Détails de l'anomalie
-        </v-card-title>
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+        <v-divider></v-divider>
 
-        <v-card-text class="pa-4">
+        <v-card-text>
           <v-row>
             <v-col cols="12" md="6">
               <p><strong>Date:</strong> {{ formatDate(selectedAnomaly.created_at) }}</p>
               <p><strong>Employé:</strong> {{ selectedAnomaly.employee_name }}</p>
               <p><strong>Site:</strong> {{ selectedAnomaly.site_name }}</p>
-              <p><strong>Statut:</strong>
-                <v-chip
-                  :color="getStatusColor(selectedAnomaly.status_display)"
-                  size="small"
-                >
-                  {{ selectedAnomaly.status_display }}
-                </v-chip>
-              </p>
             </v-col>
 
             <v-col cols="12" md="6">
@@ -243,7 +250,6 @@
                 <tr>
                   <th>Date et heure</th>
                   <th>Type</th>
-                  <th>Statut</th>
                 </tr>
               </thead>
               <tbody>
@@ -257,31 +263,6 @@
                       {{ timesheet.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
                     </v-chip>
                   </td>
-                  <td>
-                    <v-chip
-                      v-if="timesheet.is_late"
-                      color="warning"
-                      size="x-small"
-                      class="mr-1"
-                    >
-                      Retard {{ timesheet.late_minutes }}min
-                    </v-chip>
-                    <v-chip
-                      v-if="timesheet.is_early_departure"
-                      color="error"
-                      size="x-small"
-                      class="mr-1"
-                    >
-                      Départ anticipé {{ timesheet.early_departure_minutes }}min
-                    </v-chip>
-                    <v-chip
-                      v-if="timesheet.is_out_of_schedule"
-                      color="grey"
-                      size="x-small"
-                    >
-                      Hors planning
-                    </v-chip>
-                  </td>
                 </tr>
               </tbody>
             </v-table>
@@ -291,20 +272,23 @@
           </div>
         </v-card-text>
 
+        <v-divider></v-divider>
         <v-card-actions>
           <v-btn
             v-if="selectedAnomaly.status === 'RESOLVED'"
             color="error"
             variant="text"
             prepend-icon="mdi-delete"
+            class="action-button"
             @click="deleteSelectedAnomaly"
           >
             Supprimer
           </v-btn>
           <v-spacer></v-spacer>
           <v-btn
-            color="primary"
+            color="grey"
             variant="text"
+            class="action-button"
             @click="showDetailsDialog = false"
           >
             Fermer
@@ -313,6 +297,7 @@
             v-if="selectedAnomaly.status === 'PENDING'"
             color="success"
             variant="text"
+            class="action-button"
             @click="resolveSelectedAnomaly"
           >
             Résoudre
@@ -321,6 +306,7 @@
             v-if="selectedAnomaly.status === 'PENDING'"
             color="grey"
             variant="text"
+            class="action-button"
             @click="ignoreSelectedAnomaly"
           >
             Ignorer
@@ -861,6 +847,55 @@ export default {
 :deep(.v-btn__overlay),
 :deep(.v-btn__underlay) {
   opacity: 0 !important;
+}
+
+/* Styles pour le dialog de détails */
+.form-dialog {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.form-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+}
+
+.form-dialog-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-dialog-title .text-h4 {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #00346E;
+  margin: 0;
+}
+
+.close-button {
+  margin-top: -0.5rem;
+  margin-right: -0.5rem;
+}
+
+.v-card-text {
+  padding: 1.5rem;
+}
+
+.v-card-actions {
+  padding: 1rem 1.5rem;
+}
+
+.action-button {
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+}
+
+:deep(.v-divider) {
+  margin: 0;
 }
 </style>
 

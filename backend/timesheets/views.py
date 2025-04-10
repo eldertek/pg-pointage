@@ -857,6 +857,10 @@ class ScanAnomaliesView(generics.CreateAPIView):
                                 # Vérifier si ce planning est actif pour ce jour
                                 if self._is_schedule_active_for_date(site_employee.schedule, date):
                                     associated_schedule = site_employee.schedule
+                                    # Journaliser pour débogage
+                                    logging.getLogger(__name__).info(
+                                        f"Planning trouvé pour l'anomalie de départ manquant: {associated_schedule.id} - {associated_schedule}"
+                                    )
                                     break
 
                         # Description simple pour les départs manquants
@@ -879,6 +883,14 @@ class ScanAnomaliesView(generics.CreateAPIView):
                             for ts in day_timesheets:
                                 anomaly.related_timesheets.add(ts)
                             anomalies_created += 1
+
+                            # Vérifier et journaliser l'association du planning
+                            if associated_schedule and not anomaly.schedule:
+                                anomaly.schedule = associated_schedule
+                                anomaly.save()
+                                logging.getLogger(__name__).info(
+                                    f"Planning {associated_schedule.id} associé à l'anomalie {anomaly.id} après création"
+                                )
                     else:
                         # Journaliser un avertissement sans créer d'anomalie
                         logging.getLogger(__name__).warning(
