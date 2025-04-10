@@ -238,6 +238,7 @@
             :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
             no-data-text="Aucune organisation disponible"
             :return-object="false"
+            @update:model-value="(val) => console.log('[Debug][Orgs] Valeur mise à jour:', val)"
           >
             <template v-slot:chip="{ props, item }">
               <v-chip
@@ -249,7 +250,7 @@
             </template>
             <!-- Message de débogage pour les organisations sélectionnées -->
             <template v-slot:append>
-              <div class="d-none">
+              <div class="text-caption text-grey">
                 Sélectionnés: {{ (editedItem as UserFormData).organizations }}
               </div>
             </template>
@@ -551,10 +552,12 @@ const canView = computed(() => {
 
 // Créer des éléments formatés pour le sélecteur d'organisations
 const organizationItems = computed(() => {
-  return organizations.value.map(org => ({
+  const items = organizations.value.map(org => ({
     id: org.id,
     name: org.name
-  }))
+  }));
+  console.log('[Debug][Orgs] Items d\'organisations disponibles:', items);
+  return items;
 })
 
 // Filtrer les utilisateurs selon les permissions
@@ -709,6 +712,9 @@ const openDialog = (item?: ExtendedUser) => {
       employee_id: item.employee_id
     }
     
+    console.log('[Debug][Orgs] Type des organisations:', typeof orgs, Array.isArray(orgs) ? 'Array' : 'Not Array');
+    console.log('[Debug][Orgs] Valeurs des organisations après affectation:', editedItem.value.organizations);
+    
     // Mettre à jour le organizationsMap si des noms sont disponibles
     if (item.organizations && item.organizations_names) {
       item.organizations.forEach((orgId, index) => {
@@ -738,6 +744,14 @@ const openDialog = (item?: ExtendedUser) => {
     confirmPassword.value = ''
   }
   dashboardView.value.showForm = true
+  
+  // Ajouter un délai pour vérifier les valeurs après le rendu
+  setTimeout(() => {
+    console.log('[Debug][Orgs] Organisations après rendu du formulaire:', 
+                editedItem.value?.organizations,
+                'Type:', typeof editedItem.value?.organizations);
+    console.log('[Debug][Orgs] Items d\'organisations disponibles après rendu:', organizationItems.value);
+  }, 500);
 }
 
 const saveUser = async () => {
@@ -887,6 +901,8 @@ onMounted(async () => {
     loadUsers(),
     loadOrganizations()
   ])
+  
+  console.log('[Debug][Orgs] Organisations chargées:', organizations.value);
 
   // Si on a un ID d'édition, ouvrir le dialogue
   if (props.editId) {
@@ -908,6 +924,7 @@ onMounted(async () => {
         }
 
         console.log('[Users][EditMode] Organisations après formatage:', JSON.stringify(response.data.organizations))
+        console.log('[Debug][Orgs] Type des organisations reçues:', typeof response.data.organizations);
         
         // Mettre à jour la map des organisations avec les noms
         if (response.data.organizations && response.data.organizations_names) {
