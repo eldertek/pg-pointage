@@ -170,6 +170,7 @@
             label="Nom"
             required
             :error-messages="formErrors.last_name"
+            autocomplete="family-name"
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="6">
@@ -178,6 +179,7 @@
             label="Prénom"
             required
             :error-messages="formErrors.first_name"
+            autocomplete="given-name"
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="6">
@@ -186,6 +188,7 @@
             label="Téléphone"
             required
             :error-messages="formErrors.phone_number"
+            autocomplete="tel"
           ></v-text-field>
         </v-col>
         <v-col v-if="(editedItem as UserFormData).id" cols="12" sm="6">
@@ -195,6 +198,7 @@
             readonly
             disabled
             persistent-hint
+            autocomplete="off"
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="6">
@@ -204,6 +208,7 @@
             type="email"
             required
             :error-messages="formErrors.email"
+            autocomplete="email"
             @update:model-value="handleEmailChange"
           ></v-text-field>
         </v-col>
