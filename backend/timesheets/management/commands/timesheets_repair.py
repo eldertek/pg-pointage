@@ -409,15 +409,17 @@ class Command(BaseCommand):
                         # Vérifier si le retard est supérieur à la marge
                         site = Site.objects.get(pk=site_id)
                         if arrival.late_minutes > site.late_margin:
-                            # Créer une anomalie de retard
-                            Anomaly.objects.create(
+                            # Créer une anomalie de retard (utiliser get_or_create pour éviter les doublons)
+                            Anomaly.objects.get_or_create(
                                 employee_id=employee_id,
                                 site_id=site_id,
                                 date=date,
                                 anomaly_type=Anomaly.AnomalyType.LATE,
-                                minutes=arrival.late_minutes,
                                 timesheet=arrival,
-                                description=f"Retard de {arrival.late_minutes} minutes"
+                                defaults={
+                                    'minutes': arrival.late_minutes,
+                                    'description': f"Retard de {arrival.late_minutes} minutes"
+                                }
                             )
 
                     # Vérifier les départs anticipés
@@ -432,15 +434,25 @@ class Command(BaseCommand):
                         # Vérifier si le départ anticipé est supérieur à la marge
                         site = Site.objects.get(pk=site_id)
                         if departure.early_departure_minutes > site.early_departure_margin:
-                            # Créer une anomalie de départ anticipé
-                            Anomaly.objects.create(
+                            # Créer une anomalie de départ anticipé (utiliser get_or_create pour éviter les doublons)
+                            # Trouver le planning associé à l'employé et au site
+                            associated_schedule = self._find_employee_schedule(
+                                User.objects.get(pk=employee_id),
+                                Site.objects.get(pk=site_id),
+                                date
+                            )
+
+                            Anomaly.objects.get_or_create(
                                 employee_id=employee_id,
                                 site_id=site_id,
                                 date=date,
                                 anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                minutes=departure.early_departure_minutes,
                                 timesheet=departure,
-                                description=f"Départ anticipé de {departure.early_departure_minutes} minutes"
+                                defaults={
+                                    'minutes': departure.early_departure_minutes,
+                                    'description': f"Départ anticipé de {departure.early_departure_minutes} minutes",
+                                    'schedule': associated_schedule
+                                }
                             )
 
                     # Vérifier les départs manquants
@@ -465,13 +477,23 @@ class Command(BaseCommand):
                             entry_type=Timesheet.EntryType.ARRIVAL
                         ).order_by('-timestamp').first()
 
-                        Anomaly.objects.create(
+                        # Trouver le planning associé à l'employé et au site
+                        associated_schedule = self._find_employee_schedule(
+                            User.objects.get(pk=employee_id),
+                            Site.objects.get(pk=site_id),
+                            date
+                        )
+
+                        Anomaly.objects.get_or_create(
                             employee_id=employee_id,
                             site_id=site_id,
                             date=date,
                             anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE,
                             timesheet=last_arrival,
-                            description=f"Départ manquant après l'arrivée de {last_arrival.timestamp.strftime('%H:%M')}"
+                            defaults={
+                                'description': f"Départ manquant après l'arrivée de {last_arrival.timestamp.strftime('%H:%M')}",
+                                'schedule': associated_schedule
+                            }
                         )
 
                 self.stdout.write(f"Anomalies scannées pour le {date}")
