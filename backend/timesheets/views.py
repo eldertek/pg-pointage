@@ -474,6 +474,41 @@ class AnomalyListView(generics.ListCreateAPIView):
             return Anomaly.objects.filter(site__organization__in=user.organizations.all())
         else:
             return Anomaly.objects.filter(employee=user)
+            
+    def filter_queryset(self, queryset):
+        # Récupérer les paramètres de filtrage
+        site = self.request.query_params.get('site')
+        employee = self.request.query_params.get('employee')
+        anomaly_type = self.request.query_params.get('anomaly_type')
+        status = self.request.query_params.get('status')
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        
+        # Log pour déboguer
+        logger = logging.getLogger(__name__)
+        logger.info(f"Filtrage des anomalies - Paramètres: site={site}, employee={employee}, type={anomaly_type}, status={status}, start_date={start_date}, end_date={end_date}")
+        
+        # Appliquer les filtres si présents
+        if site:
+            queryset = queryset.filter(site_id=site)
+            logger.info(f"Filtre site appliqué: {site}, résultats: {queryset.count()}")
+        if employee:
+            queryset = queryset.filter(employee_id=employee)
+            logger.info(f"Filtre employé appliqué: {employee}, résultats: {queryset.count()}")
+        if anomaly_type:
+            queryset = queryset.filter(anomaly_type=anomaly_type)
+            logger.info(f"Filtre type appliqué: {anomaly_type}, résultats: {queryset.count()}")
+        if status:
+            queryset = queryset.filter(status=status)
+            logger.info(f"Filtre statut appliqué: {status}, résultats: {queryset.count()}")
+        if start_date:
+            queryset = queryset.filter(date__gte=start_date)
+            logger.info(f"Filtre date de début appliqué: {start_date}, résultats: {queryset.count()}")
+        if end_date:
+            queryset = queryset.filter(date__lte=end_date)
+            logger.info(f"Filtre date de fin appliqué: {end_date}, résultats: {queryset.count()}")
+        
+        return queryset
 
 class AnomalyDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Vue pour obtenir, mettre à jour et supprimer une anomalie"""
