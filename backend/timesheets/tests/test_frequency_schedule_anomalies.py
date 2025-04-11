@@ -10,6 +10,8 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.urls import reverse
+from rest_framework.test import APIClient
 
 from organizations.models import Organization
 from sites.models import Site, Schedule, ScheduleDetail, SiteEmployee
@@ -36,6 +38,12 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
             name='Test Organization',
             org_id='TST'
         )
+        
+        # Create second organization for testing pointage sur site non rattaché
+        self.organization2 = Organization.objects.create(
+            name='Test Organization 2',
+            org_id='TST2'
+        )
 
         # Create site with frequency tolerance of 10%
         self.site = Site.objects.create(
@@ -45,6 +53,28 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
             city='Paris',
             organization=self.organization,
             nfc_id='TST-S001',
+            frequency_tolerance=10
+        )
+        
+        # Create another site for testing
+        self.site2 = Site.objects.create(
+            name='Test Site 2',
+            address='456 Test St',
+            postal_code='75001',
+            city='Paris',
+            organization=self.organization,
+            nfc_id='TST-S002',
+            frequency_tolerance=10
+        )
+        
+        # Create a site in another organization
+        self.site3 = Site.objects.create(
+            name='Test Site Other Org',
+            address='789 Test St',
+            postal_code='75002',
+            city='Paris',
+            organization=self.organization2,
+            nfc_id='TST2-S001',
             frequency_tolerance=10
         )
 
@@ -161,18 +191,23 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
             scan_type=Timesheet.ScanType.QR_CODE
         )
 
-        # Create an anomaly manually for testing
-        anomaly = Anomaly.objects.create(
-            employee=self.employee,
-            site=self.site,
-            date=self.tuesday_date.date(),
-            anomaly_type=Anomaly.AnomalyType.INSUFFICIENT_HOURS,
-            description='Heures travaillées insuffisantes. Total: 0.75h, Minimum requis: 1.5h',
-            minutes=45,
-            status=Anomaly.AnomalyStatus.PENDING
+        # Appeler l'API pour détecter les anomalies automatiquement
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.tuesday_date.date(),
+                'end_date': self.tuesday_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
         )
-
-        # L'alerte est créée automatiquement par le signal create_alert_for_anomaly
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        self.assertGreater(response.data['anomalies_created'], 0)
 
         # Verify anomaly is created
         anomalies = Anomaly.objects.filter(
@@ -232,8 +267,6 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
         )
 
         # Call the scan_anomalies endpoint to detect anomalies
-        from rest_framework.test import APIClient
-        from django.urls import reverse
         client = APIClient()
         client.force_authenticate(user=self.manager)
         response = client.post(
@@ -299,8 +332,6 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
         )
 
         # Call the scan_anomalies endpoint to detect anomalies
-        from rest_framework.test import APIClient
-        from django.urls import reverse
         client = APIClient()
         client.force_authenticate(user=self.manager)
         response = client.post(
@@ -366,18 +397,23 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
             scan_type=Timesheet.ScanType.QR_CODE
         )
 
-        # Create an anomaly manually for testing
-        anomaly = Anomaly.objects.create(
-            employee=self.employee,
-            site=self.site,
-            date=self.tuesday_date.date(),
-            anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE,
-            description='Aucun pointage de départ enregistré.',
-            status=Anomaly.AnomalyStatus.PENDING
+        # Appeler l'API pour détecter les anomalies automatiquement
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.tuesday_date.date(),
+                'end_date': self.tuesday_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
         )
-
-        # Create an alert manually for testing
-        # L'alerte est créée automatiquement par le signal create_alert_for_anomaly
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        self.assertGreater(response.data['anomalies_created'], 0)
 
         # Verify anomaly is created for missing departure
         anomalies = Anomaly.objects.filter(
@@ -398,21 +434,27 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
 
     def test_no_clocks(self):
         """Test Workflow 12: No clocks on scheduled day."""
-        # Simulate end of day check
+        # Simuler end of day check
         with patch('django.utils.timezone.now') as mock_now:
             mock_now.return_value = self.tuesday_date.replace(hour=23, minute=59)
-
-            # Create an anomaly manually for testing
-            anomaly = Anomaly.objects.create(
-                employee=self.employee,
-                site=self.site,
-                date=self.tuesday_date.date(),
-                anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL,
-                description='Aucun pointage enregistré pour la journée.',
-                status=Anomaly.AnomalyStatus.PENDING
+            
+            # Appeler l'API pour détecter les anomalies automatiquement
+            client = APIClient()
+            client.force_authenticate(user=self.manager)
+            response = client.post(
+                reverse('scan-anomalies'),
+                {
+                    'start_date': self.tuesday_date.date(),
+                    'end_date': self.tuesday_date.date(),
+                    'site': self.site.id,
+                    'employee': self.employee.id
+                },
+                format='json'
             )
-
-            # L'alerte est créée automatiquement par le signal create_alert_for_anomaly
+            
+            # Vérifier la réponse
+            self.assertEqual(response.status_code, 200)
+            self.assertGreater(response.data['anomalies_created'], 0)
 
             # Verify anomaly is created for missing attendance
             anomalies = Anomaly.objects.filter(
@@ -430,3 +472,579 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
                 anomaly=anomalies.first()
             )
             self.assertEqual(alerts.count(), 1)
+
+    def test_multiple_clock_ins_frequency(self):
+        """Test Workflow 17: Pointages multiples avec planning fréquence.
+        
+        Ce test vérifie que lorsqu'un employé effectue plusieurs pointages d'arrivée
+        et de départ dans la même journée avec un planning fréquence, le système
+        calcule correctement la durée totale de présence.
+        """
+        # Premier cycle de pointage
+        # Arrivée à 9:00
+        arrival_timestamp1 = self.tuesday_date.replace(hour=9, minute=0)
+        arrival_timesheet1 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=arrival_timestamp1,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Départ à 10:30 (90 minutes plus tard)
+        departure_timestamp1 = self.tuesday_date.replace(hour=10, minute=30)
+        departure_timesheet1 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=departure_timestamp1,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Deuxième cycle de pointage
+        # Arrivée à 14:00
+        arrival_timestamp2 = self.tuesday_date.replace(hour=14, minute=0)
+        arrival_timesheet2 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=arrival_timestamp2,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Départ à 15:00 (60 minutes plus tard)
+        departure_timestamp2 = self.tuesday_date.replace(hour=15, minute=0)
+        departure_timesheet2 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=departure_timestamp2,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Appeler l'API pour détecter les anomalies
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.tuesday_date.date(),
+                'end_date': self.tuesday_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
+        )
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        
+        # Vérifier qu'aucune anomalie n'est créée (durée totale = 150 minutes > 90 minutes requises)
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.tuesday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.INSUFFICIENT_HOURS
+        )
+        self.assertEqual(anomalies.count(), 0)
+        
+        # Vérifier aussi qu'il n'y a pas d'autres anomalies
+        all_anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.tuesday_date.date()
+        )
+        self.assertEqual(all_anomalies.count(), 0)
+
+    def test_insufficient_hours_multiple_passages(self):
+        """Test pour vérifier que les durées cumulées des passages sont bien prises en compte.
+        
+        Ce test simule plusieurs passages courts qui, cumulés, restent insuffisants pour
+        atteindre la durée minimale requise du planning fréquence.
+        """
+        # Premier passage: 30 minutes
+        arrival_timestamp1 = self.tuesday_date.replace(hour=9, minute=0)
+        arrival_timesheet1 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=arrival_timestamp1,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        departure_timestamp1 = self.tuesday_date.replace(hour=9, minute=30)
+        departure_timesheet1 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=departure_timestamp1,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Deuxième passage: 25 minutes
+        arrival_timestamp2 = self.tuesday_date.replace(hour=14, minute=0)
+        arrival_timesheet2 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=arrival_timestamp2,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        departure_timestamp2 = self.tuesday_date.replace(hour=14, minute=25)
+        departure_timesheet2 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=departure_timestamp2,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Total: 55 minutes (insuffisant pour le planning qui en requiert 90)
+        
+        # Appeler l'API pour détecter les anomalies
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.tuesday_date.date(),
+                'end_date': self.tuesday_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
+        )
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        
+        # Vérifier qu'une anomalie d'heures insuffisantes est créée
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.tuesday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.INSUFFICIENT_HOURS
+        )
+        self.assertEqual(anomalies.count(), 1)
+        
+        # Vérifier les détails de l'anomalie
+        anomaly = anomalies.first()
+        self.assertIn("insuffisante", anomaly.description.lower())
+        self.assertIn("55", anomaly.description)  # Durée totale: 55 minutes
+        
+        # Vérifier que l'alerte a été créée
+        alerts = Alert.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            anomaly=anomaly
+        )
+        self.assertEqual(alerts.count(), 1)
+
+    def test_frequency_out_of_schedule_day(self):
+        """Test Workflow 15: Pointage hors planning (jour non configuré) avec planning fréquence."""
+        # Configurer un jour où il n'y a pas de planning (mercredi)
+        wednesday_date = self.tuesday_date + timedelta(days=1)
+        
+        # Arrivée un mercredi à 9:00
+        arrival_timestamp = wednesday_date.replace(hour=9, minute=0)
+        arrival_timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=arrival_timestamp,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Départ à 10:30 (90 minutes plus tard)
+        departure_timestamp = wednesday_date.replace(hour=10, minute=30)
+        departure_timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=departure_timestamp,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Appeler l'API pour détecter les anomalies
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': wednesday_date.date(),
+                'end_date': wednesday_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
+        )
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        
+        # Rafraîchir les données des timesheets depuis la base de données
+        arrival_timesheet.refresh_from_db()
+        departure_timesheet.refresh_from_db()
+        
+        # Vérifier qu'une anomalie est créée
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=wednesday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.OTHER
+        )
+        self.assertEqual(anomalies.count(), 1)
+        self.assertIn("hors planning", anomalies.first().description.lower())
+        
+        # Vérifier qu'une alerte a été créée
+        alerts = Alert.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            anomaly=anomalies.first()
+        )
+        self.assertEqual(alerts.count(), 1)
+
+    def test_frequency_unassigned_schedule(self):
+        """Test Workflow 16: Pointage sur un planning fréquence non rattaché au salarié."""
+        # Créer un autre employé
+        other_employee = User.objects.create_user(
+            username='other_employee',
+            email='other@test.com',
+            password='testpass123',
+            role=User.Role.EMPLOYEE,
+            first_name='Other',
+            last_name='Employee'
+        )
+        other_employee.organizations.add(self.organization)
+        
+        # Associer cet employé au site mais pas au planning
+        SiteEmployee.objects.create(
+            site=self.site,
+            employee=other_employee,
+            is_active=True
+        )
+        
+        # Pointage pour cet employé un mardi (jour où le planning fréquence existe)
+        arrival_timestamp = self.tuesday_date.replace(hour=9, minute=0)
+        arrival_timesheet = Timesheet.objects.create(
+            employee=other_employee,
+            site=self.site,
+            timestamp=arrival_timestamp,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Départ à 10:30
+        departure_timestamp = self.tuesday_date.replace(hour=10, minute=30)
+        departure_timesheet = Timesheet.objects.create(
+            employee=other_employee,
+            site=self.site,
+            timestamp=departure_timestamp,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Appeler l'API pour détecter les anomalies
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.tuesday_date.date(),
+                'end_date': self.tuesday_date.date(),
+                'site': self.site.id,
+                'employee': other_employee.id
+            },
+            format='json'
+        )
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        
+        # Rafraîchir les données des timesheets depuis la base de données
+        arrival_timesheet.refresh_from_db()
+        departure_timesheet.refresh_from_db()
+        
+        # Vérifier qu'une anomalie est créée
+        anomalies = Anomaly.objects.filter(
+            employee=other_employee,
+            site=self.site,
+            date=self.tuesday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.OTHER
+        )
+        self.assertEqual(anomalies.count(), 1)
+        self.assertIn("planning", anomalies.first().description.lower())
+        
+        # Vérifier qu'une alerte a été créée
+        alerts = Alert.objects.filter(
+            employee=other_employee,
+            site=self.site,
+            anomaly=anomalies.first()
+        )
+        self.assertEqual(alerts.count(), 1)
+
+    def test_frequency_unassigned_site(self):
+        """Test pour le pointage sur un site non rattaché avec planning fréquence."""
+        # L'employé fait un pointage sur le site2 auquel il n'est pas associé
+        arrival_timestamp = self.tuesday_date.replace(hour=9, minute=0)
+        arrival_timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site2,  # Site non associé à l'employé
+            timestamp=arrival_timestamp,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Départ
+        departure_timestamp = self.tuesday_date.replace(hour=10, minute=30)
+        departure_timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site2,
+            timestamp=departure_timestamp,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Appeler l'API pour détecter les anomalies
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.tuesday_date.date(),
+                'end_date': self.tuesday_date.date(),
+                'site': self.site2.id,
+                'employee': self.employee.id
+            },
+            format='json'
+        )
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        
+        # Rafraîchir les données des timesheets depuis la base de données
+        arrival_timesheet.refresh_from_db()
+        departure_timesheet.refresh_from_db()
+        
+        # Vérifier qu'une anomalie est créée
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site2,
+            date=self.tuesday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.OTHER
+        )
+        self.assertEqual(anomalies.count(), 1)
+        self.assertIn("site", anomalies.first().description.lower())
+        
+        # Vérifier qu'une alerte a été créée
+        alerts = Alert.objects.filter(
+            employee=self.employee,
+            site=self.site2,
+            anomaly=anomalies.first()
+        )
+        self.assertEqual(alerts.count(), 1)
+
+    def test_other_organization_site_clock_in_frequency(self):
+        """Test pour le pointage sur un site d'une autre organisation avec planning fréquence."""
+        # Pointage sur un site d'une autre organisation
+        arrival_timestamp = self.tuesday_date.replace(hour=9, minute=0)
+        arrival_timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site3,  # Site d'une autre organisation
+            timestamp=arrival_timestamp,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Départ
+        departure_timestamp = self.tuesday_date.replace(hour=10, minute=30)
+        departure_timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site3,
+            timestamp=departure_timestamp,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+        
+        # Appeler l'API pour détecter les anomalies
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.tuesday_date.date(),
+                'end_date': self.tuesday_date.date(),
+                'site': self.site3.id,
+                'employee': self.employee.id
+            },
+            format='json'
+        )
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        
+        # Rafraîchir les données des timesheets depuis la base de données
+        arrival_timesheet.refresh_from_db()
+        departure_timesheet.refresh_from_db()
+        
+        # Vérifier qu'une anomalie est créée
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site3,
+            date=self.tuesday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.OTHER
+        )
+        self.assertEqual(anomalies.count(), 1)
+        self.assertIn("organisation", anomalies.first().description.lower())
+        
+        # Vérifier qu'une alerte a été créée
+        alerts = Alert.objects.filter(
+            employee=self.employee,
+            site=self.site3,
+            anomaly=anomalies.first()
+        )
+        self.assertEqual(alerts.count(), 1)
+
+    def test_frequency_tolerance_edge_cases(self):
+        """Test pour les cas limites de la tolérance de fréquence."""
+        # Configurer un site avec tolérance de fréquence de 10%
+        site_with_tolerance = Site.objects.create(
+            name='Tolerance Test Site',
+            address='123 Tolerance St',
+            postal_code='75000',
+            city='Paris',
+            organization=self.organization,
+            nfc_id='TOL-001',
+            frequency_tolerance=10
+        )
+
+        # Créer un planning fréquence de 90 minutes
+        tolerance_schedule = Schedule.objects.create(
+            site=site_with_tolerance,
+            schedule_type=Schedule.ScheduleType.FREQUENCY,
+            is_active=True
+        )
+
+        # Mardi avec durée requise de 90 minutes
+        ScheduleDetail.objects.create(
+            schedule=tolerance_schedule,
+            day_of_week=1,  # Mardi
+            frequency_duration=90
+        )
+
+        # Associer l'employé au site et au planning
+        SiteEmployee.objects.create(
+            site=site_with_tolerance,
+            employee=self.employee,
+            schedule=tolerance_schedule,
+            is_active=True
+        )
+
+        # Cas limite 1: Passage exactement à la limite de la tolérance (81 minutes = 90 - 10%)
+        # Arrivée à 10:00
+        arrival_timestamp1 = self.tuesday_date.replace(hour=10, minute=0)
+        arrival_timesheet1 = Timesheet.objects.create(
+            employee=self.employee,
+            site=site_with_tolerance,
+            timestamp=arrival_timestamp1,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Départ à 11:21 (81 minutes plus tard)
+        departure_timestamp1 = self.tuesday_date.replace(hour=11, minute=21)
+        departure_timesheet1 = Timesheet.objects.create(
+            employee=self.employee,
+            site=site_with_tolerance,
+            timestamp=departure_timestamp1,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Appeler l'API pour détecter les anomalies
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.tuesday_date.date(),
+                'end_date': self.tuesday_date.date(),
+                'site': site_with_tolerance.id,
+                'employee': self.employee.id
+            },
+            format='json'
+        )
+
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+
+        # Vérifier qu'aucune anomalie n'est créée (durée exactement à la limite de tolérance)
+        anomalies1 = Anomaly.objects.filter(
+            employee=self.employee,
+            site=site_with_tolerance,
+            date=self.tuesday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.INSUFFICIENT_HOURS
+        )
+        self.assertEqual(anomalies1.count(), 0)
+
+        # Supprimer les timesheets pour le prochain test
+        Timesheet.objects.all().delete()
+
+        # Cas limite 2: Passage juste en dessous de la limite de tolérance (80 minutes)
+        # Arrivée à 14:00
+        arrival_timestamp2 = self.tuesday_date.replace(hour=14, minute=0)
+        arrival_timesheet2 = Timesheet.objects.create(
+            employee=self.employee,
+            site=site_with_tolerance,
+            timestamp=arrival_timestamp2,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Départ à 15:20 (80 minutes plus tard)
+        departure_timestamp2 = self.tuesday_date.replace(hour=15, minute=20)
+        departure_timesheet2 = Timesheet.objects.create(
+            employee=self.employee,
+            site=site_with_tolerance,
+            timestamp=departure_timestamp2,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Appeler l'API pour détecter les anomalies
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.tuesday_date.date(),
+                'end_date': self.tuesday_date.date(),
+                'site': site_with_tolerance.id,
+                'employee': self.employee.id
+            },
+            format='json'
+        )
+
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+
+        # Vérifier qu'une anomalie est créée (durée insuffisante)
+        anomalies2 = Anomaly.objects.filter(
+            employee=self.employee,
+            site=site_with_tolerance,
+            date=self.tuesday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.INSUFFICIENT_HOURS
+        )
+        self.assertEqual(anomalies2.count(), 1)
+        
+        # Vérifier les détails de l'anomalie
+        anomaly = anomalies2.first()
+        self.assertIn("80 minutes", anomaly.description)
+        self.assertIn("81 minutes", anomaly.description)  # Minimum requis
+        
+        # Vérifier qu'une alerte est créée
+        alerts = Alert.objects.filter(
+            employee=self.employee,
+            site=site_with_tolerance,
+            anomaly=anomaly
+        )
+        self.assertEqual(alerts.count(), 1)
