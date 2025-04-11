@@ -461,12 +461,22 @@ export default {
       if (filters.value.employee) {
         params.employee = filters.value.employee
       }
+      
+      // Ajouter des logs pour déboguer
+      console.log('Valeurs des filtres:', filters.value)
+      console.log('Site sélectionné:', filters.value.site)
+      console.log('Type du site sélectionné:', typeof filters.value.site)
+      console.log('Site actif (currentSiteId):', currentSiteId.value)
+      
       // Utiliser le site actif en priorité
       if (currentSiteId.value) {
         params.site = currentSiteId.value
+        console.log('Utilisation du site actif:', params.site)
       } else if (filters.value.site) {
         params.site = filters.value.site
+        console.log('Utilisation du site filtré:', params.site)
       }
+      
       if (filters.value.type) {
         params.anomaly_type = filters.value.type
       }
@@ -480,6 +490,7 @@ export default {
         params.end_date = filters.value.endDate
       }
 
+      console.log('Paramètres finaux pour l\'API:', params)
       return params
     }
 
