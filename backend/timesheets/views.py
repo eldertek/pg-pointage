@@ -236,7 +236,11 @@ class TimesheetCreateView(generics.CreateAPIView):
                                             if early_minutes > 0 and not timesheet.early_departure_minutes:
                                                 logger.info(f"Départ anticipé détecté: {early_minutes} minutes")
                                                 if early_minutes > early_departure_margin:
-                                                    Anomaly.objects.create(
+                                                    # Trouver le planning associé à l'employé et au site
+                                                    associated_schedule = self._find_employee_schedule(employee, site, current_date) or schedule
+
+                                                    # Créer l'anomalie avec le planning associé
+                                                    anomaly = Anomaly.objects.create(
                                                         employee=employee,
                                                         site=site,
                                                         timesheet=timesheet,
@@ -245,8 +249,11 @@ class TimesheetCreateView(generics.CreateAPIView):
                                                         description=f"Départ anticipé de {early_minutes} minutes.",
                                                         minutes=early_minutes,
                                                         status=Anomaly.AnomalyStatus.PENDING,
-                                                        schedule=schedule
+                                                        schedule=associated_schedule
                                                     )
+
+                                                    # Ajouter le pointage aux pointages associés
+                                                    anomaly.related_timesheets.add(timesheet)
 
                                 # Plage de l'après-midi
                                 if not is_matching and schedule_detail.start_time_2 and schedule_detail.end_time_2:
@@ -274,7 +281,11 @@ class TimesheetCreateView(generics.CreateAPIView):
                                             if early_minutes > 0 and not timesheet.early_departure_minutes:
                                                 logger.info(f"Départ anticipé détecté: {early_minutes} minutes")
                                                 if early_minutes > early_departure_margin:
-                                                    Anomaly.objects.create(
+                                                    # Trouver le planning associé à l'employé et au site
+                                                    associated_schedule = self._find_employee_schedule(employee, site, current_date) or schedule
+
+                                                    # Créer l'anomalie avec le planning associé
+                                                    anomaly = Anomaly.objects.create(
                                                         employee=employee,
                                                         site=site,
                                                         timesheet=timesheet,
@@ -283,8 +294,11 @@ class TimesheetCreateView(generics.CreateAPIView):
                                                         description=f"Départ anticipé de {early_minutes} minutes.",
                                                         minutes=early_minutes,
                                                         status=Anomaly.AnomalyStatus.PENDING,
-                                                        schedule=schedule
+                                                        schedule=associated_schedule
                                                     )
+
+                                                    # Ajouter le pointage aux pointages associés
+                                                    anomaly.related_timesheets.add(timesheet)
 
                                 # Si le pointage n'appartient à aucune plage mais est à proximité, considérer comme valide
                                 if not is_matching:
@@ -532,6 +546,36 @@ class ScanAnomaliesView(generics.CreateAPIView):
     """Vue pour scanner les anomalies dans les pointages existants"""
     serializer_class = ScanAnomaliesSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def _find_employee_schedule(self, employee, site, date):
+        """Trouve le planning associé à un employé et un site pour une date donnée."""
+        from sites.models import SiteEmployee, ScheduleDetail
+
+        # Récupérer les relations site-employé pour cet employé et ce site
+        site_employee_relations = SiteEmployee.objects.filter(
+            site=site,
+            employee=employee,
+            is_active=True
+        ).select_related('schedule')
+
+        # Chercher le planning correspondant
+        for site_employee in site_employee_relations:
+            schedule = site_employee.schedule
+            if not schedule or not schedule.is_active:
+                continue
+
+            # Vérifier si le planning a des détails pour ce jour
+            try:
+                day_of_week = date.weekday()
+                schedule_detail = ScheduleDetail.objects.get(
+                    schedule=schedule,
+                    day_of_week=day_of_week
+                )
+                return schedule
+            except ScheduleDetail.DoesNotExist:
+                continue
+
+        return None
 
     def _is_schedule_active_for_date(self, schedule, date):
         """Vérifie si un planning est actif pour une date donnée."""
@@ -1116,6 +1160,10 @@ class ScanAnomaliesView(generics.CreateAPIView):
 
                     # Créer une anomalie pour tous les départs anticipés, même ceux dans la marge
                     if last_departure.is_early_departure and last_departure.early_departure_minutes > 0:
+                        # Trouver le planning associé à l'employé et au site
+                        if not associated_schedule:
+                            associated_schedule = self._find_employee_schedule(employee, site, date)
+
                         anomaly, created = Anomaly.objects.get_or_create(
                             employee=employee,
                             site=site,
@@ -1130,7 +1178,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
                             }
                         )
 
-                        # Associer le pointage concerné à l'anomalie
+                        # Ajouter le pointage aux pointages associés
                         if created:
                             anomaly.related_timesheets.add(last_departure)
                             anomalies_created += 1

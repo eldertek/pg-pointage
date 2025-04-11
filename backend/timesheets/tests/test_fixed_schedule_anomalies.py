@@ -364,6 +364,52 @@ class FixedScheduleAnomalyTestCase(TestCase):
         )
         self.assertEqual(alerts.count(), 1)
 
+    def test_early_departure_schedule_association(self):
+        """Test spécifique pour vérifier que les anomalies de départ anticipé ont bien un planning associé."""
+        # Employee clocks in at 8:00 (on time)
+        arrival_time = time(8, 0)
+        self._create_timesheet(arrival_time)
+
+        # Employee clocks out at 11:30 (30 minutes early, outside 10-minute margin)
+        departure_time = time(11, 30)
+        timesheet = self._create_timesheet(departure_time, Timesheet.EntryType.DEPARTURE)
+
+        # Call the scan-anomalies API to detect anomalies
+        response = self._scan_anomalies()
+
+        # Verify the response
+        self.assertEqual(response.status_code, 200)
+
+        # Verify anomaly is created
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.monday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE
+        )
+        self.assertEqual(anomalies.count(), 1)
+
+        # Get the anomaly
+        anomaly = anomalies.first()
+
+        # Verify that the anomaly has a schedule associated
+        self.assertIsNotNone(anomaly.schedule, "L'anomalie de départ anticipé doit avoir un planning associé")
+        self.assertEqual(anomaly.schedule, self.schedule, "Le planning associé à l'anomalie doit être celui de l'employé")
+
+        # Verify that the anomaly has related timesheets
+        self.assertEqual(anomaly.related_timesheets.count(), 1, "L'anomalie doit avoir un pointage associé")
+        self.assertEqual(anomaly.related_timesheets.first(), timesheet, "Le pointage associé doit être celui du départ anticipé")
+
+        # Verify that the API returns the schedule details
+        # Utiliser l'API pour récupérer les détails de l'anomalie
+        response = self._scan_anomalies()
+        self.assertEqual(response.status_code, 200)
+
+        # Vérifier que l'anomalie a bien un planning associé dans la base de données
+        anomaly.refresh_from_db()
+        self.assertIsNotNone(anomaly.schedule, "L'anomalie de départ anticipé doit avoir un planning associé")
+        self.assertEqual(anomaly.schedule, self.schedule, "Le planning associé à l'anomalie doit être celui de l'employé")
+
     def test_clock_in_outside_schedule(self):
         """Test Workflow 5: Clock-in on a day with no schedule."""
         # Create a Sunday date (no schedule configured)
