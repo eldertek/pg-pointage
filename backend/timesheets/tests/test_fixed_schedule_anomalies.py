@@ -339,6 +339,23 @@ class FixedScheduleAnomalyTestCase(TestCase):
         self.assertEqual(anomaly.minutes, 13)
         self.assertEqual(anomaly.timesheet, timesheet)
 
+        # Verify that the anomaly has a schedule associated
+        self.assertIsNotNone(anomaly.schedule, "L'anomalie de départ anticipé doit avoir un planning associé")
+        self.assertEqual(anomaly.schedule, self.schedule, "Le planning associé à l'anomalie doit être celui de l'employé")
+
+        # Verify that the serializer includes the schedule details
+        from rest_framework.test import APIRequestFactory
+        from timesheets.serializers import AnomalySerializer
+
+        factory = APIRequestFactory()
+        request = factory.get('/')
+        request.user = self.manager
+
+        serializer = AnomalySerializer(anomaly, context={'request': request})
+        data = serializer.data
+        self.assertIsNotNone(data['schedule_details'], "Les détails du planning doivent être inclus dans la sérialisation")
+        self.assertEqual(data['schedule_details']['id'], self.schedule.id)
+
         # Verify alert is created
         alerts = Alert.objects.filter(
             employee=self.employee,
