@@ -244,7 +244,8 @@ class TimesheetCreateView(generics.CreateAPIView):
                                                         anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
                                                         description=f"Départ anticipé de {early_minutes} minutes.",
                                                         minutes=early_minutes,
-                                                        status=Anomaly.AnomalyStatus.PENDING
+                                                        status=Anomaly.AnomalyStatus.PENDING,
+                                                        schedule=schedule
                                                     )
 
                                 # Plage de l'après-midi
@@ -281,7 +282,8 @@ class TimesheetCreateView(generics.CreateAPIView):
                                                         anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
                                                         description=f"Départ anticipé de {early_minutes} minutes.",
                                                         minutes=early_minutes,
-                                                        status=Anomaly.AnomalyStatus.PENDING
+                                                        status=Anomaly.AnomalyStatus.PENDING,
+                                                        schedule=schedule
                                                     )
 
                                 # Si le pointage n'appartient à aucune plage mais est à proximité, considérer comme valide

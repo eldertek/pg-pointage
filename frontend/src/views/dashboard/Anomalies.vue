@@ -3,12 +3,14 @@
     <div v-if="!isDetailView" class="d-flex justify-space-between align-center mb-4">
       <PageTitle :level="1">Anomalies</PageTitle>
       <div class="d-flex align-center gap-2">
-        <v-checkbox
+        <v-switch
           v-model="forceUpdate"
           label="Forcer la mise à jour des statuts"
           hide-details
           density="compact"
-        ></v-checkbox>
+          color="warning"
+          inset
+        ></v-switch>
         <v-btn
           color="warning"
           prepend-icon="mdi-magnify-scan"
