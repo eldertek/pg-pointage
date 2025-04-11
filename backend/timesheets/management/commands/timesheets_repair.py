@@ -68,6 +68,16 @@ class Command(BaseCommand):
             action='store_true',
             help='Afficher des informations détaillées pendant l\'exécution'
         )
+        parser.add_argument(
+            '--ignore-errors',
+            action='store_true',
+            help='Ignorer les erreurs et continuer le traitement'
+        )
+        parser.add_argument(
+            '--skip-validation',
+            action='store_true',
+            help='Ignorer les validations lors de la sauvegarde des pointages'
+        )
 
     def handle(self, *args, **options):
         # Configurer le logger
@@ -76,6 +86,10 @@ class Command(BaseCommand):
         if options['verbose']:
             log_level = logging.DEBUG
         logger.setLevel(log_level)
+
+        # Initialiser les options
+        self.skip_validation = options.get('skip_validation', False)
+        self.ignore_errors = options.get('ignore_errors', False)
 
         # Configurer les dates
         end_date = options['end_date'] or timezone.now().date()
@@ -104,6 +118,12 @@ class Command(BaseCommand):
         if options['dry_run']:
             self.stdout.write(self.style.WARNING("Mode simulation activé - aucune modification ne sera effectuée"))
 
+        if self.skip_validation:
+            self.stdout.write(self.style.WARNING("Validation des pointages désactivée - les pointages seront sauvegardés sans validation"))
+
+        if self.ignore_errors:
+            self.stdout.write(self.style.WARNING("Ignorer les erreurs activé - les erreurs seront ignorées et le traitement continuera"))
+
         # Commencer la réparation
         try:
             with transaction.atomic():
@@ -112,8 +132,8 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"{anomalies_count} anomalies supprimées"))
 
                 # 2. Recalculer le statut de tous les pointages
-                timesheets_count = self._recalculate_timesheet_status(start_date, end_date, options['site'], options['employee'], options['dry_run'])
-                self.stdout.write(self.style.SUCCESS(f"{timesheets_count} pointages recalculés"))
+                processed_count = self._recalculate_timesheet_status(start_date, end_date, options['site'], options['employee'], options['dry_run'])
+                self.stdout.write(self.style.SUCCESS(f"{processed_count} pointages recalculés"))
 
                 # 3. Rechercher les nouvelles anomalies
                 new_anomalies_count = self._scan_anomalies(start_date, end_date, options['site'], options['employee'], options['dry_run'])
@@ -159,26 +179,61 @@ class Command(BaseCommand):
             query = query.filter(employee_id=employee_id)
 
         count = query.count()
+        processed_count = 0
+        error_count = 0
 
         if not dry_run:
             # Réinitialiser les statuts des pointages
             for timesheet in query:
-                # Réinitialiser les champs de statut
-                timesheet.is_late = False
-                timesheet.late_minutes = 0
-                timesheet.is_early_departure = False
-                timesheet.early_departure_minutes = 0
-                timesheet.is_out_of_schedule = False
-                timesheet.is_ambiguous = False
+                try:
+                    # Réinitialiser les champs de statut
+                    timesheet.is_late = False
+                    timesheet.late_minutes = 0
+                    timesheet.is_early_departure = False
+                    timesheet.early_departure_minutes = 0
+                    timesheet.is_out_of_schedule = False
+                    timesheet.is_ambiguous = False
 
-                # Appeler la logique de correspondance de planning
-                from timesheets.views import TimesheetCreateView
-                view = TimesheetCreateView()
-                view._match_schedule_and_check_anomalies(timesheet)
+                    # Appeler la logique de correspondance de planning
+                    from timesheets.views import TimesheetCreateView
+                    view = TimesheetCreateView()
+                    view._match_schedule_and_check_anomalies(timesheet)
 
-                self.stdout.write(f"Pointage {timesheet.id} recalculé: {timesheet.timestamp} - {timesheet.get_entry_type_display()}")
+                    # Sauvegarder le pointage sans validation si l'option est activée
+                    if self.skip_validation:
+                        # Sauvegarder directement sans appeler clean()
+                        from django.db import connection
+                        cursor = connection.cursor()
+                        cursor.execute(
+                            "UPDATE timesheets_timesheet SET is_late = %s, late_minutes = %s, "
+                            "is_early_departure = %s, early_departure_minutes = %s, "
+                            "is_out_of_schedule = %s, is_ambiguous = %s "
+                            "WHERE id = %s",
+                            [timesheet.is_late, timesheet.late_minutes,
+                             timesheet.is_early_departure, timesheet.early_departure_minutes,
+                             timesheet.is_out_of_schedule, timesheet.is_ambiguous,
+                             timesheet.id]
+                        )
+                    else:
+                        # Sauvegarder normalement avec validation
+                        timesheet.save()
 
-        return count
+                    processed_count += 1
+                    self.stdout.write(f"Pointage {timesheet.id} recalculé: {timesheet.timestamp} - {timesheet.get_entry_type_display()}")
+
+                except Exception as e:
+                    error_count += 1
+                    error_message = str(e)
+                    self.stdout.write(self.style.ERROR(f"Erreur lors du recalcul du pointage {timesheet.id}: {error_message}"))
+
+                    # Si l'option ignore-errors n'est pas activée, lever l'exception
+                    if not self.ignore_errors:
+                        raise
+
+        if error_count > 0:
+            self.stdout.write(self.style.WARNING(f"{error_count} erreurs rencontrées lors du recalcul des pointages"))
+
+        return processed_count
 
     def _scan_anomalies(self, start_date, end_date, site_id=None, employee_id=None, dry_run=False):
         """Recherche les nouvelles anomalies dans la période spécifiée"""
