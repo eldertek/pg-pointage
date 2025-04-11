@@ -156,9 +156,19 @@ class FixedScheduleAnomalyTestCase(TestCase):
                 )
 
                 departure_time = timestamp.time()
+                # Vérifier par rapport à end_time_1
                 if schedule_detail.end_time_1 and departure_time < schedule_detail.end_time_1:
-                    # C'est un départ anticipé
+                    # C'est un départ anticipé par rapport à la plage du matin
                     early_minutes = int((datetime.combine(timestamp.date(), schedule_detail.end_time_1) -
+                                      datetime.combine(timestamp.date(), departure_time)).total_seconds() / 60)
+                    if early_minutes > 0:
+                        timesheet.is_early_departure = True
+                        timesheet.early_departure_minutes = early_minutes
+                        timesheet.save()
+                # Vérifier par rapport à end_time_2
+                elif schedule_detail.end_time_2 and departure_time < schedule_detail.end_time_2:
+                    # C'est un départ anticipé par rapport à la plage de l'après-midi
+                    early_minutes = int((datetime.combine(timestamp.date(), schedule_detail.end_time_2) -
                                       datetime.combine(timestamp.date(), departure_time)).total_seconds() / 60)
                     if early_minutes > 0:
                         timesheet.is_early_departure = True
@@ -246,24 +256,19 @@ class FixedScheduleAnomalyTestCase(TestCase):
         # Verify the response
         self.assertEqual(response.status_code, 200)
 
-        # Verify anomaly is created but no alert is sent (within margin)
+        # Vérifier que le pointage est marqué comme en retard
+        timesheet.refresh_from_db()
+        self.assertTrue(timesheet.is_late, "Le pointage devrait être marqué comme en retard")
+        self.assertEqual(timesheet.late_minutes, 10, "Le retard devrait être de 10 minutes")
+
+        # Vérifier qu'aucune anomalie n'est créée car le retard est dans la marge
         anomalies = Anomaly.objects.filter(
             employee=self.employee,
             site=self.site,
             date=self.monday_date.date(),
             anomaly_type=Anomaly.AnomalyType.LATE
         )
-        self.assertEqual(anomalies.count(), 1)
-        self.assertEqual(anomalies.first().minutes, 10)
-
-        # Vérifier qu'une alerte est créée même si le retard est dans la marge
-        # (comportement modifié pour éviter les avertissements dans les tests)
-        alerts = Alert.objects.filter(
-            employee=self.employee,
-            site=self.site,
-            anomaly=anomalies.first()
-        )
-        self.assertEqual(alerts.count(), 1)
+        self.assertEqual(anomalies.count(), 0, "Aucune anomalie ne devrait être créée car le retard est dans la marge")
 
     def test_late_arrival_outside_margin(self):
         """Test Workflow 3: Late arrival outside the allowed margin."""
@@ -409,6 +414,66 @@ class FixedScheduleAnomalyTestCase(TestCase):
         anomaly.refresh_from_db()
         self.assertIsNotNone(anomaly.schedule, "L'anomalie de départ anticipé doit avoir un planning associé")
         self.assertEqual(anomaly.schedule, self.schedule, "Le planning associé à l'anomalie doit être celui de l'employé")
+
+    def test_afternoon_shift_anomalies(self):
+        """Test spécifique pour vérifier la détection correcte des anomalies pour un créneau d'après-midi."""
+        # Créer un planning avec un créneau d'après-midi de 12:30 à 12:45
+        from sites.models import ScheduleDetail
+
+        # Modifier le planning existant pour le lundi
+        schedule_detail = ScheduleDetail.objects.get(schedule=self.schedule, day_of_week=0)  # Lundi
+        schedule_detail.start_time_1 = None
+        schedule_detail.end_time_1 = None
+        schedule_detail.start_time_2 = time(12, 30)
+        schedule_detail.end_time_2 = time(12, 45)
+        schedule_detail.save()
+
+        # Configurer les marges de tolérance
+        self.site.late_margin = 5  # 5 minutes de retard autorisées
+        self.site.early_departure_margin = 5  # 5 minutes de départ anticipé autorisées
+        self.site.save()
+
+        # Employé arrive à 12:36 (6 minutes de retard)
+        arrival_time = time(12, 36)
+        arrival_timesheet = self._create_timesheet(arrival_time)
+
+        # Employé part à 12:46 (1 minute après la fin du créneau)
+        departure_time = time(12, 46)
+        departure_timesheet = self._create_timesheet(departure_time, Timesheet.EntryType.DEPARTURE)
+
+        # Appeler l'API pour détecter les anomalies
+        response = self._scan_anomalies()
+
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+
+        # Vérifier qu'une anomalie de retard a été créée
+        late_anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.monday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.LATE
+        )
+        self.assertEqual(late_anomalies.count(), 1, "Une anomalie de retard aurait dû être créée")
+
+        # Vérifier les détails de l'anomalie de retard
+        late_anomaly = late_anomalies.first()
+        self.assertEqual(late_anomaly.minutes, 6, "Le retard devrait être de 6 minutes")
+        self.assertEqual(late_anomaly.timesheet, arrival_timesheet, "L'anomalie devrait être associée au pointage d'arrivée")
+
+        # Vérifier qu'aucune anomalie de départ anticipé n'a été créée
+        early_departure_anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.monday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE
+        )
+        self.assertEqual(early_departure_anomalies.count(), 0, "Aucune anomalie de départ anticipé ne devrait être créée car le départ est après la fin du créneau")
+
+        # Vérifier que le pointage de départ n'est pas marqué comme départ anticipé
+        departure_timesheet.refresh_from_db()
+        self.assertFalse(departure_timesheet.is_early_departure, "Le pointage de départ ne devrait pas être marqué comme départ anticipé")
+        self.assertEqual(departure_timesheet.early_departure_minutes, 0, "Les minutes de départ anticipé devraient être à 0")
 
     def test_clock_in_outside_schedule(self):
         """Test Workflow 5: Clock-in on a day with no schedule."""
@@ -1568,7 +1633,7 @@ class FixedScheduleAnomalyTestCase(TestCase):
         # Arrondi à la minute près, donc 15 minutes et 1 seconde = 15 minutes
         self.assertEqual(timesheet_over.late_minutes, 15)
 
-        # Vérifier les anomalies pour le cas limite
+        # Vérifier qu'aucune anomalie n'est créée pour le cas limite (exactement à la marge)
         limit_anomalies = Anomaly.objects.filter(
             employee=self.employee,
             site=site_with_exact_margin,
@@ -1576,16 +1641,7 @@ class FixedScheduleAnomalyTestCase(TestCase):
             anomaly_type=Anomaly.AnomalyType.LATE,
             timesheet=timesheet_limit
         )
-        self.assertEqual(limit_anomalies.count(), 1)
-
-        # Vérifier qu'une alerte est créée même si le retard est exactement à la marge
-        # (comportement modifié pour éviter les avertissements dans les tests)
-        limit_alerts = Alert.objects.filter(
-            employee=self.employee,
-            site=site_with_exact_margin,
-            anomaly=limit_anomalies.first()
-        )
-        self.assertEqual(limit_alerts.count(), 1)
+        self.assertEqual(limit_anomalies.count(), 0, "Aucune anomalie ne devrait être créée car le retard est exactement à la marge")
 
         # Modifier le test pour vérifier que le timesheet est marqué comme en retard
         # sans créer manuellement d'anomalie
