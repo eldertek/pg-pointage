@@ -824,15 +824,34 @@ export default {
 </script>
 
 <style scoped>
-/* Styles des boutons d'action */
-:deep(.v-btn--icon) {
+/* Style des boutons dans le tableau */
+:deep(.v-data-table .v-btn--icon) {
   background-color: transparent !important;
-  opacity: 1 !important;
 }
 
-:deep(.v-btn--icon .v-icon) {
-  color: inherit !important;
+:deep(.v-data-table .v-btn--icon[color="primary"]) {
+  color: #00346E !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="error"]) {
+  color: #F78C48 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="warning"]) {
+  color: #FB8C00 !important;
+}
+
+:deep(.v-data-table .v-btn--icon[color="grey"]) {
+  color: #999999 !important;
+  opacity: 0.5 !important;
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+/* Assurer que les icônes dans les boutons sont visibles */
+:deep(.v-data-table .v-btn--icon .v-icon) {
   opacity: 1 !important;
+  color: inherit !important;
 }
 
 /* Style des boutons colorés */
@@ -854,23 +873,6 @@ export default {
 :deep(.v-btn[color="warning"]) {
   background-color: #F78C48 !important;
   color: white !important;
-}
-
-/* Style des boutons icônes colorés */
-:deep(.v-btn--icon[color="primary"]) {
-  color: #00346E !important;
-}
-
-:deep(.v-btn--icon[color="error"]) {
-  color: #F78C48 !important;
-}
-
-:deep(.v-btn--icon[color="success"]) {
-  color: #00346E !important;
-}
-
-:deep(.v-btn--icon[color="warning"]) {
-  color: #F78C48 !important;
 }
 
 /* Correction des overlays et underlays */
