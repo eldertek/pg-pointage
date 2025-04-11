@@ -12,8 +12,30 @@ from timesheets.views import ScanAnomaliesView
 
 
 class Command(BaseCommand):
-    help = 'Répare les pointages et les anomalies en supprimant toutes les anomalies existantes, ' \
-           'en recalculant le statut des pointages et en recherchant les nouvelles anomalies'
+    help = '''
+    Répare les pointages et les anomalies en supprimant toutes les anomalies existantes,
+    en recalculant le statut des pointages et en recherchant les nouvelles anomalies.
+
+    Exemples d'utilisation :
+
+    # Réparer tous les pointages des 30 derniers jours
+    python manage.py timesheets_repair
+
+    # Réparer les pointages d'une période spécifique
+    python manage.py timesheets_repair --start-date 2025-04-01 --end-date 2025-04-30
+
+    # Réparer les pointages d'un site spécifique
+    python manage.py timesheets_repair --site 1
+
+    # Réparer les pointages d'un employé spécifique
+    python manage.py timesheets_repair --employee 1
+
+    # Exécuter en mode simulation sans modifier la base de données
+    python manage.py timesheets_repair --dry-run
+
+    # Afficher des informations détaillées pendant l'exécution
+    python manage.py timesheets_repair --verbose
+    '''
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -195,33 +217,42 @@ class Command(BaseCommand):
         # Utiliser la vue ScanAnomaliesView pour détecter les anomalies
         scan_view = ScanAnomaliesView()
 
-        # Parcourir les pointages par date et par employé/site
-        dates = query.values_list('timestamp__date', flat=True).distinct()
-        sites = query.values_list('site_id', flat=True).distinct() if not site_id else [site_id]
-        employees = query.values_list('employee_id', flat=True).distinct() if not employee_id else [employee_id]
+        # Créer un objet Request factice pour appeler la méthode post
+        from rest_framework.test import APIRequestFactory
+        factory = APIRequestFactory()
 
-        anomalies_created = 0
+        # Parcourir les pointages par date
+        dates = query.values_list('timestamp__date', flat=True).distinct()
 
         for date in dates:
-            for site_id in sites:
-                for employee_id in employees:
-                    # Vérifier s'il y a des pointages pour cette combinaison
-                    has_timesheets = Timesheet.objects.filter(
-                        timestamp__date=date,
-                        site_id=site_id,
-                        employee_id=employee_id
-                    ).exists()
+            # Préparer les données pour la requête
+            data = {
+                'start_date': date,
+                'end_date': date,
+                'force_update': True
+            }
 
-                    if has_timesheets:
-                        # Appeler la méthode de scan d'anomalies
-                        scan_view._scan_anomalies_for_date(
-                            date=date,
-                            site_id=site_id,
-                            employee_id=employee_id,
-                            force_update=True
-                        )
+            if site_id:
+                data['site'] = site_id
 
-                        self.stdout.write(f"Anomalies scannées pour le {date} - Site: {site_id} - Employé: {employee_id}")
+            if employee_id:
+                data['employee'] = employee_id
+
+            # Créer une requête factice
+            request = factory.post('/api/timesheets/scan-anomalies/', data, format='json')
+
+            # Appeler la méthode post
+            try:
+                response = scan_view.post(request)
+                self.stdout.write(f"Anomalies scannées pour le {date}")
+                if site_id:
+                    self.stdout.write(f"  Site: {site_id}")
+                if employee_id:
+                    self.stdout.write(f"  Employé: {employee_id}")
+                self.stdout.write(f"  Résultat: {response.data.get('message', 'Aucun message')}")
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Erreur lors du scan des anomalies pour le {date}: {str(e)}")
+                )
 
         # Compter les anomalies après
         anomalies_after = Anomaly.objects.filter(
