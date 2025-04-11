@@ -11,6 +11,7 @@ class TimesheetSerializer(serializers.ModelSerializer, OrganizationPermissionMix
     """Serializer pour les pointages"""
     employee_name = serializers.SerializerMethodField()
     site_name = serializers.SerializerMethodField()
+    schedule_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Timesheet
@@ -19,9 +20,9 @@ class TimesheetSerializer(serializers.ModelSerializer, OrganizationPermissionMix
             'timestamp', 'entry_type', 'latitude', 'longitude',
             'is_late', 'late_minutes', 'is_early_departure',
             'early_departure_minutes', 'correction_note',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'schedule_details'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'schedule_details']
 
     def validate(self, data):
         user = self.context['request'].user
@@ -55,6 +56,86 @@ class TimesheetSerializer(serializers.ModelSerializer, OrganizationPermissionMix
     @extend_schema_field(OpenApiTypes.STR)
     def get_site_name(self, obj) -> str:
         return obj.site.name if obj.site else ''
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_schedule_details(self, obj):
+        """Récupère les détails du planning associé au pointage"""
+        # Récupérer le planning associé au pointage
+        from sites.models import SiteEmployee, Schedule, ScheduleDetail
+
+        # Récupérer la date du pointage
+        timestamp_date = obj.timestamp.date()
+        day_of_week = obj.timestamp.weekday()
+
+        # Récupérer les relations site-employé pour cet employé et ce site
+        site_employee_relations = SiteEmployee.objects.filter(
+            site=obj.site,
+            employee=obj.employee,
+            is_active=True
+        ).select_related('schedule')
+
+        # Chercher le planning correspondant
+        for site_employee in site_employee_relations:
+            schedule = site_employee.schedule
+            if not schedule or not schedule.is_active:
+                continue
+
+            # Vérifier si le planning a des détails pour ce jour
+            try:
+                schedule_detail = ScheduleDetail.objects.get(
+                    schedule=schedule,
+                    day_of_week=day_of_week
+                )
+
+                # Vérifier si le pointage correspond à ce planning
+                if schedule.schedule_type == 'FIXED':
+                    # Pour les plannings fixes, vérifier si l'heure du pointage est dans les plages horaires
+                    timesheet_time = obj.timestamp.time()
+
+                    # Plage du matin
+                    if schedule_detail.start_time_1 and schedule_detail.end_time_1:
+                        if schedule_detail.start_time_1 <= timesheet_time <= schedule_detail.end_time_1:
+                            return self._format_schedule_details(schedule, schedule_detail)
+
+                    # Plage de l'après-midi
+                    if schedule_detail.start_time_2 and schedule_detail.end_time_2:
+                        if schedule_detail.start_time_2 <= timesheet_time <= schedule_detail.end_time_2:
+                            return self._format_schedule_details(schedule, schedule_detail)
+
+                elif schedule.schedule_type == 'FREQUENCY':
+                    # Pour les plannings fréquence, tous les pointages du jour sont valides
+                    return self._format_schedule_details(schedule, schedule_detail)
+
+            except ScheduleDetail.DoesNotExist:
+                continue
+
+        return None
+
+    def _format_schedule_details(self, schedule, schedule_detail):
+        """Formate les détails du planning pour la réponse"""
+        result = {
+            'id': schedule.id,
+            'name': f"Planning {schedule.id} - {schedule.site.name}",
+            'schedule_type': schedule.schedule_type,
+            'schedule_type_display': schedule.get_schedule_type_display(),
+            'is_active': schedule.is_active
+        }
+
+        # Ajouter les détails spécifiques au jour
+        if schedule.schedule_type == 'FIXED':
+            result.update({
+                'start_time_1': schedule_detail.start_time_1,
+                'end_time_1': schedule_detail.end_time_1,
+                'start_time_2': schedule_detail.start_time_2,
+                'end_time_2': schedule_detail.end_time_2
+            })
+        elif schedule.schedule_type == 'FREQUENCY':
+            result.update({
+                'frequency_duration': schedule_detail.frequency_duration,
+                'tolerance_percentage': schedule.frequency_tolerance_percentage
+            })
+
+        return result
 
 class TimesheetCreateSerializer(serializers.ModelSerializer, SitePermissionMixin):
     """Serializer pour la création de pointages"""

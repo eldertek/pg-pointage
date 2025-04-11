@@ -3,7 +3,7 @@
     <div class="d-flex justify-space-between align-center mb-4">
       <Title :level="1">Pointages</Title>
     </div>
-    
+
     <v-card v-if="!isDetailView" class="mb-4">
       <v-card-title>Filtres</v-card-title>
       <v-card-text>
@@ -18,7 +18,7 @@
               @update:model-value="applyFilters"
             ></v-text-field>
           </v-col>
-          
+
           <v-col v-if="!currentSiteId" cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.site"
@@ -30,7 +30,7 @@
               @update:model-value="applyFilters"
             ></v-select>
           </v-col>
-          
+
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.entryType"
@@ -42,7 +42,7 @@
               @update:model-value="applyFilters"
             ></v-select>
           </v-col>
-          
+
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.status"
@@ -66,7 +66,7 @@
               @update:model-value="applyFilters"
             ></v-text-field>
           </v-col>
-          
+
           <v-col cols="12" md="4">
             <v-text-field
               v-model="filters.endDate"
@@ -81,7 +81,7 @@
         </DashboardFilters>
       </v-card-text>
     </v-card>
-    
+
     <v-card>
       <v-data-table
         :headers="headers"
@@ -154,9 +154,9 @@
           <v-spacer></v-spacer>
           <v-btn icon="mdi-close" variant="text" @click="detailDialog = false"></v-btn>
         </v-card-title>
-        
+
         <v-divider></v-divider>
-        
+
         <v-card-text class="pt-4">
           <v-row>
             <v-col cols="12" :md="selectedTimesheet.latitude && selectedTimesheet.longitude ? 6 : 12">
@@ -168,7 +168,7 @@
                   <v-list-item-title class="text-subtitle-2 mb-1">Employé</v-list-item-title>
                   <v-list-item-subtitle>{{ selectedTimesheet.employee }}</v-list-item-subtitle>
                 </v-list-item>
-                
+
                 <v-list-item>
                   <template #prepend>
                     <v-icon color="primary">mdi-map-marker</v-icon>
@@ -176,7 +176,7 @@
                   <v-list-item-title class="text-subtitle-2 mb-1">Site</v-list-item-title>
                   <v-list-item-subtitle>{{ selectedTimesheet.site }}</v-list-item-subtitle>
                 </v-list-item>
-                
+
                 <v-list-item>
                   <template #prepend>
                     <v-icon color="primary">mdi-clock-outline</v-icon>
@@ -184,7 +184,7 @@
                   <v-list-item-title class="text-subtitle-2 mb-1">Date et heure</v-list-item-title>
                   <v-list-item-subtitle>{{ selectedTimesheet.date }} à {{ selectedTimesheet.time }}</v-list-item-subtitle>
                 </v-list-item>
-                
+
                 <v-list-item>
                   <template #prepend>
                     <v-icon color="primary">mdi-gesture-tap-button</v-icon>
@@ -199,7 +199,7 @@
                     </v-chip>
                   </v-list-item-subtitle>
                 </v-list-item>
-                
+
                 <v-list-item v-if="selectedTimesheet.is_late || selectedTimesheet.is_early_departure">
                   <template #prepend>
                     <v-icon :color="selectedTimesheet.is_late ? 'warning' : 'error'">mdi-alert-circle</v-icon>
@@ -214,7 +214,34 @@
                     </v-chip>
                   </v-list-item-subtitle>
                 </v-list-item>
-                
+
+                <v-list-item v-if="selectedTimesheet.schedule_details">
+                  <template #prepend>
+                    <v-icon color="primary">mdi-calendar-clock</v-icon>
+                  </template>
+                  <v-list-item-title class="text-subtitle-2 mb-1">Planning associé</v-list-item-title>
+                  <v-list-item-subtitle>
+                    <div>{{ selectedTimesheet.schedule_details.name }}</div>
+                    <div class="text-caption">
+                      Type: {{ selectedTimesheet.schedule_details.schedule_type_display }}
+                      <template v-if="selectedTimesheet.schedule_details.schedule_type === 'FIXED'">
+                        <div v-if="selectedTimesheet.schedule_details.start_time_1 && selectedTimesheet.schedule_details.end_time_1">
+                          Matin: {{ formatTime(selectedTimesheet.schedule_details.start_time_1) }} - {{ formatTime(selectedTimesheet.schedule_details.end_time_1) }}
+                        </div>
+                        <div v-if="selectedTimesheet.schedule_details.start_time_2 && selectedTimesheet.schedule_details.end_time_2">
+                          Après-midi: {{ formatTime(selectedTimesheet.schedule_details.start_time_2) }} - {{ formatTime(selectedTimesheet.schedule_details.end_time_2) }}
+                        </div>
+                      </template>
+                      <template v-else-if="selectedTimesheet.schedule_details.schedule_type === 'FREQUENCY'">
+                        <div>
+                          Fréquence: {{ selectedTimesheet.schedule_details.frequency_duration }} minutes
+                          (Tolérance: {{ selectedTimesheet.schedule_details.tolerance_percentage }}%)
+                        </div>
+                      </template>
+                    </div>
+                  </v-list-item-subtitle>
+                </v-list-item>
+
                 <v-list-item v-if="selectedTimesheet.correction_note">
                   <template #prepend>
                     <v-icon color="primary">mdi-note-text</v-icon>
@@ -224,13 +251,13 @@
                 </v-list-item>
               </v-list>
             </v-col>
-            
+
             <v-col v-if="selectedTimesheet.latitude && selectedTimesheet.longitude" cols="12" md="6">
               <div id="mapContainer" style="height: 300px; width: 100%; border-radius: 4px; position: relative; z-index: 1;"></div>
             </v-col>
           </v-row>
         </v-card-text>
-        
+
         <v-card-actions v-if="canEditTimesheet">
           <v-spacer></v-spacer>
           <v-btn
@@ -261,7 +288,7 @@
           <v-spacer></v-spacer>
           <v-btn icon="mdi-close" variant="text" @click="editDialog = false"></v-btn>
         </v-card-title>
-        
+
         <v-card-text>
           <v-form ref="editForm">
             <v-text-field
@@ -270,14 +297,14 @@
               type="datetime-local"
               variant="outlined"
             ></v-text-field>
-            
+
             <v-select
               v-model="editingTimesheet.entry_type"
               :items="entryTypeOptions"
               label="Type de pointage"
               variant="outlined"
             ></v-select>
-            
+
             <v-textarea
               v-model="editingTimesheet.correction_note"
               label="Note de correction"
@@ -286,7 +313,7 @@
             ></v-textarea>
           </v-form>
         </v-card-text>
-        
+
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn color="error" variant="text" @click="editDialog = false">Annuler</v-btn>
@@ -404,6 +431,17 @@ const getEntryTypeLabel = (type: EntryTypeEnum): string => {
   return type === EntryTypeEnum.ARRIVAL ? 'Arrivée' : 'Départ'
 }
 
+const formatTime = (timeString: string): string => {
+  try {
+    // Format: "HH:MM:SS"
+    const parts = timeString.split(':')
+    return `${parts[0]}:${parts[1]}`
+  } catch (error) {
+    console.error('Erreur lors du formatage de l\'heure:', error)
+    return timeString
+  }
+}
+
 const formatTimesheet = (timesheet: ExtendedTimesheet): ExtendedTimesheet => {
   try {
     if (!timesheet.timestamp) {
@@ -456,15 +494,15 @@ const fetchTimesheets = async (options: Partial<TableOptions> = {}) => {
       page_size: options.itemsPerPage || itemsPerPage.value,
       expand: 'employee,site'
     }
-    
+
     const response = await timesheetsApi.getTimesheets(params)
     const results = response.data.results || []
-    
+
     // Format timesheets for display
     timesheets.value = results.map((timesheet: ExtendedTimesheet) => formatTimesheet(timesheet))
-    
+
     totalItems.value = response.data.count || 0
-    
+
     // Update pagination state
     currentPage.value = options.page || currentPage.value
     itemsPerPage.value = options.itemsPerPage || itemsPerPage.value
@@ -479,7 +517,7 @@ const fetchTimesheets = async (options: Partial<TableOptions> = {}) => {
 
 const handleTableUpdate = (options: TableOptions): void => {
   const { page, itemsPerPage: newItemsPerPage } = options
-  fetchTimesheets({ 
+  fetchTimesheets({
     page: page,
     itemsPerPage: newItemsPerPage
   })
@@ -513,7 +551,7 @@ const showDetails = (item: ExtendedTimesheet): void => {
     const timestamp = new Date(item.timestamp)
     console.log('Timestamp original:', item.timestamp)
     console.log('Timestamp parsé:', timestamp)
-    
+
     if (isNaN(timestamp.getTime())) {
       console.error('Date invalide:', item.timestamp)
       return
@@ -524,9 +562,9 @@ const showDetails = (item: ExtendedTimesheet): void => {
       date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
       time: format(timestamp, 'HH:mm', { locale: fr })
     }
-    
+
     detailDialog.value = true
-    
+
     if (selectedTimesheet.value?.latitude && selectedTimesheet.value?.longitude) {
       setTimeout(() => {
         try {
@@ -534,24 +572,24 @@ const showDetails = (item: ExtendedTimesheet): void => {
             map.remove()
             map = null
           }
-          
+
           const mapDiv = document.getElementById('mapContainer')
-          
+
           if (mapDiv) {
             mapDiv.style.height = '300px'
             mapDiv.style.width = '100%'
-            
+
             map = L.map('mapContainer').setView(
-              [selectedTimesheet.value!.latitude!, selectedTimesheet.value!.longitude!], 
+              [selectedTimesheet.value!.latitude!, selectedTimesheet.value!.longitude!],
               15
             )
-            
+
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
               attribution: '© OpenStreetMap contributors'
             }).addTo(map)
-            
+
             L.marker([selectedTimesheet.value!.latitude!, selectedTimesheet.value!.longitude!]).addTo(map)
-            
+
             setTimeout(() => {
               map?.invalidateSize()
             }, 100)
