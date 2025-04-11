@@ -10,6 +10,8 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
+from django.urls import reverse
 
 from organizations.models import Organization
 from sites.models import Site, Schedule, ScheduleDetail, SiteEmployee
@@ -287,9 +289,7 @@ class ScheduleMatchingTestCase(TestCase):
             site=self.site,
             timestamp=timestamp,
             entry_type=Timesheet.EntryType.DEPARTURE,
-            scan_type=Timesheet.ScanType.NFC,
-            is_early_departure=True,
-            early_departure_minutes=0  # Mettre à 0 pour que l'anomalie soit créée
+            scan_type=Timesheet.ScanType.NFC
         )
 
         # Appeler la logique de correspondance de planning
@@ -306,19 +306,31 @@ class ScheduleMatchingTestCase(TestCase):
         self.assertEqual(timesheet.early_departure_minutes, 15)
         self.assertFalse(timesheet.is_out_of_schedule)
 
-        # Créer manuellement l'anomalie pour le test
-        anomaly = Anomaly.objects.create(
-            employee=self.employee,
-            site=self.site,
-            timesheet=timesheet,
-            date=self.monday_date.date(),
-            anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-            description=f"Départ anticipé de 15 minutes.",
-            minutes=15,
-            status=Anomaly.AnomalyStatus.PENDING
+        # Appeler l'API scan-anomalies pour détecter automatiquement les anomalies
+        client = APIClient()
+        client.force_authenticate(user=User.objects.create_user(
+            username='manager',
+            email='manager@test.com',
+            password='testpass123',
+            role=User.Role.MANAGER
+        ))
+        
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.monday_date.date(),
+                'end_date': self.monday_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
         )
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        self.assertGreater(response.data['anomalies_created'], 0)
 
-        # Vérifier que l'anomalie existe
+        # Vérifier que l'anomalie est automatiquement créée
         anomalies = Anomaly.objects.filter(
             employee=self.employee,
             site=self.site,
@@ -327,6 +339,9 @@ class ScheduleMatchingTestCase(TestCase):
         )
         self.assertEqual(anomalies.count(), 1)
         self.assertEqual(anomalies.first().minutes, 15)
+        
+        # Vérifier que l'anomalie est liée au pointage
+        self.assertEqual(anomalies.first().timesheet, timesheet)
 
     def test_out_of_schedule_arrival(self):
         """Test arrival completely outside of scheduled hours."""

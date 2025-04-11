@@ -172,15 +172,7 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
             status=Anomaly.AnomalyStatus.PENDING
         )
 
-        # Create an alert manually for testing
-        _ = Alert.objects.create(
-            employee=self.employee,
-            site=self.site,
-            anomaly=anomaly,
-            alert_type='INSUFFICIENT_HOURS',  # Assuming this field exists
-            message='Alerte de durée insuffisante',
-            status='PENDING'  # Assuming this field exists
-        )
+        # L'alerte est créée automatiquement par le signal create_alert_for_anomaly
 
         # Verify anomaly is created
         anomalies = Anomaly.objects.filter(
@@ -385,14 +377,7 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
         )
 
         # Create an alert manually for testing
-        _ = Alert.objects.create(
-            employee=self.employee,
-            site=self.site,
-            anomaly=anomaly,
-            alert_type='MISSING_DEPARTURE',  # Assuming this field exists
-            message='Alerte de pointage de départ manquant',
-            status='PENDING'  # Assuming this field exists
-        )
+        # L'alerte est créée automatiquement par le signal create_alert_for_anomaly
 
         # Verify anomaly is created for missing departure
         anomalies = Anomaly.objects.filter(
@@ -427,15 +412,7 @@ class FrequencyScheduleAnomalyTestCase(TestCase):
                 status=Anomaly.AnomalyStatus.PENDING
             )
 
-            # Create an alert manually for testing
-            _ = Alert.objects.create(
-                employee=self.employee,
-                site=self.site,
-                anomaly=anomaly,
-                alert_type='MISSING_ARRIVAL',  # Assuming this field exists
-                message='Alerte d\'absence de pointage',
-                status='PENDING'  # Assuming this field exists
-            )
+            # L'alerte est créée automatiquement par le signal create_alert_for_anomaly
 
             # Verify anomaly is created for missing attendance
             anomalies = Anomaly.objects.filter(

@@ -8,6 +8,8 @@ from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
+from django.urls import reverse
 
 from organizations.models import Organization
 from sites.models import Site
@@ -70,27 +72,35 @@ class AnomalyCleanupTestCase(TestCase):
             scan_type=Timesheet.ScanType.NFC
         )
 
-        # Créer une anomalie de départ manquant
-        anomaly = Anomaly.objects.create(
-            employee=self.employee,
-            site=self.site,
-            date=self.test_date.date(),
-            anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE,
-            description='Aucun pointage de départ enregistré.',
-            status=Anomaly.AnomalyStatus.PENDING
+        # Créer une anomalie de départ manquant via l'API scan-anomalies
+        # Créer un utilisateur manager pour l'authentification
+        manager = User.objects.create_user(
+            username='manager',
+            email='manager@test.com',
+            password='testpass123',
+            role=User.Role.MANAGER
         )
-
-        # Créer une alerte pour l'anomalie
-        Alert.objects.create(
-            employee=self.employee,
-            site=self.site,
-            anomaly=anomaly,
-            alert_type=Alert.AlertType.MISSING_DEPARTURE,
-            message='Alerte de départ manquant',
-            status='PENDING'
+        manager.organizations.add(self.organization)
+        
+        client = APIClient()
+        client.force_authenticate(user=manager)
+        
+        # Exécuter le scan d'anomalies pour créer l'anomalie de départ manquant
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.test_date.date(),
+                'end_date': self.test_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
         )
-
-        # Vérifier que l'anomalie existe
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        
+        # Vérifier que l'anomalie a été créée
         anomalies = Anomaly.objects.filter(
             employee=self.employee,
             site=self.site,
@@ -109,26 +119,22 @@ class AnomalyCleanupTestCase(TestCase):
             scan_type=Timesheet.ScanType.NFC
         )
 
-        # Simuler le scan des anomalies en appelant directement la logique de suppression
-        # des anomalies de départ manquant
+        # Exécuter à nouveau le scan d'anomalies pour nettoyer automatiquement l'anomalie
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.test_date.date(),
+                'end_date': self.test_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
+        )
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
 
-        # Vérifier que l'anomalie existe avant
-        self.assertEqual(Anomaly.objects.filter(
-            employee=self.employee,
-            site=self.site,
-            date=self.test_date.date(),
-            anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE
-        ).count(), 1)
-
-        # Supprimer manuellement les anomalies de départ manquant
-        deleted_count, _ = Anomaly.objects.filter(
-            employee=self.employee,
-            site=self.site,
-            date=self.test_date.date(),
-            anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE
-        ).delete()
-
-        # Vérifier que l'anomalie a été supprimée
+        # Vérifier que l'anomalie a été supprimée automatiquement
         anomalies = Anomaly.objects.filter(
             employee=self.employee,
             site=self.site,
@@ -139,27 +145,45 @@ class AnomalyCleanupTestCase(TestCase):
 
     def test_missing_arrival_cleanup(self):
         """Test que les anomalies d'arrivée manquante sont supprimées lorsqu'une arrivée est enregistrée."""
-        # Créer une anomalie d'arrivée manquante
-        anomaly = Anomaly.objects.create(
+        # Créer un utilisateur manager pour l'authentification
+        manager = User.objects.create_user(
+            username='manager2',
+            email='manager2@test.com',
+            password='testpass123',
+            role=User.Role.MANAGER
+        )
+        manager.organizations.add(self.organization)
+        
+        client = APIClient()
+        client.force_authenticate(user=manager)
+        
+        # On simule un cas où un employé a un départ sans arrivée
+        # Créer un pointage de départ sans arrivée correspondante
+        departure_timestamp = self.test_date.replace(hour=17, minute=0)
+        Timesheet.objects.create(
             employee=self.employee,
             site=self.site,
-            date=self.test_date.date(),
-            anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL,
-            description='Aucun pointage d\'arrivée enregistré.',
-            status=Anomaly.AnomalyStatus.PENDING
+            timestamp=departure_timestamp,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.NFC
         )
-
-        # Créer une alerte pour l'anomalie
-        Alert.objects.create(
-            employee=self.employee,
-            site=self.site,
-            anomaly=anomaly,
-            alert_type=Alert.AlertType.MISSING_ARRIVAL,
-            message='Alerte d\'arrivée manquante',
-            status='PENDING'
+        
+        # Exécuter le scan d'anomalies pour créer l'anomalie d'arrivée manquante
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.test_date.date(),
+                'end_date': self.test_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
         )
-
-        # Vérifier que l'anomalie existe
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+        
+        # Vérifier que l'anomalie a été créée
         anomalies = Anomaly.objects.filter(
             employee=self.employee,
             site=self.site,
@@ -178,26 +202,22 @@ class AnomalyCleanupTestCase(TestCase):
             scan_type=Timesheet.ScanType.NFC
         )
 
-        # Simuler le scan des anomalies en appelant directement la logique de suppression
-        # des anomalies d'arrivée manquante
+        # Exécuter à nouveau le scan d'anomalies pour nettoyer automatiquement l'anomalie
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.test_date.date(),
+                'end_date': self.test_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id
+            },
+            format='json'
+        )
+        
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
 
-        # Vérifier que l'anomalie existe avant
-        self.assertEqual(Anomaly.objects.filter(
-            employee=self.employee,
-            site=self.site,
-            date=self.test_date.date(),
-            anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL
-        ).count(), 1)
-
-        # Supprimer manuellement les anomalies d'arrivée manquante
-        deleted, _ = Anomaly.objects.filter(
-            employee=self.employee,
-            site=self.site,
-            date=self.test_date.date(),
-            anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL
-        ).delete()
-
-        # Vérifier que l'anomalie a été supprimée
+        # Vérifier que l'anomalie a été supprimée automatiquement
         anomalies = Anomaly.objects.filter(
             employee=self.employee,
             site=self.site,

@@ -133,12 +133,32 @@ class FixedScheduleAnomalyTestCase(TestCase):
         timesheet.save()
         return timesheet
 
-    def _scan_anomalies(self, start_date=None, end_date=None):
+    def _create_anomaly(self, anomaly_type, minutes=0, description=None, timesheet=None, date=None):
+        """Helper method to create an anomaly."""
+        if date is None:
+            date = self.monday_date.date()
+
+        return Anomaly.objects.create(
+            employee=self.employee,
+            site=self.site,
+            date=date,
+            anomaly_type=anomaly_type,
+            minutes=minutes,
+            description=description,
+            timesheet=timesheet,
+            status=Anomaly.AnomalyStatus.PENDING
+        )
+
+    def _scan_anomalies(self, start_date=None, end_date=None, employee_id=None, site_id=None):
         """Helper method to call the scan-anomalies API endpoint."""
         if start_date is None:
             start_date = self.monday_date.date()
         if end_date is None:
             end_date = start_date
+        if employee_id is None:
+            employee_id = self.employee.id
+        if site_id is None:
+            site_id = self.site.id
 
         # Create API client and authenticate as manager
         client = APIClient()
@@ -150,8 +170,8 @@ class FixedScheduleAnomalyTestCase(TestCase):
             {
                 'start_date': start_date,
                 'end_date': end_date,
-                'site': self.site.id,
-                'employee': self.employee.id
+                'site': site_id,
+                'employee': employee_id
             },
             format='json'
         )
@@ -360,7 +380,7 @@ class FixedScheduleAnomalyTestCase(TestCase):
             mock_now.return_value = self.monday_date.replace(hour=8, minute=15)
 
             # Call the scan-anomalies API to detect missing arrival
-            response = self._scan_anomalies()
+            response = self._scan_anomalies(start_date=self.monday_date.date(), end_date=self.monday_date.date(), employee_id=self.employee.id, site_id=self.site.id)
 
             # Verify the response
             self.assertEqual(response.status_code, 200)
@@ -400,13 +420,30 @@ class FixedScheduleAnomalyTestCase(TestCase):
         # Verify the response
         self.assertEqual(response.status_code, 200)
 
-        # Refresh the anomaly from the database
-        anomaly.refresh_from_db()
+        # Verify the MISSING_ARRIVAL anomaly has been deleted
+        missing_arrival_anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.monday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL
+        )
+        self.assertEqual(missing_arrival_anomalies.count(), 0)
 
-        # Verify anomaly is updated to LATE instead of MISSING_ARRIVAL
-        self.assertEqual(anomaly.anomaly_type, Anomaly.AnomalyType.LATE)
-        self.assertEqual(anomaly.minutes, 19)
-        self.assertEqual(anomaly.timesheet, timesheet)
+        # Verify a LATE anomaly has been created
+        late_anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.monday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.LATE
+        )
+        self.assertEqual(late_anomalies.count(), 1)
+
+        # Get the late anomaly
+        late_anomaly = late_anomalies.first()
+
+        # Verify anomaly details
+        self.assertEqual(late_anomaly.minutes, 19)
+        self.assertEqual(late_anomaly.timesheet, timesheet)
 
     def test_offline_clock_in(self):
         """Test Workflow 8: Offline clock-in."""
