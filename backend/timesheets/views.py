@@ -216,13 +216,12 @@ class TimesheetCreateView(generics.CreateAPIView):
                                 elif current_time < schedule_detail.end_time_1:
                                     is_matching = True
                                     timesheet.is_early_departure = True
-                                    # Calculer les minutes de départ anticipé par rapport à l'heure de fin du matin
+                                    # Calculer les minutes de départ anticipé
                                     early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_1) -
                                                       datetime.combine(current_date, current_time)).total_seconds() / 60)
                                     # Ne pas écraser la valeur existante si elle a été définie manuellement
                                     if not timesheet.early_departure_minutes:
                                         timesheet.early_departure_minutes = early_minutes
-                                        logger.info(f"Départ anticipé matin calculé: {early_minutes} minutes (fin prévue: {schedule_detail.end_time_1}, départ: {current_time})")
 
                                     # Créer une anomalie si le départ anticipé dépasse la marge
                                     # Mais seulement si nous n'avons pas déjà défini manuellement les minutes
@@ -288,37 +287,29 @@ class TimesheetCreateView(generics.CreateAPIView):
                                     is_matching = True
                                 elif current_time < schedule_detail.end_time_2:
                                     is_matching = True
-                                    # Vérifier si c'est un départ de l'après-midi ou du matin
-                                    # Si l'heure est après la fin du matin et avant le début de l'après-midi,
-                                    # c'est probablement un départ de la pause déjeuner, pas un départ anticipé
-                                    is_afternoon_departure = current_time > schedule_detail.end_time_1 if schedule_detail.end_time_1 else False
+                                    timesheet.is_early_departure = True
+                                    # Calculer les minutes de départ anticipé
+                                    early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_2) -
+                                                      datetime.combine(current_date, current_time)).total_seconds() / 60)
+                                    # Ne pas écraser la valeur existante si elle a été définie manuellement
+                                    if not timesheet.early_departure_minutes:
+                                        timesheet.early_departure_minutes = early_minutes
 
-                                    if is_afternoon_departure:
-                                        # C'est un départ de l'après-midi, calculer par rapport à end_time_2
-                                        timesheet.is_early_departure = True
-                                        # Calculer les minutes de départ anticipé par rapport à l'heure de fin de l'après-midi
-                                        early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_2) -
-                                                          datetime.combine(current_date, current_time)).total_seconds() / 60)
-                                        # Ne pas écraser la valeur existante si elle a été définie manuellement
-                                        if not timesheet.early_departure_minutes:
-                                            timesheet.early_departure_minutes = early_minutes
-                                            logger.info(f"Départ anticipé après-midi calculé: {early_minutes} minutes (fin prévue: {schedule_detail.end_time_2}, départ: {current_time})")
-
-                                        # Créer une anomalie si le départ anticipé dépasse la marge
-                                        # Mais seulement si nous n'avons pas déjà défini manuellement les minutes
-                                        if early_minutes > 0 and not timesheet.early_departure_minutes:
-                                            logger.info(f"Départ anticipé détecté: {early_minutes} minutes")
-                                            if early_minutes > early_departure_margin:
-                                                Anomaly.objects.create(
-                                                    employee=employee,
-                                                    site=site,
-                                                    timesheet=timesheet,
-                                                    date=current_date,
-                                                    anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                                    description=f"Départ anticipé de {early_minutes} minutes.",
-                                                    minutes=early_minutes,
-                                                    status=Anomaly.AnomalyStatus.PENDING
-                                                )
+                                    # Créer une anomalie si le départ anticipé dépasse la marge
+                                    # Mais seulement si nous n'avons pas déjà défini manuellement les minutes
+                                    if early_minutes > 0 and not timesheet.early_departure_minutes:
+                                        logger.info(f"Départ anticipé détecté: {early_minutes} minutes")
+                                        if early_minutes > early_departure_margin:
+                                            Anomaly.objects.create(
+                                                employee=employee,
+                                                site=site,
+                                                timesheet=timesheet,
+                                                date=current_date,
+                                                anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                                                description=f"Départ anticipé de {early_minutes} minutes.",
+                                                minutes=early_minutes,
+                                                status=Anomaly.AnomalyStatus.PENDING
+                                            )
 
                         if is_matching:
                             matching_schedules.append(schedule)
