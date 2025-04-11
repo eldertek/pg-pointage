@@ -2,7 +2,7 @@
   <DashboardView
     ref="dashboardView"
     title="Gestion des accès"
-    :form-title="(editedItem as OrganizationFormData)?.name ? 'Modifier' : 'Nouvelle' + ' organisation'"
+    :form-title="(editedItem as OrganizationFormData)?.id ? 'Modifier l\'organisation' : 'Nouvelle organisation'"
     :saving="saving"
     @save="saveOrganization"
   >
@@ -184,33 +184,6 @@
             label="Organisation active"
           ></v-switch>
         </v-col>
-        <v-col cols="12">
-          <v-autocomplete
-            v-model="(editedItem as OrganizationFormData).users"
-            :items="users"
-            item-title="full_name"
-            item-value="id"
-            label="Employés"
-            multiple
-            chips
-            closable-chips
-            variant="outlined"
-            :error-messages="formErrors.users"
-          >
-            <template v-slot:chip="{ props, item }">
-              <v-chip
-                v-bind="props"
-                :text="`${item.raw.last_name} ${item.raw.first_name} (${item.raw.email})`"
-              ></v-chip>
-            </template>
-            <template v-slot:item="{ props, item }">
-              <v-list-item
-                v-bind="props"
-                :title="`${item.raw.last_name} ${item.raw.first_name} (${item.raw.email})`"
-              ></v-list-item>
-            </template>
-          </v-autocomplete>
-        </v-col>
       </DashboardForm>
     </template>
   </DashboardView>
@@ -218,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { organizationsApi } from '@/services/api'
 import DashboardView from '@/components/dashboard/DashboardView.vue'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
@@ -228,6 +201,22 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useRouter } from 'vue-router'
 import { useConfirmDialog } from '@/utils/dialogs'
 import type { DialogState } from '@/utils/dialogs'
+
+// Interface pour les données envoyées à l'API
+interface OrganizationApiData {
+  id?: number;
+  name: string;
+  phone?: string;
+  address?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  contact_email?: string;
+  siret?: string;
+  notes?: string;
+  is_active?: boolean;
+  users?: number[];
+}
 
 // Interface pour les organisations
 interface Organization {
@@ -351,7 +340,7 @@ const countries = [
 
 // Méthodes
 const router = useRouter()
-const { dialogState, handleConfirm } = useConfirmDialog()
+const { dialogState } = useConfirmDialog()
 
 const handleRowClick = (event: any, { item }: any) => {
   if (item?.id) {
@@ -395,7 +384,9 @@ const loadOrganizationUsers = async (organizationId: number) => {
     const response = await organizationsApi.getOrganizationUsers(organizationId)
     const organizationUsers = response.data.results || []
     selectedUsers.value = organizationUsers.map((user: any) => user.id)
-    editedItem.value.users = selectedUsers.value
+    if (editedItem.value) {
+      editedItem.value.users = selectedUsers.value
+    }
     
     // Ajouter les utilisateurs actuels à la liste des utilisateurs disponibles
     users.value = organizationUsers.map((user: any) => ({
@@ -469,12 +460,12 @@ const saveOrganization = async () => {
         await organizationsApi.updateOrganization(orgData.id, {
           ...orgData,
           users: orgData.users || []
-        })
+        } as OrganizationApiData)
       } else {
         await organizationsApi.createOrganization({
           ...orgData,
           users: orgData.users || []
-        })
+        } as OrganizationApiData)
       }
       await loadOrganizations()
       dashboardView.value.showForm = false

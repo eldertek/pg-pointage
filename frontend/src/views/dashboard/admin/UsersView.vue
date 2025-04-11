@@ -246,7 +246,7 @@
               }
             }"
           >
-            <template v-slot:chip="{ props, item }">
+            <template #chip="{ props, item }">
               <v-chip
                 v-bind="props"
                 :text="organizationsMap.get(item.value) || item.title"
@@ -271,7 +271,7 @@
             ]"
             autocomplete="new-password"
           >
-            <template v-slot:append-inner>
+            <template #append-inner>
               <v-btn
                 icon
                 variant="text"
@@ -297,7 +297,7 @@
             ]"
             autocomplete="new-password"
           >
-            <template v-slot:append-inner>
+            <template #append-inner>
               <v-btn
                 icon
                 variant="text"
@@ -350,7 +350,7 @@
             persistent-hint
             autocomplete="new-password"
           >
-            <template v-slot:append-inner>
+            <template #append-inner>
               <v-btn
                 icon
                 variant="text"
@@ -376,7 +376,7 @@
             persistent-hint
             autocomplete="new-password"
           >
-            <template v-slot:append-inner>
+            <template #append-inner>
               <v-btn
                 icon
                 variant="text"
@@ -396,7 +396,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { usersApi, organizationsApi } from '@/services/api'
-import type { User, UserRequest, Organization } from '@/types/api'
+import type { Organization } from '@/types/api'
 import { RoleEnum, ScanPreferenceEnum } from '@/types/api'
 import { useAuthStore } from '@/stores/auth'
 import DashboardView from '@/components/dashboard/DashboardView.vue'
@@ -424,12 +424,6 @@ interface ExtendedUser {
   date_joined?: string;
   employee_id?: string;
   sites?: { id: number; name: string }[];
-}
-
-// Interface pour les organisations dans le formulaire
-interface FormOrganization {
-  id: number;
-  name: string;
 }
 
 // Interface pour le formulaire utilisateur
@@ -825,9 +819,14 @@ const saveUser = async () => {
         return
       }
 
-      // S'assurer que les organisations sont un tableau valide
-      const organizations = Array.isArray(userData.organizations) ? userData.organizations : [];
+      // Utiliser les organisations sélectionnées dans le v-select
+      const organizations = Array.isArray(selectedOrganizations.value) ? [...selectedOrganizations.value] : [];
       console.log('[Users][Save] Organisations à envoyer:', JSON.stringify(organizations))
+
+      // S'assurer que editedItem.organizations est à jour avec selectedOrganizations
+      if (editedItem.value) {
+        editedItem.value.organizations = organizations;
+      }
 
       // Générer les noms d'organisations basés sur les IDs sélectionnés
       userData.organizations_names = organizations.map(orgId => 

@@ -283,6 +283,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         if organizations:
             print(f"[DEBUG] Ajout des organisations: {organizations}")
             user.organizations.set(organizations)
+            user.save()  # Sauvegarder après l'ajout des organisations
 
         return user
 

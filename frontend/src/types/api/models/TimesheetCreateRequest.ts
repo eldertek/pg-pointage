@@ -7,9 +7,10 @@ import type { EntryTypeEnum } from './EntryTypeEnum';
  * Serializer pour la création de pointages
  */
 export type TimesheetCreateRequest = {
-    site_id: string;
-    site: number;
-    entry_type: EntryTypeEnum;
+    site_id?: string;
+    entry_type?: EntryTypeEnum;
     timestamp?: string;
+    scan_type?: string;
+    employee?: number;
 };
 
