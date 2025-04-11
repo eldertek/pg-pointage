@@ -3,14 +3,6 @@
     <div v-if="!isDetailView" class="d-flex justify-space-between align-center mb-4">
       <PageTitle :level="1">Anomalies</PageTitle>
       <div class="d-flex align-center gap-2">
-        <v-switch
-          v-model="forceUpdate"
-          label="Forcer la mise à jour des statuts"
-          hide-details
-          density="compact"
-          color="warning"
-          inset
-        ></v-switch>
         <v-btn
           color="warning"
           prepend-icon="mdi-magnify-scan"
@@ -356,7 +348,6 @@ export default {
     const sitesStore = useSitesStore()
     const loading = ref(true)
     const scanning = ref(false)
-    const forceUpdate = ref(false)
 
     // Computed pour le site courant - priorité au siteId passé en prop
     const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
@@ -544,7 +535,7 @@ export default {
       try {
         scanning.value = true
         const params = buildQueryParams()
-        const response = await timesheetsApi.scanAnomalies(params, forceUpdate.value)
+        const response = await timesheetsApi.scanAnomalies(params)
 
         // Afficher une notification de succès
         if (response.data) {
@@ -556,12 +547,6 @@ export default {
             message = count > 0
               ? `${count} anomalie${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''} et créée${count > 1 ? 's' : ''}.`
               : 'Aucune nouvelle anomalie détectée.'
-          }
-
-          // Ajouter des informations sur les pointages mis à jour si force_update était activé
-          if (response.data.force_update && response.data.timesheets_updated !== undefined) {
-            const count = response.data.timesheets_updated
-            message += ` ${count} pointage${count > 1 ? 's' : ''} mis à jour.`
           }
 
           toast.success(message)
@@ -823,7 +808,6 @@ export default {
       currentSiteId,
       formatDate,
       formatTime,
-      forceUpdate,
       // Nouvelles variables et fonctions pour le dialog de détails
       showDetailsDialog,
       selectedAnomaly,
