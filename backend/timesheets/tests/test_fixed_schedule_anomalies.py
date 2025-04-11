@@ -749,44 +749,33 @@ class FixedScheduleAnomalyTestCase(TestCase):
         )
 
         # Employee clocks in at 9:00 (on time)
-        arrival_time = time(9, 0)
+        timestamp_in = self.monday_date.replace(hour=9, minute=0)
         arrival_timesheet = Timesheet.objects.create(
             employee=self.employee,
             site=self.site,
-            timestamp=self.monday_date.replace(hour=9, minute=0),
+            timestamp=timestamp_in,
             entry_type=Timesheet.EntryType.ARRIVAL,
             scan_type=Timesheet.ScanType.QR_CODE
         )
 
         # Employee clocks out at 10:00 (2 hours early from morning end time)
-        departure_time = time(10, 0)
+        timestamp_out = self.monday_date.replace(hour=10, minute=0)
         departure_timesheet = Timesheet.objects.create(
             employee=self.employee,
             site=self.site,
-            timestamp=self.monday_date.replace(hour=10, minute=0),
+            timestamp=timestamp_out,
             entry_type=Timesheet.EntryType.DEPARTURE,
             scan_type=Timesheet.ScanType.QR_CODE
         )
 
-        # Calculate early departure minutes (should be 120 minutes, not 240)
-        morning_end_time = time(12, 0)
-        expected_early_minutes = int((datetime.combine(self.monday_date.date(), morning_end_time) -
-                                   datetime.combine(self.monday_date.date(), departure_time)).total_seconds() / 60)
+        # Call the scan-anomalies API to detect anomalies
+        response = self._scan_anomalies()
 
-        # Manually set early departure flag and minutes
-        departure_timesheet.is_early_departure = True
-        departure_timesheet.early_departure_minutes = expected_early_minutes
-        departure_timesheet.save()
-
-        # Create anomaly for early departure
-        anomaly = self._create_anomaly(
-            anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-            minutes=expected_early_minutes,
-            description=f'Départ anticipé de {expected_early_minutes} minutes.',
-            timesheet=departure_timesheet
-        )
+        # Verify the response
+        self.assertEqual(response.status_code, 200)
 
         # Verify timesheet is created correctly
+        departure_timesheet.refresh_from_db()
         self.assertEqual(departure_timesheet.entry_type, Timesheet.EntryType.DEPARTURE)
         self.assertTrue(departure_timesheet.is_early_departure)
 
@@ -801,7 +790,13 @@ class FixedScheduleAnomalyTestCase(TestCase):
             anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE
         )
         self.assertEqual(anomalies.count(), 1)
-        self.assertEqual(anomalies.first().minutes, 120)
+
+        # Get the anomaly
+        anomaly = anomalies.first()
+
+        # Verify anomaly details
+        self.assertEqual(anomaly.minutes, 120)
+        self.assertEqual(anomaly.timesheet, departure_timesheet)
 
         # This test verifies that the early departure calculation is based on the end time
         # of the current shift period (morning end time) rather than the start time of the

@@ -816,11 +816,53 @@ const saveUser = async () => {
       const userData = editedItem.value as UserFormData
       console.log('[Users][Save] Données utilisateur:', JSON.stringify(userData))
 
-      // Vérifier la correspondance des mots de passe
-      if (!userData.id && userData.password !== confirmPassword.value) {
-        formErrors.value.confirm_password = ['Les mots de passe ne correspondent pas']
-        saving.value = false
-        return
+      // Vérification renforcée de la correspondance des mots de passe
+      if (!userData.id) { // Mode création
+        // Vérifier que le mot de passe est bien renseigné
+        if (!userData.password || userData.password.trim() === '') {
+          formErrors.value.password = ['Le mot de passe est obligatoire']
+          saving.value = false
+          return
+        }
+        
+        // Vérifier que la confirmation est bien renseignée
+        if (!confirmPassword.value || confirmPassword.value.trim() === '') {
+          formErrors.value.confirm_password = ['La confirmation du mot de passe est obligatoire']
+          saving.value = false
+          return
+        }
+        
+        // Vérifier que les deux valeurs correspondent exactement (comparaison stricte)
+        if (userData.password !== confirmPassword.value) {
+          console.log('[Users][Save] Erreur de correspondance des mots de passe:', {
+            password: userData.password,
+            confirmPassword: confirmPassword.value
+          })
+          formErrors.value.confirm_password = ['Les mots de passe ne correspondent pas exactement']
+          saving.value = false
+          return
+        }
+      } else { // Mode modification
+        // Vérifier si un nouveau mot de passe a été fourni
+        if (userData.password && userData.password.trim() !== '') {
+          // Si on a un mot de passe, on doit vérifier la confirmation
+          if (!confirmPassword.value || confirmPassword.value.trim() === '') {
+            formErrors.value.confirm_password = ['La confirmation du mot de passe est obligatoire']
+            saving.value = false
+            return
+          }
+          
+          // Vérifier que les deux valeurs correspondent exactement
+          if (userData.password !== confirmPassword.value) {
+            console.log('[Users][Save] Erreur de correspondance des mots de passe en mode édition:', {
+              password: userData.password,
+              confirmPassword: confirmPassword.value
+            })
+            formErrors.value.confirm_password = ['Les mots de passe ne correspondent pas exactement']
+            saving.value = false
+            return
+          }
+        }
       }
 
       // Utiliser les organisations sélectionnées dans le v-select
