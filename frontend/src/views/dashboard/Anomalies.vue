@@ -499,10 +499,23 @@ export default {
       error.value = null
       try {
         const params = buildQueryParams()
+        console.log('Requête API - paramètres:', params)
+        
+        // Afficher les données complètes de la requête
+        console.log('URL de la requête API:', `/timesheets/anomalies/?${new URLSearchParams(params).toString()}`)
+        
         const response = await timesheetsApi.getAnomalies(params)
         console.log('Réponse API anomalies:', response.data)
+        console.log('En-têtes de la réponse:', response.headers)
+        console.log('URL de la requête exécutée:', response.request?.responseURL)
 
         if (response.data?.results) {
+          // Pour chaque anomalie, afficher le site associé pour vérifier le filtrage
+          console.log('Sites des anomalies retournées:')
+          response.data.results.forEach(anomaly => {
+            console.log(`Anomalie ID ${anomaly.id} - Site: ${anomaly.site} (${anomaly.site_name})`)
+          })
+          
           anomalies.value = response.data.results.map(anomaly => ({
             ...anomaly,
             formatted_date: new Date(anomaly.created_at).toLocaleString('fr-FR', {
