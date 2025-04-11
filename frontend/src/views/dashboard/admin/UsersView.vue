@@ -5,6 +5,7 @@
     :form-title="editedItem?.id ? 'Modifier un utilisateur' : 'Nouvel utilisateur'"
     :saving="saving"
     @save="saveUser"
+    @cancel="resetFormState"
   >
     <!-- Filtres -->
     <template #filters>
@@ -239,16 +240,16 @@
             no-data-text="Aucune organisation disponible"
             :return-object="false"
             @update:model-value="(val: number[]) => {
-              if (editedItem.value && Array.isArray(val)) {
-                editedItem.value.organizations = [...val];
+              if (editedItem && Array.isArray(val)) {
+                editedItem.organizations = [...val];
                 console.log('[Debug][v-select] Nouvelle valeur:', JSON.stringify(val));
-                console.log('[Debug][v-select] État de editedItem:', JSON.stringify(editedItem.value.organizations));
+                console.log('[Debug][v-select] État de editedItem:', JSON.stringify(editedItem.organizations));
               }
             }"
           >
-            <template #chip="{ props, item }">
+            <template #chip="{ props: slotProps, item }">
               <v-chip
-                v-bind="props"
+                v-bind="slotProps"
                 :text="organizationsMap.get(item.value) || item.title"
                 color="primary"
                 size="small"
@@ -726,6 +727,9 @@ onMounted(async () => {
 });
 
 const openDialog = (item?: ExtendedUser) => {
+  // Réinitialiser complètement l'état du formulaire
+  resetFormState();
+  
   if (item) {
     console.log('[Users][OpenDialog] Item organizations:', JSON.stringify(item.organizations));
     console.log('[Users][OpenDialog] Item organizations_names:', JSON.stringify(item.organizations_names));
@@ -846,7 +850,9 @@ const saveUser = async () => {
       }
       await loadUsers()
       dashboardView.value.showForm = false
-      confirmPassword.value = '' // Réinitialiser le champ de confirmation
+      
+      // Réinitialiser complètement l'état du formulaire après sauvegarde réussie
+      resetFormState();
     }
   } catch (error: any) {
     console.error('[Users][Error] Erreur lors de la sauvegarde:', error)
@@ -944,6 +950,28 @@ const toggleStatus = async (item: ExtendedUser) => {
       state.show = false
       state.loading = false
     }
+  }
+}
+
+// Fonction pour réinitialiser complètement l'état du formulaire
+const resetFormState = () => {
+  // Réinitialiser les erreurs
+  formErrors.value = {};
+  
+  // Réinitialiser le mot de passe et sa confirmation
+  confirmPassword.value = '';
+  showPassword.value = false;
+  showConfirmPassword.value = false;
+  
+  // Réinitialiser la sélection des organisations
+  selectedOrganizations.value = [];
+  
+  // Réinitialiser l'item édité
+  editedItem.value = null;
+  
+  // Si le formulaire existe, réinitialiser sa validation
+  if (form.value?.resetValidation) {
+    form.value.resetValidation();
   }
 }
 </script>
