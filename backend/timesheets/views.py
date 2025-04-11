@@ -497,6 +497,7 @@ class ScanAnomaliesSerializer(serializers.Serializer):
     end_date = serializers.DateField(required=False)
     site = serializers.IntegerField(required=False)
     employee = serializers.IntegerField(required=False)
+    force_update = serializers.BooleanField(required=False, default=False, help_text="Si True, force la réévaluation de tous les statuts des pointages existants")
 
 class TimesheetReportGenerateSerializer(serializers.Serializer):
     """Serializer pour la génération de rapports de pointage"""
@@ -719,6 +720,41 @@ class ScanAnomaliesView(generics.CreateAPIView):
 
                     # Passer au jour suivant
                     current_date += timedelta(days=1)
+
+            # Récupérer le paramètre force_update
+            force_update = serializer.validated_data.get('force_update', False)
+
+            # Si force_update est True, réinitialiser les statuts des pointages
+            if force_update:
+                logging.getLogger(__name__).info("Force update activé : réinitialisation des statuts des pointages")
+                # Réinitialiser les statuts des pointages
+                for ts in timesheets:
+                    # Réinitialiser les statuts de retard et départ anticipé
+                    if ts.entry_type == Timesheet.EntryType.ARRIVAL:
+                        ts.is_late = False
+                        ts.late_minutes = 0
+                    elif ts.entry_type == Timesheet.EntryType.DEPARTURE:
+                        ts.is_early_departure = False
+                        ts.early_departure_minutes = 0
+                    # Réinitialiser le statut hors planning
+                    ts.is_out_of_schedule = False
+                    ts.save()
+
+                # Supprimer toutes les anomalies existantes pour les pointages concernés
+                if start_date and end_date:
+                    anomalies_filter = {}
+                    if site_id:
+                        anomalies_filter['site_id'] = site_id
+                    if employee_id:
+                        anomalies_filter['employee_id'] = employee_id
+
+                    deleted_count, _ = Anomaly.objects.filter(
+                        date__gte=start_date,
+                        date__lte=end_date,
+                        **anomalies_filter
+                    ).delete()
+
+                    logging.getLogger(__name__).info(f"Suppression de {deleted_count} anomalies existantes")
 
             # Filtrer les pointages hors ligne
             online_timesheets = [ts for ts in timesheets if not (hasattr(ts, 'created_offline') and ts.created_offline)]
@@ -1399,10 +1435,19 @@ class ScanAnomaliesView(generics.CreateAPIView):
                             # Pas de planning pour ce jour
                             continue
 
-            return Response({
+            # Préparer la réponse
+            response_data = {
                 'message': f'{anomalies_created} anomalies détectées',
                 'anomalies_created': anomalies_created
-            })
+            }
+
+            # Si force_update était activé, ajouter des informations sur les pointages mis à jour
+            if serializer.validated_data.get('force_update', False):
+                response_data['force_update'] = True
+                response_data['timesheets_updated'] = len(timesheets)
+                response_data['message'] = f'{anomalies_created} anomalies détectées, {len(timesheets)} pointages mis à jour'
+
+            return Response(response_data)
 
         except Exception as e:
             logger = logging.getLogger(__name__)

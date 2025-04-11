@@ -2,14 +2,22 @@
   <div>
     <div v-if="!isDetailView" class="d-flex justify-space-between align-center mb-4">
       <PageTitle :level="1">Anomalies</PageTitle>
-      <v-btn
-        color="warning"
-        prepend-icon="mdi-magnify-scan"
-        :loading="scanning"
-        @click="scanForAnomalies"
-      >
-        Scanner les anomalies
-      </v-btn>
+      <div class="d-flex align-center gap-2">
+        <v-checkbox
+          v-model="forceUpdate"
+          label="Forcer la mise à jour des statuts"
+          hide-details
+          density="compact"
+        ></v-checkbox>
+        <v-btn
+          color="warning"
+          prepend-icon="mdi-magnify-scan"
+          :loading="scanning"
+          @click="scanForAnomalies"
+        >
+          Scanner les anomalies
+        </v-btn>
+      </div>
     </div>
 
     <v-card v-if="!isDetailView" class="mb-4">
@@ -346,6 +354,7 @@ export default {
     const sitesStore = useSitesStore()
     const loading = ref(true)
     const scanning = ref(false)
+    const forceUpdate = ref(false)
 
     // Computed pour le site courant - priorité au siteId passé en prop
     const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
@@ -533,14 +542,25 @@ export default {
       try {
         scanning.value = true
         const params = buildQueryParams()
-        const response = await timesheetsApi.scanAnomalies(params)
+        const response = await timesheetsApi.scanAnomalies(params, forceUpdate.value)
 
         // Afficher une notification de succès
-        if (response.data?.anomalies_count !== undefined) {
-          const count = response.data.anomalies_count
-          const message = count > 0
-            ? `${count} anomalie${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''} et créée${count > 1 ? 's' : ''}.`
-            : 'Aucune nouvelle anomalie détectée.'
+        if (response.data) {
+          let message = ''
+
+          // Message pour les anomalies
+          if (response.data.anomalies_created !== undefined) {
+            const count = response.data.anomalies_created
+            message = count > 0
+              ? `${count} anomalie${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''} et créée${count > 1 ? 's' : ''}.`
+              : 'Aucune nouvelle anomalie détectée.'
+          }
+
+          // Ajouter des informations sur les pointages mis à jour si force_update était activé
+          if (response.data.force_update && response.data.timesheets_updated !== undefined) {
+            const count = response.data.timesheets_updated
+            message += ` ${count} pointage${count > 1 ? 's' : ''} mis à jour.`
+          }
 
           toast.success(message)
         }
@@ -801,6 +821,7 @@ export default {
       currentSiteId,
       formatDate,
       formatTime,
+      forceUpdate,
       // Nouvelles variables et fonctions pour le dialog de détails
       showDetailsDialog,
       selectedAnomaly,

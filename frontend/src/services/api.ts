@@ -627,9 +627,12 @@ const timesheetsApi = {
     api.patch(`/timesheets/anomalies/${id}/`, convertKeysToSnakeCase(data)),
 
   // Scan for anomalies
-  scanAnomalies: (params: any = {}) => {
+  scanAnomalies: (params: any = {}, forceUpdate: boolean = false) => {
     const queryParams = convertKeysToSnakeCase(params);
-    return api.post('/timesheets/scan-anomalies/', { params: queryParams });
+    return api.post('/timesheets/scan-anomalies/', {
+      ...queryParams,
+      force_update: forceUpdate
+    });
   },
 
   // Get timesheets for a specific site
