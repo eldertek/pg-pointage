@@ -164,8 +164,6 @@ class AnomalyProcessor:
 
         is_ambiguous = False
         is_out_of_schedule = True
-        # Variable pour stocker le planning correspondant
-        schedule_for_anomaly = None
 
         if not site_employee_relations.exists():
             timesheet.is_out_of_schedule = True
@@ -266,12 +264,10 @@ class AnomalyProcessor:
                     if is_matching:
                         matching_schedules.append(schedule)
                         is_out_of_schedule = False
-                        schedule_for_anomaly = schedule
 
                 elif schedule.schedule_type == Schedule.ScheduleType.FREQUENCY:
                     matching_schedules.append(schedule)
                     is_out_of_schedule = False
-                    schedule_for_anomaly = schedule
 
                     if entry_type == Timesheet.EntryType.DEPARTURE:
                         expected_duration = schedule_detail.frequency_duration
@@ -342,7 +338,6 @@ class AnomalyProcessor:
         if len(matching_schedules) > 1:
             is_ambiguous = True
             most_recent_schedule = max(matching_schedules, key=lambda s: s.created_at)
-            schedule_for_anomaly = most_recent_schedule
 
         timesheet.is_out_of_schedule = is_out_of_schedule
         timesheet.is_ambiguous = is_ambiguous
