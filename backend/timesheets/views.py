@@ -895,6 +895,11 @@ class ScanAnomaliesView(generics.CreateAPIView):
                 employee = day_timesheets[0].employee
                 site = day_timesheets[0].site
 
+                # Afficher les pointages pour débogage
+                logging.getLogger(__name__).info(f"Traitement de {len(day_timesheets)} pointages pour {employee.get_full_name()} le {date} au site {site.name}")
+                for ts in day_timesheets:
+                    logging.getLogger(__name__).info(f"  - Pointage {ts.id}: {ts.get_entry_type_display()} à {timezone.localtime(ts.timestamp).strftime('%H:%M:%S')}, is_late={ts.is_late}, late_minutes={ts.late_minutes}")
+
                 # 0. Vérifier si les pointages sont hors planning
                 for ts in day_timesheets:
                     # Ignorer les pointages hors ligne
@@ -1106,6 +1111,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
                                 f"Retard: {arrival.late_minutes} minutes, Marge: {late_margin} minutes"
                             )
 
+                            # Forcer la création d'une anomalie pour les retards qui dépassent la marge
                             anomaly = Anomaly.objects.create(
                                 employee=employee,
                                 site=site,
@@ -1591,6 +1597,19 @@ class ScanAnomaliesView(generics.CreateAPIView):
                         except ScheduleDetail.DoesNotExist:
                             # Pas de planning pour ce jour
                             continue
+
+            # Afficher un résumé des anomalies créées
+            logging.getLogger(__name__).info(f"Résumé du scan: {anomalies_created} anomalies créées")
+
+            # Vérifier les anomalies de retard pour débogage
+            late_anomalies = Anomaly.objects.filter(
+                date__gte=start_date,
+                date__lte=end_date,
+                anomaly_type=Anomaly.AnomalyType.LATE
+            )
+            logging.getLogger(__name__).info(f"Nombre d'anomalies de retard après le scan: {late_anomalies.count()}")
+            for anomaly in late_anomalies:
+                logging.getLogger(__name__).info(f"  - Anomalie {anomaly.id}: {anomaly.employee.get_full_name()} le {anomaly.date} au site {anomaly.site.name}, retard de {anomaly.minutes} minutes")
 
             # Préparer la réponse
             response_data = {
