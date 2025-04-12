@@ -13,7 +13,10 @@ from users.models import User
 class Command(BaseCommand):
     help = '''
     Répare les pointages et les anomalies en supprimant toutes les anomalies existantes,
-    en recalculant le statut des pointages et en recherchant les nouvelles anomalies.
+    en recréant les pointages dans l'ordre chronologique et en recherchant les nouvelles anomalies.
+
+    Par défaut, la commande supprime et recrée les pointages dans l'ordre chronologique
+    pour éviter les problèmes de validation liés à l'ordre des pointages.
 
     Exemples d'utilisation :
 
@@ -34,6 +37,15 @@ class Command(BaseCommand):
 
     # Afficher des informations détaillées pendant l'exécution
     python manage.py timesheets_repair --verbose
+
+    # Ignorer les validations lors de la sauvegarde des pointages
+    python manage.py timesheets_repair --skip-validation
+
+    # Ignorer les erreurs et continuer le traitement
+    python manage.py timesheets_repair --ignore-errors
+
+    # Ne pas supprimer et recréer les pointages (utiliser le recalcul simple)
+    python manage.py timesheets_repair --no-recreate-entries
     '''
 
     def _is_timesheet_matching_schedule(self, timesheet, schedule):
@@ -165,6 +177,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Ignorer les validations lors de la sauvegarde des pointages'
         )
+        parser.add_argument(
+            '--no-recreate-entries',
+            action='store_true',
+            help='Ne pas supprimer et recréer les pointages (utiliser le recalcul simple)'
+        )
 
     def handle(self, *args, **options):
         # Configurer le logger
@@ -218,9 +235,15 @@ class Command(BaseCommand):
                 anomalies_count = self._delete_anomalies(start_date, end_date, options['site'], options['employee'], options['dry_run'])
                 self.stdout.write(self.style.SUCCESS(f"{anomalies_count} anomalies supprimées"))
 
-                # 2. Recalculer le statut de tous les pointages
-                processed_count = self._recalculate_timesheet_status(start_date, end_date, options['site'], options['employee'], options['dry_run'])
-                self.stdout.write(self.style.SUCCESS(f"{processed_count} pointages recalculés"))
+                # 2. Par défaut, supprimer et recréer les pointages, sauf si l'option no-recreate-entries est activée
+                if options.get('no_recreate_entries', False):
+                    # Recalculer le statut des pointages existants
+                    processed_count = self._recalculate_timesheet_status(start_date, end_date, options['site'], options['employee'], options['dry_run'])
+                    self.stdout.write(self.style.SUCCESS(f"{processed_count} pointages recalculés"))
+                else:
+                    # Supprimer et recréer les pointages
+                    processed_count = self._recreate_timesheet_entries(start_date, end_date, options['site'], options['employee'], options['dry_run'])
+                    self.stdout.write(self.style.SUCCESS(f"{processed_count} pointages recréés"))
 
                 # 3. Rechercher les nouvelles anomalies
                 new_anomalies_count = self._scan_anomalies(start_date, end_date, options['site'], options['employee'], options['dry_run'])
@@ -254,6 +277,140 @@ class Command(BaseCommand):
             query.delete()
 
         return count
+
+    def _recreate_timesheet_entries(self, start_date, end_date, site_id=None, employee_id=None, dry_run=False):
+        """Supprime et recrée les pointages dans l'ordre chronologique"""
+        # Récupérer tous les pointages pour la période spécifiée
+        query = Timesheet.objects.filter(timestamp__date__gte=start_date, timestamp__date__lte=end_date)
+
+        if site_id:
+            query = query.filter(site_id=site_id)
+
+        if employee_id:
+            query = query.filter(employee_id=employee_id)
+
+        # Ordonner les pointages par timestamp croissant (du plus ancien au plus récent)
+        query = query.order_by('timestamp')
+
+        # Stocker les pointages en mémoire avant de les supprimer
+        timesheet_data = []
+        for timesheet in query:
+            # Stocker toutes les données nécessaires pour recréer le pointage
+            timesheet_data.append({
+                'employee_id': timesheet.employee_id,
+                'site_id': timesheet.site_id,
+                'timestamp': timesheet.timestamp,
+                'entry_type': timesheet.entry_type,
+                'scan_type': timesheet.scan_type,
+                'latitude': timesheet.latitude,
+                'longitude': timesheet.longitude,
+                'created_at': timesheet.created_at,
+                'updated_at': timesheet.updated_at
+            })
+
+        # Compter le nombre de pointages à recréer
+        count = len(timesheet_data)
+        self.stdout.write(f"Suppression et recréation de {count} pointages")
+
+        if dry_run:
+            return count
+
+        # Supprimer tous les pointages
+        query.delete()
+        self.stdout.write(f"{count} pointages supprimés")
+
+        # Recréer les pointages dans l'ordre chronologique
+        processed_count = 0
+        error_count = 0
+
+        # Désactiver temporairement les signaux pour éviter les effets secondaires
+        from django.db.models.signals import pre_save, post_save
+        from django.dispatch import receiver
+
+        # Sauvegarder les récepteurs actuels
+        saved_pre_save_receivers = pre_save.receivers
+        saved_post_save_receivers = post_save.receivers
+
+        # Vider les récepteurs
+        pre_save.receivers = []
+        post_save.receivers = []
+
+        try:
+            # Recréer les pointages
+            for data in timesheet_data:
+                try:
+                    # Créer un nouveau pointage avec les données sauvegardées
+                    timesheet = Timesheet(
+                        employee_id=data['employee_id'],
+                        site_id=data['site_id'],
+                        timestamp=data['timestamp'],
+                        entry_type=data['entry_type'],
+                        scan_type=data['scan_type'],
+                        latitude=data['latitude'],
+                        longitude=data['longitude']
+                    )
+
+                    # Sauvegarder sans validation
+                    if self.skip_validation:
+                        # Sauvegarder directement sans appeler clean()
+                        timesheet.save()
+                        # Mettre à jour les champs created_at et updated_at
+                        from django.db import connection
+                        cursor = connection.cursor()
+                        cursor.execute(
+                            "UPDATE timesheets_timesheet SET created_at = %s, updated_at = %s "
+                            "WHERE id = %s",
+                            [data['created_at'], data['updated_at'], timesheet.id]
+                        )
+                    else:
+                        # Sauvegarder normalement avec validation
+                        timesheet.save()
+
+                    # Appeler la logique de correspondance de planning
+                    from timesheets.views import TimesheetCreateView
+                    view = TimesheetCreateView()
+                    view._match_schedule_and_check_anomalies(timesheet)
+
+                    # Mettre à jour le statut du pointage
+                    if self.skip_validation:
+                        # Sauvegarder directement sans appeler clean()
+                        from django.db import connection
+                        cursor = connection.cursor()
+                        cursor.execute(
+                            "UPDATE timesheets_timesheet SET is_late = %s, late_minutes = %s, "
+                            "is_early_departure = %s, early_departure_minutes = %s, "
+                            "is_out_of_schedule = %s, is_ambiguous = %s "
+                            "WHERE id = %s",
+                            [timesheet.is_late, timesheet.late_minutes,
+                            timesheet.is_early_departure, timesheet.early_departure_minutes,
+                            timesheet.is_out_of_schedule, timesheet.is_ambiguous,
+                            timesheet.id]
+                        )
+                    else:
+                        # Sauvegarder normalement avec validation
+                        timesheet.save()
+
+                    processed_count += 1
+                    self.stdout.write(f"Pointage recréé: {timesheet.timestamp} - {timesheet.get_entry_type_display()}")
+
+                except Exception as e:
+                    error_count += 1
+                    error_message = str(e)
+                    self.stdout.write(self.style.ERROR(f"Erreur lors de la recréation du pointage: {error_message}"))
+
+                    # Si l'option ignore-errors n'est pas activée, lever l'exception
+                    if not self.ignore_errors:
+                        raise
+
+        finally:
+            # Restaurer les récepteurs
+            pre_save.receivers = saved_pre_save_receivers
+            post_save.receivers = saved_post_save_receivers
+
+        if error_count > 0:
+            self.stdout.write(self.style.WARNING(f"{error_count} erreurs rencontrées lors de la recréation des pointages"))
+
+        return processed_count
 
     def _recalculate_timesheet_status(self, start_date, end_date, site_id=None, employee_id=None, dry_run=False):
         """Recalcule le statut de tous les pointages dans la période spécifiée"""
