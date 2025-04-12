@@ -108,6 +108,8 @@ class Command(BaseCommand):
         """Trouve le planning associé à un employé et un site pour une date donnée."""
         from sites.models import SiteEmployee, ScheduleDetail
 
+        self.stdout.write(f"Recherche du planning pour {employee.get_full_name()} au site {site.name} le {date}")
+
         # Récupérer les relations site-employé pour cet employé et ce site
         site_employee_relations = SiteEmployee.objects.filter(
             site=site,
@@ -115,11 +117,16 @@ class Command(BaseCommand):
             is_active=True
         ).select_related('schedule')
 
+        self.stdout.write(f"  {site_employee_relations.count()} relations site-employé trouvées")
+
         # Parcourir les relations pour trouver un planning actif pour cette date
         for site_employee in site_employee_relations:
             schedule = site_employee.schedule
             if not schedule or not schedule.is_active:
+                self.stdout.write(f"  Relation {site_employee.id}: Pas de planning actif")
                 continue
+
+            self.stdout.write(f"  Relation {site_employee.id}: Planning {schedule.id} - Type: {schedule.schedule_type}")
 
             # Vérifier si le planning a des détails pour ce jour
             try:
@@ -127,13 +134,16 @@ class Command(BaseCommand):
                     schedule=schedule,
                     day_of_week=date.weekday()
                 )
+                self.stdout.write(f"  Détails du planning trouvés pour le jour {date.weekday()} - Matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}, Après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
                 # Planning trouvé pour ce jour
                 return schedule
             except ScheduleDetail.DoesNotExist:
+                self.stdout.write(f"  Pas de détails de planning pour le jour {date.weekday()}")
                 # Pas de planning pour ce jour
                 continue
 
         # Aucun planning trouvé
+        self.stdout.write(f"  Aucun planning correspondant trouvé")
         return None
 
     def add_arguments(self, parser):
@@ -369,7 +379,9 @@ class Command(BaseCommand):
                     # Appeler la logique de correspondance de planning
                     from timesheets.views import TimesheetCreateView
                     view = TimesheetCreateView()
-                    view._match_schedule_and_check_anomalies(timesheet)
+                    self.stdout.write(f"Appel de _match_schedule_and_check_anomalies pour {timesheet.employee.get_full_name()} - {timesheet.timestamp} - {timesheet.get_entry_type_display()}")
+                    is_ambiguous = view._match_schedule_and_check_anomalies(timesheet)
+                    self.stdout.write(f"Résultat: is_ambiguous={is_ambiguous}, is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}, is_early_departure={timesheet.is_early_departure}, early_departure_minutes={timesheet.early_departure_minutes}")
 
                     # Mettre à jour le statut du pointage
                     if self.skip_validation:
@@ -627,9 +639,47 @@ class Command(BaseCommand):
                         is_early_departure=True
                     )
 
+                    # Débogage pour tous les pointages de départ
+                    all_departures = timesheets.filter(
+                        employee_id=employee_id,
+                        site_id=site_id,
+                        entry_type=Timesheet.EntryType.DEPARTURE
+                    )
+                    employee = User.objects.get(pk=employee_id)
+                    self.stdout.write(f"Débogage départs pour {employee.get_full_name()} le {date}:")
+                    for dep in all_departures:
+                        self.stdout.write(f"  Départ à {dep.timestamp.time()} - Anticipé: {dep.is_early_departure} - Minutes: {dep.early_departure_minutes}")
+
                     for departure in departures:
                         # Vérifier si le départ anticipé est supérieur à la marge
                         site = Site.objects.get(pk=site_id)
+
+                        # Débogage détaillé pour les départs anticipés
+                        employee = User.objects.get(pk=employee_id)
+                        self.stdout.write(f"Débogage départ anticipé: {employee.get_full_name()} - {departure.timestamp} - Anticipé: {departure.early_departure_minutes} minutes - Marge: {site.early_departure_margin} minutes")
+
+                        # Vérifier le planning associé
+                        site_employee_relations = SiteEmployee.objects.filter(
+                            site_id=site_id,
+                            employee_id=employee_id,
+                            is_active=True
+                        ).select_related('schedule')
+
+                        for site_employee in site_employee_relations:
+                            if site_employee.schedule:
+                                schedule = site_employee.schedule
+                                self.stdout.write(f"  Planning associé: {schedule.id} - Type: {schedule.schedule_type}")
+
+                                # Vérifier les détails du planning pour ce jour
+                                try:
+                                    schedule_detail = ScheduleDetail.objects.get(
+                                        schedule=schedule,
+                                        day_of_week=date.weekday()
+                                    )
+                                    self.stdout.write(f"  Détails du planning: Jour {date.weekday()} - Matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}, Après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
+                                except ScheduleDetail.DoesNotExist:
+                                    self.stdout.write(f"  Pas de détails de planning pour le jour {date.weekday()}")
+
                         if departure.early_departure_minutes > site.early_departure_margin:
                             # Créer une anomalie de départ anticipé (utiliser get_or_create pour éviter les doublons)
                             # Trouver le planning associé à l'employé et au site
