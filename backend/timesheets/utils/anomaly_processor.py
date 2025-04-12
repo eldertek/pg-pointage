@@ -380,13 +380,40 @@ class AnomalyProcessor:
 
         created_anomaly = None
         if not existing_anomaly and late_minutes > late_margin:
+            # Calculer le retard effectif (au-delà de la marge de tolérance)
+            effective_late_minutes = late_minutes - late_margin
+
+            # Trouver les détails du planning pour ce jour
+            try:
+                schedule_detail = ScheduleDetail.objects.get(
+                    schedule=schedule,
+                    day_of_week=timesheet.timestamp.date().weekday()
+                )
+
+                # Déterminer l'heure de début prévue
+                expected_time = None
+                local_time = timezone.localtime(timesheet.timestamp).time()
+
+                if schedule.schedule_type == 'FIXED':
+                    # Déterminer si c'est un retard du matin ou de l'après-midi
+                    if schedule_detail.start_time_1 and schedule_detail.start_time_1 <= local_time <= schedule_detail.end_time_1:
+                        expected_time = schedule_detail.start_time_1
+                    elif schedule_detail.start_time_2 and schedule_detail.start_time_2 <= local_time <= schedule_detail.end_time_2:
+                        expected_time = schedule_detail.start_time_2
+
+                description = f'Retard de {effective_late_minutes} minute(s) au-delà de la marge de tolérance ({late_margin} min).'
+                if expected_time:
+                    description += f' Heure prévue: {expected_time}, heure effective: {local_time}.'
+            except ScheduleDetail.DoesNotExist:
+                description = f'Retard de {late_minutes} minutes.'
+
             anomaly = Anomaly.objects.create(
                 employee=timesheet.employee,
                 site=timesheet.site,
                 timesheet=timesheet,
                 date=timesheet.timestamp.date(),
                 anomaly_type=Anomaly.AnomalyType.LATE,
-                description=f'Retard de {late_minutes} minutes.',
+                description=description,
                 minutes=late_minutes,
                 status=Anomaly.AnomalyStatus.PENDING,
                 schedule=schedule
@@ -394,7 +421,7 @@ class AnomalyProcessor:
             anomaly.related_timesheets.add(timesheet)
             self._anomalies_detected = True
             created_anomaly = anomaly
-            self.logger.info(f"Anomalie créée: LATE - Retard de {late_minutes} minutes (marge: {late_margin}min) pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+            self.logger.info(f"Anomalie créée: LATE - {description} pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
 
         return created_anomaly
 
@@ -447,19 +474,51 @@ class AnomalyProcessor:
 
         created_anomaly = None
         if not existing_anomaly:
+            # Vérifier si l'employé a des plannings actifs sur ce site
+            site_employee_relations = SiteEmployee.objects.filter(
+                site=timesheet.site,
+                employee=timesheet.employee,
+                is_active=True
+            ).select_related('schedule')
+
+            description = "Pointage hors planning: "
+
+            if not site_employee_relations.exists():
+                description += "l'employé n'est pas rattaché à ce site."
+            else:
+                active_schedules = [se.schedule for se in site_employee_relations if se.schedule and se.schedule.is_active]
+                if not active_schedules:
+                    description += "l'employé n'a pas de planning actif sur ce site."
+                else:
+                    # Vérifier si des plannings existent pour ce jour de la semaine
+                    current_weekday = timesheet.timestamp.date().weekday()
+                    schedules_with_details = []
+                    for schedule in active_schedules:
+                        try:
+                            detail = ScheduleDetail.objects.get(schedule=schedule, day_of_week=current_weekday)
+                            schedules_with_details.append(schedule)
+                        except ScheduleDetail.DoesNotExist:
+                            continue
+
+                    if not schedules_with_details:
+                        description += f"aucun planning n'est défini pour le jour {current_weekday} ({['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'][current_weekday]})."
+                    else:
+                        local_time = timezone.localtime(timesheet.timestamp).time()
+                        description += f"l'heure {local_time} ne correspond à aucune plage horaire définie dans les plannings de l'employé."
+
             anomaly = Anomaly.objects.create(
                 employee=timesheet.employee,
                 site=timesheet.site,
                 timesheet=timesheet,
                 date=timesheet.timestamp.date(),
                 anomaly_type=Anomaly.AnomalyType.OTHER,
-                description="Pointage hors planning: aucun planning correspondant trouvé.",
+                description=description,
                 status=Anomaly.AnomalyStatus.PENDING
             )
             anomaly.related_timesheets.add(timesheet)
             self._anomalies_detected = True
             created_anomaly = anomaly
-            self.logger.info(f"Anomalie créée: OTHER - Pointage hors planning pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+            self.logger.info(f"Anomalie créée: OTHER - Pointage hors planning pour {timesheet.employee.get_full_name()} à {timesheet.site.name} - {description}")
 
         return created_anomaly
 
