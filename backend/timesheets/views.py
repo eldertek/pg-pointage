@@ -1156,6 +1156,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
                         late_margin = site.late_margin
 
                     # Créer une anomalie si l'arrivée est en retard
+                    logger.debug(f"Vérification de retard pour {employee.get_full_name()} - timesheet.id={arrival.id}, is_late={arrival.is_late}, late_minutes={arrival.late_minutes}")
                     if arrival.is_late and arrival.late_minutes > 0:
                         # Créer une anomalie pour tous les retards, même ceux dans la marge
                         # Supprimer les anomalies existantes pour éviter les doublons
@@ -1172,6 +1173,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
                         if arrival.late_minutes <= late_margin:
                             # Ne pas créer d'anomalie si le retard est dans la marge
                             create_anomaly = False
+                            logger.info(f"Retard dans la marge de tolérance: {arrival.late_minutes} minutes (marge: {late_margin} minutes)")
 
                         if create_anomaly:
                             anomaly = Anomaly.objects.create(
