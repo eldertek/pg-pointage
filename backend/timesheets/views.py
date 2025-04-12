@@ -100,9 +100,13 @@ class TimesheetCreateView(generics.CreateAPIView):
         site = timesheet.site
         entry_type = timesheet.entry_type
         timestamp = timesheet.timestamp
-        current_date = timestamp.date()
+
+        # Convertir le timestamp en heure locale (Europe/Paris)
+        from django.utils import timezone
+        local_timestamp = timezone.localtime(timestamp)
+        current_date = local_timestamp.date()
         current_weekday = current_date.weekday()  # 0 = Lundi, 6 = Dimanche
-        current_time = timestamp.time()
+        current_time = local_timestamp.time()
 
         # Logger les informations pour le débogage
         logger = logging.getLogger(__name__)
@@ -1023,7 +1027,10 @@ class ScanAnomaliesView(generics.CreateAPIView):
 
                                 # Calculer le retard par rapport à l'heure de début
                                 from datetime import datetime
-                                arrival_time = arrival.timestamp.time()
+                                from django.utils import timezone
+                                # Convertir le timestamp en heure locale (Europe/Paris)
+                                local_timestamp = timezone.localtime(arrival.timestamp)
+                                arrival_time = local_timestamp.time()
 
                                 # Vérifier d'abord par rapport à la plage du matin
                                 if schedule_detail.start_time_1 and arrival_time > schedule_detail.start_time_1:

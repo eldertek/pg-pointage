@@ -378,8 +378,10 @@ class Command(BaseCommand):
 
                     # Appeler la logique de correspondance de planning
                     from timesheets.views import TimesheetCreateView
+                    from django.utils import timezone
                     view = TimesheetCreateView()
-                    self.stdout.write(f"Appel de _match_schedule_and_check_anomalies pour {timesheet.employee.get_full_name()} - {timesheet.timestamp} - {timesheet.get_entry_type_display()}")
+                    local_timestamp = timezone.localtime(timesheet.timestamp)
+                    self.stdout.write(f"Appel de _match_schedule_and_check_anomalies pour {timesheet.employee.get_full_name()} - {timesheet.timestamp} (heure locale: {local_timestamp}) - {timesheet.get_entry_type_display()}")
                     is_ambiguous = view._match_schedule_and_check_anomalies(timesheet)
                     self.stdout.write(f"Résultat: is_ambiguous={is_ambiguous}, is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}, is_early_departure={timesheet.is_early_departure}, early_departure_minutes={timesheet.early_departure_minutes}")
 
