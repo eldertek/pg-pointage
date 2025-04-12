@@ -240,22 +240,34 @@ class AnomalyProcessor:
                                     timesheet.early_departure_minutes = early_minutes
                                     self.logger.info(f"Départ anticipé détecté: {early_minutes} minutes manquantes")
 
-                                    # Créer une anomalie pour le départ anticipé en mode fréquence
-                                    anomaly = Anomaly.objects.create(
+                                    # Vérifier si une anomalie similaire existe déjà
+                                    existing_anomaly = Anomaly.objects.filter(
                                         employee=employee,
                                         site=site,
-                                        timesheet=timesheet,
                                         date=current_date,
                                         anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                        description=f'Durée insuffisante: {duration_minutes:.1f} minutes au lieu de {min_duration:.1f} minutes minimum (tolérance: {tolerance_percentage}%).',
-                                        minutes=early_minutes,
-                                        status=Anomaly.AnomalyStatus.PENDING,
-                                        schedule=schedule
-                                    )
-                                    anomaly.related_timesheets.add(timesheet)
-                                    self._anomalies_detected = True
-                                    created_anomalies.append(anomaly)
-                                    self.logger.info(f"Anomalie créée: EARLY_DEPARTURE (fréquence) - Durée insuffisante: {duration_minutes:.1f}min au lieu de {min_duration:.1f}min pour {employee.get_full_name()} à {site.name}")
+                                        minutes=early_minutes
+                                    ).first()
+
+                                    if not existing_anomaly:
+                                        # Créer une anomalie pour le départ anticipé en mode fréquence
+                                        anomaly = Anomaly.objects.create(
+                                            employee=employee,
+                                            site=site,
+                                            timesheet=timesheet,
+                                            date=current_date,
+                                            anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                                            description=f'Durée insuffisante: {duration_minutes:.1f} minutes au lieu de {min_duration:.1f} minutes minimum (tolérance: {tolerance_percentage}%).',
+                                            minutes=early_minutes,
+                                            status=Anomaly.AnomalyStatus.PENDING,
+                                            schedule=schedule
+                                        )
+                                        anomaly.related_timesheets.add(timesheet)
+                                        self._anomalies_detected = True
+                                        created_anomalies.append(anomaly)
+                                        self.logger.info(f"Anomalie créée: EARLY_DEPARTURE (fréquence) - Durée insuffisante: {duration_minutes:.1f}min au lieu de {min_duration:.1f}min pour {employee.get_full_name()} à {site.name}")
+                                    else:
+                                        self.logger.info(f"Anomalie existante trouvée pour la durée insuffisante de {employee.get_full_name()} à {site.name}, pas de création de doublon")
                                 else:
                                     self.logger.info(f"Durée suffisante: {duration_minutes:.1f} minutes >= {min_duration:.1f} minutes minimales requises")
 
@@ -280,12 +292,13 @@ class AnomalyProcessor:
 
     def _create_late_anomaly(self, timesheet, late_minutes, late_margin, schedule):
         """Crée une anomalie de retard"""
+        # Vérifier si une anomalie similaire existe déjà pour ce pointage ou cette date/employé/site
         existing_anomaly = Anomaly.objects.filter(
             employee=timesheet.employee,
             site=timesheet.site,
             date=timesheet.timestamp.date(),
             anomaly_type=Anomaly.AnomalyType.LATE,
-            timesheet=timesheet
+            minutes=late_minutes
         ).first()
 
         created_anomaly = None
@@ -310,12 +323,13 @@ class AnomalyProcessor:
 
     def _create_early_departure_anomaly(self, timesheet, early_minutes, early_departure_margin, schedule):
         """Crée une anomalie de départ anticipé"""
+        # Vérifier si une anomalie similaire existe déjà pour ce pointage ou cette date/employé/site
         existing_anomaly = Anomaly.objects.filter(
             employee=timesheet.employee,
             site=timesheet.site,
             date=timesheet.timestamp.date(),
             anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-            timesheet=timesheet
+            minutes=early_minutes
         ).first()
 
         created_anomaly = None
@@ -340,6 +354,7 @@ class AnomalyProcessor:
 
     def _create_out_of_schedule_anomaly(self, timesheet):
         """Crée une anomalie de pointage hors planning"""
+        # Vérifier si une anomalie similaire existe déjà pour ce pointage ou cette date/employé/site
         existing_anomaly = Anomaly.objects.filter(
             employee=timesheet.employee,
             site=timesheet.site,

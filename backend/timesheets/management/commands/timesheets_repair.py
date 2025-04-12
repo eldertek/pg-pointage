@@ -320,8 +320,10 @@ class Command(BaseCommand):
         count = query.count()
 
         if not dry_run:
-            # Au lieu de supprimer, on marque les anomalies comme ignorées
-            query.update(status=Anomaly.AnomalyStatus.IGNORED)
+            # Supprimer réellement les anomalies au lieu de les marquer comme ignorées
+            # pour éviter les doublons lors des exécutions répétées de la commande
+            query.delete()
+            self.stdout.write(self.style.SUCCESS(f"Suppression de {count} anomalies existantes"))
 
         return count
 
