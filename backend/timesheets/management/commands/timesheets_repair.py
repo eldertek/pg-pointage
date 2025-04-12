@@ -9,6 +9,8 @@ from timesheets.models import Timesheet, Anomaly
 from sites.models import Site, SiteEmployee, Schedule, ScheduleDetail
 from users.models import User
 from timesheets.views import ScanAnomaliesView
+from rest_framework.test import APIRequestFactory
+from rest_framework.serializers import ValidationError
 
 
 class Command(BaseCommand):
@@ -637,44 +639,76 @@ class Command(BaseCommand):
         self.stdout.write(f"Scan des anomalies avec les paramètres: start_date={start_date}, end_date={end_date}, site_id={site_id}, employee_id={employee_id}")
 
         try:
-            # Initialiser l'instance de la vue
-            scan_view = ScanAnomaliesView()
-            
-            # Préparer les données pour le scanner d'anomalies
-            data = {
-                'start_date': start_date,
-                'end_date': end_date,
-                'force_update': True  # Forcer la mise à jour même si des anomalies existent déjà
-            }
-            
-            if site_id:
-                data['site'] = site_id
-            
-            if employee_id:
-                data['employee'] = employee_id
+            # Construire la requête de base pour les pointages
+            timesheets = Timesheet.objects.all().order_by('employee', 'site', 'timestamp')
 
-            # Créer un serializer avec les données
-            serializer = scan_view.get_serializer(data=data)
-            serializer.is_valid(raise_exception=True)
+            # Appliquer les filtres
+            if start_date:
+                timesheets = timesheets.filter(timestamp__date__gte=start_date)
+            if end_date:
+                timesheets = timesheets.filter(timestamp__date__lte=end_date)
+            if site_id:
+                timesheets = timesheets.filter(site_id=site_id)
+            if employee_id:
+                timesheets = timesheets.filter(employee_id=employee_id)
+
+            # Supprimer les anomalies existantes dans la période spécifiée
+            anomalies_filter = {}
+            if site_id:
+                anomalies_filter['site_id'] = site_id
+            if employee_id:
+                anomalies_filter['employee_id'] = employee_id
+
+            deleted_count, _ = Anomaly.objects.filter(
+                date__gte=start_date,
+                date__lte=end_date,
+                **anomalies_filter
+            ).delete()
+
+            self.stdout.write(f"Suppression de {deleted_count} anomalies existantes pour recréation")
+
+            # Réinitialiser les statuts des pointages
+            for ts in timesheets:
+                # Réinitialiser les statuts de retard et départ anticipé
+                if ts.entry_type == Timesheet.EntryType.ARRIVAL:
+                    ts.is_late = False
+                    ts.late_minutes = 0
+                elif ts.entry_type == Timesheet.EntryType.DEPARTURE:
+                    ts.is_early_departure = False
+                    ts.early_departure_minutes = 0
+                # Réinitialiser le statut hors planning
+                ts.is_out_of_schedule = False
+                ts.save()
+
+            # Analyser les pointages pour détecter les anomalies
+            from timesheets.views import TimesheetCreateView
+            view = TimesheetCreateView()
+
+            # Trier les pointages par timestamp croissant (du plus ancien au plus récent)
+            timesheets = timesheets.order_by('timestamp')
+
+            anomalies_created = 0
             
-            # Simuler une requête avec les données validées
-            class MockRequest:
-                def __init__(self, data):
-                    self.data = data
+            # Recalculer le statut de chaque pointage
+            for timesheet in timesheets:
+                # Appliquer la logique de correspondance de planning
+                is_ambiguous = view._match_schedule_and_check_anomalies(timesheet)
+                timesheet.is_ambiguous = is_ambiguous
+                timesheet.save()
+
+            # Compter les anomalies après le scan
+            anomalies_after = Anomaly.objects.filter(
+                date__gte=start_date,
+                date__lte=end_date,
+                **anomalies_filter
+            )
             
-            request = MockRequest(serializer.validated_data)
-            scan_view.request = request
-            
-            # Exécuter la méthode post de la vue
-            result = scan_view.post(request)
-            
-            # Récupérer le nombre d'anomalies créées
-            anomalies_created = result.data.get('anomalies_created', 0)
+            anomalies_count = anomalies_after.count()
             
             # Afficher le résultat
-            self.stdout.write(f"Scan terminé: {anomalies_created} anomalies détectées")
+            self.stdout.write(f"Scan terminé: {anomalies_count} anomalies détectées")
             
-            return anomalies_created
+            return anomalies_count
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Erreur lors du scan des anomalies: {str(e)}"))
