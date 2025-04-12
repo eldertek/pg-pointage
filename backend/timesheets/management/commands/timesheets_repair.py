@@ -575,9 +575,36 @@ class Command(BaseCommand):
                     for arrival in arrivals:
                         # Vérifier si le retard est supérieur à la marge
                         site = Site.objects.get(pk=site_id)
+
+                        # Débogage détaillé pour les arrivées tardives
+                        employee = User.objects.get(pk=employee_id)
+                        self.stdout.write(f"Débogage arrivée: {employee.get_full_name()} - {arrival.timestamp} - Retard: {arrival.late_minutes} minutes - Marge: {site.late_margin} minutes")
+
+                        # Vérifier le planning associé
+                        site_employee_relations = SiteEmployee.objects.filter(
+                            site_id=site_id,
+                            employee_id=employee_id,
+                            is_active=True
+                        ).select_related('schedule')
+
+                        for site_employee in site_employee_relations:
+                            if site_employee.schedule:
+                                schedule = site_employee.schedule
+                                self.stdout.write(f"  Planning associé: {schedule.id} - Type: {schedule.schedule_type}")
+
+                                # Vérifier les détails du planning pour ce jour
+                                try:
+                                    schedule_detail = ScheduleDetail.objects.get(
+                                        schedule=schedule,
+                                        day_of_week=date.weekday()
+                                    )
+                                    self.stdout.write(f"  Détails du planning: Jour {date.weekday()} - Matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}, Après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
+                                except ScheduleDetail.DoesNotExist:
+                                    self.stdout.write(f"  Pas de détails de planning pour le jour {date.weekday()}")
+
                         if arrival.late_minutes > site.late_margin:
                             # Créer une anomalie de retard (utiliser get_or_create pour éviter les doublons)
-                            Anomaly.objects.get_or_create(
+                            anomaly, created = Anomaly.objects.get_or_create(
                                 employee_id=employee_id,
                                 site_id=site_id,
                                 date=date,
@@ -588,6 +615,9 @@ class Command(BaseCommand):
                                     'description': f"Retard de {arrival.late_minutes} minutes"
                                 }
                             )
+                            self.stdout.write(f"  Anomalie de retard {'créée' if created else 'existante'}: {arrival.late_minutes} minutes")
+                        else:
+                            self.stdout.write(f"  Pas d'anomalie créée: retard ({arrival.late_minutes} min) inférieur à la marge ({site.late_margin} min)")
 
                     # Vérifier les départs anticipés
                     departures = timesheets.filter(
