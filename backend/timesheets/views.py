@@ -197,6 +197,10 @@ class TimesheetCreateView(generics.CreateAPIView):
                                         late_minutes = int((datetime.combine(current_date, current_time) -
                                                           datetime.combine(current_date, schedule_detail.start_time_1)).total_seconds() / 60)
 
+                                        # Log spécifique pour User03
+                                        if employee.get_full_name() == "N03 User03":
+                                            logger.debug(f"User03 - Calcul du retard matin: current_time={current_time}, start_time={schedule_detail.start_time_1}, late_minutes={late_minutes}, late_margin={late_margin}")
+
                                         # Ne marquer comme en retard que si le retard est supérieur à la marge
                                         if late_minutes > late_margin:
                                             timesheet.is_late = True
@@ -367,6 +371,10 @@ class TimesheetCreateView(generics.CreateAPIView):
                                         late_minutes = int((datetime.combine(current_date, current_time) -
                                                           datetime.combine(current_date, schedule_detail.start_time_2)).total_seconds() / 60)
 
+                                        # Log spécifique pour User03
+                                        if employee.get_full_name() == "N03 User03":
+                                            logger.debug(f"User03 - Calcul du retard après-midi: current_time={current_time}, start_time={schedule_detail.start_time_2}, late_minutes={late_minutes}, late_margin={late_margin}")
+
                                         # Ne marquer comme en retard que si le retard est supérieur à la marge
                                         if late_minutes > late_margin:
                                             timesheet.is_late = True
@@ -483,6 +491,18 @@ class TimesheetCreateView(generics.CreateAPIView):
                     description=f"Pointage hors planning: aucun planning correspondant trouvé.",
                     status=Anomaly.AnomalyStatus.PENDING
                 )
+
+        # Log final pour voir l'état du timesheet après traitement
+        logger.debug(f"Fin de traitement pour timesheet.id={timesheet.id}: is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}")
+
+        # Log spécifique pour User03
+        if employee.get_full_name() == "N03 User03":
+            logger.debug(f"Fin de traitement pour User03 - timesheet.id={timesheet.id}, is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}")
+            # Vérifier les anomalies existantes pour ce pointage
+            anomalies = Anomaly.objects.filter(timesheet=timesheet, anomaly_type=Anomaly.AnomalyType.LATE)
+            logger.debug(f"Nombre d'anomalies de retard pour User03: {anomalies.count()}")
+            for anomaly in anomalies:
+                logger.debug(f"  - Anomalie ID: {anomaly.id}, Status: {anomaly.status}, Description: {anomaly.description}")
 
         return is_ambiguous
 
