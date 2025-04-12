@@ -183,42 +183,42 @@ class TimesheetCreateView(generics.CreateAPIView):
                                                    timedelta(minutes=early_departure_margin)).time()
 
                             if entry_type == Timesheet.EntryType.ARRIVAL:
-                                # Pour une arrivée, vérifier si l'heure est proche de l'heure de début
-                                # On considère qu'une arrivée est valide si elle est avant l'heure de début + marge
-                                # ou si elle est après l'heure de début (retard)
-                                if current_time <= start_time_with_margin or current_time > schedule_detail.start_time_1:
+                                # Pour une arrivée, vérifier si l'heure est dans la plage du matin ou proche de l'heure de début
+                                if schedule_detail.start_time_1 <= current_time <= schedule_detail.end_time_1 or current_time <= start_time_with_margin:
                                     is_matching = True
-                                    # Vérifier si l'arrivée est en retard
-                                    # Ne marquer comme en retard que si l'arrivée est après l'heure de début du matin
-                                    # et qu'il n'y a pas de créneau d'après-midi ou que l'arrivée est avant l'heure de début de l'après-midi
-                                    if current_time > schedule_detail.start_time_1 and (not schedule_detail.start_time_2 or current_time < schedule_detail.start_time_2):
-                                        timesheet.is_late = True
+
+                                    # Vérifier si l'arrivée est en retard (après l'heure de début mais avant la fin de la plage)
+                                    if current_time > schedule_detail.start_time_1 and current_time <= schedule_detail.end_time_1:
                                         # Calculer les minutes de retard
                                         late_minutes = int((datetime.combine(current_date, current_time) -
                                                           datetime.combine(current_date, schedule_detail.start_time_1)).total_seconds() / 60)
-                                        timesheet.late_minutes = late_minutes
 
-                                        # Créer une anomalie si le retard dépasse la marge
-                                        if late_minutes > 0:
-                                            logger.info(f"Retard détecté: {late_minutes} minutes")
-                                            # Pour les arrivées en après-midi, ne pas appliquer de condition spéciale
-                                            # is_afternoon_arrival = 13 <= current_time.hour < 14
-                                            if late_minutes > late_margin:
-                                                # Créer l'anomalie avec le planning associé
-                                                anomaly = Anomaly.objects.create(
-                                                    employee=employee,
-                                                    site=site,
-                                                    timesheet=timesheet,
-                                                    date=current_date,
-                                                    anomaly_type=Anomaly.AnomalyType.LATE,
-                                                    description=f"Retard de {late_minutes} minutes.",
-                                                    minutes=late_minutes,
-                                                    status=Anomaly.AnomalyStatus.PENDING,
-                                                    schedule=schedule
-                                                )
+                                        # Ne marquer comme en retard que si le retard est supérieur à la marge
+                                        if late_minutes > late_margin:
+                                            timesheet.is_late = True
+                                            timesheet.late_minutes = late_minutes
+                                            logger.info(f"Retard détecté pour le matin: {late_minutes} minutes (marge: {late_margin} minutes)")
 
-                                                # Ajouter le pointage aux pointages associés
-                                                anomaly.related_timesheets.add(timesheet)
+                                            # Créer l'anomalie pour les retards qui dépassent la marge
+                                            anomaly = Anomaly.objects.create(
+                                                employee=employee,
+                                                site=site,
+                                                timesheet=timesheet,
+                                                date=current_date,
+                                                anomaly_type=Anomaly.AnomalyType.LATE,
+                                                description=f"Retard de {late_minutes} minutes (marge: {late_margin} minutes).",
+                                                minutes=late_minutes,
+                                                status=Anomaly.AnomalyStatus.PENDING,
+                                                schedule=schedule
+                                            )
+
+                                            # Ajouter le pointage aux pointages associés
+                                            anomaly.related_timesheets.add(timesheet)
+                                        else:
+                                            # Si le retard est dans la marge, ne pas marquer comme retard
+                                            timesheet.is_late = False
+                                            timesheet.late_minutes = 0
+                                            logger.info(f"Arrivée dans la marge de tolérance: {late_minutes} minutes (marge: {late_margin} minutes)")
                             elif entry_type == Timesheet.EntryType.DEPARTURE:
                                 # Déterminer d'abord si le pointage appartient à la plage du matin ou de l'après-midi
                                 # Plage du matin
@@ -238,40 +238,37 @@ class TimesheetCreateView(generics.CreateAPIView):
                                             early_minutes = int((datetime.combine(current_date, relevant_end_time) -
                                                               datetime.combine(current_date, current_time)).total_seconds() / 60)
 
-                                            # Ne marquer comme départ anticipé que si le départ est avant la fin du créneau
-                                            if early_minutes > 0:
+                                            # Ne marquer comme départ anticipé que si le départ est avant la fin du créneau - marge
+                                            if early_minutes > early_departure_margin:
                                                 timesheet.is_early_departure = True
-                                                # Ne pas écraser la valeur existante si elle a été définie manuellement
-                                                if not timesheet.early_departure_minutes:
-                                                    timesheet.early_departure_minutes = early_minutes
+                                                timesheet.early_departure_minutes = early_minutes
+                                                logger.info(f"Départ anticipé détecté pour le matin: {early_minutes} minutes (marge: {early_departure_margin} minutes)")
+
+                                                # Créer l'anomalie pour les départs anticipés qui dépassent la marge
+                                                anomaly = Anomaly.objects.create(
+                                                    employee=employee,
+                                                    site=site,
+                                                    timesheet=timesheet,
+                                                    date=current_date,
+                                                    anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                                                    description=f"Départ anticipé de {early_minutes} minutes (marge: {early_departure_margin} minutes).",
+                                                    minutes=early_minutes,
+                                                    status=Anomaly.AnomalyStatus.PENDING,
+                                                    schedule=schedule
+                                                )
+
+                                                # Ajouter le pointage aux pointages associés
+                                                anomaly.related_timesheets.add(timesheet)
+                                            else:
+                                                # Si le départ anticipé est dans la marge, ne pas marquer comme départ anticipé
+                                                timesheet.is_early_departure = False
+                                                timesheet.early_departure_minutes = 0
+                                                logger.info(f"Départ dans la marge de tolérance: {early_minutes} minutes (marge: {early_departure_margin} minutes)")
                                         else:
                                             # Le départ est après la fin du créneau, donc ce n'est pas un départ anticipé
                                             is_matching = True
                                             timesheet.is_early_departure = False
                                             timesheet.early_departure_minutes = 0
-
-                                            # Créer une anomalie si le départ anticipé dépasse la marge
-                                            if timesheet.is_early_departure and timesheet.early_departure_minutes > 0:
-                                                logger.info(f"Départ anticipé détecté: {timesheet.early_departure_minutes} minutes")
-                                                if timesheet.early_departure_minutes > early_departure_margin:
-                                                    # Trouver le planning associé à l'employé et au site
-                                                    associated_schedule = self._find_employee_schedule(employee, site, current_date) or schedule
-
-                                                    # Créer l'anomalie avec le planning associé
-                                                    anomaly = Anomaly.objects.create(
-                                                        employee=employee,
-                                                        site=site,
-                                                        timesheet=timesheet,
-                                                        date=current_date,
-                                                        anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                                        description=f"Départ anticipé de {early_minutes} minutes.",
-                                                        minutes=early_minutes,
-                                                        status=Anomaly.AnomalyStatus.PENDING,
-                                                        schedule=associated_schedule
-                                                    )
-
-                                                    # Ajouter le pointage aux pointages associés
-                                                    anomaly.related_timesheets.add(timesheet)
 
                                 # Plage de l'après-midi
                                 if not is_matching and schedule_detail.start_time_2 and schedule_detail.end_time_2:
@@ -290,40 +287,37 @@ class TimesheetCreateView(generics.CreateAPIView):
                                             early_minutes = int((datetime.combine(current_date, relevant_end_time) -
                                                               datetime.combine(current_date, current_time)).total_seconds() / 60)
 
-                                            # Ne marquer comme départ anticipé que si le départ est avant la fin du créneau
-                                            if early_minutes > 0:
+                                            # Ne marquer comme départ anticipé que si le départ est avant la fin du créneau - marge
+                                            if early_minutes > early_departure_margin:
                                                 timesheet.is_early_departure = True
-                                                # Ne pas écraser la valeur existante si elle a été définie manuellement
-                                                if not timesheet.early_departure_minutes:
-                                                    timesheet.early_departure_minutes = early_minutes
+                                                timesheet.early_departure_minutes = early_minutes
+                                                logger.info(f"Départ anticipé détecté pour l'après-midi: {early_minutes} minutes (marge: {early_departure_margin} minutes)")
+
+                                                # Créer l'anomalie pour les départs anticipés qui dépassent la marge
+                                                anomaly = Anomaly.objects.create(
+                                                    employee=employee,
+                                                    site=site,
+                                                    timesheet=timesheet,
+                                                    date=current_date,
+                                                    anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                                                    description=f"Départ anticipé de {early_minutes} minutes (marge: {early_departure_margin} minutes).",
+                                                    minutes=early_minutes,
+                                                    status=Anomaly.AnomalyStatus.PENDING,
+                                                    schedule=schedule
+                                                )
+
+                                                # Ajouter le pointage aux pointages associés
+                                                anomaly.related_timesheets.add(timesheet)
+                                            else:
+                                                # Si le départ anticipé est dans la marge, ne pas marquer comme départ anticipé
+                                                timesheet.is_early_departure = False
+                                                timesheet.early_departure_minutes = 0
+                                                logger.info(f"Départ dans la marge de tolérance: {early_minutes} minutes (marge: {early_departure_margin} minutes)")
                                         else:
                                             # Le départ est après la fin du créneau, donc ce n'est pas un départ anticipé
                                             is_matching = True
                                             timesheet.is_early_departure = False
                                             timesheet.early_departure_minutes = 0
-
-                                            # Créer une anomalie si le départ anticipé dépasse la marge
-                                            if timesheet.is_early_departure and timesheet.early_departure_minutes > 0:
-                                                logger.info(f"Départ anticipé détecté: {timesheet.early_departure_minutes} minutes")
-                                                if timesheet.early_departure_minutes > early_departure_margin:
-                                                    # Trouver le planning associé à l'employé et au site
-                                                    associated_schedule = self._find_employee_schedule(employee, site, current_date) or schedule
-
-                                                    # Créer l'anomalie avec le planning associé
-                                                    anomaly = Anomaly.objects.create(
-                                                        employee=employee,
-                                                        site=site,
-                                                        timesheet=timesheet,
-                                                        date=current_date,
-                                                        anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                                        description=f"Départ anticipé de {early_minutes} minutes.",
-                                                        minutes=early_minutes,
-                                                        status=Anomaly.AnomalyStatus.PENDING,
-                                                        schedule=associated_schedule
-                                                    )
-
-                                                    # Ajouter le pointage aux pointages associés
-                                                    anomaly.related_timesheets.add(timesheet)
 
                                 # Si le pointage n'appartient à aucune plage mais est à proximité, considérer comme valide
                                 if not is_matching:
@@ -331,6 +325,12 @@ class TimesheetCreateView(generics.CreateAPIView):
                                     latest_end_time = schedule_detail.end_time_2 if schedule_detail.end_time_2 else schedule_detail.end_time_1
                                     if latest_end_time and current_time >= latest_end_time:
                                         is_matching = True
+
+                                    # Vérifier si le pointage est entre les plages du matin et de l'après-midi
+                                    if schedule_detail.end_time_1 and schedule_detail.start_time_2 and \
+                                       schedule_detail.end_time_1 < current_time < schedule_detail.start_time_2:
+                                        is_matching = True
+                                        logger.info(f"Départ entre les plages du matin et de l'après-midi: {current_time}")
 
                         # Vérifier les horaires de l'après-midi
                         if schedule_detail.start_time_2 and schedule_detail.end_time_2:
@@ -346,43 +346,42 @@ class TimesheetCreateView(generics.CreateAPIView):
                                                    timedelta(minutes=early_departure_margin)).time()
 
                             if entry_type == Timesheet.EntryType.ARRIVAL:
-                                # Pour une arrivée, vérifier si l'heure est dans la plage de l'après-midi
-                                # ou si elle est proche de l'heure de début de l'après-midi
+                                # Pour une arrivée, vérifier si l'heure est dans la plage de l'après-midi ou proche de l'heure de début
                                 if schedule_detail.start_time_2 <= current_time <= schedule_detail.end_time_2 or current_time <= start_time_with_margin:
                                     is_matching = True
-                                    # Vérifier si l'arrivée est en retard par rapport à l'heure de début de l'après-midi
-                                    if current_time > schedule_detail.start_time_2:
+
+                                    # Vérifier si l'arrivée est en retard (après l'heure de début mais avant la fin de la plage)
+                                    if current_time > schedule_detail.start_time_2 and current_time <= schedule_detail.end_time_2:
                                         # Calculer les minutes de retard
                                         late_minutes = int((datetime.combine(current_date, current_time) -
                                                           datetime.combine(current_date, schedule_detail.start_time_2)).total_seconds() / 60)
 
-                                        # Marquer comme en retard si le retard est supérieur à 0 minute
-                                        if late_minutes > 0:
+                                        # Ne marquer comme en retard que si le retard est supérieur à la marge
+                                        if late_minutes > late_margin:
                                             timesheet.is_late = True
                                             timesheet.late_minutes = late_minutes
-                                            logger.info(f"Retard détecté pour l'après-midi: {late_minutes} minutes")
+                                            logger.info(f"Retard détecté pour l'après-midi: {late_minutes} minutes (marge: {late_margin} minutes)")
 
-                                        # Créer une anomalie si le retard dépasse la marge
-                                        if late_minutes > 0:
-                                            logger.info(f"Retard détecté: {late_minutes} minutes")
-                                            # Pour les arrivées en après-midi, ne pas appliquer de condition spéciale
-                                            # is_afternoon_arrival = 13 <= current_time.hour < 14
-                                            if late_minutes > late_margin:
-                                                # Créer l'anomalie avec le planning associé
-                                                anomaly = Anomaly.objects.create(
-                                                    employee=employee,
-                                                    site=site,
-                                                    timesheet=timesheet,
-                                                    date=current_date,
-                                                    anomaly_type=Anomaly.AnomalyType.LATE,
-                                                    description=f"Retard de {late_minutes} minutes.",
-                                                    minutes=late_minutes,
-                                                    status=Anomaly.AnomalyStatus.PENDING,
-                                                    schedule=schedule
-                                                )
+                                            # Créer l'anomalie pour les retards qui dépassent la marge
+                                            anomaly = Anomaly.objects.create(
+                                                employee=employee,
+                                                site=site,
+                                                timesheet=timesheet,
+                                                date=current_date,
+                                                anomaly_type=Anomaly.AnomalyType.LATE,
+                                                description=f"Retard de {late_minutes} minutes (marge: {late_margin} minutes).",
+                                                minutes=late_minutes,
+                                                status=Anomaly.AnomalyStatus.PENDING,
+                                                schedule=schedule
+                                            )
 
-                                                # Ajouter le pointage aux pointages associés
-                                                anomaly.related_timesheets.add(timesheet)
+                                            # Ajouter le pointage aux pointages associés
+                                            anomaly.related_timesheets.add(timesheet)
+                                        else:
+                                            # Si le retard est dans la marge, ne pas marquer comme retard
+                                            timesheet.is_late = False
+                                            timesheet.late_minutes = 0
+                                            logger.info(f"Arrivée dans la marge de tolérance: {late_minutes} minutes (marge: {late_margin} minutes)")
                             # La gestion des départs anticipés est désormais traitée par la nouvelle logique ci-dessus
                             # Nous n'avons plus besoin de ce bloc car la logique est désormais unifiée
                             # et prend correctement en compte les deux plages horaires
@@ -704,10 +703,19 @@ class ScanAnomaliesView(generics.CreateAPIView):
                 if (start_minutes_2 - tolerance_minutes <= timesheet_minutes <= end_minutes_2 + tolerance_minutes):
                     return True
 
+            # Vérifier si le pointage est entre les plages 1 et 2
+            if schedule_detail.end_time_1 and schedule_detail.start_time_2:
+                end_minutes_1 = schedule_detail.end_time_1.hour * 60 + schedule_detail.end_time_1.minute
+                start_minutes_2 = schedule_detail.start_time_2.hour * 60 + schedule_detail.start_time_2.minute
+
+                # Vérifier si le pointage est entre la fin de la plage 1 et le début de la plage 2
+                if end_minutes_1 <= timesheet_minutes <= start_minutes_2:
+                    return True
+
             return False
 
         # Si c'est un planning fréquence, tout pointage est valide
-        elif schedule.schedule_type == 'FREQUENCE':
+        elif schedule.schedule_type == 'FREQUENCY':
             return True
 
         return False
