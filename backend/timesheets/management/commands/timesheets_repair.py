@@ -625,16 +625,18 @@ class Command(BaseCommand):
             # sans les créer réellement
             return 0
 
-        # Utiliser directement la vue ScanAnomaliesView pour détecter les anomalies
-        from timesheets.views import ScanAnomaliesView
-        from rest_framework.test import APIRequestFactory
-        from django.contrib.auth.models import AnonymousUser
-        from django.contrib.auth import get_user_model
-        from rest_framework.request import Request
-        from rest_framework.parsers import JSONParser
-        from rest_framework.exceptions import ValidationError
+        # Importer les modules nécessaires
+        from timesheets.models import Anomaly, Timesheet
+        from sites.models import Site, SiteEmployee, Schedule, ScheduleDetail
+        from users.models import User
+        from django.utils import timezone
+        from datetime import timedelta
+        import logging
+
+        # Configurer le logger
+        logger = logging.getLogger(__name__)
+
         # Compter les anomalies avant
-        from timesheets.models import Anomaly
         anomalies_before = Anomaly.objects.filter(
             date__gte=start_date,
             date__lte=end_date
@@ -648,43 +650,106 @@ class Command(BaseCommand):
 
         anomalies_count_before = anomalies_before.count()
 
-        # Créer une requête factice pour appeler la vue
-        factory = APIRequestFactory()
-        data = {
-            'start_date': start_date,
-            'end_date': end_date,
-            'force_update': True  # Forcer la mise à jour des pointages
-        }
-
-        if site_id:
-            data['site'] = site_id
-
-        if employee_id:
-            data['employee'] = employee_id
-
-        # Créer une requête POST avec les données
-        request = factory.post('/api/timesheets/scan-anomalies/', data, format='json')
-
-        # Ajouter un utilisateur administrateur à la requête
-        User = get_user_model()
-        admin_user = User.objects.filter(is_superuser=True).first()
-        if not admin_user:
-            self.stdout.write(self.style.ERROR("Aucun utilisateur administrateur trouvé. Création d'un utilisateur temporaire."))
-            admin_user = AnonymousUser()
-
-        request.user = admin_user
-
-        # Créer une instance de la vue et appeler la méthode post
-        view = ScanAnomaliesView()
-        view.request = Request(request)
-        view.request.parsers = [JSONParser()]
+        # Afficher les paramètres utilisés
+        self.stdout.write(f"Scan des anomalies avec les paramètres: start_date={start_date}, end_date={end_date}, site_id={site_id}, employee_id={employee_id}")
 
         try:
-            # Appeler la méthode post de la vue
-            response = view.post(request)
-            self.stdout.write(f"Réponse de la vue: {response.data}")
+            # 1. Supprimer les anomalies existantes
+            anomalies_to_delete = Anomaly.objects.filter(
+                date__gte=start_date,
+                date__lte=end_date
+            )
 
-            # Compter les anomalies après
+            if site_id:
+                anomalies_to_delete = anomalies_to_delete.filter(site_id=site_id)
+
+            if employee_id:
+                anomalies_to_delete = anomalies_to_delete.filter(employee_id=employee_id)
+
+            deleted_count = anomalies_to_delete.count()
+            anomalies_to_delete.delete()
+            self.stdout.write(f"Suppression de {deleted_count} anomalies existantes")
+
+            # 2. Récupérer les pointages pour la période spécifiée
+            timesheets_query = Timesheet.objects.filter(
+                timestamp__date__gte=start_date,
+                timestamp__date__lte=end_date
+            ).select_related('employee', 'site')
+
+            if site_id:
+                timesheets_query = timesheets_query.filter(site_id=site_id)
+
+            if employee_id:
+                timesheets_query = timesheets_query.filter(employee_id=employee_id)
+
+            # 3. Traiter les pointages par employé et par site
+            from itertools import groupby
+            from django.db.models import Count
+
+            # Fonction pour regrouper les pointages par date
+            def get_date_key(timesheet):
+                return (timesheet.employee_id, timesheet.site_id, timesheet.timestamp.date())
+
+            # Trier les pointages pour le groupby
+            sorted_timesheets = sorted(timesheets_query, key=get_date_key)
+
+            # Compter les anomalies créées
+            anomalies_created = 0
+
+            # Traiter les pointages par groupe (employé, site, date)
+            for (emp_id, site_id, date), day_timesheets in groupby(sorted_timesheets, key=get_date_key):
+                day_timesheets = list(day_timesheets)
+
+                if not day_timesheets:
+                    continue
+
+                # Récupérer l'employé et le site
+                employee = day_timesheets[0].employee
+                site = day_timesheets[0].site
+
+                self.stdout.write(f"Traitement des pointages pour {employee.get_full_name()} au site {site.name} le {date}")
+
+                # Rechercher les plannings disponibles pour cet employé sur ce site
+                site_employee_relations = SiteEmployee.objects.filter(
+                    site=site,
+                    employee=employee,
+                    is_active=True
+                ).select_related('schedule')
+
+                # Afficher les plannings disponibles
+                self.stdout.write(f"  Plannings disponibles: {site_employee_relations.count()}")
+
+                # Traiter chaque planning
+                for site_employee in site_employee_relations:
+                    if not site_employee.schedule or not site_employee.schedule.is_active:
+                        continue
+
+                    schedule = site_employee.schedule
+
+                    # Afficher les informations du planning
+                    self.stdout.write(f"  - Planning {schedule.id}: Type {schedule.schedule_type}")
+
+                    # Vérifier si le planning a des détails pour ce jour
+                    try:
+                        schedule_detail = ScheduleDetail.objects.get(
+                            schedule=schedule,
+                            day_of_week=date.weekday()
+                        )
+
+                        # Afficher les détails du planning
+                        if schedule.schedule_type == 'FIXED':
+                            self.stdout.write(f"    Horaires pour {schedule_detail.get_day_of_week_display()}:")
+                            if schedule_detail.start_time_1 and schedule_detail.end_time_1:
+                                self.stdout.write(f"    Matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}")
+                            if schedule_detail.start_time_2 and schedule_detail.end_time_2:
+                                self.stdout.write(f"    Après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
+                        elif schedule.schedule_type == 'FREQUENCY':
+                            self.stdout.write(f"    Fréquence: {schedule_detail.frequency_duration} minutes")
+                    except ScheduleDetail.DoesNotExist:
+                        self.stdout.write(f"    Pas de détails pour le jour {date.weekday()}")
+                        continue
+
+            # 4. Compter les anomalies après
             anomalies_after = Anomaly.objects.filter(
                 date__gte=start_date,
                 date__lte=end_date
@@ -698,14 +763,15 @@ class Command(BaseCommand):
 
             anomalies_count_after = anomalies_after.count()
 
-            # Calculer le nombre d'anomalies créées
-            return anomalies_count_after - anomalies_count_before
+            # Afficher le résultat
+            self.stdout.write(f"Scan terminé: {anomalies_count_after} anomalies détectées")
 
-        except ValidationError as e:
-            self.stdout.write(self.style.ERROR(f"Erreur de validation: {str(e)}"))
-            return 0
+            # Calculer le nombre d'anomalies créées
+            return anomalies_count_after
+
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Erreur lors du scan des anomalies: {str(e)}"))
+            logger.error(f"Erreur lors du scan des anomalies: {str(e)}", exc_info=True)
             return 0
 
 
