@@ -4,12 +4,14 @@ from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
+from django.contrib.auth import get_user_model
+from django.dispatch import receiver
 
 from timesheets.models import Timesheet, Anomaly
 from sites.models import Site, SiteEmployee, Schedule, ScheduleDetail
 from users.models import User
 from timesheets.views import ScanAnomaliesView
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.serializers import ValidationError
 
 
@@ -293,6 +295,50 @@ class Command(BaseCommand):
                     # Supprimer et recréer les pointages
                     processed_count = self._recreate_timesheet_entries(start_date, end_date, options['site'], options['employee'], options['dry_run'])
                     self.stdout.write(self.style.SUCCESS(f"{processed_count} pointages recréés"))
+
+                # 3. Effectuer un scan d'anomalies complet après avoir recréé tous les pointages
+                if not options['dry_run']:
+                    self.stdout.write("Exécution d'un scan d'anomalies complet...")
+                    from timesheets.views import ScanAnomaliesView
+                    from rest_framework.test import APIRequestFactory
+                    from django.contrib.auth import get_user_model
+                    from rest_framework.test import force_authenticate
+
+                    # Créer une requête factice
+                    factory = APIRequestFactory()
+                    data = {
+                        'start_date': start_date.isoformat(),
+                        'end_date': end_date.isoformat(),
+                        'force_update': True
+                    }
+
+                    # Ajouter les filtres optionnels
+                    if options['site']:
+                        data['site'] = options['site']
+                    if options['employee']:
+                        data['employee'] = options['employee']
+
+                    request = factory.post('/api/timesheets/scan-anomalies/', data, format='json')
+
+                    # Authentifier la requête avec un superadmin
+                    User = get_user_model()
+                    admin_user = User.objects.filter(is_super_admin=True).first()
+                    if not admin_user:
+                        admin_user = User.objects.filter(is_superuser=True).first()
+                    if admin_user:
+                        force_authenticate(request, user=admin_user)
+
+                    # Exécuter la vue
+                    view = ScanAnomaliesView.as_view()
+                    response = view(request)
+
+                    # Afficher les résultats
+                    if hasattr(response, 'data'):
+                        self.stdout.write(self.style.SUCCESS(f"Scan d'anomalies terminé: {response.data.get('message', 'Aucun message')}"))
+                        if options['verbose']:
+                            self.stdout.write(f"Détails de la réponse: {response.data}")
+                    else:
+                        self.stdout.write(self.style.WARNING(f"Scan d'anomalies terminé sans réponse de données"))
 
                 if options['dry_run']:
                     # Annuler la transaction en mode simulation
