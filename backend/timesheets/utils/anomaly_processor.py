@@ -213,7 +213,7 @@ class AnomalyProcessor:
                         if expected_duration and expected_duration > 0:
                             # Récupérer la tolérance de fréquence (pourcentage)
                             tolerance_percentage = schedule.frequency_tolerance_percentage or site.frequency_tolerance or 10
-                            self.logger.info(f"Tolérance de fréquence: {tolerance_percentage}% pour {schedule.name} (ID: {schedule.id})")
+                            self.logger.info(f"Tolérance de fréquence: {tolerance_percentage}% pour {schedule} (ID: {schedule.id})")
 
                             # Calculer la durée minimale requise avec la tolérance
                             min_duration = expected_duration * (1 - tolerance_percentage / 100)

@@ -345,7 +345,7 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING(f"  - Type: {anomaly_type}"))
                     self.stdout.write(self.style.WARNING(f"    Description: {anomaly.description}"))
                     if anomaly.schedule:
-                        self.stdout.write(self.style.WARNING(f"    Planning: {anomaly.schedule.name} (ID: {anomaly.schedule.id})"))
+                        self.stdout.write(self.style.WARNING(f"    Planning: {anomaly.schedule} (ID: {anomaly.schedule.id})"))
                     if anomaly.minutes:
                         self.stdout.write(self.style.WARNING(f"    Minutes: {anomaly.minutes}"))
 
