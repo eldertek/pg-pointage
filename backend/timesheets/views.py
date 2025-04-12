@@ -1112,24 +1112,30 @@ class ScanAnomaliesView(generics.CreateAPIView):
                                 if schedule_detail.start_time_1 and arrival_time > schedule_detail.start_time_1:
                                     # Vérifier si l'arrivée est dans la plage du matin
                                     if not schedule_detail.end_time_1 or arrival_time < schedule_detail.end_time_1:
+                                        logging.getLogger(__name__).debug(f"User {employee.get_full_name()} - Calcul du retard matin: current_time={arrival_time}, start_time={schedule_detail.start_time_1}")
                                         late_minutes = int((datetime.combine(date, arrival_time) -
                                                           datetime.combine(date, schedule_detail.start_time_1)).total_seconds() / 60)
-                                        arrival.is_late = True
-                                        arrival.late_minutes = late_minutes
-                                        arrival.save()
-                                        logging.getLogger(__name__).debug(f"Retard détecté pour le matin: {late_minutes} minutes - timesheet.id={arrival.id}")
+                                        # Vérifier si le retard est supérieur à zéro
+                                        if late_minutes > 0:
+                                            arrival.is_late = True
+                                            arrival.late_minutes = late_minutes
+                                            arrival.save()
+                                            logging.getLogger(__name__).debug(f"Retard détecté pour le matin: {late_minutes} minutes - timesheet.id={arrival.id}")
                                         break
 
                                 # Vérifier ensuite par rapport à la plage de l'après-midi
                                 if schedule_detail.start_time_2 and arrival_time > schedule_detail.start_time_2:
                                     # Vérifier si l'arrivée est dans la plage de l'après-midi
                                     if not schedule_detail.end_time_2 or arrival_time < schedule_detail.end_time_2:
+                                        logging.getLogger(__name__).debug(f"User {employee.get_full_name()} - Calcul du retard après-midi: current_time={arrival_time}, start_time={schedule_detail.start_time_2}")
                                         late_minutes = int((datetime.combine(date, arrival_time) -
                                                           datetime.combine(date, schedule_detail.start_time_2)).total_seconds() / 60)
-                                        arrival.is_late = True
-                                        arrival.late_minutes = late_minutes
-                                        arrival.save()
-                                        logging.getLogger(__name__).debug(f"Retard détecté pour l'après-midi: {late_minutes} minutes - timesheet.id={arrival.id}")
+                                        # Vérifier si le retard est supérieur à zéro
+                                        if late_minutes > 0:
+                                            arrival.is_late = True
+                                            arrival.late_minutes = late_minutes
+                                            arrival.save()
+                                            logging.getLogger(__name__).debug(f"Retard détecté pour l'après-midi: {late_minutes} minutes - timesheet.id={arrival.id}")
                                         break
                             except ScheduleDetail.DoesNotExist:
                                 continue
@@ -1176,6 +1182,9 @@ class ScanAnomaliesView(generics.CreateAPIView):
                             # Ne pas créer d'anomalie si le retard est dans la marge
                             create_anomaly = False
                             logging.getLogger(__name__).info(f"Retard dans la marge de tolérance: {arrival.late_minutes} minutes (marge: {late_margin} minutes)")
+
+                        # Log pour débogage
+                        logging.getLogger(__name__).debug(f"Décision de création d'anomalie pour {employee.get_full_name()}: create_anomaly={create_anomaly}, late_minutes={arrival.late_minutes}, late_margin={late_margin}")
 
                         if create_anomaly:
                             anomaly = Anomaly.objects.create(
