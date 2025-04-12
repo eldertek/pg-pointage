@@ -636,41 +636,14 @@ class Command(BaseCommand):
         # Configurer le logger
         logger = logging.getLogger(__name__)
 
-        # Compter les anomalies avant
-        anomalies_before = Anomaly.objects.filter(
-            date__gte=start_date,
-            date__lte=end_date
-        )
-
-        if site_id:
-            anomalies_before = anomalies_before.filter(site_id=site_id)
-
-        if employee_id:
-            anomalies_before = anomalies_before.filter(employee_id=employee_id)
-
-        anomalies_count_before = anomalies_before.count()
-
         # Afficher les paramètres utilisés
         self.stdout.write(f"Scan des anomalies avec les paramètres: start_date={start_date}, end_date={end_date}, site_id={site_id}, employee_id={employee_id}")
 
         try:
-            # 1. Supprimer les anomalies existantes
-            anomalies_to_delete = Anomaly.objects.filter(
-                date__gte=start_date,
-                date__lte=end_date
-            )
+            # Les anomalies ont déjà été supprimées au début du processus principal,
+            # nous n'avons donc pas besoin de les supprimer à nouveau ici
 
-            if site_id:
-                anomalies_to_delete = anomalies_to_delete.filter(site_id=site_id)
-
-            if employee_id:
-                anomalies_to_delete = anomalies_to_delete.filter(employee_id=employee_id)
-
-            deleted_count = anomalies_to_delete.count()
-            anomalies_to_delete.delete()
-            self.stdout.write(f"Suppression de {deleted_count} anomalies existantes")
-
-            # 2. Récupérer les pointages pour la période spécifiée
+            # Récupérer les pointages pour la période spécifiée
             timesheets_query = Timesheet.objects.filter(
                 timestamp__date__gte=start_date,
                 timestamp__date__lte=end_date
@@ -682,7 +655,7 @@ class Command(BaseCommand):
             if employee_id:
                 timesheets_query = timesheets_query.filter(employee_id=employee_id)
 
-            # 3. Traiter les pointages par employé et par site
+            # Traiter les pointages par employé et par site
             from itertools import groupby
             from django.db.models import Count
 
@@ -749,7 +722,7 @@ class Command(BaseCommand):
                         self.stdout.write(f"    Pas de détails pour le jour {date.weekday()}")
                         continue
 
-            # 4. Compter les anomalies après
+            # Compter les anomalies après
             anomalies_after = Anomaly.objects.filter(
                 date__gte=start_date,
                 date__lte=end_date
