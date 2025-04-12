@@ -211,9 +211,15 @@ class AnomalyProcessor:
                     if entry_type == Timesheet.EntryType.DEPARTURE:
                         expected_duration = schedule_detail.frequency_duration
                         if expected_duration and expected_duration > 0:
+                            # Récupérer la tolérance de fréquence (pourcentage)
                             tolerance_percentage = schedule.frequency_tolerance_percentage or site.frequency_tolerance or 10
-                            min_duration = expected_duration * (1 - tolerance_percentage / 100)
+                            self.logger.info(f"Tolérance de fréquence: {tolerance_percentage}% pour {schedule.name} (ID: {schedule.id})")
 
+                            # Calculer la durée minimale requise avec la tolérance
+                            min_duration = expected_duration * (1 - tolerance_percentage / 100)
+                            self.logger.info(f"Durée attendue: {expected_duration} minutes, durée minimale avec tolérance: {min_duration:.1f} minutes")
+
+                            # Trouver le dernier pointage d'arrivée pour cet employé et ce site
                             last_arrival = Timesheet.objects.filter(
                                 employee=employee,
                                 site=site,
@@ -223,11 +229,16 @@ class AnomalyProcessor:
                             ).order_by('-timestamp').first()
 
                             if last_arrival:
+                                # Calculer la durée effective entre l'arrivée et le départ
                                 duration_minutes = (timestamp - last_arrival.timestamp).total_seconds() / 60
+                                self.logger.info(f"Durée effective: {duration_minutes:.1f} minutes entre {last_arrival.timestamp} et {timestamp}")
+
+                                # Vérifier si la durée est inférieure à la durée minimale requise
                                 if duration_minutes < min_duration:
                                     timesheet.is_early_departure = True
                                     early_minutes = int(min_duration - duration_minutes)
                                     timesheet.early_departure_minutes = early_minutes
+                                    self.logger.info(f"Départ anticipé détecté: {early_minutes} minutes manquantes")
 
                                     # Créer une anomalie pour le départ anticipé en mode fréquence
                                     anomaly = Anomaly.objects.create(
@@ -236,7 +247,7 @@ class AnomalyProcessor:
                                         timesheet=timesheet,
                                         date=current_date,
                                         anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                        description=f'Durée insuffisante: {duration_minutes:.1f} minutes au lieu de {min_duration:.1f} minutes minimum.',
+                                        description=f'Durée insuffisante: {duration_minutes:.1f} minutes au lieu de {min_duration:.1f} minutes minimum (tolérance: {tolerance_percentage}%).',
                                         minutes=early_minutes,
                                         status=Anomaly.AnomalyStatus.PENDING,
                                         schedule=schedule
@@ -245,6 +256,8 @@ class AnomalyProcessor:
                                     self._anomalies_detected = True
                                     created_anomalies.append(anomaly)
                                     self.logger.info(f"Anomalie créée: EARLY_DEPARTURE (fréquence) - Durée insuffisante: {duration_minutes:.1f}min au lieu de {min_duration:.1f}min pour {employee.get_full_name()} à {site.name}")
+                                else:
+                                    self.logger.info(f"Durée suffisante: {duration_minutes:.1f} minutes >= {min_duration:.1f} minutes minimales requises")
 
             except ScheduleDetail.DoesNotExist:
                 continue

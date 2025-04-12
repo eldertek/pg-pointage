@@ -328,14 +328,28 @@ class Command(BaseCommand):
     def _process_timesheet_anomalies(self, timesheet):
         """Traite les anomalies pour un pointage donné en utilisant l'AnomalyProcessor"""
         processor = AnomalyProcessor()
-        
+
         # Traiter les anomalies avec l'AnomalyProcessor
-        processor.process_timesheet(
+        result = processor.process_timesheet(
             timesheet=timesheet,
             force_update=True  # Force la mise à jour car on est en mode réparation
         )
 
-        return processor.has_anomalies()
+        # Afficher les détails des anomalies détectées
+        if result['success'] and result.get('has_anomalies', False):
+            anomalies = result.get('anomalies', [])
+            if anomalies:
+                self.stdout.write(self.style.WARNING(f"Détails des anomalies détectées pour le pointage {timesheet.id}:"))
+                for anomaly in anomalies:
+                    anomaly_type = anomaly.get_anomaly_type_display()
+                    self.stdout.write(self.style.WARNING(f"  - Type: {anomaly_type}"))
+                    self.stdout.write(self.style.WARNING(f"    Description: {anomaly.description}"))
+                    if anomaly.schedule:
+                        self.stdout.write(self.style.WARNING(f"    Planning: {anomaly.schedule.name} (ID: {anomaly.schedule.id})"))
+                    if anomaly.minutes:
+                        self.stdout.write(self.style.WARNING(f"    Minutes: {anomaly.minutes}"))
+
+        return processor.has_anomalies(), result.get('anomalies', [])
 
     def _recreate_timesheet_entries(self, start_date, end_date, site_id=None, employee_id=None, dry_run=False):
         """Supprime et recrée les pointages dans l'ordre chronologique"""
@@ -433,11 +447,11 @@ class Command(BaseCommand):
                                      f"{timesheet.timestamp} - {timesheet.get_entry_type_display()}")
 
                     # Utiliser l'AnomalyProcessor pour détecter les anomalies
-                    has_anomalies = self._process_timesheet_anomalies(timesheet)
-                    
+                    has_anomalies, anomalies = self._process_timesheet_anomalies(timesheet)
+
                     if has_anomalies:
                         self.stdout.write(self.style.WARNING(
-                            f"Anomalies détectées pour le pointage {timesheet.id} du {timesheet.timestamp}"
+                            f"Anomalies détectées pour le pointage {timesheet.id} du {timesheet.timestamp} - {timesheet.get_entry_type_display()} - {timesheet.employee.get_full_name()} - {timesheet.site.name}"
                         ))
 
                     processed_count += 1
@@ -496,11 +510,11 @@ class Command(BaseCommand):
                     timesheet.is_ambiguous = False
 
                     # Utiliser l'AnomalyProcessor au lieu de l'ancien code
-                    has_anomalies = self._process_timesheet_anomalies(timesheet)
-                    
+                    has_anomalies, anomalies = self._process_timesheet_anomalies(timesheet)
+
                     if has_anomalies:
                         self.stdout.write(self.style.WARNING(
-                            f"Anomalies détectées pour le pointage {timesheet.id} du {timesheet.timestamp}"
+                            f"Anomalies détectées pour le pointage {timesheet.id} du {timesheet.timestamp} - {timesheet.get_entry_type_display()} - {timesheet.employee.get_full_name()} - {timesheet.site.name}"
                         ))
 
                     processed_count += 1
