@@ -225,6 +225,19 @@ class Command(BaseCommand):
         log_level = logging.INFO
         if options['verbose']:
             log_level = logging.DEBUG
+            # Configurer également les loggers des vues pour capturer tous les logs
+            logging.getLogger('timesheets.views').setLevel(logging.DEBUG)
+            # Configurer le logger racine pour capturer tous les logs
+            logging.getLogger().setLevel(logging.DEBUG)
+            # Ajouter un handler pour afficher les logs dans la console
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.DEBUG)
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            console_handler.setFormatter(formatter)
+            logging.getLogger().addHandler(console_handler)
+
+            # Log pour confirmer que le mode verbose est activé
+            logger.debug("Mode verbose activé - tous les logs seront affichés")
         logger.setLevel(log_level)
 
         # Initialiser les options
@@ -312,6 +325,9 @@ class Command(BaseCommand):
 
     def _recreate_timesheet_entries(self, start_date, end_date, site_id=None, employee_id=None, dry_run=False):
         """Supprime et recrée les pointages dans l'ordre chronologique"""
+        # Configurer le logger
+        logger = logging.getLogger(__name__)
+
         # Récupérer tous les pointages pour la période spécifiée
         query = Timesheet.objects.filter(timestamp__date__gte=start_date, timestamp__date__lte=end_date)
 
@@ -446,7 +462,9 @@ class Command(BaseCommand):
                                 self.stdout.write(f"    Pas de détails pour le jour {current_weekday}")
 
                     # Exécuter la correspondance de planning
+                    logger.debug(f"Avant appel de _match_schedule_and_check_anomalies: timesheet.id={timesheet.id}, is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}")
                     is_ambiguous = view._match_schedule_and_check_anomalies(timesheet)
+                    logger.debug(f"Après appel de _match_schedule_and_check_anomalies: timesheet.id={timesheet.id}, is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}")
 
                     # Afficher les résultats détaillés
                     self.stdout.write(f"Résultat: is_ambiguous={is_ambiguous}, is_late={timesheet.is_late}, "
@@ -497,6 +515,9 @@ class Command(BaseCommand):
 
     def _recalculate_timesheet_status(self, start_date, end_date, site_id=None, employee_id=None, dry_run=False):
         """Recalcule le statut de tous les pointages dans la période spécifiée"""
+        # Configurer le logger
+        logger = logging.getLogger(__name__)
+
         query = Timesheet.objects.filter(timestamp__date__gte=start_date, timestamp__date__lte=end_date)
 
         if site_id:
@@ -573,7 +594,9 @@ class Command(BaseCommand):
                                 self.stdout.write(f"    Pas de détails pour le jour {current_weekday}")
 
                     # Exécuter la correspondance de planning
+                    logger.debug(f"Avant appel de _match_schedule_and_check_anomalies: timesheet.id={timesheet.id}, is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}")
                     is_ambiguous = view._match_schedule_and_check_anomalies(timesheet)
+                    logger.debug(f"Après appel de _match_schedule_and_check_anomalies: timesheet.id={timesheet.id}, is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}")
 
                     # Afficher les résultats détaillés
                     self.stdout.write(f"Résultat: is_ambiguous={timesheet.is_ambiguous}, is_late={timesheet.is_late}, "
