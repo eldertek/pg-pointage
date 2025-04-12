@@ -93,7 +93,7 @@ class TimesheetCreateView(generics.CreateAPIView):
     serializer_class = TimesheetCreateSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def _match_schedule_and_check_anomalies(self, timesheet, skip_anomaly_creation=False):
+    def _match_schedule_and_check_anomalies(self, timesheet):
         """Vérifie si le pointage correspond à un planning et crée des anomalies si nécessaire."""
         # Récupérer les informations nécessaires
         employee = timesheet.employee
@@ -137,16 +137,15 @@ class TimesheetCreateView(generics.CreateAPIView):
             timesheet.save()
 
             # Créer une anomalie pour pointage hors planning
-            if not skip_anomaly_creation:
-                Anomaly.objects.create(
-                    employee=employee,
-                    site=site,
-                    timesheet=timesheet,
-                    date=current_date,
-                    anomaly_type=Anomaly.AnomalyType.OTHER,
-                    description=f"Pointage hors planning: l'employé n'est pas rattaché à ce site.",
-                    status=Anomaly.AnomalyStatus.PENDING
-                )
+            Anomaly.objects.create(
+                employee=employee,
+                site=site,
+                timesheet=timesheet,
+                date=current_date,
+                anomaly_type=Anomaly.AnomalyType.OTHER,
+                description=f"Pointage hors planning: l'employé n'est pas rattaché à ce site.",
+                status=Anomaly.AnomalyStatus.PENDING
+            )
         else:
             # Vérifier chaque planning de l'employé pour ce site
             matching_schedules = []
@@ -210,26 +209,25 @@ class TimesheetCreateView(generics.CreateAPIView):
                                             logger.debug(f"Détails du retard: employee={employee.id}, site={site.id}, timesheet={timesheet.id}, date={current_date}, late_minutes={late_minutes}, late_margin={late_margin}")
 
                                             # Créer l'anomalie pour les retards qui dépassent la marge
-                                            if not skip_anomaly_creation:
-                                                try:
-                                                    anomaly = Anomaly.objects.create(
-                                                        employee=employee,
-                                                        site=site,
-                                                        timesheet=timesheet,
-                                                        date=current_date,
-                                                        anomaly_type=Anomaly.AnomalyType.LATE,
-                                                        description=f"Retard de {late_minutes} minutes (marge: {late_margin} minutes).",
-                                                        minutes=late_minutes,
-                                                        status=Anomaly.AnomalyStatus.PENDING,
-                                                        schedule=schedule
-                                                    )
-                                                    logger.debug(f"Anomalie de retard créée avec succès: id={anomaly.id}")
+                                            try:
+                                                anomaly = Anomaly.objects.create(
+                                                    employee=employee,
+                                                    site=site,
+                                                    timesheet=timesheet,
+                                                    date=current_date,
+                                                    anomaly_type=Anomaly.AnomalyType.LATE,
+                                                    description=f"Retard de {late_minutes} minutes (marge: {late_margin} minutes).",
+                                                    minutes=late_minutes,
+                                                    status=Anomaly.AnomalyStatus.PENDING,
+                                                    schedule=schedule
+                                                )
+                                                logger.debug(f"Anomalie de retard créée avec succès: id={anomaly.id}")
 
-                                                    # Ajouter le pointage aux pointages associés
-                                                    anomaly.related_timesheets.add(timesheet)
-                                                    logger.debug(f"Pointage {timesheet.id} associé à l'anomalie {anomaly.id}")
-                                                except Exception as e:
-                                                    logger.error(f"Erreur lors de la création de l'anomalie de retard: {str(e)}", exc_info=True)
+                                                # Ajouter le pointage aux pointages associés
+                                                anomaly.related_timesheets.add(timesheet)
+                                                logger.debug(f"Pointage {timesheet.id} associé à l'anomalie {anomaly.id}")
+                                            except Exception as e:
+                                                logger.error(f"Erreur lors de la création de l'anomalie de retard: {str(e)}", exc_info=True)
                                         else:
                                             # Si le retard est dans la marge, ne pas marquer comme retard
                                             timesheet.is_late = False
@@ -262,21 +260,20 @@ class TimesheetCreateView(generics.CreateAPIView):
                                                 logger.info(f"Départ anticipé détecté pour le matin: {early_minutes} minutes (marge: {early_departure_margin} minutes)")
 
                                                 # Créer l'anomalie pour les départs anticipés qui dépassent la marge
-                                                if not skip_anomaly_creation:
-                                                    anomaly = Anomaly.objects.create(
-                                                        employee=employee,
-                                                        site=site,
-                                                        timesheet=timesheet,
-                                                        date=current_date,
-                                                        anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                                        description=f"Départ anticipé de {early_minutes} minutes (marge: {early_departure_margin} minutes).",
-                                                        minutes=early_minutes,
-                                                        status=Anomaly.AnomalyStatus.PENDING,
-                                                        schedule=schedule
-                                                    )
+                                                anomaly = Anomaly.objects.create(
+                                                    employee=employee,
+                                                    site=site,
+                                                    timesheet=timesheet,
+                                                    date=current_date,
+                                                    anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                                                    description=f"Départ anticipé de {early_minutes} minutes (marge: {early_departure_margin} minutes).",
+                                                    minutes=early_minutes,
+                                                    status=Anomaly.AnomalyStatus.PENDING,
+                                                    schedule=schedule
+                                                )
 
-                                                    # Ajouter le pointage aux pointages associés
-                                                    anomaly.related_timesheets.add(timesheet)
+                                                # Ajouter le pointage aux pointages associés
+                                                anomaly.related_timesheets.add(timesheet)
                                             else:
                                                 # Si le départ anticipé est dans la marge, ne pas marquer comme départ anticipé
                                                 timesheet.is_early_departure = False
@@ -312,21 +309,20 @@ class TimesheetCreateView(generics.CreateAPIView):
                                                 logger.info(f"Départ anticipé détecté pour l'après-midi: {early_minutes} minutes (marge: {early_departure_margin} minutes)")
 
                                                 # Créer l'anomalie pour les départs anticipés qui dépassent la marge
-                                                if not skip_anomaly_creation:
-                                                    anomaly = Anomaly.objects.create(
-                                                        employee=employee,
-                                                        site=site,
-                                                        timesheet=timesheet,
-                                                        date=current_date,
-                                                        anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                                        description=f"Départ anticipé de {early_minutes} minutes (marge: {early_departure_margin} minutes).",
-                                                        minutes=early_minutes,
-                                                        status=Anomaly.AnomalyStatus.PENDING,
-                                                        schedule=schedule
-                                                    )
+                                                anomaly = Anomaly.objects.create(
+                                                    employee=employee,
+                                                    site=site,
+                                                    timesheet=timesheet,
+                                                    date=current_date,
+                                                    anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                                                    description=f"Départ anticipé de {early_minutes} minutes (marge: {early_departure_margin} minutes).",
+                                                    minutes=early_minutes,
+                                                    status=Anomaly.AnomalyStatus.PENDING,
+                                                    schedule=schedule
+                                                )
 
-                                                    # Ajouter le pointage aux pointages associés
-                                                    anomaly.related_timesheets.add(timesheet)
+                                                # Ajouter le pointage aux pointages associés
+                                                anomaly.related_timesheets.add(timesheet)
                                             else:
                                                 # Si le départ anticipé est dans la marge, ne pas marquer comme départ anticipé
                                                 timesheet.is_early_departure = False
@@ -387,26 +383,25 @@ class TimesheetCreateView(generics.CreateAPIView):
                                             logger.debug(f"Détails du retard après-midi: employee={employee.id}, site={site.id}, timesheet={timesheet.id}, date={current_date}, late_minutes={late_minutes}, late_margin={late_margin}")
 
                                             # Créer l'anomalie pour les retards qui dépassent la marge
-                                            if not skip_anomaly_creation:
-                                                try:
-                                                    anomaly = Anomaly.objects.create(
-                                                        employee=employee,
-                                                        site=site,
-                                                        timesheet=timesheet,
-                                                        date=current_date,
-                                                        anomaly_type=Anomaly.AnomalyType.LATE,
-                                                        description=f"Retard de {late_minutes} minutes (marge: {late_margin} minutes).",
-                                                        minutes=late_minutes,
-                                                        status=Anomaly.AnomalyStatus.PENDING,
-                                                        schedule=schedule
-                                                    )
-                                                    logger.debug(f"Anomalie de retard après-midi créée avec succès: id={anomaly.id}")
+                                            try:
+                                                anomaly = Anomaly.objects.create(
+                                                    employee=employee,
+                                                    site=site,
+                                                    timesheet=timesheet,
+                                                    date=current_date,
+                                                    anomaly_type=Anomaly.AnomalyType.LATE,
+                                                    description=f"Retard de {late_minutes} minutes (marge: {late_margin} minutes).",
+                                                    minutes=late_minutes,
+                                                    status=Anomaly.AnomalyStatus.PENDING,
+                                                    schedule=schedule
+                                                )
+                                                logger.debug(f"Anomalie de retard après-midi créée avec succès: id={anomaly.id}")
 
-                                                    # Ajouter le pointage aux pointages associés
-                                                    anomaly.related_timesheets.add(timesheet)
-                                                    logger.debug(f"Pointage {timesheet.id} associé à l'anomalie {anomaly.id}")
-                                                except Exception as e:
-                                                    logger.error(f"Erreur lors de la création de l'anomalie de retard après-midi: {str(e)}", exc_info=True)
+                                                # Ajouter le pointage aux pointages associés
+                                                anomaly.related_timesheets.add(timesheet)
+                                                logger.debug(f"Pointage {timesheet.id} associé à l'anomalie {anomaly.id}")
+                                            except Exception as e:
+                                                logger.error(f"Erreur lors de la création de l'anomalie de retard après-midi: {str(e)}", exc_info=True)
                                         else:
                                             # Si le retard est dans la marge, ne pas marquer comme retard
                                             timesheet.is_late = False
@@ -486,7 +481,7 @@ class TimesheetCreateView(generics.CreateAPIView):
             timesheet.save()
 
             # Créer une anomalie si le pointage est hors planning
-            if is_out_of_schedule and not skip_anomaly_creation:
+            if is_out_of_schedule:
                 Anomaly.objects.create(
                     employee=employee,
                     site=site,
