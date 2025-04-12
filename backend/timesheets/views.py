@@ -426,34 +426,8 @@ class TimesheetCreateView(generics.CreateAPIView):
                                         timesheet.early_departure_minutes = early_minutes
                                         logger.info(f"Durée insuffisante détectée pour planning fréquence: {duration_minutes:.1f} minutes, minimum requis: {min_duration:.1f} minutes")
 
-                                        # Vérifier si une anomalie de durée insuffisante existe déjà
-                                        existing_anomaly = Anomaly.objects.filter(
-                                            employee=employee,
-                                            site=site,
-                                            date=current_date,
-                                            anomaly_type=Anomaly.AnomalyType.INSUFFICIENT_HOURS,
-                                            timesheet=timesheet
-                                        ).first()
-
-                                        if not existing_anomaly:
-                                            # Créer une anomalie pour durée insuffisante (utiliser le même type que dans le scan d'anomalies)
-                                            anomaly = Anomaly.objects.create(
-                                                employee=employee,
-                                                site=site,
-                                                timesheet=timesheet,
-                                                date=current_date,
-                                                anomaly_type=Anomaly.AnomalyType.INSUFFICIENT_HOURS,
-                                                description=f"Durée de présence insuffisante pour planning fréquence. Durée: {duration_minutes:.0f} minutes, Minimum requis: {min_duration:.0f} minutes (fréquence: {expected_duration} minutes, tolérance: {tolerance_percentage}%)",
-                                                minutes=early_minutes,
-                                                status=Anomaly.AnomalyStatus.PENDING,
-                                                schedule=schedule
-                                            )
-
-                                            # Ajouter les pointages concernés à l'anomalie
-                                            anomaly.related_timesheets.add(timesheet)
-                                            anomaly.related_timesheets.add(last_arrival)
-
-                                            logger.info(f"Anomalie de durée insuffisante créée pour {employee.get_full_name()} le {current_date} au site {site.name}")
+                                        # Marquer le pointage comme départ anticipé pour qu'il soit détecté lors du scan d'anomalies
+                                        # mais ne pas créer d'anomalie ici pour éviter les doublons
 
                 except ScheduleDetail.DoesNotExist:
                     # Pas de planning pour ce jour
