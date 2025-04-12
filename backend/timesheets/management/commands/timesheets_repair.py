@@ -9,7 +9,6 @@ from timesheets.models import Timesheet, Anomaly
 from sites.models import Site, SiteEmployee, Schedule, ScheduleDetail
 from users.models import User
 from timesheets.views import ScanAnomaliesView
-from rest_framework.test import APIRequestFactory
 
 
 class Command(BaseCommand):
@@ -627,6 +626,10 @@ class Command(BaseCommand):
             # sans les créer réellement
             return 0
 
+        # Importer les modules nécessaires
+        from timesheets.models import Anomaly, Timesheet
+        import logging
+
         # Configurer le logger
         logger = logging.getLogger(__name__)
 
@@ -634,12 +637,14 @@ class Command(BaseCommand):
         self.stdout.write(f"Scan des anomalies avec les paramètres: start_date={start_date}, end_date={end_date}, site_id={site_id}, employee_id={employee_id}")
 
         try:
-            # Utiliser la vue ScanAnomaliesView directement
-            factory = APIRequestFactory()
+            # Initialiser l'instance de la vue
+            scan_view = ScanAnomaliesView()
+            
+            # Préparer les données pour le scanner d'anomalies
             data = {
                 'start_date': start_date,
                 'end_date': end_date,
-                'force_update': True
+                'force_update': True  # Forcer la mise à jour même si des anomalies existent déjà
             }
             
             if site_id:
@@ -647,38 +652,29 @@ class Command(BaseCommand):
             
             if employee_id:
                 data['employee'] = employee_id
-                
-            # Créer une requête factice
-            request = factory.post('/api/v1/timesheets/scan-anomalies/', data, format='json')
+
+            # Créer un serializer avec les données
+            serializer = scan_view.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
             
-            # Obtenir un utilisateur admin pour avoir les permissions nécessaires
-            admin_user = User.objects.filter(role=User.Role.ADMIN).first()
-            if not admin_user:
-                # Si pas d'admin, chercher un manager
-                admin_user = User.objects.filter(role=User.Role.MANAGER).first()
-                if not admin_user:
-                    # En dernier recours, prendre n'importe quel utilisateur
-                    admin_user = User.objects.first()
+            # Simuler une requête avec les données validées
+            class MockRequest:
+                def __init__(self, data):
+                    self.data = data
             
-            if not admin_user:
-                raise CommandError("Aucun utilisateur trouvé pour exécuter le scan des anomalies")
-                
-            request.user = admin_user
+            request = MockRequest(serializer.validated_data)
+            scan_view.request = request
             
-            # Initialiser et appeler la vue
-            view = ScanAnomaliesView()
-            view.format_kwarg = None
-            view.request = request
-            
-            response = view.post(request)
+            # Exécuter la méthode post de la vue
+            result = scan_view.post(request)
             
             # Récupérer le nombre d'anomalies créées
-            anomalies_count = response.data.get('anomalies_created', 0)
+            anomalies_created = result.data.get('anomalies_created', 0)
             
             # Afficher le résultat
-            self.stdout.write(f"Scan terminé: {anomalies_count} anomalies détectées")
+            self.stdout.write(f"Scan terminé: {anomalies_created} anomalies détectées")
             
-            return anomalies_count
+            return anomalies_created
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Erreur lors du scan des anomalies: {str(e)}"))
