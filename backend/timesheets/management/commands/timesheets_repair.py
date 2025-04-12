@@ -299,10 +299,6 @@ class Command(BaseCommand):
                 # 3. Effectuer un scan d'anomalies complet après avoir recréé tous les pointages
                 if not options['dry_run']:
                     self.stdout.write("Exécution d'un scan d'anomalies complet...")
-                    from timesheets.views import ScanAnomaliesView
-                    from rest_framework.test import APIRequestFactory
-                    from django.contrib.auth import get_user_model
-                    from rest_framework.test import force_authenticate
 
                     # Créer une requête factice
                     factory = APIRequestFactory()
