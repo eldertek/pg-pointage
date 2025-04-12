@@ -439,13 +439,40 @@ class AnomalyProcessor:
         created_anomaly = None
         # Ne créer l'anomalie que si le départ est réellement anticipé (minutes > 0) et dépasse la marge
         if not existing_anomaly and early_minutes > 0 and early_minutes > early_departure_margin:
+            # Calculer le départ anticipé effectif (au-delà de la marge de tolérance)
+            effective_early_minutes = early_minutes - early_departure_margin
+
+            # Trouver les détails du planning pour ce jour
+            try:
+                schedule_detail = ScheduleDetail.objects.get(
+                    schedule=schedule,
+                    day_of_week=timesheet.timestamp.date().weekday()
+                )
+
+                # Déterminer l'heure de fin prévue
+                expected_time = None
+                local_time = timezone.localtime(timesheet.timestamp).time()
+
+                if schedule.schedule_type == 'FIXED':
+                    # Déterminer si c'est un départ anticipé du matin ou de l'après-midi
+                    if schedule_detail.start_time_1 and schedule_detail.end_time_1 and schedule_detail.start_time_1 <= local_time <= schedule_detail.end_time_1:
+                        expected_time = schedule_detail.end_time_1
+                    elif schedule_detail.start_time_2 and schedule_detail.end_time_2 and schedule_detail.start_time_2 <= local_time <= schedule_detail.end_time_2:
+                        expected_time = schedule_detail.end_time_2
+
+                description = f'Départ anticipé de {effective_early_minutes} minute(s) au-delà de la marge de tolérance ({early_departure_margin} min).'
+                if expected_time:
+                    description += f' Heure prévue: {expected_time}, heure effective: {local_time}.'
+            except ScheduleDetail.DoesNotExist:
+                description = f'Départ anticipé de {early_minutes} minutes.'
+
             anomaly = Anomaly.objects.create(
                 employee=timesheet.employee,
                 site=timesheet.site,
                 timesheet=timesheet,
                 date=timesheet.timestamp.date(),
                 anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                description=f'Départ anticipé de {early_minutes} minutes.',
+                description=description,
                 minutes=early_minutes,
                 status=Anomaly.AnomalyStatus.PENDING,
                 schedule=schedule
@@ -453,7 +480,7 @@ class AnomalyProcessor:
             anomaly.related_timesheets.add(timesheet)
             self._anomalies_detected = True
             created_anomaly = anomaly
-            self.logger.info(f"Anomalie créée: EARLY_DEPARTURE - Départ anticipé de {early_minutes} minutes (marge: {early_departure_margin}min) pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+            self.logger.info(f"Anomalie créée: EARLY_DEPARTURE - {description} pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
         elif early_minutes == 0:
             self.logger.debug(f"Départ exactement à l'heure de fin, pas d'anomalie créée pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
         elif early_minutes <= early_departure_margin:
@@ -493,10 +520,11 @@ class AnomalyProcessor:
                     # Vérifier si des plannings existent pour ce jour de la semaine
                     current_weekday = timesheet.timestamp.date().weekday()
                     schedules_with_details = []
-                    for schedule in active_schedules:
+                    for schedule_obj in active_schedules:
                         try:
-                            detail = ScheduleDetail.objects.get(schedule=schedule, day_of_week=current_weekday)
-                            schedules_with_details.append(schedule)
+                            # Vérifier si le planning a des détails pour ce jour
+                            ScheduleDetail.objects.get(schedule=schedule_obj, day_of_week=current_weekday)
+                            schedules_with_details.append(schedule_obj)
                         except ScheduleDetail.DoesNotExist:
                             continue
 
