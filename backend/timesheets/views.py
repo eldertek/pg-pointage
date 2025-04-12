@@ -342,19 +342,21 @@ class TimesheetCreateView(generics.CreateAPIView):
                                                    timedelta(minutes=early_departure_margin)).time()
 
                             if entry_type == Timesheet.EntryType.ARRIVAL:
-                                # Pour une arrivée, vérifier si l'heure est proche de l'heure de début
-                                # ou si elle est après l'heure de début (retard)
-                                # Condition modifiée pour détecter correctement les retards pour les pointages d'après-midi
+                                # Pour une arrivée, vérifier si l'heure est dans la plage de l'après-midi
+                                # ou si elle est proche de l'heure de début de l'après-midi
                                 if schedule_detail.start_time_2 <= current_time <= schedule_detail.end_time_2 or current_time <= start_time_with_margin:
                                     is_matching = True
-                                    # Vérifier si l'arrivée est en retard
-                                    # Ne marquer comme en retard que si l'arrivée est après l'heure de début de l'après-midi
+                                    # Vérifier si l'arrivée est en retard par rapport à l'heure de début de l'après-midi
                                     if current_time > schedule_detail.start_time_2:
-                                        timesheet.is_late = True
                                         # Calculer les minutes de retard
                                         late_minutes = int((datetime.combine(current_date, current_time) -
                                                           datetime.combine(current_date, schedule_detail.start_time_2)).total_seconds() / 60)
-                                        timesheet.late_minutes = late_minutes
+
+                                        # Marquer comme en retard si le retard est supérieur à 0 minute
+                                        if late_minutes > 0:
+                                            timesheet.is_late = True
+                                            timesheet.late_minutes = late_minutes
+                                            logger.info(f"Retard détecté pour l'après-midi: {late_minutes} minutes")
 
                                         # Créer une anomalie si le retard dépasse la marge
                                         if late_minutes > 0:
