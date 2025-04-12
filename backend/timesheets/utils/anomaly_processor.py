@@ -17,6 +17,7 @@ class AnomalyProcessor:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        self._anomalies_detected = False
 
     def _is_timesheet_matching_schedule(self, timesheet, schedule):
         """Vérifie si un pointage correspond à un planning"""
@@ -146,7 +147,7 @@ class AnomalyProcessor:
                                 if current_time > schedule_detail.start_time_1:
                                     late_minutes = int((datetime.combine(current_date, current_time) -
                                                     datetime.combine(current_date, schedule_detail.start_time_1)).total_seconds() / 60)
-                                    
+
                                     if late_minutes > late_margin:
                                         timesheet.is_late = True
                                         timesheet.late_minutes = late_minutes
@@ -158,7 +159,7 @@ class AnomalyProcessor:
                                 if current_time > schedule_detail.start_time_2:
                                     late_minutes = int((datetime.combine(current_date, current_time) -
                                                     datetime.combine(current_date, schedule_detail.start_time_2)).total_seconds() / 60)
-                                    
+
                                     if late_minutes > late_margin:
                                         timesheet.is_late = True
                                         timesheet.late_minutes = late_minutes
@@ -169,7 +170,7 @@ class AnomalyProcessor:
                             is_matching = True
                             early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_1) -
                                             datetime.combine(current_date, current_time)).total_seconds() / 60)
-                            
+
                             if early_minutes > early_departure_margin:
                                 timesheet.is_early_departure = True
                                 timesheet.early_departure_minutes = early_minutes
@@ -179,7 +180,7 @@ class AnomalyProcessor:
                             is_matching = True
                             early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_2) -
                                             datetime.combine(current_date, current_time)).total_seconds() / 60)
-                            
+
                             if early_minutes > early_departure_margin:
                                 timesheet.is_early_departure = True
                                 timesheet.early_departure_minutes = early_minutes
@@ -255,6 +256,7 @@ class AnomalyProcessor:
                 schedule=schedule
             )
             anomaly.related_timesheets.add(timesheet)
+            self._anomalies_detected = True
 
     def _create_early_departure_anomaly(self, timesheet, early_minutes, early_departure_margin, schedule):
         """Crée une anomalie de départ anticipé"""
@@ -279,6 +281,7 @@ class AnomalyProcessor:
                 schedule=schedule
             )
             anomaly.related_timesheets.add(timesheet)
+            self._anomalies_detected = True
 
     def _create_out_of_schedule_anomaly(self, timesheet):
         """Crée une anomalie de pointage hors planning"""
@@ -301,10 +304,14 @@ class AnomalyProcessor:
                 status=Anomaly.AnomalyStatus.PENDING
             )
             anomaly.related_timesheets.add(timesheet)
+            self._anomalies_detected = True
 
     def process_timesheet(self, timesheet, force_update=False):
         """Traite un pointage individuel"""
         try:
+            # Réinitialiser le flag d'anomalies détectées
+            self._anomalies_detected = False
+
             if force_update:
                 # Réinitialiser les statuts
                 timesheet.is_late = False
@@ -320,7 +327,8 @@ class AnomalyProcessor:
             return {
                 'success': True,
                 'message': 'Pointage traité avec succès',
-                'is_ambiguous': is_ambiguous
+                'is_ambiguous': is_ambiguous,
+                'has_anomalies': self._anomalies_detected
             }
 
         except Exception as e:
@@ -329,6 +337,10 @@ class AnomalyProcessor:
                 'success': False,
                 'message': f"Erreur lors du traitement du pointage: {str(e)}"
             }
+
+    def has_anomalies(self):
+        """Retourne True si des anomalies ont été détectées lors du traitement"""
+        return self._anomalies_detected
 
     def scan_anomalies(self, start_date=None, end_date=None, site_id=None, employee_id=None, force_update=False):
         """Scan complet des anomalies sur une période"""
@@ -356,7 +368,7 @@ class AnomalyProcessor:
                         anomalies_filter &= Q(site_id=site_id)
                     if employee_id:
                         anomalies_filter &= Q(employee_id=employee_id)
-                    
+
                     Anomaly.objects.filter(anomalies_filter).delete()
 
                     # Réinitialiser les statuts des pointages
@@ -373,7 +385,7 @@ class AnomalyProcessor:
                 anomalies_created = 0
                 for timesheet in timesheets:
                     result = self.process_timesheet(timesheet, force_update=force_update)
-                    if result['success']:
+                    if result['success'] and result.get('has_anomalies', False):
                         anomalies_created += 1
 
                 return Response({
@@ -386,4 +398,4 @@ class AnomalyProcessor:
             self.logger.error(f"Erreur lors du scan des anomalies: {str(e)}", exc_info=True)
             return Response({
                 'error': f"Erreur lors du scan des anomalies: {str(e)}"
-            }, status=status.HTTP_400_BAD_REQUEST) 
+            }, status=status.HTTP_400_BAD_REQUEST)
