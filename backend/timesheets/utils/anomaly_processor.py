@@ -199,10 +199,8 @@ class AnomalyProcessor:
                 if schedule.schedule_type == Schedule.ScheduleType.FIXED:
                     is_matching = False
 
-                    if current_time < timezone.datetime.strptime('07:30', '%H:%M').time() or \
-                       current_time > timezone.datetime.strptime('19:00', '%H:%M').time():
-                        is_out_of_schedule = True
-                        continue
+                    # Suppression de la vérification arbitraire des heures 7h30-19h00
+                    # qui causait des faux positifs "hors planning"
 
                     late_margin = schedule.late_arrival_margin or site.late_margin
                     early_departure_margin = schedule.early_departure_margin or site.early_departure_margin
@@ -237,29 +235,47 @@ class AnomalyProcessor:
                                             created_anomalies.append(anomaly)
 
                     elif entry_type == Timesheet.EntryType.DEPARTURE:
-                        if schedule_detail.end_time_1 and current_time < schedule_detail.end_time_1:
-                            is_matching = True
-                            early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_1) -
-                                            datetime.combine(current_date, current_time)).total_seconds() / 60)
+                        # Vérifier si le départ est dans la plage du matin
+                        if schedule_detail.start_time_1 and schedule_detail.end_time_1:
+                            # Si l'heure est dans la plage du matin ou égale à l'heure de fin
+                            if schedule_detail.start_time_1 <= current_time <= schedule_detail.end_time_1:
+                                is_matching = True
+                                # Vérifier si c'est un départ anticipé
+                                if current_time < schedule_detail.end_time_1:
+                                    early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_1) -
+                                                    datetime.combine(current_date, current_time)).total_seconds() / 60)
 
-                            if early_minutes > early_departure_margin:
-                                timesheet.is_early_departure = True
-                                timesheet.early_departure_minutes = early_minutes
-                                anomaly = self._create_early_departure_anomaly(timesheet, early_minutes, early_departure_margin, schedule)
-                                if anomaly:
-                                    created_anomalies.append(anomaly)
+                                    self.logger.debug(f"Départ anticipé détecté (matin): {early_minutes} minutes avant {schedule_detail.end_time_1}")
 
-                        elif schedule_detail.end_time_2 and current_time < schedule_detail.end_time_2:
-                            is_matching = True
-                            early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_2) -
-                                            datetime.combine(current_date, current_time)).total_seconds() / 60)
+                                    if early_minutes > early_departure_margin:
+                                        timesheet.is_early_departure = True
+                                        timesheet.early_departure_minutes = early_minutes
+                                        anomaly = self._create_early_departure_anomaly(timesheet, early_minutes, early_departure_margin, schedule)
+                                        if anomaly:
+                                            created_anomalies.append(anomaly)
+                                else:
+                                    self.logger.debug(f"Départ exactement à l'heure de fin du matin: {current_time} = {schedule_detail.end_time_1}")
 
-                            if early_minutes > early_departure_margin:
-                                timesheet.is_early_departure = True
-                                timesheet.early_departure_minutes = early_minutes
-                                anomaly = self._create_early_departure_anomaly(timesheet, early_minutes, early_departure_margin, schedule)
-                                if anomaly:
-                                    created_anomalies.append(anomaly)
+                        # Vérifier si le départ est dans la plage de l'après-midi
+                        if schedule_detail.start_time_2 and schedule_detail.end_time_2 and not is_matching:
+                            # Si l'heure est dans la plage de l'après-midi ou égale à l'heure de fin
+                            if schedule_detail.start_time_2 <= current_time <= schedule_detail.end_time_2:
+                                is_matching = True
+                                # Vérifier si c'est un départ anticipé
+                                if current_time < schedule_detail.end_time_2:
+                                    early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_2) -
+                                                    datetime.combine(current_date, current_time)).total_seconds() / 60)
+
+                                    self.logger.debug(f"Départ anticipé détecté (après-midi): {early_minutes} minutes avant {schedule_detail.end_time_2}")
+
+                                    if early_minutes > early_departure_margin:
+                                        timesheet.is_early_departure = True
+                                        timesheet.early_departure_minutes = early_minutes
+                                        anomaly = self._create_early_departure_anomaly(timesheet, early_minutes, early_departure_margin, schedule)
+                                        if anomaly:
+                                            created_anomalies.append(anomaly)
+                                else:
+                                    self.logger.debug(f"Départ exactement à l'heure de fin de l'après-midi: {current_time} = {schedule_detail.end_time_2}")
 
                     if is_matching:
                         matching_schedules.append(schedule)
@@ -337,7 +353,8 @@ class AnomalyProcessor:
 
         if len(matching_schedules) > 1:
             is_ambiguous = True
-            most_recent_schedule = max(matching_schedules, key=lambda s: s.created_at)
+            # En cas de plannings multiples, on utilise le plus récent
+            # mais on ne fait que marquer le pointage comme ambigu
 
         timesheet.is_out_of_schedule = is_out_of_schedule
         timesheet.is_ambiguous = is_ambiguous
