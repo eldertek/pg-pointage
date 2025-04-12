@@ -344,7 +344,8 @@ class TimesheetCreateView(generics.CreateAPIView):
                             if entry_type == Timesheet.EntryType.ARRIVAL:
                                 # Pour une arrivée, vérifier si l'heure est proche de l'heure de début
                                 # ou si elle est après l'heure de début (retard)
-                                if current_time <= start_time_with_margin or current_time > schedule_detail.start_time_2:
+                                # Condition modifiée pour détecter correctement les retards pour les pointages d'après-midi
+                                if schedule_detail.start_time_2 <= current_time <= schedule_detail.end_time_2 or current_time <= start_time_with_margin:
                                     is_matching = True
                                     # Vérifier si l'arrivée est en retard
                                     # Ne marquer comme en retard que si l'arrivée est après l'heure de début de l'après-midi
@@ -474,7 +475,7 @@ class AnomalyListView(generics.ListCreateAPIView):
             return Anomaly.objects.filter(site__organization__in=user.organizations.all())
         else:
             return Anomaly.objects.filter(employee=user)
-            
+
     def filter_queryset(self, queryset):
         # Récupérer les paramètres de filtrage
         site = self.request.query_params.get('site')
@@ -483,11 +484,11 @@ class AnomalyListView(generics.ListCreateAPIView):
         status = self.request.query_params.get('status')
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
-        
+
         # Log pour déboguer
         logger = logging.getLogger(__name__)
         logger.info(f"Filtrage des anomalies - Paramètres: site={site}, employee={employee}, type={anomaly_type}, status={status}, start_date={start_date}, end_date={end_date}")
-        
+
         # Appliquer les filtres si présents
         if site:
             queryset = queryset.filter(site_id=site)
@@ -507,7 +508,7 @@ class AnomalyListView(generics.ListCreateAPIView):
         if end_date:
             queryset = queryset.filter(date__lte=end_date)
             logger.info(f"Filtre date de fin appliqué: {end_date}, résultats: {queryset.count()}")
-        
+
         return queryset
 
 class AnomalyDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -994,11 +995,10 @@ class ScanAnomaliesView(generics.CreateAPIView):
 
                 # 2. Vérifier les retards
                 arrivals = [ts for ts in day_timesheets if ts.entry_type == Timesheet.EntryType.ARRIVAL]
-                if arrivals:
-                    first_arrival = arrivals[0]
+                for arrival in arrivals:
                     # Vérifier si l'arrivée est en retard
                     # Si late_minutes n'est pas défini, calculer le retard
-                    if not first_arrival.late_minutes:
+                    if not arrival.late_minutes:
                         # Récupérer le planning associé au pointage
                         from sites.models import SiteEmployee, Schedule, ScheduleDetail
                         site_employee_relations = SiteEmployee.objects.filter(
@@ -1021,7 +1021,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
 
                                 # Calculer le retard par rapport à l'heure de début
                                 from datetime import datetime
-                                arrival_time = first_arrival.timestamp.time()
+                                arrival_time = arrival.timestamp.time()
 
                                 # Vérifier d'abord par rapport à la plage du matin
                                 if schedule_detail.start_time_1 and arrival_time > schedule_detail.start_time_1:
@@ -1029,9 +1029,9 @@ class ScanAnomaliesView(generics.CreateAPIView):
                                     if not schedule_detail.end_time_1 or arrival_time < schedule_detail.end_time_1:
                                         late_minutes = int((datetime.combine(date, arrival_time) -
                                                           datetime.combine(date, schedule_detail.start_time_1)).total_seconds() / 60)
-                                        first_arrival.is_late = True
-                                        first_arrival.late_minutes = late_minutes
-                                        first_arrival.save()
+                                        arrival.is_late = True
+                                        arrival.late_minutes = late_minutes
+                                        arrival.save()
                                         break
 
                                 # Vérifier ensuite par rapport à la plage de l'après-midi
@@ -1040,9 +1040,9 @@ class ScanAnomaliesView(generics.CreateAPIView):
                                     if not schedule_detail.end_time_2 or arrival_time < schedule_detail.end_time_2:
                                         late_minutes = int((datetime.combine(date, arrival_time) -
                                                           datetime.combine(date, schedule_detail.start_time_2)).total_seconds() / 60)
-                                        first_arrival.is_late = True
-                                        first_arrival.late_minutes = late_minutes
-                                        first_arrival.save()
+                                        arrival.is_late = True
+                                        arrival.late_minutes = late_minutes
+                                        arrival.save()
                                         break
                             except ScheduleDetail.DoesNotExist:
                                 continue
@@ -1059,7 +1059,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
                     for site_employee in site_employee_relations:
                         if site_employee.schedule and site_employee.schedule.is_active:
                             # Vérifier si ce planning correspond au pointage
-                            if self._is_timesheet_matching_schedule(first_arrival, site_employee.schedule):
+                            if self._is_timesheet_matching_schedule(arrival, site_employee.schedule):
                                 associated_schedule = site_employee.schedule
                                 break
 
@@ -1071,7 +1071,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
                         late_margin = site.late_margin
 
                     # Créer une anomalie si l'arrivée est en retard
-                    if first_arrival.is_late and first_arrival.late_minutes > 0:
+                    if arrival.is_late and arrival.late_minutes > 0:
                         # Créer une anomalie pour tous les retards, même ceux dans la marge
                         # Supprimer les anomalies existantes pour éviter les doublons
                         Anomaly.objects.filter(
@@ -1079,12 +1079,12 @@ class ScanAnomaliesView(generics.CreateAPIView):
                             site=site,
                             date=date,
                             anomaly_type=Anomaly.AnomalyType.LATE,
-                            timesheet=first_arrival
+                            timesheet=arrival
                         ).delete()
 
                         # Vérifier si le retard dépasse la marge
                         create_anomaly = True
-                        if first_arrival.late_minutes <= late_margin:
+                        if arrival.late_minutes <= late_margin:
                             # Ne pas créer d'anomalie si le retard est dans la marge
                             create_anomaly = False
 
@@ -1092,21 +1092,21 @@ class ScanAnomaliesView(generics.CreateAPIView):
                             anomaly = Anomaly.objects.create(
                                 employee=employee,
                                 site=site,
-                                timesheet=first_arrival,
+                                timesheet=arrival,
                                 date=date,
                                 anomaly_type=Anomaly.AnomalyType.LATE,
-                                description=f'Retard de {first_arrival.late_minutes} minutes.',
-                                minutes=first_arrival.late_minutes,
+                                description=f'Retard de {arrival.late_minutes} minutes.',
+                                minutes=arrival.late_minutes,
                                 status=Anomaly.AnomalyStatus.PENDING,
                                 schedule=associated_schedule
                             )
 
                             # Associer le pointage concerné à l'anomalie
-                            anomaly.related_timesheets.add(first_arrival)
+                            anomaly.related_timesheets.add(arrival)
                             anomalies_created += 1
                             logging.getLogger(__name__).info(
                                 f"Anomalie de retard créée pour {employee.get_full_name()} le {date} au site {site.name}. "
-                                f"Retard: {first_arrival.late_minutes} minutes, Marge: {late_margin} minutes"
+                                f"Retard: {arrival.late_minutes} minutes, Marge: {late_margin} minutes"
                             )
 
                 # 3. Vérifier les départs anticipés

@@ -1137,6 +1137,149 @@ class FixedScheduleAnomalyTestCase(TestCase):
         )
         self.assertEqual(anomalies.count(), 0)
 
+    def test_split_shift_morning_afternoon_anomalies(self):
+        """Test pour le scénario spécifique avec un planning fractionné matin/après-midi.
+
+        Ce test vérifie la détection correcte des anomalies pour un employé avec un planning fixe
+        ayant des horaires du matin (12:00-12:15) et de l'après-midi (12:30-12:45), avec une marge
+        de 5 minutes pour les retards et les départs anticipés.
+
+        Pointages effectués:
+        - Arrivée à 12:07 (dans la plage du matin avec la marge de retard)
+        - Départ à 12:16 (juste après la fin de la plage du matin)
+        - Arrivée à 12:36 (dans la plage de l'après-midi avec la marge de retard)
+        - Départ à 12:46 (juste après la fin de la plage de l'après-midi)
+        """
+        # Créer un planning avec des horaires du matin (12:00-12:15) et de l'après-midi (12:30-12:45)
+        split_schedule = Schedule.objects.create(
+            site=self.site,
+            schedule_type=Schedule.ScheduleType.FIXED,
+            is_active=True,
+            late_arrival_margin=5,  # 5 minutes de marge pour les retards
+            early_departure_margin=5  # 5 minutes de marge pour les départs anticipés
+        )
+
+        # Configuration du planning pour lundi (jour 0)
+        ScheduleDetail.objects.create(
+            schedule=split_schedule,
+            day_of_week=0,  # Lundi
+            day_type=ScheduleDetail.DayType.FULL,
+            start_time_1=time(12, 0),  # 12:00
+            end_time_1=time(12, 15),   # 12:15
+            start_time_2=time(12, 30),  # 12:30
+            end_time_2=time(12, 45)     # 12:45
+        )
+
+        # Associer l'employé à ce planning
+        SiteEmployee.objects.create(
+            site=self.site,
+            employee=self.employee,
+            schedule=split_schedule,
+            is_active=True
+        )
+
+        # Configurer les marges de tolérance du site
+        self.site.late_margin = 5  # 5 minutes de retard autorisées
+        self.site.early_departure_margin = 5  # 5 minutes de départ anticipé autorisées
+        self.site.save()
+
+        # Créer les pointages directement avec Timesheet.objects.create pour avoir un contrôle précis
+        # Arrivée à 12:07 (7 minutes de retard pour le créneau du matin)
+        arrival_timestamp1 = self.monday_date.replace(hour=12, minute=7)
+        timesheet1 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=arrival_timestamp1,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Départ à 12:16 (1 minute après la fin du créneau du matin)
+        departure_timestamp1 = self.monday_date.replace(hour=12, minute=16)
+        timesheet2 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=departure_timestamp1,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Arrivée à 12:36 (6 minutes de retard pour le créneau de l'après-midi)
+        arrival_timestamp2 = self.monday_date.replace(hour=12, minute=36)
+        timesheet3 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=arrival_timestamp2,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Départ à 12:46 (1 minute après la fin du créneau de l'après-midi)
+        departure_timestamp2 = self.monday_date.replace(hour=12, minute=46)
+        timesheet4 = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.site,
+            timestamp=departure_timestamp2,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Appeler l'API pour détecter les anomalies
+        # Utiliser force_update=True pour forcer la mise à jour des pointages
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.monday_date.date(),
+                'end_date': self.monday_date.date(),
+                'site': self.site.id,
+                'employee': self.employee.id,
+                'force_update': True
+            },
+            format='json'
+        )
+
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+
+        # Vérifier que les pointages d'arrivée sont correctement marqués comme en retard
+        timesheet1.refresh_from_db()
+        self.assertTrue(timesheet1.is_late, "Le premier pointage d'arrivée devrait être marqué comme en retard")
+        self.assertEqual(timesheet1.late_minutes, 7, "Le retard du premier pointage devrait être de 7 minutes")
+
+        timesheet3.refresh_from_db()
+        self.assertTrue(timesheet3.is_late, "Le deuxième pointage d'arrivée devrait être marqué comme en retard")
+        self.assertEqual(timesheet3.late_minutes, 6, "Le retard du deuxième pointage devrait être de 6 minutes")
+
+        # Vérifier que les pointages de départ ne sont pas marqués comme départs anticipés
+        # car ils sont après la fin des créneaux respectifs
+        timesheet2.refresh_from_db()
+        self.assertFalse(timesheet2.is_early_departure, "Le premier pointage de départ ne devrait pas être marqué comme départ anticipé")
+        self.assertEqual(timesheet2.early_departure_minutes, 0, "Les minutes de départ anticipé du premier pointage devraient être à 0")
+
+        timesheet4.refresh_from_db()
+        self.assertFalse(timesheet4.is_early_departure, "Le deuxième pointage de départ ne devrait pas être marqué comme départ anticipé")
+        self.assertEqual(timesheet4.early_departure_minutes, 0, "Les minutes de départ anticipé du deuxième pointage devraient être à 0")
+
+        # Vérifier que des anomalies de retard ont été créées
+        late_anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.monday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.LATE
+        )
+        self.assertEqual(late_anomalies.count(), 2, "Deux anomalies de retard auraient dû être créées")
+
+        # Vérifier qu'aucune anomalie de départ anticipé n'a été créée
+        early_departure_anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.site,
+            date=self.monday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE
+        )
+        self.assertEqual(early_departure_anomalies.count(), 0, "Aucune anomalie de départ anticipé ne devrait être créée")
+
     def test_multiple_clock_ins(self):
         """Test pour le scénario 10: Pointages multiples.
 
