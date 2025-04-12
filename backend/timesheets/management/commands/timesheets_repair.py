@@ -15,8 +15,8 @@ from rest_framework.serializers import ValidationError
 
 class Command(BaseCommand):
     help = '''
-    Répare les pointages et les anomalies en supprimant toutes les anomalies existantes,
-    en recréant les pointages dans l'ordre chronologique et en recherchant les nouvelles anomalies.
+    Répare les pointages et les anomalies en supprimant toutes les anomalies existantes
+    et en recréant les pointages dans l'ordre chronologique.
 
     Par défaut, la commande supprime et recrée les pointages dans l'ordre chronologique
     pour éviter les problèmes de validation liés à l'ordre des pointages.
@@ -280,10 +280,6 @@ class Command(BaseCommand):
                     # Supprimer et recréer les pointages
                     processed_count = self._recreate_timesheet_entries(start_date, end_date, options['site'], options['employee'], options['dry_run'])
                     self.stdout.write(self.style.SUCCESS(f"{processed_count} pointages recréés"))
-
-                # 3. Rechercher les nouvelles anomalies
-                new_anomalies_count = self._scan_anomalies(start_date, end_date, options['site'], options['employee'], options['dry_run'])
-                self.stdout.write(self.style.SUCCESS(f"{new_anomalies_count} nouvelles anomalies détectées"))
 
                 if options['dry_run']:
                     # Annuler la transaction en mode simulation
@@ -620,99 +616,5 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"{error_count} erreurs rencontrées lors du recalcul des pointages"))
 
         return processed_count
-
-    def _scan_anomalies(self, start_date, end_date, site_id=None, employee_id=None, dry_run=False):
-        """Recherche les nouvelles anomalies dans la période spécifiée"""
-        if dry_run:
-            # En mode simulation, compter les anomalies qui seraient créées
-            # sans les créer réellement
-            return 0
-
-        # Importer les modules nécessaires
-        from timesheets.models import Anomaly, Timesheet
-        import logging
-
-        # Configurer le logger
-        logger = logging.getLogger(__name__)
-
-        # Afficher les paramètres utilisés
-        self.stdout.write(f"Scan des anomalies avec les paramètres: start_date={start_date}, end_date={end_date}, site_id={site_id}, employee_id={employee_id}")
-
-        try:
-            # Construire la requête de base pour les pointages
-            timesheets = Timesheet.objects.all().order_by('employee', 'site', 'timestamp')
-
-            # Appliquer les filtres
-            if start_date:
-                timesheets = timesheets.filter(timestamp__date__gte=start_date)
-            if end_date:
-                timesheets = timesheets.filter(timestamp__date__lte=end_date)
-            if site_id:
-                timesheets = timesheets.filter(site_id=site_id)
-            if employee_id:
-                timesheets = timesheets.filter(employee_id=employee_id)
-
-            # Supprimer les anomalies existantes dans la période spécifiée
-            anomalies_filter = {}
-            if site_id:
-                anomalies_filter['site_id'] = site_id
-            if employee_id:
-                anomalies_filter['employee_id'] = employee_id
-
-            deleted_count, _ = Anomaly.objects.filter(
-                date__gte=start_date,
-                date__lte=end_date,
-                **anomalies_filter
-            ).delete()
-
-            self.stdout.write(f"Suppression de {deleted_count} anomalies existantes pour recréation")
-
-            # Réinitialiser les statuts des pointages
-            for ts in timesheets:
-                # Réinitialiser les statuts de retard et départ anticipé
-                if ts.entry_type == Timesheet.EntryType.ARRIVAL:
-                    ts.is_late = False
-                    ts.late_minutes = 0
-                elif ts.entry_type == Timesheet.EntryType.DEPARTURE:
-                    ts.is_early_departure = False
-                    ts.early_departure_minutes = 0
-                # Réinitialiser le statut hors planning
-                ts.is_out_of_schedule = False
-                ts.save()
-
-            # Analyser les pointages pour détecter les anomalies
-            from timesheets.views import TimesheetCreateView
-            view = TimesheetCreateView()
-
-            # Trier les pointages par timestamp croissant (du plus ancien au plus récent)
-            timesheets = timesheets.order_by('timestamp')
-
-            anomalies_created = 0
-            
-            # Recalculer le statut de chaque pointage
-            for timesheet in timesheets:
-                # Appliquer la logique de correspondance de planning
-                is_ambiguous = view._match_schedule_and_check_anomalies(timesheet)
-                timesheet.is_ambiguous = is_ambiguous
-                timesheet.save()
-
-            # Compter les anomalies après le scan
-            anomalies_after = Anomaly.objects.filter(
-                date__gte=start_date,
-                date__lte=end_date,
-                **anomalies_filter
-            )
-            
-            anomalies_count = anomalies_after.count()
-            
-            # Afficher le résultat
-            self.stdout.write(f"Scan terminé: {anomalies_count} anomalies détectées")
-            
-            return anomalies_count
-
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Erreur lors du scan des anomalies: {str(e)}"))
-            logger.error(f"Erreur lors du scan des anomalies: {str(e)}", exc_info=True)
-            return 0
 
 
