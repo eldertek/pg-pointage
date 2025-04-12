@@ -1112,30 +1112,22 @@ class ScanAnomaliesView(generics.CreateAPIView):
                                 if schedule_detail.start_time_1 and arrival_time > schedule_detail.start_time_1:
                                     # Vérifier si l'arrivée est dans la plage du matin
                                     if not schedule_detail.end_time_1 or arrival_time < schedule_detail.end_time_1:
-                                        logging.getLogger(__name__).debug(f"User {employee.get_full_name()} - Calcul du retard matin: current_time={arrival_time}, start_time={schedule_detail.start_time_1}")
                                         late_minutes = int((datetime.combine(date, arrival_time) -
                                                           datetime.combine(date, schedule_detail.start_time_1)).total_seconds() / 60)
-                                        # Vérifier si le retard est supérieur à zéro
-                                        if late_minutes > 0:
-                                            arrival.is_late = True
-                                            arrival.late_minutes = late_minutes
-                                            arrival.save()
-                                            logging.getLogger(__name__).debug(f"Retard détecté pour le matin: {late_minutes} minutes - timesheet.id={arrival.id}")
+                                        arrival.is_late = True
+                                        arrival.late_minutes = late_minutes
+                                        arrival.save()
                                         break
 
                                 # Vérifier ensuite par rapport à la plage de l'après-midi
                                 if schedule_detail.start_time_2 and arrival_time > schedule_detail.start_time_2:
                                     # Vérifier si l'arrivée est dans la plage de l'après-midi
                                     if not schedule_detail.end_time_2 or arrival_time < schedule_detail.end_time_2:
-                                        logging.getLogger(__name__).debug(f"User {employee.get_full_name()} - Calcul du retard après-midi: current_time={arrival_time}, start_time={schedule_detail.start_time_2}")
                                         late_minutes = int((datetime.combine(date, arrival_time) -
                                                           datetime.combine(date, schedule_detail.start_time_2)).total_seconds() / 60)
-                                        # Vérifier si le retard est supérieur à zéro
-                                        if late_minutes > 0:
-                                            arrival.is_late = True
-                                            arrival.late_minutes = late_minutes
-                                            arrival.save()
-                                            logging.getLogger(__name__).debug(f"Retard détecté pour l'après-midi: {late_minutes} minutes - timesheet.id={arrival.id}")
+                                        arrival.is_late = True
+                                        arrival.late_minutes = late_minutes
+                                        arrival.save()
                                         break
                             except ScheduleDetail.DoesNotExist:
                                 continue
@@ -1164,7 +1156,6 @@ class ScanAnomaliesView(generics.CreateAPIView):
                         late_margin = site.late_margin
 
                     # Créer une anomalie si l'arrivée est en retard
-                    logging.getLogger(__name__).debug(f"Vérification de retard pour {employee.get_full_name()} - timesheet.id={arrival.id}, is_late={arrival.is_late}, late_minutes={arrival.late_minutes}")
                     if arrival.is_late and arrival.late_minutes > 0:
                         # Créer une anomalie pour tous les retards, même ceux dans la marge
                         # Supprimer les anomalies existantes pour éviter les doublons
@@ -1181,23 +1172,15 @@ class ScanAnomaliesView(generics.CreateAPIView):
                         if arrival.late_minutes <= late_margin:
                             # Ne pas créer d'anomalie si le retard est dans la marge
                             create_anomaly = False
-                            logging.getLogger(__name__).info(f"Retard dans la marge de tolérance: {arrival.late_minutes} minutes (marge: {late_margin} minutes)")
-
-                        # Log pour débogage
-                        logging.getLogger(__name__).debug(f"Décision de création d'anomalie pour {employee.get_full_name()}: create_anomaly={create_anomaly}, late_minutes={arrival.late_minutes}, late_margin={late_margin}")
 
                         if create_anomaly:
-                            # Créer la description de l'anomalie
-                            description = f'Retard de {arrival.late_minutes} minutes (marge: {late_margin} minutes).'
-                            logging.getLogger(__name__).debug(f"Création d'anomalie pour {employee.get_full_name()}: {description}")
-
                             anomaly = Anomaly.objects.create(
                                 employee=employee,
                                 site=site,
                                 timesheet=arrival,
                                 date=date,
                                 anomaly_type=Anomaly.AnomalyType.LATE,
-                                description=description,
+                                description=f'Retard de {arrival.late_minutes} minutes.',
                                 minutes=arrival.late_minutes,
                                 status=Anomaly.AnomalyStatus.PENDING,
                                 schedule=associated_schedule
