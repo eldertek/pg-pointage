@@ -393,11 +393,55 @@ class TimesheetCreateView(generics.CreateAPIView):
 
                     elif schedule.schedule_type == Schedule.ScheduleType.FREQUENCY:
                         # Pour les plannings fréquence, vérifier la durée
-                        # On considère que tout pointage est valide pour un planning fréquence
-                        # mais on vérifiera la durée entre arrivée et départ lors du scan d'anomalies
                         matching_schedules.append(schedule)
                         is_out_of_schedule = False
                         matched_schedule = schedule
+
+                        # Si c'est un départ, vérifier la durée par rapport à la fréquence attendue
+                        if entry_type == Timesheet.EntryType.DEPARTURE:
+                            # Récupérer la fréquence attendue pour ce jour
+                            expected_duration = schedule_detail.frequency_duration
+                            if expected_duration and expected_duration > 0:
+                                # Calculer la marge de tolérance
+                                tolerance_percentage = schedule.frequency_tolerance_percentage or site.frequency_tolerance or 10
+                                min_duration = expected_duration * (1 - tolerance_percentage / 100)
+
+                                # Trouver le dernier pointage d'arrivée pour cet employé et ce site
+                                last_arrival = Timesheet.objects.filter(
+                                    employee=employee,
+                                    site=site,
+                                    entry_type=Timesheet.EntryType.ARRIVAL,
+                                    timestamp__date=current_date,
+                                    timestamp__lt=timestamp
+                                ).order_by('-timestamp').first()
+
+                                if last_arrival:
+                                    # Calculer la durée en minutes entre l'arrivée et le départ
+                                    duration_minutes = (timestamp - last_arrival.timestamp).total_seconds() / 60
+
+                                    # Si la durée est inférieure au minimum requis, marquer comme départ anticipé
+                                    if duration_minutes < min_duration:
+                                        early_minutes = int(min_duration - duration_minutes)
+                                        timesheet.is_early_departure = True
+                                        timesheet.early_departure_minutes = early_minutes
+                                        logger.info(f"Départ anticipé détecté pour planning fréquence: {duration_minutes:.1f} minutes, minimum requis: {min_duration:.1f} minutes")
+
+                                        # Créer une anomalie pour départ anticipé
+                                        anomaly = Anomaly.objects.create(
+                                            employee=employee,
+                                            site=site,
+                                            timesheet=timesheet,
+                                            date=current_date,
+                                            anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                                            description=f"Durée de présence insuffisante pour planning fréquence. Durée: {duration_minutes:.0f} minutes, Minimum requis: {min_duration:.0f} minutes (fréquence: {expected_duration} minutes, tolérance: {tolerance_percentage}%)",
+                                            minutes=early_minutes,
+                                            status=Anomaly.AnomalyStatus.PENDING,
+                                            schedule=schedule
+                                        )
+
+                                        # Ajouter les pointages concernés à l'anomalie
+                                        anomaly.related_timesheets.add(timesheet)
+                                        anomaly.related_timesheets.add(last_arrival)
 
                 except ScheduleDetail.DoesNotExist:
                     # Pas de planning pour ce jour
