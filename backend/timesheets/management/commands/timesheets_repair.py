@@ -320,8 +320,8 @@ class Command(BaseCommand):
         count = query.count()
 
         if not dry_run:
-            # Au lieu de supprimer, on marque les anomalies comme archivées
-            query.update(status=Anomaly.AnomalyStatus.ARCHIVED)
+            # Au lieu de supprimer, on marque les anomalies comme ignorées
+            query.update(status=Anomaly.AnomalyStatus.IGNORED)
 
         return count
 
