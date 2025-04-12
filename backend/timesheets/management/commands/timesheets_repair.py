@@ -502,23 +502,16 @@ class Command(BaseCommand):
             # sans les créer réellement
             return 0
 
-        # Utiliser directement la logique de scan d'anomalies sans passer par ScanAnomaliesView
-        from timesheets.models import Timesheet, Anomaly
-        from django.db.models import Q
-
-        # Préparer la requête pour récupérer les pointages
-        query = Timesheet.objects.filter(timestamp__date__gte=start_date, timestamp__date__lte=end_date)
-
-        if site_id:
-            query = query.filter(site_id=site_id)
-
-        if employee_id:
-            query = query.filter(employee_id=employee_id)
-
-        # Ordonner les pointages par timestamp croissant (du plus ancien au plus récent)
-        query = query.order_by('timestamp')
-
+        # Utiliser directement la vue ScanAnomaliesView pour détecter les anomalies
+        from timesheets.views import ScanAnomaliesView
+        from rest_framework.test import APIRequestFactory
+        from django.contrib.auth.models import AnonymousUser
+        from django.contrib.auth import get_user_model
+        from rest_framework.request import Request
+        from rest_framework.parsers import JSONParser
+        from rest_framework.exceptions import ValidationError
         # Compter les anomalies avant
+        from timesheets.models import Anomaly
         anomalies_before = Anomaly.objects.filter(
             date__gte=start_date,
             date__lte=end_date
@@ -532,287 +525,64 @@ class Command(BaseCommand):
 
         anomalies_count_before = anomalies_before.count()
 
-        # Implémenter directement la logique de scan d'anomalies
-        from timesheets.models import Timesheet, Anomaly
-        from sites.models import Site, SiteEmployee, Schedule, ScheduleDetail
-        from django.db.models import Q, F
-        from datetime import datetime, timedelta
-        from itertools import groupby
-
-        # Fonction pour regrouper les pointages par date
-        def get_date_key(timesheet):
-            return (timesheet.employee_id, timesheet.site_id, timesheet.timestamp.date())
-
-        # Trier les pointages pour le groupby
-        sorted_timesheets = sorted(query, key=get_date_key)
-
-        # Parcourir les pointages par date
-        dates = query.values_list('timestamp__date', flat=True).distinct()
-
-        for date in dates:
-            try:
-                # Supprimer les anomalies existantes pour cette date
-                anomalies_to_delete = Anomaly.objects.filter(date=date)
-                if site_id:
-                    anomalies_to_delete = anomalies_to_delete.filter(site_id=site_id)
-                if employee_id:
-                    anomalies_to_delete = anomalies_to_delete.filter(employee_id=employee_id)
-                anomalies_to_delete.delete()
-
-                # Récupérer tous les pointages pour cette date
-                timesheets = Timesheet.objects.filter(timestamp__date=date)
-                if site_id:
-                    timesheets = timesheets.filter(site_id=site_id)
-                if employee_id:
-                    timesheets = timesheets.filter(employee_id=employee_id)
-
-                # Ordonner les pointages par timestamp croissant (du plus ancien au plus récent)
-                timesheets = timesheets.order_by('timestamp')
-
-                # Regrouper les pointages par employé et par site
-                employee_site_pairs = timesheets.values('employee_id', 'site_id').distinct()
-
-                for pair in employee_site_pairs:
-                    employee_id = pair['employee_id']
-                    site_id = pair['site_id']
-
-                    # Vérifier les arrivées tardives
-                    # Récupérer tous les pointages d'arrivée, pas seulement ceux marqués comme en retard
-                    arrivals = timesheets.filter(
-                        employee_id=employee_id,
-                        site_id=site_id,
-                        entry_type=Timesheet.EntryType.ARRIVAL
-                    ).order_by('timestamp')
-
-                    # Débogage pour tous les pointages d'arrivée
-                    employee = User.objects.get(pk=employee_id)
-                    self.stdout.write(f"Débogage arrivées pour {employee.get_full_name()} le {date}:")
-                    for arr in arrivals:
-                        self.stdout.write(f"  Arrivée à {arr.timestamp.time()} - En retard: {arr.is_late} - Minutes: {arr.late_minutes}")
-
-                    # Récupérer le site et ses marges
-                    site = Site.objects.get(pk=site_id)
-
-                    # Récupérer les plannings associés à l'employé et au site
-                    site_employee_relations = SiteEmployee.objects.filter(
-                        site_id=site_id,
-                        employee_id=employee_id,
-                        is_active=True
-                    ).select_related('schedule')
-
-                    # Vérifier chaque pointage d'arrivée
-                    for arrival in arrivals:
-                        # Réinitialiser le statut de retard pour recalculer
-                        arrival.is_late = False
-                        arrival.late_minutes = 0
-
-                        # Vérifier chaque planning associé
-                        for site_employee in site_employee_relations:
-                            schedule = site_employee.schedule
-                            if not schedule or not schedule.is_active:
-                                continue
-
-                            try:
-                                # Récupérer les détails du planning pour ce jour
-                                schedule_detail = ScheduleDetail.objects.get(
-                                    schedule=schedule,
-                                    day_of_week=date.weekday()
-                                )
-
-                                # Récupérer l'heure d'arrivée
-                                arrival_time = arrival.timestamp.time()
-
-                                # Vérifier par rapport à la plage du matin
-                                if schedule_detail.start_time_1 and arrival_time > schedule_detail.start_time_1:
-                                    # Vérifier si l'arrivée est dans la plage du matin
-                                    if not schedule_detail.end_time_1 or arrival_time < schedule_detail.end_time_1:
-                                        late_minutes = int((datetime.combine(date, arrival_time) -
-                                                          datetime.combine(date, schedule_detail.start_time_1)).total_seconds() / 60)
-                                        arrival.is_late = True
-                                        arrival.late_minutes = late_minutes
-                                        arrival.save()
-                                        self.stdout.write(f"  Retard détecté pour la plage du matin: {late_minutes} minutes")
-                                        break
-
-                                # Vérifier par rapport à la plage de l'après-midi
-                                if schedule_detail.start_time_2 and arrival_time > schedule_detail.start_time_2:
-                                    # Vérifier si l'arrivée est dans la plage de l'après-midi
-                                    if not schedule_detail.end_time_2 or arrival_time < schedule_detail.end_time_2:
-                                        late_minutes = int((datetime.combine(date, arrival_time) -
-                                                          datetime.combine(date, schedule_detail.start_time_2)).total_seconds() / 60)
-                                        arrival.is_late = True
-                                        arrival.late_minutes = late_minutes
-                                        arrival.save()
-                                        self.stdout.write(f"  Retard détecté pour la plage de l'après-midi: {late_minutes} minutes")
-                                        break
-                            except ScheduleDetail.DoesNotExist:
-                                continue
-
-                        # Créer une anomalie si le retard dépasse la marge
-                        if arrival.is_late and arrival.late_minutes > site.late_margin:
-                            # Trouver le planning associé à l'employé et au site
-                            associated_schedule = self._find_employee_schedule(
-                                User.objects.get(pk=employee_id),
-                                Site.objects.get(pk=site_id),
-                                date
-                            )
-
-                            # Créer une anomalie de retard (utiliser get_or_create pour éviter les doublons)
-                            anomaly, created = Anomaly.objects.get_or_create(
-                                employee_id=employee_id,
-                                site_id=site_id,
-                                date=date,
-                                anomaly_type=Anomaly.AnomalyType.LATE,
-                                timesheet=arrival,
-                                defaults={
-                                    'minutes': arrival.late_minutes,
-                                    'description': f"Retard de {arrival.late_minutes} minutes",
-                                    'schedule': associated_schedule
-                                }
-                            )
-
-                            if created:
-                                self.stdout.write(f"  Anomalie de retard créée: {arrival.late_minutes} minutes (marge: {site.late_margin})")
-                            else:
-                                self.stdout.write(f"  Anomalie de retard existante: {arrival.late_minutes} minutes (marge: {site.late_margin})")
-                        elif arrival.is_late:
-                            self.stdout.write(f"  Pas d'anomalie créée: retard ({arrival.late_minutes} min) inférieur à la marge ({site.late_margin} min)")
-
-                    # Vérifier les départs anticipés
-                    departures = timesheets.filter(
-                        employee_id=employee_id,
-                        site_id=site_id,
-                        entry_type=Timesheet.EntryType.DEPARTURE,
-                        is_early_departure=True
-                    )
-
-                    # Débogage pour tous les pointages de départ
-                    all_departures = timesheets.filter(
-                        employee_id=employee_id,
-                        site_id=site_id,
-                        entry_type=Timesheet.EntryType.DEPARTURE
-                    )
-                    employee = User.objects.get(pk=employee_id)
-                    self.stdout.write(f"Débogage départs pour {employee.get_full_name()} le {date}:")
-                    for dep in all_departures:
-                        self.stdout.write(f"  Départ à {dep.timestamp.time()} - Anticipé: {dep.is_early_departure} - Minutes: {dep.early_departure_minutes}")
-
-                    for departure in departures:
-                        # Vérifier si le départ anticipé est supérieur à la marge
-                        site = Site.objects.get(pk=site_id)
-
-                        # Débogage détaillé pour les départs anticipés
-                        employee = User.objects.get(pk=employee_id)
-                        self.stdout.write(f"Débogage départ anticipé: {employee.get_full_name()} - {departure.timestamp} - Anticipé: {departure.early_departure_minutes} minutes - Marge: {site.early_departure_margin} minutes")
-
-                        # Vérifier le planning associé
-                        site_employee_relations = SiteEmployee.objects.filter(
-                            site_id=site_id,
-                            employee_id=employee_id,
-                            is_active=True
-                        ).select_related('schedule')
-
-                        for site_employee in site_employee_relations:
-                            if site_employee.schedule:
-                                schedule = site_employee.schedule
-                                self.stdout.write(f"  Planning associé: {schedule.id} - Type: {schedule.schedule_type}")
-
-                                # Vérifier les détails du planning pour ce jour
-                                try:
-                                    schedule_detail = ScheduleDetail.objects.get(
-                                        schedule=schedule,
-                                        day_of_week=date.weekday()
-                                    )
-                                    self.stdout.write(f"  Détails du planning: Jour {date.weekday()} - Matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}, Après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
-                                except ScheduleDetail.DoesNotExist:
-                                    self.stdout.write(f"  Pas de détails de planning pour le jour {date.weekday()}")
-
-                        if departure.early_departure_minutes > site.early_departure_margin:
-                            # Créer une anomalie de départ anticipé (utiliser get_or_create pour éviter les doublons)
-                            # Trouver le planning associé à l'employé et au site
-                            associated_schedule = self._find_employee_schedule(
-                                User.objects.get(pk=employee_id),
-                                Site.objects.get(pk=site_id),
-                                date
-                            )
-
-                            Anomaly.objects.get_or_create(
-                                employee_id=employee_id,
-                                site_id=site_id,
-                                date=date,
-                                anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                timesheet=departure,
-                                defaults={
-                                    'minutes': departure.early_departure_minutes,
-                                    'description': f"Départ anticipé de {departure.early_departure_minutes} minutes",
-                                    'schedule': associated_schedule
-                                }
-                            )
-
-                    # Vérifier les départs manquants
-                    arrivals_count = timesheets.filter(
-                        employee_id=employee_id,
-                        site_id=site_id,
-                        entry_type=Timesheet.EntryType.ARRIVAL
-                    ).count()
-
-                    departures_count = timesheets.filter(
-                        employee_id=employee_id,
-                        site_id=site_id,
-                        entry_type=Timesheet.EntryType.DEPARTURE
-                    ).count()
-
-                    if arrivals_count > departures_count:
-                        # Il y a des arrivées sans départ correspondant
-                        # Créer une anomalie de départ manquant
-                        last_arrival = timesheets.filter(
-                            employee_id=employee_id,
-                            site_id=site_id,
-                            entry_type=Timesheet.EntryType.ARRIVAL
-                        ).order_by('-timestamp').first()
-
-                        # Trouver le planning associé à l'employé et au site
-                        associated_schedule = self._find_employee_schedule(
-                            User.objects.get(pk=employee_id),
-                            Site.objects.get(pk=site_id),
-                            date
-                        )
-
-                        Anomaly.objects.get_or_create(
-                            employee_id=employee_id,
-                            site_id=site_id,
-                            date=date,
-                            anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE,
-                            timesheet=last_arrival,
-                            defaults={
-                                'description': f"Départ manquant après l'arrivée de {last_arrival.timestamp.strftime('%H:%M')}",
-                                'schedule': associated_schedule
-                            }
-                        )
-
-                self.stdout.write(f"Anomalies scannées pour le {date}")
-                if site_id:
-                    self.stdout.write(f"  Site: {site_id}")
-                if employee_id:
-                    self.stdout.write(f"  Employé: {employee_id}")
-
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Erreur lors du scan des anomalies pour le {date}: {str(e)}")
-                )
-
-        # Compter les anomalies après
-        anomalies_after = Anomaly.objects.filter(
-            date__gte=start_date,
-            date__lte=end_date
-        )
+        # Créer une requête factice pour appeler la vue
+        factory = APIRequestFactory()
+        data = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'force_update': True  # Forcer la mise à jour des pointages
+        }
 
         if site_id:
-            anomalies_after = anomalies_after.filter(site_id=site_id)
+            data['site'] = site_id
 
         if employee_id:
-            anomalies_after = anomalies_after.filter(employee_id=employee_id)
+            data['employee'] = employee_id
 
-        anomalies_count_after = anomalies_after.count()
+        # Créer une requête POST avec les données
+        request = factory.post('/api/timesheets/scan-anomalies/', data, format='json')
 
-        # Calculer le nombre d'anomalies créées
-        return anomalies_count_after - anomalies_count_before
+        # Ajouter un utilisateur administrateur à la requête
+        User = get_user_model()
+        admin_user = User.objects.filter(is_superuser=True).first()
+        if not admin_user:
+            self.stdout.write(self.style.ERROR("Aucun utilisateur administrateur trouvé. Création d'un utilisateur temporaire."))
+            admin_user = AnonymousUser()
+
+        request.user = admin_user
+
+        # Créer une instance de la vue et appeler la méthode post
+        view = ScanAnomaliesView()
+        view.request = Request(request)
+        view.request.parsers = [JSONParser()]
+
+        try:
+            # Appeler la méthode post de la vue
+            response = view.post(request)
+            self.stdout.write(f"Réponse de la vue: {response.data}")
+
+            # Compter les anomalies après
+            anomalies_after = Anomaly.objects.filter(
+                date__gte=start_date,
+                date__lte=end_date
+            )
+
+            if site_id:
+                anomalies_after = anomalies_after.filter(site_id=site_id)
+
+            if employee_id:
+                anomalies_after = anomalies_after.filter(employee_id=employee_id)
+
+            anomalies_count_after = anomalies_after.count()
+
+            # Calculer le nombre d'anomalies créées
+            return anomalies_count_after - anomalies_count_before
+
+        except ValidationError as e:
+            self.stdout.write(self.style.ERROR(f"Erreur de validation: {str(e)}"))
+            return 0
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Erreur lors du scan des anomalies: {str(e)}"))
+            return 0
+
+
