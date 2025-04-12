@@ -1187,13 +1187,17 @@ class ScanAnomaliesView(generics.CreateAPIView):
                         logging.getLogger(__name__).debug(f"Décision de création d'anomalie pour {employee.get_full_name()}: create_anomaly={create_anomaly}, late_minutes={arrival.late_minutes}, late_margin={late_margin}")
 
                         if create_anomaly:
+                            # Créer la description de l'anomalie
+                            description = f'Retard de {arrival.late_minutes} minutes (marge: {late_margin} minutes).'
+                            logging.getLogger(__name__).debug(f"Création d'anomalie pour {employee.get_full_name()}: {description}")
+
                             anomaly = Anomaly.objects.create(
                                 employee=employee,
                                 site=site,
                                 timesheet=arrival,
                                 date=date,
                                 anomaly_type=Anomaly.AnomalyType.LATE,
-                                description=f'Retard de {arrival.late_minutes} minutes.',
+                                description=description,
                                 minutes=arrival.late_minutes,
                                 status=Anomaly.AnomalyStatus.PENDING,
                                 schedule=associated_schedule
