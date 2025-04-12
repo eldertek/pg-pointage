@@ -108,7 +108,7 @@ class Command(BaseCommand):
         """Trouve le planning associé à un employé et un site pour une date donnée."""
         from sites.models import SiteEmployee, ScheduleDetail
 
-        self.stdout.write(f"Recherche du planning pour {employee.get_full_name()} au site {site.name} le {date}")
+        self.stdout.write(f"Recherche du planning pour {employee.get_full_name()} (ID: {employee.id}) au site {site.name} (ID: {site.id}) le {date}")
 
         # Récupérer les relations site-employé pour cet employé et ce site
         site_employee_relations = SiteEmployee.objects.filter(
@@ -126,7 +126,15 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Relation {site_employee.id}: Pas de planning actif")
                 continue
 
+            # Afficher les informations détaillées du planning
             self.stdout.write(f"  Relation {site_employee.id}: Planning {schedule.id} - Type: {schedule.schedule_type}")
+
+            # Afficher les marges de tolérance selon le type de planning
+            if schedule.schedule_type == 'FIXED':
+                self.stdout.write(f"    Marges de tolérance: Retard={schedule.late_arrival_margin or site.late_margin} min, "
+                                 f"Départ anticipé={schedule.early_departure_margin or site.early_departure_margin} min")
+            elif schedule.schedule_type == 'FREQUENCY':
+                self.stdout.write(f"    Tolérance fréquence: {schedule.frequency_tolerance_percentage or site.frequency_tolerance}%")
 
             # Vérifier si le planning a des détails pour ce jour
             try:
@@ -134,7 +142,22 @@ class Command(BaseCommand):
                     schedule=schedule,
                     day_of_week=date.weekday()
                 )
-                self.stdout.write(f"  Détails du planning trouvés pour le jour {date.weekday()} - Matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}, Après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
+
+                # Afficher les détails du planning selon son type
+                if schedule.schedule_type == 'FIXED':
+                    day_type = schedule_detail.day_type
+                    self.stdout.write(f"    Détails du planning pour {schedule_detail.get_day_of_week_display()} (jour {date.weekday()})")
+                    self.stdout.write(f"    Type de journée: {schedule_detail.get_day_type_display()}")
+
+                    if day_type in ['FULL', 'AM'] and schedule_detail.start_time_1 and schedule_detail.end_time_1:
+                        self.stdout.write(f"    Matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}")
+
+                    if day_type in ['FULL', 'PM'] and schedule_detail.start_time_2 and schedule_detail.end_time_2:
+                        self.stdout.write(f"    Après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
+                elif schedule.schedule_type == 'FREQUENCY':
+                    self.stdout.write(f"    Détails du planning fréquence pour {schedule_detail.get_day_of_week_display()} (jour {date.weekday()})")
+                    self.stdout.write(f"    Durée attendue: {schedule_detail.frequency_duration} minutes")
+
                 # Planning trouvé pour ce jour
                 return schedule
             except ScheduleDetail.DoesNotExist:
@@ -381,9 +404,56 @@ class Command(BaseCommand):
                     from django.utils import timezone
                     view = TimesheetCreateView()
                     local_timestamp = timezone.localtime(timesheet.timestamp)
-                    self.stdout.write(f"Appel de _match_schedule_and_check_anomalies pour {timesheet.employee.get_full_name()} - {timesheet.timestamp} (heure locale: {local_timestamp}) - {timesheet.get_entry_type_display()}")
+
+                    # Afficher les informations détaillées sur le pointage
+                    self.stdout.write(f"Appel de _match_schedule_and_check_anomalies pour {timesheet.site.nfc_id} {timesheet.employee.get_full_name()} - "
+                                     f"{timesheet.timestamp} (heure locale: {local_timestamp}) - {timesheet.get_entry_type_display()}")
+
+                    # Rechercher les plannings disponibles pour cet employé sur ce site
+                    from sites.models import SiteEmployee, Schedule, ScheduleDetail
+                    site_employee_relations = SiteEmployee.objects.filter(
+                        site=timesheet.site,
+                        employee=timesheet.employee,
+                        is_active=True
+                    ).select_related('schedule')
+
+                    # Afficher les plannings disponibles
+                    self.stdout.write(f"  Plannings disponibles pour cet employé sur ce site: {site_employee_relations.count()}")
+                    for site_employee in site_employee_relations:
+                        if site_employee.schedule and site_employee.schedule.is_active:
+                            schedule = site_employee.schedule
+                            self.stdout.write(f"  - Planning {schedule.id}: Type {schedule.schedule_type}")
+
+                            # Vérifier si le planning a des détails pour ce jour
+                            current_weekday = local_timestamp.weekday()
+                            try:
+                                schedule_detail = ScheduleDetail.objects.get(
+                                    schedule=schedule,
+                                    day_of_week=current_weekday
+                                )
+
+                                if schedule.schedule_type == 'FIXED':
+                                    self.stdout.write(f"    Horaires pour {schedule_detail.get_day_of_week_display()} (jour {current_weekday}):")
+                                    if schedule_detail.start_time_1 and schedule_detail.end_time_1:
+                                        self.stdout.write(f"    Matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}")
+                                    if schedule_detail.start_time_2 and schedule_detail.end_time_2:
+                                        self.stdout.write(f"    Après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
+                                    self.stdout.write(f"    Marges: Retard={schedule.late_arrival_margin or timesheet.site.late_margin} min, "
+                                                   f"Départ anticipé={schedule.early_departure_margin or timesheet.site.early_departure_margin} min")
+                                elif schedule.schedule_type == 'FREQUENCY':
+                                    self.stdout.write(f"    Fréquence pour {schedule_detail.get_day_of_week_display()}: {schedule_detail.frequency_duration} minutes")
+                                    self.stdout.write(f"    Tolérance: {schedule.frequency_tolerance_percentage or timesheet.site.frequency_tolerance}%")
+                            except ScheduleDetail.DoesNotExist:
+                                self.stdout.write(f"    Pas de détails pour le jour {current_weekday}")
+
+                    # Exécuter la correspondance de planning
                     is_ambiguous = view._match_schedule_and_check_anomalies(timesheet)
-                    self.stdout.write(f"Résultat: is_ambiguous={is_ambiguous}, is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}, is_early_departure={timesheet.is_early_departure}, early_departure_minutes={timesheet.early_departure_minutes}")
+
+                    # Afficher les résultats détaillés
+                    self.stdout.write(f"Résultat: is_ambiguous={is_ambiguous}, is_late={timesheet.is_late}, "
+                                     f"late_minutes={timesheet.late_minutes}, is_early_departure={timesheet.is_early_departure}, "
+                                     f"early_departure_minutes={timesheet.early_departure_minutes}, "
+                                     f"is_out_of_schedule={timesheet.is_out_of_schedule}")
 
                     # Mettre à jour le statut du pointage
                     if self.skip_validation:
@@ -458,8 +528,59 @@ class Command(BaseCommand):
 
                     # Appeler la logique de correspondance de planning
                     from timesheets.views import TimesheetCreateView
+                    from django.utils import timezone
                     view = TimesheetCreateView()
-                    view._match_schedule_and_check_anomalies(timesheet)
+                    local_timestamp = timezone.localtime(timesheet.timestamp)
+
+                    # Afficher les informations détaillées sur le pointage
+                    self.stdout.write(f"Appel de _match_schedule_and_check_anomalies pour {timesheet.site.nfc_id} {timesheet.employee.get_full_name()} - "
+                                     f"{timesheet.timestamp} (heure locale: {local_timestamp}) - {timesheet.get_entry_type_display()}")
+
+                    # Rechercher les plannings disponibles pour cet employé sur ce site
+                    from sites.models import SiteEmployee, Schedule, ScheduleDetail
+                    site_employee_relations = SiteEmployee.objects.filter(
+                        site=timesheet.site,
+                        employee=timesheet.employee,
+                        is_active=True
+                    ).select_related('schedule')
+
+                    # Afficher les plannings disponibles
+                    self.stdout.write(f"  Plannings disponibles pour cet employé sur ce site: {site_employee_relations.count()}")
+                    for site_employee in site_employee_relations:
+                        if site_employee.schedule and site_employee.schedule.is_active:
+                            schedule = site_employee.schedule
+                            self.stdout.write(f"  - Planning {schedule.id}: Type {schedule.schedule_type}")
+
+                            # Vérifier si le planning a des détails pour ce jour
+                            current_weekday = local_timestamp.weekday()
+                            try:
+                                schedule_detail = ScheduleDetail.objects.get(
+                                    schedule=schedule,
+                                    day_of_week=current_weekday
+                                )
+
+                                if schedule.schedule_type == 'FIXED':
+                                    self.stdout.write(f"    Horaires pour {schedule_detail.get_day_of_week_display()} (jour {current_weekday}):")
+                                    if schedule_detail.start_time_1 and schedule_detail.end_time_1:
+                                        self.stdout.write(f"    Matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}")
+                                    if schedule_detail.start_time_2 and schedule_detail.end_time_2:
+                                        self.stdout.write(f"    Après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
+                                    self.stdout.write(f"    Marges: Retard={schedule.late_arrival_margin or timesheet.site.late_margin} min, "
+                                                   f"Départ anticipé={schedule.early_departure_margin or timesheet.site.early_departure_margin} min")
+                                elif schedule.schedule_type == 'FREQUENCY':
+                                    self.stdout.write(f"    Fréquence pour {schedule_detail.get_day_of_week_display()}: {schedule_detail.frequency_duration} minutes")
+                                    self.stdout.write(f"    Tolérance: {schedule.frequency_tolerance_percentage or timesheet.site.frequency_tolerance}%")
+                            except ScheduleDetail.DoesNotExist:
+                                self.stdout.write(f"    Pas de détails pour le jour {current_weekday}")
+
+                    # Exécuter la correspondance de planning
+                    is_ambiguous = view._match_schedule_and_check_anomalies(timesheet)
+
+                    # Afficher les résultats détaillés
+                    self.stdout.write(f"Résultat: is_ambiguous={timesheet.is_ambiguous}, is_late={timesheet.is_late}, "
+                                     f"late_minutes={timesheet.late_minutes}, is_early_departure={timesheet.is_early_departure}, "
+                                     f"early_departure_minutes={timesheet.early_departure_minutes}, "
+                                     f"is_out_of_schedule={timesheet.is_out_of_schedule}")
 
                     # Sauvegarder le pointage sans validation si l'option est activée
                     if self.skip_validation:
