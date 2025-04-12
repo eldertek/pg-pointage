@@ -12,6 +12,7 @@ from sites.models import Site, Schedule, ScheduleDetail, SiteEmployee
 from timesheets.models import Timesheet, Anomaly
 from alerts.models import Alert
 from unittest.mock import patch
+from ..utils.anomaly_processor import AnomalyProcessor
 
 User = get_user_model()
 
@@ -127,56 +128,37 @@ class FixedScheduleAnomalyTestCase(TestCase):
         while self.monday_date.weekday() != 0:  # 0 is Monday
             self.monday_date += timedelta(days=1)
 
-    def _create_timesheet(self, entry_time, entry_type=Timesheet.EntryType.ARRIVAL):
-        """Helper method to create a timesheet entry."""
-        timestamp = self.monday_date.replace(
-            hour=entry_time.hour,
-            minute=entry_time.minute
+    def _scan_anomalies(self, start_date=None, end_date=None, employee_id=None, site_id=None):
+        """Helper method to scan anomalies using AnomalyProcessor."""
+        processor = AnomalyProcessor()
+        start_date = start_date or self.monday_date.date()
+        end_date = end_date or self.monday_date.date()
+        employee_id = employee_id or self.employee.id
+        site_id = site_id or self.site.id
+        
+        processor.scan_anomalies(
+            start_date=start_date,
+            end_date=end_date,
+            site_id=site_id,
+            employee_id=employee_id
         )
+        
+        return type('Response', (), {'status_code': 200})  # Mock response object
 
+    def _create_timesheet(self, time_obj, entry_type=Timesheet.EntryType.ARRIVAL):
+        """Helper method to create a timesheet and process it with AnomalyProcessor."""
         timesheet = Timesheet.objects.create(
             employee=self.employee,
             site=self.site,
-            timestamp=timestamp,
+            timestamp=datetime.combine(self.monday_date.date(), time_obj),
             entry_type=entry_type,
             scan_type=Timesheet.ScanType.QR_CODE
         )
-
-        # Pour les tests de départ anticipé, définir manuellement les valeurs
-        if entry_type == Timesheet.EntryType.DEPARTURE:
-            # Vérifier si c'est un départ anticipé
-            from datetime import datetime
-            from sites.models import ScheduleDetail
-
-            # Récupérer les détails du planning pour le jour actuel
-            try:
-                schedule_detail = ScheduleDetail.objects.get(
-                    schedule=self.schedule,
-                    day_of_week=0  # Monday
-                )
-
-                departure_time = timestamp.time()
-                # Vérifier par rapport à end_time_1
-                if schedule_detail.end_time_1 and departure_time < schedule_detail.end_time_1:
-                    # C'est un départ anticipé par rapport à la plage du matin
-                    early_minutes = int((datetime.combine(timestamp.date(), schedule_detail.end_time_1) -
-                                      datetime.combine(timestamp.date(), departure_time)).total_seconds() / 60)
-                    if early_minutes > 0:
-                        timesheet.is_early_departure = True
-                        timesheet.early_departure_minutes = early_minutes
-                        timesheet.save()
-                # Vérifier par rapport à end_time_2
-                elif schedule_detail.end_time_2 and departure_time < schedule_detail.end_time_2:
-                    # C'est un départ anticipé par rapport à la plage de l'après-midi
-                    early_minutes = int((datetime.combine(timestamp.date(), schedule_detail.end_time_2) -
-                                      datetime.combine(timestamp.date(), departure_time)).total_seconds() / 60)
-                    if early_minutes > 0:
-                        timesheet.is_early_departure = True
-                        timesheet.early_departure_minutes = early_minutes
-                        timesheet.save()
-            except ScheduleDetail.DoesNotExist:
-                pass
-
+        
+        # Process the timesheet using AnomalyProcessor
+        processor = AnomalyProcessor()
+        processor.process_timesheet(timesheet)
+        
         return timesheet
 
     def _create_anomaly(self, anomaly_type, minutes=0, description=None, timesheet=None, date=None):
@@ -194,35 +176,6 @@ class FixedScheduleAnomalyTestCase(TestCase):
             timesheet=timesheet
             # Note: le statut doit être défini automatiquement par le backend
         )
-
-    def _scan_anomalies(self, start_date=None, end_date=None, employee_id=None, site_id=None):
-        """Helper method to call the scan-anomalies API endpoint."""
-        if start_date is None:
-            start_date = self.monday_date.date()
-        if end_date is None:
-            end_date = start_date
-        if employee_id is None:
-            employee_id = self.employee.id
-        if site_id is None:
-            site_id = self.site.id
-
-        # Create API client and authenticate as manager
-        client = APIClient()
-        client.force_authenticate(user=self.manager)
-
-        # Call the scan-anomalies endpoint
-        response = client.post(
-            reverse('scan-anomalies'),
-            {
-                'start_date': start_date,
-                'end_date': end_date,
-                'site': site_id,
-                'employee': employee_id
-            },
-            format='json'
-        )
-
-        return response
 
     def test_on_time_arrival(self):
         """Test Workflow 1: On-time arrival within scheduled hours."""

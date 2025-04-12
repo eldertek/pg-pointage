@@ -1,9 +1,10 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
-from .models import Anomaly
+from .models import Anomaly, Timesheet
 from alerts.models import Alert
 import logging
+from .utils.anomaly_processor import AnomalyProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -131,3 +132,11 @@ def create_alert_for_anomaly(sender, instance, created, **kwargs):
             )
         else:
             logger.warning(f"Impossible de créer une alerte pour l'anomalie {instance.id} de type {alert_type} : type non géré")
+
+@receiver(post_save, sender=Timesheet)
+def process_timesheet(sender, instance, created, **kwargs):
+    """Signal pour traiter un pointage après sa création ou sa modification."""
+    if created or instance.created_offline:
+        # Utiliser AnomalyProcessor pour traiter le pointage
+        processor = AnomalyProcessor()
+        processor.process_timesheet(instance)
