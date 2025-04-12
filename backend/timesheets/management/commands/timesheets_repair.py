@@ -11,7 +11,7 @@ from users.models import User
 from timesheets.views import ScanAnomaliesView
 from rest_framework.test import APIRequestFactory
 from rest_framework.serializers import ValidationError
-from timesheets.anomaly_processor import AnomalyProcessor
+from timesheets.utils.anomaly_processor import AnomalyProcessor
 
 
 class Command(BaseCommand):
