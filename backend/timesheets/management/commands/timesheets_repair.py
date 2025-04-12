@@ -428,93 +428,11 @@ class Command(BaseCommand):
                         # Sauvegarder normalement avec validation
                         timesheet.save()
 
-                    # Appeler la logique de correspondance de planning
-                    from timesheets.views import TimesheetCreateView
-                    from django.utils import timezone
-                    view = TimesheetCreateView()
-                    local_timestamp = timezone.localtime(timesheet.timestamp)
-
                     # Afficher les informations détaillées sur le pointage
-                    self.stdout.write(f"Appel de _match_schedule_and_check_anomalies pour {timesheet.site.nfc_id} {timesheet.employee.get_full_name()} - "
-                                     f"{timesheet.timestamp} (heure locale: {local_timestamp}) - {timesheet.get_entry_type_display()}")
+                    self.stdout.write(f"Traitement du pointage pour {timesheet.site.nfc_id} {timesheet.employee.get_full_name()} - "
+                                     f"{timesheet.timestamp} - {timesheet.get_entry_type_display()}")
 
-                    # Rechercher les plannings disponibles pour cet employé sur ce site
-                    from sites.models import SiteEmployee, Schedule, ScheduleDetail
-                    site_employee_relations = SiteEmployee.objects.filter(
-                        site=timesheet.site,
-                        employee=timesheet.employee,
-                        is_active=True
-                    ).select_related('schedule')
-
-                    # Afficher les plannings disponibles
-                    self.stdout.write(f"  Plannings disponibles pour cet employé sur ce site: {site_employee_relations.count()}")
-                    for site_employee in site_employee_relations:
-                        if site_employee.schedule and site_employee.schedule.is_active:
-                            schedule = site_employee.schedule
-                            self.stdout.write(f"  - Planning {schedule.id}: Type {schedule.schedule_type}")
-
-                            # Vérifier si le planning a des détails pour ce jour
-                            current_weekday = local_timestamp.weekday()
-                            try:
-                                schedule_detail = ScheduleDetail.objects.get(
-                                    schedule=schedule,
-                                    day_of_week=current_weekday
-                                )
-
-                                if schedule.schedule_type == 'FIXED':
-                                    self.stdout.write(f"    Horaires pour {schedule_detail.get_day_of_week_display()} (jour {current_weekday}):")
-                                    if schedule_detail.start_time_1 and schedule_detail.end_time_1:
-                                        self.stdout.write(f"    Matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}")
-                                    if schedule_detail.start_time_2 and schedule_detail.end_time_2:
-                                        self.stdout.write(f"    Après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
-                                    self.stdout.write(f"    Marges: Retard={schedule.late_arrival_margin or timesheet.site.late_margin} min, "
-                                                   f"Départ anticipé={schedule.early_departure_margin or timesheet.site.early_departure_margin} min")
-                                elif schedule.schedule_type == 'FREQUENCY':
-                                    self.stdout.write(f"    Fréquence pour {schedule_detail.get_day_of_week_display()}: {schedule_detail.frequency_duration} minutes")
-                                    self.stdout.write(f"    Tolérance: {schedule.frequency_tolerance_percentage or timesheet.site.frequency_tolerance}%")
-                            except ScheduleDetail.DoesNotExist:
-                                self.stdout.write(f"    Pas de détails pour le jour {current_weekday}")
-
-                    # Exécuter la correspondance de planning
-                    logger.debug(f"Avant appel de _match_schedule_and_check_anomalies: timesheet.id={timesheet.id}, is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}")
-                    is_ambiguous = view._match_schedule_and_check_anomalies(timesheet)
-                    logger.debug(f"Après appel de _match_schedule_and_check_anomalies: timesheet.id={timesheet.id}, is_late={timesheet.is_late}, late_minutes={timesheet.late_minutes}")
-
-                    # Afficher les résultats détaillés
-                    self.stdout.write(f"Résultat: is_ambiguous={is_ambiguous}, is_late={timesheet.is_late}, "
-                                     f"late_minutes={timesheet.late_minutes}, is_early_departure={timesheet.is_early_departure}, "
-                                     f"early_departure_minutes={timesheet.early_departure_minutes}, "
-                                     f"is_out_of_schedule={timesheet.is_out_of_schedule}")
-
-                    # Vérifier spécifiquement les retards pour User03
-                    if timesheet.employee.get_full_name() == "N03 User03" and timesheet.is_late:
-                        self.stdout.write(self.style.WARNING(f"Détection de retard pour User03: late_minutes={timesheet.late_minutes}"))
-                        # Vérifier les anomalies existantes pour ce pointage
-                        anomalies = Anomaly.objects.filter(timesheet=timesheet, anomaly_type=Anomaly.AnomalyType.LATE)
-                        self.stdout.write(f"Nombre d'anomalies de retard pour ce pointage: {anomalies.count()}")
-                        for anomaly in anomalies:
-                            self.stdout.write(f"  - Anomalie ID: {anomaly.id}, Status: {anomaly.status}, Description: {anomaly.description}")
-
-                    # Mettre à jour le statut du pointage
-                    if self.skip_validation:
-                        # Sauvegarder directement sans appeler clean()
-                        from django.db import connection
-                        cursor = connection.cursor()
-                        cursor.execute(
-                            "UPDATE timesheets_timesheet SET is_late = %s, late_minutes = %s, "
-                            "is_early_departure = %s, early_departure_minutes = %s, "
-                            "is_out_of_schedule = %s, is_ambiguous = %s "
-                            "WHERE id = %s",
-                            [timesheet.is_late, timesheet.late_minutes,
-                            timesheet.is_early_departure, timesheet.early_departure_minutes,
-                            timesheet.is_out_of_schedule, timesheet.is_ambiguous,
-                            timesheet.id]
-                        )
-                    else:
-                        # Sauvegarder normalement avec validation
-                        timesheet.save()
-
-                    # Remplacer l'ancien code de vérification par l'AnomalyProcessor
+                    # Utiliser l'AnomalyProcessor pour détecter les anomalies
                     has_anomalies = self._process_timesheet_anomalies(timesheet)
                     
                     if has_anomalies:
