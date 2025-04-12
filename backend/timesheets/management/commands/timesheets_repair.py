@@ -749,72 +749,7 @@ class Command(BaseCommand):
                         self.stdout.write(f"    Pas de détails pour le jour {date.weekday()}")
                         continue
 
-            # 4. Créer explicitement des anomalies pour les retards détectés
-            self.stdout.write("Vérification des retards et création d'anomalies...")
-            late_arrivals = Timesheet.objects.filter(
-                timestamp__date__gte=start_date,
-                timestamp__date__lte=end_date,
-                is_late=True,
-                late_minutes__gt=0,
-                entry_type=Timesheet.EntryType.ARRIVAL
-            ).select_related('employee', 'site')
-
-            if site_id:
-                late_arrivals = late_arrivals.filter(site_id=site_id)
-
-            if employee_id:
-                late_arrivals = late_arrivals.filter(employee_id=employee_id)
-
-            # Créer des anomalies pour les retards qui dépassent la marge
-            for arrival in late_arrivals:
-                # Récupérer le planning associé au pointage
-                associated_schedule = None
-                site_employee_relations = SiteEmployee.objects.filter(
-                    site=arrival.site,
-                    employee=arrival.employee,
-                    is_active=True
-                ).select_related('schedule')
-
-                for site_employee in site_employee_relations:
-                    if site_employee.schedule and site_employee.schedule.is_active:
-                        # Vérifier si ce planning correspond au pointage
-                        if self._is_timesheet_matching_schedule(arrival, site_employee.schedule):
-                            associated_schedule = site_employee.schedule
-                            break
-
-                # Récupérer la marge de retard
-                late_margin = 0
-                if associated_schedule:
-                    late_margin = associated_schedule.late_arrival_margin or arrival.site.late_margin
-                else:
-                    late_margin = arrival.site.late_margin
-
-                # Créer une anomalie si le retard dépasse la marge
-                if arrival.late_minutes > late_margin:
-                    self.stdout.write(f"  Création d'une anomalie de retard pour {arrival.employee.get_full_name()} le {arrival.timestamp.date()} au site {arrival.site.name}")
-                    self.stdout.write(f"  Retard: {arrival.late_minutes} minutes, Marge: {late_margin} minutes")
-
-                    # Créer l'anomalie
-                    anomaly = Anomaly.objects.create(
-                        employee=arrival.employee,
-                        site=arrival.site,
-                        timesheet=arrival,
-                        date=arrival.timestamp.date(),
-                        anomaly_type=Anomaly.AnomalyType.LATE,
-                        description=f'Retard de {arrival.late_minutes} minutes (marge: {late_margin} minutes).',
-                        minutes=arrival.late_minutes,
-                        status=Anomaly.AnomalyStatus.PENDING,
-                        schedule=associated_schedule
-                    )
-
-                    # Associer le pointage concerné à l'anomalie
-                    anomaly.related_timesheets.add(arrival)
-                    anomalies_created += 1
-                else:
-                    self.stdout.write(f"  Retard dans la marge pour {arrival.employee.get_full_name()} le {arrival.timestamp.date()} au site {arrival.site.name}")
-                    self.stdout.write(f"  Retard: {arrival.late_minutes} minutes, Marge: {late_margin} minutes - Aucune anomalie créée")
-
-            # 5. Compter les anomalies après
+            # 4. Compter les anomalies après
             anomalies_after = Anomaly.objects.filter(
                 date__gte=start_date,
                 date__lte=end_date

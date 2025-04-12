@@ -895,11 +895,6 @@ class ScanAnomaliesView(generics.CreateAPIView):
                 employee = day_timesheets[0].employee
                 site = day_timesheets[0].site
 
-                # Afficher les pointages pour débogage
-                logging.getLogger(__name__).info(f"Traitement de {len(day_timesheets)} pointages pour {employee.get_full_name()} le {date} au site {site.name}")
-                for ts in day_timesheets:
-                    logging.getLogger(__name__).info(f"  - Pointage {ts.id}: {ts.get_entry_type_display()} à {timezone.localtime(ts.timestamp).strftime('%H:%M:%S')}, is_late={ts.is_late}, late_minutes={ts.late_minutes}")
-
                 # 0. Vérifier si les pointages sont hors planning
                 for ts in day_timesheets:
                     # Ignorer les pointages hors ligne
@@ -1094,6 +1089,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
 
                     # Créer une anomalie si l'arrivée est en retard
                     if arrival.is_late and arrival.late_minutes > 0:
+                        # Créer une anomalie pour tous les retards, même ceux dans la marge
                         # Supprimer les anomalies existantes pour éviter les doublons
                         Anomaly.objects.filter(
                             employee=employee,
@@ -1104,21 +1100,19 @@ class ScanAnomaliesView(generics.CreateAPIView):
                         ).delete()
 
                         # Vérifier si le retard dépasse la marge
-                        if arrival.late_minutes > late_margin:
-                            # Créer une anomalie uniquement si le retard dépasse la marge
-                            logging.getLogger(__name__).info(
-                                f"Création d'une anomalie de retard pour {employee.get_full_name()} le {date} au site {site.name}. "
-                                f"Retard: {arrival.late_minutes} minutes, Marge: {late_margin} minutes"
-                            )
+                        create_anomaly = True
+                        if arrival.late_minutes <= late_margin:
+                            # Ne pas créer d'anomalie si le retard est dans la marge
+                            create_anomaly = False
 
-                            # Forcer la création d'une anomalie pour les retards qui dépassent la marge
+                        if create_anomaly:
                             anomaly = Anomaly.objects.create(
                                 employee=employee,
                                 site=site,
                                 timesheet=arrival,
                                 date=date,
                                 anomaly_type=Anomaly.AnomalyType.LATE,
-                                description=f'Retard de {arrival.late_minutes} minutes (marge: {late_margin} minutes).',
+                                description=f'Retard de {arrival.late_minutes} minutes.',
                                 minutes=arrival.late_minutes,
                                 status=Anomaly.AnomalyStatus.PENDING,
                                 schedule=associated_schedule
@@ -1130,12 +1124,6 @@ class ScanAnomaliesView(generics.CreateAPIView):
                             logging.getLogger(__name__).info(
                                 f"Anomalie de retard créée pour {employee.get_full_name()} le {date} au site {site.name}. "
                                 f"Retard: {arrival.late_minutes} minutes, Marge: {late_margin} minutes"
-                            )
-                        else:
-                            # Journaliser que le retard est dans la marge et qu'aucune anomalie n'est créée
-                            logging.getLogger(__name__).info(
-                                f"Retard dans la marge pour {employee.get_full_name()} le {date} au site {site.name}. "
-                                f"Retard: {arrival.late_minutes} minutes, Marge: {late_margin} minutes - Aucune anomalie créée"
                             )
 
                 # 3. Vérifier les départs anticipés
@@ -1597,19 +1585,6 @@ class ScanAnomaliesView(generics.CreateAPIView):
                         except ScheduleDetail.DoesNotExist:
                             # Pas de planning pour ce jour
                             continue
-
-            # Afficher un résumé des anomalies créées
-            logging.getLogger(__name__).info(f"Résumé du scan: {anomalies_created} anomalies créées")
-
-            # Vérifier les anomalies de retard pour débogage
-            late_anomalies = Anomaly.objects.filter(
-                date__gte=start_date,
-                date__lte=end_date,
-                anomaly_type=Anomaly.AnomalyType.LATE
-            )
-            logging.getLogger(__name__).info(f"Nombre d'anomalies de retard après le scan: {late_anomalies.count()}")
-            for anomaly in late_anomalies:
-                logging.getLogger(__name__).info(f"  - Anomalie {anomaly.id}: {anomaly.employee.get_full_name()} le {anomaly.date} au site {anomaly.site.name}, retard de {anomaly.minutes} minutes")
 
             # Préparer la réponse
             response_data = {
