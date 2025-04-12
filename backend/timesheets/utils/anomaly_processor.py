@@ -12,7 +12,6 @@ from rest_framework import status
 class AnomalyProcessor:
     """
     Classe utilitaire pour centraliser la logique de traitement des anomalies.
-    Cette classe combine les meilleures pratiques de timesheets_repair.py, views.py et signals.py
     """
 
     def __init__(self):
@@ -91,6 +90,8 @@ class AnomalyProcessor:
         self.logger.info(f"Vérification du planning pour: {employee.get_full_name()} ({employee.id}) - {site.name} ({site.id}) - "
                         f"{entry_type} - {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
 
+        created_anomalies = []
+
         site_employee_relations = SiteEmployee.objects.filter(
             site=site,
             employee=employee,
@@ -105,7 +106,7 @@ class AnomalyProcessor:
             timesheet.is_out_of_schedule = True
             timesheet.save()
 
-            Anomaly.objects.create(
+            anomaly = Anomaly.objects.create(
                 employee=employee,
                 site=site,
                 timesheet=timesheet,
@@ -114,7 +115,10 @@ class AnomalyProcessor:
                 description=f"Pointage hors planning: l'employé n'est pas rattaché à ce site.",
                 status=Anomaly.AnomalyStatus.PENDING
             )
-            return True
+            self._anomalies_detected = True
+            created_anomalies.append(anomaly)
+            self.logger.info(f"Anomalie créée: OTHER - L'employé {employee.get_full_name()} n'est pas rattaché au site {site.name}")
+            return True, created_anomalies
 
         matching_schedules = []
 
@@ -151,7 +155,9 @@ class AnomalyProcessor:
                                     if late_minutes > late_margin:
                                         timesheet.is_late = True
                                         timesheet.late_minutes = late_minutes
-                                        self._create_late_anomaly(timesheet, late_minutes, late_margin, schedule)
+                                        anomaly = self._create_late_anomaly(timesheet, late_minutes, late_margin, schedule)
+                                        if anomaly:
+                                            created_anomalies.append(anomaly)
 
                         if schedule_detail.start_time_2 and schedule_detail.end_time_2 and not is_matching:
                             if schedule_detail.start_time_2 <= current_time <= schedule_detail.end_time_2:
@@ -163,7 +169,9 @@ class AnomalyProcessor:
                                     if late_minutes > late_margin:
                                         timesheet.is_late = True
                                         timesheet.late_minutes = late_minutes
-                                        self._create_late_anomaly(timesheet, late_minutes, late_margin, schedule)
+                                        anomaly = self._create_late_anomaly(timesheet, late_minutes, late_margin, schedule)
+                                        if anomaly:
+                                            created_anomalies.append(anomaly)
 
                     elif entry_type == Timesheet.EntryType.DEPARTURE:
                         if schedule_detail.end_time_1 and current_time < schedule_detail.end_time_1:
@@ -174,7 +182,9 @@ class AnomalyProcessor:
                             if early_minutes > early_departure_margin:
                                 timesheet.is_early_departure = True
                                 timesheet.early_departure_minutes = early_minutes
-                                self._create_early_departure_anomaly(timesheet, early_minutes, early_departure_margin, schedule)
+                                anomaly = self._create_early_departure_anomaly(timesheet, early_minutes, early_departure_margin, schedule)
+                                if anomaly:
+                                    created_anomalies.append(anomaly)
 
                         elif schedule_detail.end_time_2 and current_time < schedule_detail.end_time_2:
                             is_matching = True
@@ -184,7 +194,9 @@ class AnomalyProcessor:
                             if early_minutes > early_departure_margin:
                                 timesheet.is_early_departure = True
                                 timesheet.early_departure_minutes = early_minutes
-                                self._create_early_departure_anomaly(timesheet, early_minutes, early_departure_margin, schedule)
+                                anomaly = self._create_early_departure_anomaly(timesheet, early_minutes, early_departure_margin, schedule)
+                                if anomaly:
+                                    created_anomalies.append(anomaly)
 
                     if is_matching:
                         matching_schedules.append(schedule)
@@ -214,7 +226,25 @@ class AnomalyProcessor:
                                 duration_minutes = (timestamp - last_arrival.timestamp).total_seconds() / 60
                                 if duration_minutes < min_duration:
                                     timesheet.is_early_departure = True
-                                    timesheet.early_departure_minutes = int(min_duration - duration_minutes)
+                                    early_minutes = int(min_duration - duration_minutes)
+                                    timesheet.early_departure_minutes = early_minutes
+
+                                    # Créer une anomalie pour le départ anticipé en mode fréquence
+                                    anomaly = Anomaly.objects.create(
+                                        employee=employee,
+                                        site=site,
+                                        timesheet=timesheet,
+                                        date=current_date,
+                                        anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                                        description=f'Durée insuffisante: {duration_minutes:.1f} minutes au lieu de {min_duration:.1f} minutes minimum.',
+                                        minutes=early_minutes,
+                                        status=Anomaly.AnomalyStatus.PENDING,
+                                        schedule=schedule
+                                    )
+                                    anomaly.related_timesheets.add(timesheet)
+                                    self._anomalies_detected = True
+                                    created_anomalies.append(anomaly)
+                                    self.logger.info(f"Anomalie créée: EARLY_DEPARTURE (fréquence) - Durée insuffisante: {duration_minutes:.1f}min au lieu de {min_duration:.1f}min pour {employee.get_full_name()} à {site.name}")
 
             except ScheduleDetail.DoesNotExist:
                 continue
@@ -229,9 +259,11 @@ class AnomalyProcessor:
         timesheet.save()
 
         if is_out_of_schedule:
-            self._create_out_of_schedule_anomaly(timesheet)
+            anomaly = self._create_out_of_schedule_anomaly(timesheet)
+            if anomaly:
+                created_anomalies.append(anomaly)
 
-        return is_ambiguous
+        return is_ambiguous, created_anomalies
 
     def _create_late_anomaly(self, timesheet, late_minutes, late_margin, schedule):
         """Crée une anomalie de retard"""
@@ -243,6 +275,7 @@ class AnomalyProcessor:
             timesheet=timesheet
         ).first()
 
+        created_anomaly = None
         if not existing_anomaly and late_minutes > late_margin:
             anomaly = Anomaly.objects.create(
                 employee=timesheet.employee,
@@ -257,6 +290,10 @@ class AnomalyProcessor:
             )
             anomaly.related_timesheets.add(timesheet)
             self._anomalies_detected = True
+            created_anomaly = anomaly
+            self.logger.info(f"Anomalie créée: LATE - Retard de {late_minutes} minutes (marge: {late_margin}min) pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+
+        return created_anomaly
 
     def _create_early_departure_anomaly(self, timesheet, early_minutes, early_departure_margin, schedule):
         """Crée une anomalie de départ anticipé"""
@@ -268,6 +305,7 @@ class AnomalyProcessor:
             timesheet=timesheet
         ).first()
 
+        created_anomaly = None
         if not existing_anomaly and early_minutes > early_departure_margin:
             anomaly = Anomaly.objects.create(
                 employee=timesheet.employee,
@@ -282,6 +320,10 @@ class AnomalyProcessor:
             )
             anomaly.related_timesheets.add(timesheet)
             self._anomalies_detected = True
+            created_anomaly = anomaly
+            self.logger.info(f"Anomalie créée: EARLY_DEPARTURE - Départ anticipé de {early_minutes} minutes (marge: {early_departure_margin}min) pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+
+        return created_anomaly
 
     def _create_out_of_schedule_anomaly(self, timesheet):
         """Crée une anomalie de pointage hors planning"""
@@ -293,6 +335,7 @@ class AnomalyProcessor:
             description__contains="Pointage hors planning"
         ).first()
 
+        created_anomaly = None
         if not existing_anomaly:
             anomaly = Anomaly.objects.create(
                 employee=timesheet.employee,
@@ -305,6 +348,10 @@ class AnomalyProcessor:
             )
             anomaly.related_timesheets.add(timesheet)
             self._anomalies_detected = True
+            created_anomaly = anomaly
+            self.logger.info(f"Anomalie créée: OTHER - Pointage hors planning pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+
+        return created_anomaly
 
     def process_timesheet(self, timesheet, force_update=False):
         """Traite un pointage individuel"""
@@ -322,13 +369,14 @@ class AnomalyProcessor:
                 timesheet.is_ambiguous = False
 
             # Vérifier les anomalies
-            is_ambiguous = self._match_schedule_and_check_anomalies(timesheet)
+            is_ambiguous, created_anomalies = self._match_schedule_and_check_anomalies(timesheet)
 
             return {
                 'success': True,
                 'message': 'Pointage traité avec succès',
                 'is_ambiguous': is_ambiguous,
-                'has_anomalies': self._anomalies_detected
+                'has_anomalies': self._anomalies_detected,
+                'anomalies': created_anomalies
             }
 
         except Exception as e:
