@@ -472,6 +472,15 @@ class Command(BaseCommand):
                                      f"early_departure_minutes={timesheet.early_departure_minutes}, "
                                      f"is_out_of_schedule={timesheet.is_out_of_schedule}")
 
+                    # Vérifier spécifiquement les retards pour User03
+                    if timesheet.employee.get_full_name() == "N03 User03" and timesheet.is_late:
+                        self.stdout.write(self.style.WARNING(f"Détection de retard pour User03: late_minutes={timesheet.late_minutes}"))
+                        # Vérifier les anomalies existantes pour ce pointage
+                        anomalies = Anomaly.objects.filter(timesheet=timesheet, anomaly_type=Anomaly.AnomalyType.LATE)
+                        self.stdout.write(f"Nombre d'anomalies de retard pour ce pointage: {anomalies.count()}")
+                        for anomaly in anomalies:
+                            self.stdout.write(f"  - Anomalie ID: {anomaly.id}, Status: {anomaly.status}, Description: {anomaly.description}")
+
                     # Mettre à jour le statut du pointage
                     if self.skip_validation:
                         # Sauvegarder directement sans appeler clean()

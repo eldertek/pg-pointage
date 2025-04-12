@@ -113,6 +113,10 @@ class TimesheetCreateView(generics.CreateAPIView):
         logger.info(f"Vérification du planning pour: {employee.get_full_name()} ({employee.id}) - {site.name} ({site.id}) - "
                    f"{entry_type} - {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
 
+        # Log spécifique pour User03
+        if employee.get_full_name() == "N03 User03":
+            logger.debug(f"Début de traitement pour User03 - timesheet.id={timesheet.id}, entry_type={entry_type}, timestamp={timestamp}")
+
         # Rechercher les plannings actifs de l'employé pour ce site
         from sites.models import SiteEmployee, Schedule, ScheduleDetail
         site_employee_relations = SiteEmployee.objects.filter(
@@ -198,27 +202,34 @@ class TimesheetCreateView(generics.CreateAPIView):
                                             timesheet.is_late = True
                                             timesheet.late_minutes = late_minutes
                                             logger.info(f"Retard détecté pour le matin: {late_minutes} minutes (marge: {late_margin} minutes)")
+                                            logger.debug(f"Détails du retard: employee={employee.id}, site={site.id}, timesheet={timesheet.id}, date={current_date}, late_minutes={late_minutes}, late_margin={late_margin}")
 
                                             # Créer l'anomalie pour les retards qui dépassent la marge
-                                            anomaly = Anomaly.objects.create(
-                                                employee=employee,
-                                                site=site,
-                                                timesheet=timesheet,
-                                                date=current_date,
-                                                anomaly_type=Anomaly.AnomalyType.LATE,
-                                                description=f"Retard de {late_minutes} minutes (marge: {late_margin} minutes).",
-                                                minutes=late_minutes,
-                                                status=Anomaly.AnomalyStatus.PENDING,
-                                                schedule=schedule
-                                            )
+                                            try:
+                                                anomaly = Anomaly.objects.create(
+                                                    employee=employee,
+                                                    site=site,
+                                                    timesheet=timesheet,
+                                                    date=current_date,
+                                                    anomaly_type=Anomaly.AnomalyType.LATE,
+                                                    description=f"Retard de {late_minutes} minutes (marge: {late_margin} minutes).",
+                                                    minutes=late_minutes,
+                                                    status=Anomaly.AnomalyStatus.PENDING,
+                                                    schedule=schedule
+                                                )
+                                                logger.debug(f"Anomalie de retard créée avec succès: id={anomaly.id}")
 
-                                            # Ajouter le pointage aux pointages associés
-                                            anomaly.related_timesheets.add(timesheet)
+                                                # Ajouter le pointage aux pointages associés
+                                                anomaly.related_timesheets.add(timesheet)
+                                                logger.debug(f"Pointage {timesheet.id} associé à l'anomalie {anomaly.id}")
+                                            except Exception as e:
+                                                logger.error(f"Erreur lors de la création de l'anomalie de retard: {str(e)}", exc_info=True)
                                         else:
                                             # Si le retard est dans la marge, ne pas marquer comme retard
                                             timesheet.is_late = False
                                             timesheet.late_minutes = 0
                                             logger.info(f"Arrivée dans la marge de tolérance: {late_minutes} minutes (marge: {late_margin} minutes)")
+                                            logger.debug(f"Détails de l'arrivée dans la marge: employee={employee.id}, site={site.id}, timesheet={timesheet.id}, date={current_date}, late_minutes={late_minutes}, late_margin={late_margin}")
                             elif entry_type == Timesheet.EntryType.DEPARTURE:
                                 # Déterminer d'abord si le pointage appartient à la plage du matin ou de l'après-midi
                                 # Plage du matin
@@ -361,27 +372,34 @@ class TimesheetCreateView(generics.CreateAPIView):
                                             timesheet.is_late = True
                                             timesheet.late_minutes = late_minutes
                                             logger.info(f"Retard détecté pour l'après-midi: {late_minutes} minutes (marge: {late_margin} minutes)")
+                                            logger.debug(f"Détails du retard après-midi: employee={employee.id}, site={site.id}, timesheet={timesheet.id}, date={current_date}, late_minutes={late_minutes}, late_margin={late_margin}")
 
                                             # Créer l'anomalie pour les retards qui dépassent la marge
-                                            anomaly = Anomaly.objects.create(
-                                                employee=employee,
-                                                site=site,
-                                                timesheet=timesheet,
-                                                date=current_date,
-                                                anomaly_type=Anomaly.AnomalyType.LATE,
-                                                description=f"Retard de {late_minutes} minutes (marge: {late_margin} minutes).",
-                                                minutes=late_minutes,
-                                                status=Anomaly.AnomalyStatus.PENDING,
-                                                schedule=schedule
-                                            )
+                                            try:
+                                                anomaly = Anomaly.objects.create(
+                                                    employee=employee,
+                                                    site=site,
+                                                    timesheet=timesheet,
+                                                    date=current_date,
+                                                    anomaly_type=Anomaly.AnomalyType.LATE,
+                                                    description=f"Retard de {late_minutes} minutes (marge: {late_margin} minutes).",
+                                                    minutes=late_minutes,
+                                                    status=Anomaly.AnomalyStatus.PENDING,
+                                                    schedule=schedule
+                                                )
+                                                logger.debug(f"Anomalie de retard après-midi créée avec succès: id={anomaly.id}")
 
-                                            # Ajouter le pointage aux pointages associés
-                                            anomaly.related_timesheets.add(timesheet)
+                                                # Ajouter le pointage aux pointages associés
+                                                anomaly.related_timesheets.add(timesheet)
+                                                logger.debug(f"Pointage {timesheet.id} associé à l'anomalie {anomaly.id}")
+                                            except Exception as e:
+                                                logger.error(f"Erreur lors de la création de l'anomalie de retard après-midi: {str(e)}", exc_info=True)
                                         else:
                                             # Si le retard est dans la marge, ne pas marquer comme retard
                                             timesheet.is_late = False
                                             timesheet.late_minutes = 0
                                             logger.info(f"Arrivée dans la marge de tolérance: {late_minutes} minutes (marge: {late_margin} minutes)")
+                                            logger.debug(f"Détails de l'arrivée après-midi dans la marge: employee={employee.id}, site={site.id}, timesheet={timesheet.id}, date={current_date}, late_minutes={late_minutes}, late_margin={late_margin}")
                             # La gestion des départs anticipés est désormais traitée par la nouvelle logique ci-dessus
                             # Nous n'avons plus besoin de ce bloc car la logique est désormais unifiée
                             # et prend correctement en compte les deux plages horaires
