@@ -48,21 +48,54 @@ class AnomalyProcessor:
                 day_type = schedule_detail.day_type
                 self.logger.debug(f"Planning fixe - Type de journée: {schedule_detail.get_day_type_display()}")
 
-                # Vérifier les horaires du matin
-                if day_type in ['FULL', 'AM'] and schedule_detail.start_time_1 and schedule_detail.end_time_1:
-                    self.logger.debug(f"Horaires matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}")
-                    # Si l'heure est dans la plage du matin ou proche
-                    if (schedule_detail.start_time_1 <= current_time <= schedule_detail.end_time_1):
-                        self.logger.debug(f"Correspondance avec les horaires du matin")
-                        return True
+                # Traitement spécifique pour les départs
+                if entry_type == Timesheet.EntryType.DEPARTURE:
+                    # Pour les départs, on est plus souple dans la détection
+                    # Vérifier les horaires du matin
+                    if day_type in ['FULL', 'AM'] and schedule_detail.start_time_1 and schedule_detail.end_time_1:
+                        self.logger.debug(f"Horaires matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}")
+                        # Pour un départ, on vérifie si l'heure est proche de l'heure de fin du matin
+                        # On considère qu'un départ est valide s'il est dans la plage ou jusqu'à 30 minutes après la fin
+                        end_time_1_plus_30 = (datetime.combine(current_date, schedule_detail.end_time_1) +
+                                            timedelta(minutes=30)).time()
 
-                # Vérifier les horaires de l'après-midi
-                if day_type in ['FULL', 'PM'] and schedule_detail.start_time_2 and schedule_detail.end_time_2:
-                    self.logger.debug(f"Horaires après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
-                    # Si l'heure est dans la plage de l'après-midi ou proche
-                    if (schedule_detail.start_time_2 <= current_time <= schedule_detail.end_time_2):
-                        self.logger.debug(f"Correspondance avec les horaires de l'après-midi")
-                        return True
+                        if schedule_detail.start_time_1 <= current_time <= end_time_1_plus_30:
+                            self.logger.debug(f"Correspondance avec les horaires du matin pour un départ: {current_time} (plage: {schedule_detail.start_time_1}-{end_time_1_plus_30})")
+                            return True
+
+                    # Vérifier les horaires de l'après-midi
+                    if day_type in ['FULL', 'PM'] and schedule_detail.start_time_2 and schedule_detail.end_time_2:
+                        self.logger.debug(f"Horaires après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
+                        # Pour un départ, on vérifie si l'heure est proche de l'heure de fin de l'après-midi
+                        # On considère qu'un départ est valide s'il est dans la plage ou jusqu'à 30 minutes après la fin
+                        end_time_2_plus_30 = (datetime.combine(current_date, schedule_detail.end_time_2) +
+                                            timedelta(minutes=30)).time()
+
+                        if schedule_detail.start_time_2 <= current_time <= end_time_2_plus_30:
+                            self.logger.debug(f"Correspondance avec les horaires de l'après-midi pour un départ: {current_time} (plage: {schedule_detail.start_time_2}-{end_time_2_plus_30})")
+                            return True
+
+                    # Vérifier si c'est pendant la pause déjeuner
+                    if day_type == 'FULL' and schedule_detail.end_time_1 and schedule_detail.start_time_2:
+                        if schedule_detail.end_time_1 <= current_time <= schedule_detail.start_time_2:
+                            self.logger.debug(f"Correspondance avec la pause déjeuner: {current_time} (entre {schedule_detail.end_time_1} et {schedule_detail.start_time_2})")
+                            return True
+                else:  # Pour les arrivées, on est plus strict
+                    # Vérifier les horaires du matin
+                    if day_type in ['FULL', 'AM'] and schedule_detail.start_time_1 and schedule_detail.end_time_1:
+                        self.logger.debug(f"Horaires matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}")
+                        # Si l'heure est dans la plage du matin
+                        if (schedule_detail.start_time_1 <= current_time <= schedule_detail.end_time_1):
+                            self.logger.debug(f"Correspondance avec les horaires du matin")
+                            return True
+
+                    # Vérifier les horaires de l'après-midi
+                    if day_type in ['FULL', 'PM'] and schedule_detail.start_time_2 and schedule_detail.end_time_2:
+                        self.logger.debug(f"Horaires après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
+                        # Si l'heure est dans la plage de l'après-midi
+                        if (schedule_detail.start_time_2 <= current_time <= schedule_detail.end_time_2):
+                            self.logger.debug(f"Correspondance avec les horaires de l'après-midi")
+                            return True
 
                 self.logger.debug(f"Pas de correspondance avec les horaires du planning fixe")
 
@@ -235,11 +268,23 @@ class AnomalyProcessor:
                                             created_anomalies.append(anomaly)
 
                     elif entry_type == Timesheet.EntryType.DEPARTURE:
-                        # Vérifier si le départ est dans la plage du matin
+                        # Vérifier si le départ est dans la plage du matin ou de l'après-midi
+                        # Pour les départs, nous devons être plus souples dans la détection
+                        is_morning_departure = False
+                        is_afternoon_departure = False
+
+                        # Vérifier si c'est un départ du matin
                         if schedule_detail.start_time_1 and schedule_detail.end_time_1:
-                            # Si l'heure est dans la plage du matin ou égale à l'heure de fin
-                            if schedule_detail.start_time_1 <= current_time <= schedule_detail.end_time_1:
+                            # Pour un départ, on vérifie si l'heure est proche de l'heure de fin du matin
+                            # On considère qu'un départ est valide s'il est dans la plage ou jusqu'à 30 minutes après la fin
+                            end_time_1_plus_30 = (datetime.combine(current_date, schedule_detail.end_time_1) +
+                                                timedelta(minutes=30)).time()
+
+                            if schedule_detail.start_time_1 <= current_time <= end_time_1_plus_30:
+                                is_morning_departure = True
                                 is_matching = True
+                                self.logger.debug(f"Départ du matin détecté: {current_time} (plage: {schedule_detail.start_time_1}-{end_time_1_plus_30})")
+
                                 # Vérifier si c'est un départ anticipé
                                 if current_time < schedule_detail.end_time_1:
                                     early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_1) -
@@ -254,13 +299,20 @@ class AnomalyProcessor:
                                         if anomaly:
                                             created_anomalies.append(anomaly)
                                 else:
-                                    self.logger.debug(f"Départ exactement à l'heure de fin du matin: {current_time} = {schedule_detail.end_time_1}")
+                                    self.logger.debug(f"Départ normal du matin: {current_time} (fin prévue: {schedule_detail.end_time_1})")
 
-                        # Vérifier si le départ est dans la plage de l'après-midi
-                        if schedule_detail.start_time_2 and schedule_detail.end_time_2 and not is_matching:
-                            # Si l'heure est dans la plage de l'après-midi ou égale à l'heure de fin
-                            if schedule_detail.start_time_2 <= current_time <= schedule_detail.end_time_2:
+                        # Vérifier si c'est un départ de l'après-midi
+                        if schedule_detail.start_time_2 and schedule_detail.end_time_2 and not is_morning_departure:
+                            # Pour un départ, on vérifie si l'heure est proche de l'heure de fin de l'après-midi
+                            # On considère qu'un départ est valide s'il est dans la plage ou jusqu'à 30 minutes après la fin
+                            end_time_2_plus_30 = (datetime.combine(current_date, schedule_detail.end_time_2) +
+                                                timedelta(minutes=30)).time()
+
+                            if schedule_detail.start_time_2 <= current_time <= end_time_2_plus_30:
+                                is_afternoon_departure = True
                                 is_matching = True
+                                self.logger.debug(f"Départ de l'après-midi détecté: {current_time} (plage: {schedule_detail.start_time_2}-{end_time_2_plus_30})")
+
                                 # Vérifier si c'est un départ anticipé
                                 if current_time < schedule_detail.end_time_2:
                                     early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_2) -
@@ -275,7 +327,14 @@ class AnomalyProcessor:
                                         if anomaly:
                                             created_anomalies.append(anomaly)
                                 else:
-                                    self.logger.debug(f"Départ exactement à l'heure de fin de l'après-midi: {current_time} = {schedule_detail.end_time_2}")
+                                    self.logger.debug(f"Départ normal de l'après-midi: {current_time} (fin prévue: {schedule_detail.end_time_2})")
+
+                        # Si ce n'est ni un départ du matin ni un départ de l'après-midi, vérifier si c'est entre les deux périodes
+                        if not is_morning_departure and not is_afternoon_departure and schedule_detail.end_time_1 and schedule_detail.start_time_2:
+                            # Vérifier si l'heure est entre la fin du matin et le début de l'après-midi (pause déjeuner)
+                            if schedule_detail.end_time_1 <= current_time <= schedule_detail.start_time_2:
+                                self.logger.debug(f"Départ pendant la pause déjeuner: {current_time} (entre {schedule_detail.end_time_1} et {schedule_detail.start_time_2})")
+                                is_matching = True
 
                     if is_matching:
                         matching_schedules.append(schedule)
@@ -509,30 +568,57 @@ class AnomalyProcessor:
             ).select_related('schedule')
 
             description = "Pointage hors planning: "
+            local_timestamp = timezone.localtime(timesheet.timestamp)
+            local_time = local_timestamp.time()
+            entry_type = timesheet.get_entry_type_display()
 
             if not site_employee_relations.exists():
-                description += "l'employé n'est pas rattaché à ce site."
+                description += f"l'employé n'est pas rattaché à ce site. ({entry_type} à {local_time})"
             else:
                 active_schedules = [se.schedule for se in site_employee_relations if se.schedule and se.schedule.is_active]
                 if not active_schedules:
-                    description += "l'employé n'a pas de planning actif sur ce site."
+                    description += f"l'employé n'a pas de planning actif sur ce site. ({entry_type} à {local_time})"
                 else:
                     # Vérifier si des plannings existent pour ce jour de la semaine
-                    current_weekday = timesheet.timestamp.date().weekday()
+                    current_weekday = local_timestamp.date().weekday()
+                    day_names = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
                     schedules_with_details = []
+                    schedule_details = []
+
                     for schedule_obj in active_schedules:
                         try:
                             # Vérifier si le planning a des détails pour ce jour
-                            ScheduleDetail.objects.get(schedule=schedule_obj, day_of_week=current_weekday)
+                            detail = ScheduleDetail.objects.get(schedule=schedule_obj, day_of_week=current_weekday)
                             schedules_with_details.append(schedule_obj)
+                            schedule_details.append(detail)
                         except ScheduleDetail.DoesNotExist:
                             continue
 
                     if not schedules_with_details:
-                        description += f"aucun planning n'est défini pour le jour {current_weekday} ({['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'][current_weekday]})."
+                        description += f"aucun planning n'est défini pour le jour {day_names[current_weekday]}. ({entry_type} à {local_time})"
                     else:
-                        local_time = timezone.localtime(timesheet.timestamp).time()
-                        description += f"l'heure {local_time} ne correspond à aucune plage horaire définie dans les plannings de l'employé."
+                        # Afficher les plages horaires disponibles pour aider à comprendre pourquoi le pointage est hors planning
+                        plages_horaires = []
+                        for i, detail in enumerate(schedule_details):
+                            schedule_obj = schedules_with_details[i]
+                            if schedule_obj.schedule_type == 'FIXED':
+                                if detail.start_time_1 and detail.end_time_1:
+                                    plages_horaires.append(f"{detail.start_time_1}-{detail.end_time_1}")
+                                if detail.start_time_2 and detail.end_time_2:
+                                    plages_horaires.append(f"{detail.start_time_2}-{detail.end_time_2}")
+                            elif schedule_obj.schedule_type == 'FREQUENCY':
+                                plages_horaires.append(f"fréquence de {detail.frequency_duration} minutes")
+
+                        plages_str = ", ".join(plages_horaires) if plages_horaires else "aucune plage horaire définie"
+                        description += f"l'heure {local_time} ({entry_type}) ne correspond à aucune plage horaire définie dans les plannings de l'employé. Plages disponibles: {plages_str}."
+
+            # Trouver un planning à associer à l'anomalie pour l'affichage des détails
+            schedule_to_associate = None
+            if site_employee_relations.exists():
+                for se in site_employee_relations:
+                    if se.schedule and se.schedule.is_active:
+                        schedule_to_associate = se.schedule
+                        break
 
             anomaly = Anomaly.objects.create(
                 employee=timesheet.employee,
@@ -541,7 +627,8 @@ class AnomalyProcessor:
                 date=timesheet.timestamp.date(),
                 anomaly_type=Anomaly.AnomalyType.OTHER,
                 description=description,
-                status=Anomaly.AnomalyStatus.PENDING
+                status=Anomaly.AnomalyStatus.PENDING,
+                schedule=schedule_to_associate  # Associer un planning si disponible
             )
             anomaly.related_timesheets.add(timesheet)
             self._anomalies_detected = True
