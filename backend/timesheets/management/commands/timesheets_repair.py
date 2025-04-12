@@ -265,6 +265,10 @@ class Command(BaseCommand):
         if employee_id:
             query = query.filter(employee_id=employee_id)
 
+        # Ordonner les pointages par timestamp croissant (du plus ancien au plus récent)
+        # pour traiter les arrivées avant les départs
+        query = query.order_by('timestamp')
+
         count = query.count()
         processed_count = 0
         error_count = 0
@@ -342,6 +346,9 @@ class Command(BaseCommand):
         if employee_id:
             query = query.filter(employee_id=employee_id)
 
+        # Ordonner les pointages par timestamp croissant (du plus ancien au plus récent)
+        query = query.order_by('timestamp')
+
         # Compter les anomalies avant
         anomalies_before = Anomaly.objects.filter(
             date__gte=start_date,
@@ -389,6 +396,9 @@ class Command(BaseCommand):
                     timesheets = timesheets.filter(site_id=site_id)
                 if employee_id:
                     timesheets = timesheets.filter(employee_id=employee_id)
+
+                # Ordonner les pointages par timestamp croissant (du plus ancien au plus récent)
+                timesheets = timesheets.order_by('timestamp')
 
                 # Regrouper les pointages par employé et par site
                 employee_site_pairs = timesheets.values('employee_id', 'site_id').distinct()
