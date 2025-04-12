@@ -1117,6 +1117,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
                                         arrival.is_late = True
                                         arrival.late_minutes = late_minutes
                                         arrival.save()
+                                        logger.debug(f"Retard détecté pour le matin: {late_minutes} minutes - timesheet.id={arrival.id}")
                                         break
 
                                 # Vérifier ensuite par rapport à la plage de l'après-midi
@@ -1128,6 +1129,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
                                         arrival.is_late = True
                                         arrival.late_minutes = late_minutes
                                         arrival.save()
+                                        logger.debug(f"Retard détecté pour l'après-midi: {late_minutes} minutes - timesheet.id={arrival.id}")
                                         break
                             except ScheduleDetail.DoesNotExist:
                                 continue
