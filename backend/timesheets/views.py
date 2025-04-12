@@ -424,24 +424,36 @@ class TimesheetCreateView(generics.CreateAPIView):
                                         early_minutes = int(min_duration - duration_minutes)
                                         timesheet.is_early_departure = True
                                         timesheet.early_departure_minutes = early_minutes
-                                        logger.info(f"Départ anticipé détecté pour planning fréquence: {duration_minutes:.1f} minutes, minimum requis: {min_duration:.1f} minutes")
+                                        logger.info(f"Durée insuffisante détectée pour planning fréquence: {duration_minutes:.1f} minutes, minimum requis: {min_duration:.1f} minutes")
 
-                                        # Créer une anomalie pour départ anticipé
-                                        anomaly = Anomaly.objects.create(
+                                        # Vérifier si une anomalie de durée insuffisante existe déjà
+                                        existing_anomaly = Anomaly.objects.filter(
                                             employee=employee,
                                             site=site,
-                                            timesheet=timesheet,
                                             date=current_date,
-                                            anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                            description=f"Durée de présence insuffisante pour planning fréquence. Durée: {duration_minutes:.0f} minutes, Minimum requis: {min_duration:.0f} minutes (fréquence: {expected_duration} minutes, tolérance: {tolerance_percentage}%)",
-                                            minutes=early_minutes,
-                                            status=Anomaly.AnomalyStatus.PENDING,
-                                            schedule=schedule
-                                        )
+                                            anomaly_type=Anomaly.AnomalyType.INSUFFICIENT_HOURS,
+                                            timesheet=timesheet
+                                        ).first()
 
-                                        # Ajouter les pointages concernés à l'anomalie
-                                        anomaly.related_timesheets.add(timesheet)
-                                        anomaly.related_timesheets.add(last_arrival)
+                                        if not existing_anomaly:
+                                            # Créer une anomalie pour durée insuffisante (utiliser le même type que dans le scan d'anomalies)
+                                            anomaly = Anomaly.objects.create(
+                                                employee=employee,
+                                                site=site,
+                                                timesheet=timesheet,
+                                                date=current_date,
+                                                anomaly_type=Anomaly.AnomalyType.INSUFFICIENT_HOURS,
+                                                description=f"Durée de présence insuffisante pour planning fréquence. Durée: {duration_minutes:.0f} minutes, Minimum requis: {min_duration:.0f} minutes (fréquence: {expected_duration} minutes, tolérance: {tolerance_percentage}%)",
+                                                minutes=early_minutes,
+                                                status=Anomaly.AnomalyStatus.PENDING,
+                                                schedule=schedule
+                                            )
+
+                                            # Ajouter les pointages concernés à l'anomalie
+                                            anomaly.related_timesheets.add(timesheet)
+                                            anomaly.related_timesheets.add(last_arrival)
+
+                                            logger.info(f"Anomalie de durée insuffisante créée pour {employee.get_full_name()} le {current_date} au site {site.name}")
 
                 except ScheduleDetail.DoesNotExist:
                     # Pas de planning pour ce jour
