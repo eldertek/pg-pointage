@@ -53,13 +53,14 @@
       v-if="canView"
       :headers="headers"
       :items="filteredUsers"
+      :items-per-page="-1"
       :loading="loading"
       :no-data-text="'Aucun utilisateur trouvé'"
       :loading-text="'Chargement des utilisateurs...'"
       :sort-by="[{ key: 'last_name' }, { key: 'first_name' }, { key: 'role' }]"
       class="elevation-1"
-      @click:row="handleRowClick"
       hide-default-footer
+      @click:row="handleRowClick"
     >
       <!-- Rôle -->
       <template #item.role="{ item }">
@@ -554,10 +555,13 @@ const filteredUsers = computed(() => {
   console.log('[Debug] Utilisateur connecté:', user.role)
   console.log('[Debug] Organisations de l\'utilisateur:', user.organizations)
   console.log('[Debug] Utilisateurs avant filtrage:', users.value)
+  console.log('[Debug] Nombre d\'utilisateurs récupérés:', users.value.length)
 
   // Super Admin voit tout
   if (user.role === RoleEnum.SUPER_ADMIN) {
-    return users.value
+    const result = users.value
+    console.log('[Debug] Nombre d\'utilisateurs filtrés (Super Admin):', result.length)
+    return result
   }
 
   // Pour les autres rôles, filtrer selon les organisations
