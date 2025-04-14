@@ -3,6 +3,7 @@
 # remove node_modules
 node_modules/
 
+/logs/
 
 # next.js
 /.next/
