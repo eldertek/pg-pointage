@@ -97,12 +97,19 @@ class TimesheetCreateView(generics.CreateAPIView):
         try:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            timestamp = timezone.now()
-            timesheet = serializer.save(timestamp=timestamp)
+
+            # Le timestamp est maintenant géré dans le serializer.validate
+            timesheet = serializer.save()
 
             # Utiliser AnomalyProcessor pour traiter le pointage
             processor = AnomalyProcessor()
             result = processor.process_timesheet(timesheet)
+
+            # Ajouter des logs pour déboguer
+            logger = logging.getLogger(__name__)
+            logger.info(f"Pointage créé: ID={timesheet.id}, Employee={timesheet.employee.id}, Site={timesheet.site.id}, "
+                       f"Type={timesheet.entry_type}, Timestamp={timesheet.timestamp}, "
+                       f"Est ambigu: {result.get('is_ambiguous', False)}")
 
             return Response({
                 'message': 'Pointage enregistré avec succès',
@@ -276,7 +283,7 @@ class ScanAnomaliesView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
 
         processor = AnomalyProcessor()
-        
+
         return processor.scan_anomalies(
             start_date=serializer.validated_data.get('start_date'),
             end_date=serializer.validated_data.get('end_date'),

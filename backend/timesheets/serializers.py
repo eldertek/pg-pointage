@@ -143,10 +143,12 @@ class TimesheetCreateSerializer(serializers.ModelSerializer, SitePermissionMixin
     latitude = serializers.DecimalField(max_digits=12, decimal_places=10, required=False, allow_null=True)
     longitude = serializers.DecimalField(max_digits=12, decimal_places=10, required=False, allow_null=True)
     message = serializers.CharField(read_only=True)
+    entry_type = serializers.CharField(required=False, write_only=True)
+    timestamp = serializers.DateTimeField(required=False, write_only=True)
 
     class Meta:
         model = Timesheet
-        fields = ['site_id', 'scan_type', 'latitude', 'longitude', 'message']
+        fields = ['site_id', 'scan_type', 'latitude', 'longitude', 'message', 'entry_type', 'timestamp']
         extra_kwargs = {
             'scan_type': {'required': True}
         }
@@ -165,6 +167,17 @@ class TimesheetCreateSerializer(serializers.ModelSerializer, SitePermissionMixin
         employee = self.context['request'].user
         today = timezone.now().date()
 
+        # Utiliser le timestamp fourni ou générer un nouveau
+        if 'timestamp' in attrs:
+            timestamp = attrs['timestamp']
+            # S'assurer que le timestamp est un objet datetime
+            if isinstance(timestamp, str):
+                timestamp = timezone.parse_datetime(timestamp)
+                attrs['timestamp'] = timestamp
+            today = timestamp.date()
+        else:
+            attrs['timestamp'] = timezone.now()
+
         # Vérifier que l'employé est actif
         if not employee.is_active:
             raise serializers.ValidationError("Votre compte est inactif.")
@@ -173,24 +186,44 @@ class TimesheetCreateSerializer(serializers.ModelSerializer, SitePermissionMixin
         if not employee.organizations.filter(sites=site).exists():
             raise serializers.ValidationError("Vous n'êtes pas autorisé à pointer sur ce site.")
 
-        # Déterminer automatiquement le type d'entrée
-        last_timesheet = Timesheet.objects.filter(
+        # Si le type d'entrée est spécifié (cas ambigu), l'utiliser
+        if 'entry_type' in attrs and attrs['entry_type']:
+            entry_type = attrs['entry_type']
+            if entry_type == Timesheet.EntryType.ARRIVAL:
+                message = "Pointage enregistré comme une arrivée (cas ambigu)."
+            else:
+                message = "Pointage enregistré comme un départ (cas ambigu)."
+        else:
+            # Déterminer automatiquement le type d'entrée
+            last_timesheet = Timesheet.objects.filter(
+                employee=employee,
+                site=site,
+                timestamp__date=today
+            ).order_by('-timestamp').first()
+
+            entry_type = Timesheet.EntryType.ARRIVAL
+            message = "Premier pointage de la journée enregistré comme une arrivée."
+
+            if last_timesheet:
+                if last_timesheet.entry_type == Timesheet.EntryType.ARRIVAL:
+                    entry_type = Timesheet.EntryType.DEPARTURE
+                    message = "Pointage enregistré comme un départ suite à votre dernière arrivée."
+                else:
+                    message = "Nouveau cycle de pointage, enregistré comme une arrivée."
+
+            attrs['entry_type'] = entry_type
+
+        # Vérifier s'il existe déjà un pointage avec le même timestamp (pour éviter les doublons)
+        existing_timesheet = Timesheet.objects.filter(
             employee=employee,
             site=site,
-            timestamp__date=today
-        ).order_by('-timestamp').first()
+            timestamp=attrs['timestamp']
+        ).first()
 
-        entry_type = Timesheet.EntryType.ARRIVAL
-        message = "Premier pointage de la journée enregistré comme une arrivée."
+        if existing_timesheet:
+            # Si un pointage existe déjà à ce moment précis, ajouter une seconde pour éviter le doublon
+            attrs['timestamp'] = attrs['timestamp'] + timezone.timedelta(seconds=1)
 
-        if last_timesheet:
-            if last_timesheet.entry_type == Timesheet.EntryType.ARRIVAL:
-                entry_type = Timesheet.EntryType.DEPARTURE
-                message = "Pointage enregistré comme un départ suite à votre dernière arrivée."
-            else:
-                message = "Nouveau cycle de pointage, enregistré comme une arrivée."
-
-        attrs['entry_type'] = entry_type
         attrs['message'] = message
         return attrs
 
