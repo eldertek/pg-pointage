@@ -51,31 +51,15 @@
     <!-- Tableau des utilisateurs -->
     <v-data-table
       v-if="canView"
-      v-model:page="page"
-      v-model:items-per-page="itemsPerPage"
       :headers="headers"
       :items="filteredUsers"
       :loading="loading"
-      :server-items-length="totalItems"
-      item-value="id"
-      fixed-header
       :no-data-text="'Aucun utilisateur trouvé'"
       :loading-text="'Chargement des utilisateurs...'"
-      :items-per-page-text="'Lignes par page'"
-      :page-text="'{0}-{1} sur {2}'"
-      :footer-props="{
-        'items-per-page-options': [5, 10, 15, 20, -1],
-        'items-per-page-text': 'Lignes par page',
-        'show-current-page': true,
-        'show-first-last-page': true,
-        'page-text': '{0}-{1} sur {2}',
-        'items-per-page-all-text': 'Tout'
-      }"
-      must-sort
       :sort-by="[{ key: 'last_name' }, { key: 'first_name' }, { key: 'role' }]"
       class="elevation-1"
       @click:row="handleRowClick"
-      @update:options="handleTableUpdate"
+      hide-default-footer
     >
       <!-- Rôle -->
       <template #item.role="{ item }">
@@ -469,9 +453,6 @@ const props = defineProps({
 // État
 const loading = ref(false)
 const saving = ref(false)
-const page = ref(1)
-const itemsPerPage = ref(10)
-const totalItems = ref<number>(0)
 const editedItem = ref<UserFormData | null>(null)
 const form = ref()
 const dashboardView = ref()
@@ -570,6 +551,10 @@ const filteredUsers = computed(() => {
     return []
   }
 
+  console.log('[Debug] Utilisateur connecté:', user.role)
+  console.log('[Debug] Organisations de l\'utilisateur:', user.organizations)
+  console.log('[Debug] Utilisateurs avant filtrage:', users.value)
+
   // Super Admin voit tout
   if (user.role === RoleEnum.SUPER_ADMIN) {
     return users.value
@@ -577,14 +562,28 @@ const filteredUsers = computed(() => {
 
   // Pour les autres rôles, filtrer selon les organisations
   return users.value.filter(u => {
-    if (!u || !u.organizations) return false
+    if (!u || !u.organizations || !user.organizations) {
+      console.log('[Debug] Données manquantes pour', u?.email)
+      return false
+    }
 
     // Vérifier si l'utilisateur a accès à au moins une organisation commune
     const userOrgIds = Array.isArray(user.organizations)
       ? user.organizations
       : [user.organizations]
 
-    return u.organizations.some(orgId => userOrgIds.includes(orgId))
+    console.log('[Debug] userOrgIds brut:', JSON.stringify(userOrgIds))
+    console.log('[Debug] u.organizations brut:', JSON.stringify(u.organizations))
+
+    const hasCommonOrg = u.organizations.some(orgId => userOrgIds.includes(orgId))
+
+    console.log('[Debug] Vérification accès pour', u.email, ':', {
+      userOrgIds: JSON.stringify(userOrgIds),
+      userOrgs: JSON.stringify(u.organizations),
+      hasAccess: hasCommonOrg
+    })
+
+    return hasCommonOrg
   })
 })
 
@@ -597,27 +596,27 @@ const handleRowClick = (_event: any, { item }: any) => {
 const loadUsers = async () => {
   loading.value = true
   try {
+    // Toujours récupérer tous les utilisateurs
     const params: any = {
-      page: page.value,
+      page_size: 1000, // Valeur arbitrairement grande pour récupérer tous les utilisateurs
       search: filters.value.search,
-      role: filters.value.role,
-      page_size: itemsPerPage.value === -1 ? 1000 : itemsPerPage.value
+      role: filters.value.role
     }
 
     console.log('[Users][LoadUsers] Paramètres de requête:', params)
 
     const response = await usersApi.getAllUsers(params)
     console.log('[Users][LoadUsers] Réponse du backend:', response.data)
-    
     users.value = response.data.results || []
-    
-    // S'assurer que totalItems est un nombre
-    const count = parseInt(response.data.count, 10)
-    totalItems.value = isNaN(count) ? users.value.length : count
 
-    console.log('[Users][LoadUsers] Nombre total d\'utilisateurs:', totalItems.value)
+    // Afficher le nombre total d'utilisateurs
+    if (response.data.count !== undefined) {
+      console.log('[Users][LoadUsers] Nombre total d\'utilisateurs:', response.data.count)
+    } else {
+      console.warn('[Users][LoadUsers] Attention: count non défini dans la réponse')
+    }
 
-    // Mettre à jour la map des organisations
+    // Mettre à jour la map des organisations avec les noms depuis les résultats des utilisateurs
     users.value.forEach(user => {
       if (user.organizations && user.organizations_names) {
         user.organizations.forEach((orgId, index) => {
@@ -694,24 +693,10 @@ watch(() => editedItem.value?.organizations, (newVal) => {
   }
 }, { immediate: true });
 
-// Gestionnaire pour les changements de pagination
-const handleTableUpdate = (options: any) => {
-  console.log('[Users][TableUpdate] Options:', options)
-
-  // Mettre à jour les valeurs de pagination
-  page.value = options.page
-  itemsPerPage.value = options.itemsPerPage
-
-  // Recharger les données
-  loadUsers()
-}
+// La pagination est désactivée, nous n'avons plus besoin de gestionnaire de pagination
 
 // Initialisation
 onMounted(async () => {
-  // Réinitialiser la pagination
-  page.value = 1
-  itemsPerPage.value = 10
-  
   await Promise.all([
     loadUsers(),
     loadOrganizations()
@@ -720,18 +705,26 @@ onMounted(async () => {
   // Si on a un ID d'édition, ouvrir le dialogue
   if (props.editId) {
     try {
-      const response = await usersApi.getUser(Number(props.editId))
+      console.log("[Users][EditId] Mode édition pour l'utilisateur:", props.editId);
+      const response = await usersApi.getUser(Number(props.editId));
+      console.log('[Users][EditMode] Données utilisateur chargées:', JSON.stringify(response.data));
+
       if (response.data) {
+        // Initialiser selectedOrganizations avant d'ouvrir le dialogue
         selectedOrganizations.value = Array.isArray(response.data.organizations)
           ? [...response.data.organizations]
-          : []
-        openDialog(response.data)
+          : [];
+
+        console.log('[Debug][Orgs] selectedOrganizations initialisé avec:', JSON.stringify(selectedOrganizations.value));
+
+        // Ensuite ouvrir le dialogue
+        openDialog(response.data);
       }
     } catch (error) {
-      console.error('[Users][Error] Erreur lors du chargement des données:', error)
+      console.error('[Users][Error] Erreur lors du chargement des données:', error);
     }
   }
-})
+});
 
 const openDialog = (item?: ExtendedUser) => {
   // Réinitialiser complètement l'état du formulaire
