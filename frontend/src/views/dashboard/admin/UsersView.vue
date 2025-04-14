@@ -57,18 +57,19 @@
       :items="filteredUsers"
       :loading="loading"
       :server-items-length="totalItems"
-      must-sort
+      item-value="id"
+      fixed-header
       :no-data-text="'Aucun utilisateur trouvé'"
       :loading-text="'Chargement des utilisateurs...'"
       :items-per-page-text="'Lignes par page'"
       :page-text="'{0}-{1} sur {2}'"
-      :items-per-page-options="[
-        { title: '5', value: 5 },
-        { title: '10', value: 10 },
-        { title: '15', value: 15 },
-        { title: '20', value: 20 },
-        { title: 'Tout', value: -1 }
-      ]"
+      :footer-props="{
+        'items-per-page-options': [5, 10, 15, 20, -1],
+        'items-per-page-text': 'Lignes par page',
+        'show-current-page': true,
+        'show-first-last-page': true,
+        'page-text': '{0}-{1} sur {2}'
+      }"
       :sort-by="[{ key: 'last_name' }, { key: 'first_name' }, { key: 'role' }]"
       class="elevation-1"
       @click:row="handleRowClick"
@@ -468,7 +469,8 @@ const loading = ref(false)
 const saving = ref(false)
 const page = ref(1)
 const itemsPerPage = ref(10)
-const totalItems = ref(0)
+// Initialiser totalItems avec une valeur numérique explicite
+const totalItems = ref<number>(0)
 const editedItem = ref<UserFormData | null>(null)
 const form = ref()
 const dashboardView = ref()
@@ -604,7 +606,7 @@ const filteredUsers = computed(() => {
   })
 })
 
-const handleRowClick = (event: any, { item }: any) => {
+const handleRowClick = (_event: any, { item }: any) => {
   if (item?.id) {
     router.push(`/dashboard/admin/users/${item.id}`)
   }
@@ -636,13 +638,21 @@ const loadUsers = async () => {
 
     // Mettre à jour le nombre total d'éléments
     if (response.data.count !== undefined) {
-      totalItems.value = response.data.count
-      console.log('[Users][LoadUsers] Nombre total d\'utilisateurs mis à jour:', totalItems.value)
+      // Forcer la conversion en nombre
+      const count = parseInt(response.data.count, 10)
+      totalItems.value = count
+      console.log('[Users][LoadUsers] Nombre total d\'utilisateurs mis à jour:', totalItems.value, 'Type:', typeof totalItems.value)
     } else {
       console.warn('[Users][LoadUsers] Attention: count non défini dans la réponse')
     }
 
-    console.log('[Users][LoadUsers] Nombre total d\'utilisateurs:', totalItems.value)
+    // Vérifier que le nombre total d'utilisateurs est bien un nombre
+    if (typeof totalItems.value !== 'number' || isNaN(totalItems.value)) {
+      console.error('[Users][LoadUsers] Erreur: totalItems n\'est pas un nombre valide:', totalItems.value)
+      totalItems.value = users.value.length
+    }
+
+    console.log('[Users][LoadUsers] Nombre total d\'utilisateurs final:', totalItems.value, 'Type:', typeof totalItems.value)
 
     // Mettre à jour la map des organisations avec les noms depuis les résultats des utilisateurs
     users.value.forEach(user => {
@@ -724,9 +734,22 @@ watch(() => editedItem.value?.organizations, (newVal) => {
 // Gestionnaire pour les changements de pagination
 const handleTableUpdate = (options: any) => {
   console.log('[Users][TableUpdate] Options:', options)
-  // Toujours mettre à jour les valeurs, même si elles sont identiques
+
+  // Vérifier si les options ont changé
+  const pageChanged = page.value !== options.page
+  const itemsPerPageChanged = itemsPerPage.value !== options.itemsPerPage
+
+  // Mettre à jour les valeurs
   page.value = options.page
   itemsPerPage.value = options.itemsPerPage
+
+  console.log('[Users][TableUpdate] Changements détectés:', {
+    pageChanged,
+    itemsPerPageChanged,
+    page: page.value,
+    itemsPerPage: itemsPerPage.value,
+    totalItems: totalItems.value
+  })
 
   // Recharger les données à chaque changement d'options
   loadUsers()
