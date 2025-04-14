@@ -56,7 +56,8 @@
       :headers="headers"
       :items="filteredUsers"
       :loading="loading"
-      :items-length="totalItems"
+      :server-items-length="totalItems"
+      must-sort
       :no-data-text="'Aucun utilisateur trouvé'"
       :loading-text="'Chargement des utilisateurs...'"
       :items-per-page-text="'Lignes par page'"
@@ -569,6 +570,7 @@ const filteredUsers = computed(() => {
   console.log('[Debug] Utilisateur connecté:', user.role)
   console.log('[Debug] Organisations de l\'utilisateur:', user.organizations)
   console.log('[Debug] Utilisateurs avant filtrage:', users.value)
+  console.log('[Debug] Nombre total d\'utilisateurs (totalItems):', totalItems.value)
 
   // Super Admin voit tout
   if (user.role === RoleEnum.SUPER_ADMIN) {
@@ -631,7 +633,15 @@ const loadUsers = async () => {
     const response = await usersApi.getAllUsers(params)
     console.log('[Users][LoadUsers] Réponse du backend:', response.data)
     users.value = response.data.results || []
-    totalItems.value = response.data.count || 0
+
+    // Mettre à jour le nombre total d'éléments
+    if (response.data.count !== undefined) {
+      totalItems.value = response.data.count
+      console.log('[Users][LoadUsers] Nombre total d\'utilisateurs mis à jour:', totalItems.value)
+    } else {
+      console.warn('[Users][LoadUsers] Attention: count non défini dans la réponse')
+    }
+
     console.log('[Users][LoadUsers] Nombre total d\'utilisateurs:', totalItems.value)
 
     // Mettre à jour la map des organisations avec les noms depuis les résultats des utilisateurs
