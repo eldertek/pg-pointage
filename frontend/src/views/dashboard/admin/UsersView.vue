@@ -65,6 +65,7 @@
         { title: '5', value: 5 },
         { title: '10', value: 10 },
         { title: '15', value: 15 },
+        { title: '20', value: 20 },
         { title: 'Tout', value: -1 }
       ]"
       :sort-by="[{ key: 'last_name' }, { key: 'first_name' }, { key: 'role' }]"
@@ -628,8 +629,10 @@ const loadUsers = async () => {
     console.log('[Users][LoadUsers] Paramètres de requête:', params)
 
     const response = await usersApi.getAllUsers(params)
+    console.log('[Users][LoadUsers] Réponse du backend:', response.data)
     users.value = response.data.results || []
-    totalItems.value = response.data.count
+    totalItems.value = response.data.count || 0
+    console.log('[Users][LoadUsers] Nombre total d\'utilisateurs:', totalItems.value)
 
     // Mettre à jour la map des organisations avec les noms depuis les résultats des utilisateurs
     users.value.forEach(user => {
@@ -711,23 +714,15 @@ watch(() => editedItem.value?.organizations, (newVal) => {
 // Gestionnaire pour les changements de pagination
 const handleTableUpdate = (options: any) => {
   console.log('[Users][TableUpdate] Options:', options)
-  if (options.page !== page.value || options.itemsPerPage !== itemsPerPage.value) {
-    page.value = options.page
-    itemsPerPage.value = options.itemsPerPage
-    loadUsers()
-  }
+  // Toujours mettre à jour les valeurs, même si elles sont identiques
+  page.value = options.page
+  itemsPerPage.value = options.itemsPerPage
+
+  // Recharger les données à chaque changement d'options
+  loadUsers()
 }
 
-// Watchers pour les changements de pagination
-watch(() => page.value, () => {
-  console.log('[Users][Watch] Page changée:', page.value)
-  loadUsers()
-})
-
-watch(() => itemsPerPage.value, () => {
-  console.log('[Users][Watch] Items par page changés:', itemsPerPage.value)
-  loadUsers()
-})
+// Note: Nous n'avons pas besoin de watchers séparés car handleTableUpdate est appelé à chaque changement
 
 // Initialisation
 onMounted(async () => {
