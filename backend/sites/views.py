@@ -34,7 +34,7 @@ class CustomPageNumberPagination(PageNumberPagination):
     """Pagination personnalisée pour les listes"""
     page_size = 10
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = 1000  # Augmenter la limite maximale pour permettre de récupérer tous les sites
 
 
 class SiteStatisticsView(generics.RetrieveAPIView):
@@ -99,6 +99,7 @@ class IsAdminOrManager(BasePermission):
 
 class SiteListView(generics.ListCreateAPIView):
     serializer_class = SiteSerializer
+    pagination_class = CustomPageNumberPagination
 
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS:
