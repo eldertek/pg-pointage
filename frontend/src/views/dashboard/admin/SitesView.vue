@@ -36,22 +36,14 @@
 
     <!-- Tableau -->
     <v-data-table
-      v-model:page="page"
       :headers="headers"
       :items="filteredSites"
       :loading="loading"
-      :items-per-page="itemsPerPage"
-      :items-length="totalItems"
       :no-data-text="'Aucun site trouvé'"
       :loading-text="'Chargement des sites...'"
-      :items-per-page-text="'Lignes par page'"
-      :page-text="'{0}-{1} sur {2}'"
-      :items-per-page-options="[
-        { title: '5', value: 5 },
-        { title: '10', value: 10 },
-        { title: '15', value: 15 },
-        { title: 'Tout', value: -1 }
-      ]"
+      :sort-by="[{ key: 'name' }]"
+      :items-per-page="-1"
+      hide-default-footer
       class="elevation-1"
       @click:row="handleRowClick"
     >
@@ -295,9 +287,6 @@ interface ApiError {
 const router = useRouter()
 const loading = ref(false)
 const saving = ref(false)
-const page = ref(1)
-const itemsPerPage = ref(10)
-const totalItems = ref(0)
 
 const defaultSiteValues = {
   name: '',
@@ -344,9 +333,10 @@ const headers = [
 const loadSites = async () => {
   loading.value = true
   try {
-    const response = await sitesApi.getAllSites(page.value, itemsPerPage.value)
+    // Récupérer tous les sites en une seule fois
+    const response = await sitesApi.getAllSites(1, 1000) // Valeur arbitrairement grande
     sites.value = response.data.results || []
-    totalItems.value = response.data.count || 0
+    console.log('[Sites] Nombre de sites chargés:', sites.value.length)
   } catch (error) {
     console.error('Erreur lors du chargement des sites:', error)
   } finally {
@@ -375,9 +365,9 @@ const loadManagers = async () => {
     console.log('[Sites][LoadManagers] Pas d\'organisation sélectionnée')
     return
   }
-  
+
   console.log('[Sites][LoadManagers] Chargement pour l\'organisation:', editedItem.value.organization)
-  
+
   try {
     const params = {
       role: 'MANAGER',
@@ -385,16 +375,16 @@ const loadManagers = async () => {
       is_active: true
     }
     console.log('[Sites][LoadManagers] Paramètres de la requête:', params)
-    
+
     const response = await usersApi.getAllUsers(params)
     console.log('[Sites][API] URL de la requête:', response.config?.url)
     console.log('[Sites][API] Paramètres de la requête:', response.config?.params)
     console.log('[Sites][API] Réponse des managers:', response.data)
-    
+
     if (response.data.count === 0) {
       console.warn('[Sites][Warning] Aucun manager trouvé pour cette organisation. Vérifiez que les managers ont bien une organisation assignée.')
     }
-    
+
     managers.value = response.data.results.map((manager: ApiUser) => ({
       id: manager.id,
       name: `${manager.first_name} ${manager.last_name}`
@@ -453,7 +443,7 @@ const saveSite = async () => {
   saving.value = true
   try {
     console.log('[Sites][Save] editedItem avant traitement:', editedItem.value)
-    
+
     // S'assurer que tous les champs requis sont présents et correctement formatés
     const siteData = {
       name: editedItem.value.name,
@@ -487,7 +477,7 @@ const saveSite = async () => {
     const apiError = error as ApiError
     console.error('[Sites][Error] Erreur lors de la sauvegarde:', apiError)
     console.error('[Sites][Error] Détails de la réponse:', apiError.response?.data)
-    
+
     // Afficher les erreurs de validation si présentes
     if (apiError.response?.data) {
       const errors = apiError.response.data
@@ -547,13 +537,13 @@ const toggleSiteStatus = async (item: Site) => {
     try {
       console.log('[Sites][ToggleStatus] État actuel:', item.is_active)
       console.log('[Sites][ToggleStatus] Nouvel état:', !item.is_active)
-      
+
       // N'envoyer que l'ID et le nouveau statut
       await sitesApi.updateSite(item.id, {
         is_active: !item.is_active
       })
       await loadSites()
-      
+
       console.log('[Sites][ToggleStatus] Mise à jour réussie')
     } catch (error) {
       console.error('[Sites][Error] Erreur lors de la mise à jour du statut:', error)
@@ -588,14 +578,7 @@ onMounted(async () => {
   }
 })
 
-// Observateurs
-watch(page, () => {
-  loadSites()
-})
-
-watch(itemsPerPage, () => {
-  loadSites()
-})
+// Pagination désactivée, pas besoin d'observateurs
 
 watch(() => editedItem.value.organization, async (newOrgId, oldOrgId) => {
   if (newOrgId) {
@@ -626,27 +609,28 @@ const canEdit = computed(() => {
 const filteredSites = computed(() => {
   const user = authStore.user
   if (!user) return []
-  
+
   console.log('[Sites][Filter] User:', {
     id: user.id,
     role: user.role,
     organizations: user.organizations
   })
-  
+
   console.log('[Sites][Filter] Sites avant filtrage:', sites.value)
-  
+  console.log('[Sites][Filter] Nombre de sites avant filtrage:', sites.value.length)
+
   const filtered = sites.value.filter(site => {
     // Super Admin voit tout
     if (user.role === RoleEnum.SUPER_ADMIN) return true
-    
+
     // Admin et Manager voient les sites de leurs organisations
     if (user.role === RoleEnum.ADMIN || user.role === RoleEnum.MANAGER) {
       // Convertir les IDs en nombres pour la comparaison
       const userOrgIds = user.organizations?.map(org => Number(org)) ?? []
       const siteOrgId = Number(site.organization)
-      
+
       const hasAccess = userOrgIds.includes(siteOrgId)
-      
+
       console.log('[Sites][Filter] Vérification accès pour le site:', {
         siteId: site.id,
         siteName: site.name,
@@ -656,16 +640,17 @@ const filteredSites = computed(() => {
       })
       return hasAccess
     }
-    
+
     // Employé voit les sites auxquels il est rattaché
     if (user.role === RoleEnum.EMPLOYEE) {
       return user.sites?.some(s => s.id === site.id) ?? false
     }
-    
+
     return false
   })
-  
+
   console.log('[Sites][Filter] Sites après filtrage:', filtered)
+  console.log('[Sites][Filter] Nombre de sites après filtrage:', filtered.length)
   return filtered
 })
 </script>
@@ -695,4 +680,4 @@ const filteredSites = computed(() => {
   opacity: 1 !important;
   color: inherit !important;
 }
-</style> 
+</style>
