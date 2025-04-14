@@ -9,6 +9,7 @@
  * * `MISSING_DEPARTURE` - Départ manquant
  * * `INSUFFICIENT_HOURS` - Heures insuffisantes
  * * `CONSECUTIVE_SAME_TYPE` - Pointages consécutifs du même type
+ * * `UNLINKED_SCHEDULE` - Planning non lié
  * * `OTHER` - Autre
  */
 export enum AnomalyTypeEnum {
@@ -18,5 +19,6 @@ export enum AnomalyTypeEnum {
     MISSING_DEPARTURE = 'MISSING_DEPARTURE',
     INSUFFICIENT_HOURS = 'INSUFFICIENT_HOURS',
     CONSECUTIVE_SAME_TYPE = 'CONSECUTIVE_SAME_TYPE',
+    UNLINKED_SCHEDULE = 'UNLINKED_SCHEDULE',
     OTHER = 'OTHER',
 }

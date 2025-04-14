@@ -108,6 +108,16 @@ def create_alert_for_anomaly(sender, instance, created, **kwargs):
             )
             alert_type_enum = Alert.AlertType.INSUFFICIENT_HOURS
 
+        elif alert_type == Anomaly.AnomalyType.UNLINKED_SCHEDULE:
+            message = _(
+                f'Anomalie détectée : Planning non lié\n'
+                f'Employé : {instance.employee.get_full_name()}\n'
+                f'Site : {instance.site.name}\n'
+                f'Date : {instance.date}\n'
+                f'Description : {instance.description}'
+            )
+            alert_type_enum = Alert.AlertType.UNLINKED_SCHEDULE
+
         elif alert_type == Anomaly.AnomalyType.OTHER:
             message = _(
                 f'Anomalie détectée : Autre\n'

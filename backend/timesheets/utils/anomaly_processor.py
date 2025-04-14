@@ -202,18 +202,32 @@ class AnomalyProcessor:
             timesheet.is_out_of_schedule = True
             timesheet.save()
 
-            anomaly = Anomaly.objects.create(
+            # Vérifier si une anomalie similaire existe déjà pour ce pointage ou cette date/employé/site
+            existing_anomaly = Anomaly.objects.filter(
                 employee=employee,
                 site=site,
-                timesheet=timesheet,
                 date=current_date,
-                anomaly_type=Anomaly.AnomalyType.OTHER,
-                description=f"Pointage hors planning: l'employé n'est pas rattaché à ce site.",
-                status=Anomaly.AnomalyStatus.PENDING
-            )
-            self._anomalies_detected = True
-            created_anomalies.append(anomaly)
-            self.logger.info(f"Anomalie créée: OTHER - L'employé {employee.get_full_name()} n'est pas rattaché au site {site.name}")
+                anomaly_type=Anomaly.AnomalyType.UNLINKED_SCHEDULE
+            ).first()
+
+            if not existing_anomaly:
+                anomaly = Anomaly.objects.create(
+                    employee=employee,
+                    site=site,
+                    timesheet=timesheet,
+                    date=current_date,
+                    anomaly_type=Anomaly.AnomalyType.UNLINKED_SCHEDULE,
+                    description=f"Pointage hors planning: l'employé n'est pas rattaché à ce site.",
+                    status=Anomaly.AnomalyStatus.PENDING
+                )
+                self._anomalies_detected = True
+                created_anomalies.append(anomaly)
+                self.logger.info(f"Anomalie créée: UNLINKED_SCHEDULE - L'employé {employee.get_full_name()} n'est pas rattaché au site {site.name}")
+            else:
+                self.logger.info(f"Anomalie existante trouvée pour l'employé {employee.get_full_name()} non rattaché au site {site.name}, pas de création de doublon")
+                # Ajouter l'anomalie existante à la liste des anomalies créées pour la cohérence du retour
+                created_anomalies.append(existing_anomaly)
+
             return True, created_anomalies
 
         matching_schedules = []
@@ -554,7 +568,7 @@ class AnomalyProcessor:
             employee=timesheet.employee,
             site=timesheet.site,
             date=timesheet.timestamp.date(),
-            anomaly_type=Anomaly.AnomalyType.OTHER,
+            anomaly_type__in=[Anomaly.AnomalyType.UNLINKED_SCHEDULE, Anomaly.AnomalyType.OTHER],
             description__contains="Pointage hors planning"
         ).first()
 
@@ -620,12 +634,15 @@ class AnomalyProcessor:
                         schedule_to_associate = se.schedule
                         break
 
+            # Déterminer le type d'anomalie en fonction de la situation
+            anomaly_type = Anomaly.AnomalyType.UNLINKED_SCHEDULE if not site_employee_relations.exists() else Anomaly.AnomalyType.OTHER
+
             anomaly = Anomaly.objects.create(
                 employee=timesheet.employee,
                 site=timesheet.site,
                 timesheet=timesheet,
                 date=timesheet.timestamp.date(),
-                anomaly_type=Anomaly.AnomalyType.OTHER,
+                anomaly_type=anomaly_type,
                 description=description,
                 status=Anomaly.AnomalyStatus.PENDING,
                 schedule=schedule_to_associate  # Associer un planning si disponible
@@ -633,7 +650,7 @@ class AnomalyProcessor:
             anomaly.related_timesheets.add(timesheet)
             self._anomalies_detected = True
             created_anomaly = anomaly
-            self.logger.info(f"Anomalie créée: OTHER - Pointage hors planning pour {timesheet.employee.get_full_name()} à {timesheet.site.name} - {description}")
+            self.logger.info(f"Anomalie créée: {anomaly_type} - Pointage hors planning pour {timesheet.employee.get_full_name()} à {timesheet.site.name} - {description}")
 
         return created_anomaly
 

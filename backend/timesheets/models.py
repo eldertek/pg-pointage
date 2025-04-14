@@ -178,6 +178,7 @@ class Anomaly(models.Model):
         INSUFFICIENT_HOURS = 'INSUFFICIENT_HOURS', _('Heures insuffisantes')
         CONSECUTIVE_SAME_TYPE = 'CONSECUTIVE_SAME_TYPE', _(
             'Pointages consécutifs du même type')
+        UNLINKED_SCHEDULE = 'UNLINKED_SCHEDULE', _('Planning non lié')
         OTHER = 'OTHER', _('Autre')
 
     class AnomalyStatus(models.TextChoices):

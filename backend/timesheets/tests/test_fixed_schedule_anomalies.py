@@ -135,14 +135,14 @@ class FixedScheduleAnomalyTestCase(TestCase):
         end_date = end_date or self.monday_date.date()
         employee_id = employee_id or self.employee.id
         site_id = site_id or self.site.id
-        
+
         processor.scan_anomalies(
             start_date=start_date,
             end_date=end_date,
             site_id=site_id,
             employee_id=employee_id
         )
-        
+
         return type('Response', (), {'status_code': 200})  # Mock response object
 
     def _create_timesheet(self, time_obj, entry_type=Timesheet.EntryType.ARRIVAL):
@@ -154,11 +154,11 @@ class FixedScheduleAnomalyTestCase(TestCase):
             entry_type=entry_type,
             scan_type=Timesheet.ScanType.QR_CODE
         )
-        
+
         # Process the timesheet using AnomalyProcessor
         processor = AnomalyProcessor()
         processor.process_timesheet(timesheet)
-        
+
         return timesheet
 
     def _create_anomaly(self, anomaly_type, minutes=0, description=None, timesheet=None, date=None):
@@ -1366,12 +1366,12 @@ class FixedScheduleAnomalyTestCase(TestCase):
         timesheet.refresh_from_db()
         self.assertTrue(timesheet.is_out_of_schedule)
 
-        # Vérifier qu'une anomalie a été créée
+        # Vérifier qu'une anomalie a été créée avec le nouveau type UNLINKED_SCHEDULE
         anomalies = Anomaly.objects.filter(
             employee=unassigned_employee,
             site=self.site,
             date=self.monday_date.date(),
-            anomaly_type=Anomaly.AnomalyType.OTHER
+            anomaly_type=Anomaly.AnomalyType.UNLINKED_SCHEDULE
         )
         self.assertEqual(anomalies.count(), 1)
         # Vérifier que la description contient "rattaché" au lieu de "non rattaché"
@@ -1494,6 +1494,89 @@ class FixedScheduleAnomalyTestCase(TestCase):
             anomaly=anomalies.first()
         )
         self.assertEqual(alerts.count(), 1)
+
+    def test_no_duplicate_unlinked_schedule_anomalies(self):
+        """Test pour vérifier qu'il n'y a pas de doublons d'anomalies pour un site non rattaché."""
+        # Créer un employé qui n'est associé à aucun site
+        unassigned_employee = User.objects.create_user(
+            username='unassigned_duplicate',
+            email='unassigned_duplicate@test.com',
+            password='testpass123',
+            role=User.Role.EMPLOYEE,
+            first_name='Unassigned',
+            last_name='Duplicate'
+        )
+        unassigned_employee.organizations.add(self.organization)
+
+        # Premier pointage sur un site auquel l'employé n'est pas rattaché
+        timestamp1 = self.monday_date.replace(hour=8, minute=0)
+        timesheet1 = Timesheet.objects.create(
+            employee=unassigned_employee,
+            site=self.site,
+            timestamp=timestamp1,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Appeler l'API pour détecter les anomalies
+        client = APIClient()
+        client.force_authenticate(user=self.manager)
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.monday_date.date(),
+                'end_date': self.monday_date.date(),
+                'site': self.site.id,
+                'employee': unassigned_employee.id
+            },
+            format='json'
+        )
+
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+
+        # Vérifier qu'une anomalie a été créée
+        anomalies = Anomaly.objects.filter(
+            employee=unassigned_employee,
+            site=self.site,
+            date=self.monday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.UNLINKED_SCHEDULE
+        )
+        self.assertEqual(anomalies.count(), 1)
+
+        # Deuxième pointage sur le même site
+        timestamp2 = self.monday_date.replace(hour=12, minute=0)
+        timesheet2 = Timesheet.objects.create(
+            employee=unassigned_employee,
+            site=self.site,
+            timestamp=timestamp2,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            scan_type=Timesheet.ScanType.QR_CODE
+        )
+
+        # Appeler l'API pour détecter les anomalies une seconde fois
+        response = client.post(
+            reverse('scan-anomalies'),
+            {
+                'start_date': self.monday_date.date(),
+                'end_date': self.monday_date.date(),
+                'site': self.site.id,
+                'employee': unassigned_employee.id
+            },
+            format='json'
+        )
+
+        # Vérifier la réponse
+        self.assertEqual(response.status_code, 200)
+
+        # Vérifier qu'il n'y a toujours qu'une seule anomalie (pas de doublon)
+        anomalies = Anomaly.objects.filter(
+            employee=unassigned_employee,
+            site=self.site,
+            date=self.monday_date.date(),
+            anomaly_type=Anomaly.AnomalyType.UNLINKED_SCHEDULE
+        )
+        self.assertEqual(anomalies.count(), 1, "Il ne devrait y avoir qu'une seule anomalie de type UNLINKED_SCHEDULE")
 
     def test_early_departure_within_margin(self):
         """Test pour un départ anticipé qui reste dans la marge autorisée."""

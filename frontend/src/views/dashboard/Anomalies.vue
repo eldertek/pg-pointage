@@ -381,7 +381,9 @@ export default {
       { text: 'Arrivée manquante', value: 'MISSING_ARRIVAL' },
       { text: 'Départ manquant', value: 'MISSING_DEPARTURE' },
       { text: 'Heures insuffisantes', value: 'INSUFFICIENT_HOURS' },
-      { text: 'Pointages consécutifs', value: 'CONSECUTIVE_SAME_TYPE' }
+      { text: 'Pointages consécutifs', value: 'CONSECUTIVE_SAME_TYPE' },
+      { text: 'Planning non lié', value: 'UNLINKED_SCHEDULE' },
+      { text: 'Autre', value: 'OTHER' }
     ])
     const statusOptions = ref([
       { text: 'En attente', value: 'PENDING' },
@@ -417,6 +419,7 @@ export default {
       if (type === 'Départ manquant') return 'purple'
       if (type === 'Heures insuffisantes') return 'deep-orange'
       if (type === 'Pointages consécutifs') return 'orange'
+      if (type === 'Planning non lié') return 'blue'
       return 'grey'
     }
 
@@ -461,13 +464,13 @@ export default {
       if (filters.value.employee) {
         params.employee = filters.value.employee
       }
-      
+
       // Ajouter des logs pour déboguer
       console.log('Valeurs des filtres:', filters.value)
       console.log('Site sélectionné:', filters.value.site)
       console.log('Type du site sélectionné:', typeof filters.value.site)
       console.log('Site actif (currentSiteId):', currentSiteId.value)
-      
+
       // Utiliser le site actif en priorité
       if (currentSiteId.value) {
         params.site = currentSiteId.value
@@ -476,7 +479,7 @@ export default {
         params.site = filters.value.site
         console.log('Utilisation du site filtré:', params.site)
       }
-      
+
       if (filters.value.type) {
         params.anomaly_type = filters.value.type
       }
@@ -500,10 +503,10 @@ export default {
       try {
         const params = buildQueryParams()
         console.log('Requête API - paramètres:', params)
-        
+
         // Afficher les données complètes de la requête
         console.log('URL de la requête API:', `/timesheets/anomalies/?${new URLSearchParams(params).toString()}`)
-        
+
         const response = await timesheetsApi.getAnomalies(params)
         console.log('Réponse API anomalies:', response.data)
         console.log('En-têtes de la réponse:', response.headers)
@@ -515,7 +518,7 @@ export default {
           response.data.results.forEach(anomaly => {
             console.log(`Anomalie ID ${anomaly.id} - Site: ${anomaly.site} (${anomaly.site_name})`)
           })
-          
+
           anomalies.value = response.data.results.map(anomaly => ({
             ...anomaly,
             formatted_date: new Date(anomaly.created_at).toLocaleString('fr-FR', {
