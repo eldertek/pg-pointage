@@ -26,7 +26,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
     # Third party apps
     'rest_framework',
     'rest_framework_simplejwt',
@@ -35,7 +35,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'django_filters',
     'drf_spectacular',
-    
+
     # Local apps
     'users',
     'organizations',
@@ -151,6 +151,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'MAX_PAGE_SIZE': 1000,  # Augmenter la limite maximale pour permettre de récupérer tous les éléments
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
     ),

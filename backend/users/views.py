@@ -19,6 +19,7 @@ from sites.models import Site, Schedule
 from reports.models import Report
 from sites.serializers import SiteSerializer, ScheduleSerializer
 from reports.serializers import ReportSerializer
+from sites.pagination import CustomPageNumberPagination
 from .permissions import HasUserPermission
 
 User = get_user_model()
@@ -106,6 +107,7 @@ class UserListView(generics.ListAPIView):
     """Vue pour lister les utilisateurs"""
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPageNumberPagination
 
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):

@@ -52,10 +52,10 @@
     <v-data-table
       v-if="canView"
       v-model:page="page"
+      v-model:items-per-page="itemsPerPage"
       :headers="headers"
       :items="filteredUsers"
       :loading="loading"
-      :items-per-page="itemsPerPage"
       :items-length="totalItems"
       :no-data-text="'Aucun utilisateur trouvé'"
       :loading-text="'Chargement des utilisateurs...'"
@@ -70,6 +70,7 @@
       :sort-by="[{ key: 'last_name' }, { key: 'first_name' }, { key: 'role' }]"
       class="elevation-1"
       @click:row="handleRowClick"
+      @update:options="handleTableUpdate"
     >
       <!-- Rôle -->
       <template #item.role="{ item }">
@@ -609,15 +610,27 @@ const handleRowClick = (event: any, { item }: any) => {
 const loadUsers = async () => {
   loading.value = true
   try {
-    const response = await usersApi.getAllUsers({
+    // Si itemsPerPage est -1 ("Tout"), ne pas envoyer page_size pour récupérer tous les éléments
+    const params: any = {
       page: page.value,
-      page_size: itemsPerPage.value,
       search: filters.value.search,
       role: filters.value.role
-    })
+    }
+
+    // Ajouter page_size seulement si ce n'est pas "Tout"
+    if (itemsPerPage.value !== -1) {
+      params.page_size = itemsPerPage.value
+    } else {
+      // Pour "Tout", utiliser une valeur très grande pour récupérer tous les éléments
+      params.page_size = 1000 // Valeur arbitrairement grande
+    }
+
+    console.log('[Users][LoadUsers] Paramètres de requête:', params)
+
+    const response = await usersApi.getAllUsers(params)
     users.value = response.data.results || []
     totalItems.value = response.data.count
-    
+
     // Mettre à jour la map des organisations avec les noms depuis les résultats des utilisateurs
     users.value.forEach(user => {
       if (user.organizations && user.organizations_names) {
@@ -628,7 +641,7 @@ const loadUsers = async () => {
         })
       }
     })
-    
+
   } catch (error) {
     console.error('Erreur lors du chargement des utilisateurs:', error)
   } finally {
@@ -640,7 +653,7 @@ const loadOrganizations = async () => {
   try {
     const response = await organizationsApi.getAllOrganizations()
     organizations.value = response.data.results || []
-    
+
     // Créer un map des organisations pour la recherche rapide
     organizationsMap.value.clear()
     organizations.value.forEach(org => {
@@ -695,6 +708,27 @@ watch(() => editedItem.value?.organizations, (newVal) => {
   }
 }, { immediate: true });
 
+// Gestionnaire pour les changements de pagination
+const handleTableUpdate = (options: any) => {
+  console.log('[Users][TableUpdate] Options:', options)
+  if (options.page !== page.value || options.itemsPerPage !== itemsPerPage.value) {
+    page.value = options.page
+    itemsPerPage.value = options.itemsPerPage
+    loadUsers()
+  }
+}
+
+// Watchers pour les changements de pagination
+watch(() => page.value, () => {
+  console.log('[Users][Watch] Page changée:', page.value)
+  loadUsers()
+})
+
+watch(() => itemsPerPage.value, () => {
+  console.log('[Users][Watch] Items par page changés:', itemsPerPage.value)
+  loadUsers()
+})
+
 // Initialisation
 onMounted(async () => {
   await Promise.all([
@@ -711,12 +745,12 @@ onMounted(async () => {
 
       if (response.data) {
         // Initialiser selectedOrganizations avant d'ouvrir le dialogue
-        selectedOrganizations.value = Array.isArray(response.data.organizations) 
-          ? [...response.data.organizations] 
+        selectedOrganizations.value = Array.isArray(response.data.organizations)
+          ? [...response.data.organizations]
           : [];
-        
+
         console.log('[Debug][Orgs] selectedOrganizations initialisé avec:', JSON.stringify(selectedOrganizations.value));
-        
+
         // Ensuite ouvrir le dialogue
         openDialog(response.data);
       }
@@ -729,7 +763,7 @@ onMounted(async () => {
 const openDialog = (item?: ExtendedUser) => {
   // Réinitialiser complètement l'état du formulaire
   resetFormState();
-  
+
   if (item) {
     console.log('[Users][OpenDialog] Item organizations:', JSON.stringify(item.organizations));
     console.log('[Users][OpenDialog] Item organizations_names:', JSON.stringify(item.organizations_names));
@@ -756,7 +790,7 @@ const openDialog = (item?: ExtendedUser) => {
     };
 
     console.log('[Debug][Orgs] FormData avant affectation:', JSON.stringify(formData.organizations));
-    
+
     // Mettre à jour selectedOrganizations si ce n'est pas déjà fait
     if (!props.editId) {
       selectedOrganizations.value = [...orgs];
@@ -766,7 +800,7 @@ const openDialog = (item?: ExtendedUser) => {
     // Affecter les données
     editedItem.value = formData;
     console.log('[Debug][Orgs] editedItem après affectation:', JSON.stringify(editedItem.value?.organizations));
-    
+
     // Mettre à jour le organizationsMap
     if (item.organizations && item.organizations_names) {
       item.organizations.forEach((orgId, index) => {
@@ -824,14 +858,14 @@ const saveUser = async () => {
           saving.value = false
           return
         }
-        
+
         // Vérifier que la confirmation est bien renseignée
         if (!confirmPassword.value || confirmPassword.value.trim() === '') {
           formErrors.value.confirm_password = ['La confirmation du mot de passe est obligatoire']
           saving.value = false
           return
         }
-        
+
         // Vérifier que les deux valeurs correspondent exactement (comparaison stricte)
         if (userData.password !== confirmPassword.value) {
           console.log('[Users][Save] Erreur de correspondance des mots de passe:', {
@@ -851,7 +885,7 @@ const saveUser = async () => {
             saving.value = false
             return
           }
-          
+
           // Vérifier que les deux valeurs correspondent exactement
           if (userData.password !== confirmPassword.value) {
             console.log('[Users][Save] Erreur de correspondance des mots de passe en mode édition:', {
@@ -875,7 +909,7 @@ const saveUser = async () => {
       }
 
       // Générer les noms d'organisations basés sur les IDs sélectionnés
-      userData.organizations_names = organizations.map(orgId => 
+      userData.organizations_names = organizations.map(orgId =>
         organizationsMap.value.get(orgId) || '?'
       )
 
@@ -892,7 +926,7 @@ const saveUser = async () => {
       }
       await loadUsers()
       dashboardView.value.showForm = false
-      
+
       // Réinitialiser complètement l'état du formulaire après sauvegarde réussie
       resetFormState();
     }
@@ -999,18 +1033,18 @@ const toggleStatus = async (item: ExtendedUser) => {
 const resetFormState = () => {
   // Réinitialiser les erreurs
   formErrors.value = {};
-  
+
   // Réinitialiser le mot de passe et sa confirmation
   confirmPassword.value = '';
   showPassword.value = false;
   showConfirmPassword.value = false;
-  
+
   // Réinitialiser la sélection des organisations
   selectedOrganizations.value = [];
-  
+
   // Réinitialiser l'item édité
   editedItem.value = null;
-  
+
   // Si le formulaire existe, réinitialiser sa validation
   if (form.value?.resetValidation) {
     form.value.resetValidation();
