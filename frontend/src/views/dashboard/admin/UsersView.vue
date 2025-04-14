@@ -301,8 +301,21 @@
           </v-text-field>
         </v-col>
 
+        <!-- Préférence de scan (pour les employés) -->
+        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
+          <v-select
+            v-model="(editedItem as UserFormData).scan_preference"
+            :items="scanPreferences"
+            item-title="label"
+            item-value="value"
+            label="Méthode de scan"
+            required
+            :error-messages="formErrors.scan_preference"
+          ></v-select>
+        </v-col>
+
         <!-- Switch pour la vue mobile simplifiée (pour les employés) -->
-        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12">
+        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
           <v-switch
             v-model="(editedItem as UserFormData).simplified_mobile_view"
             label="Vue mobile simplifiée"
@@ -512,6 +525,13 @@ const roles = computed(() => {
   // Pour les autres rôles, pas de création d'utilisateurs
   return []
 })
+
+// Préférences de scan disponibles
+const scanPreferences = [
+  { label: 'NFC et QR Code', value: ScanPreferenceEnum.BOTH },
+  { label: 'NFC uniquement', value: ScanPreferenceEnum.NFC_ONLY },
+  { label: 'QR Code uniquement', value: ScanPreferenceEnum.QR_ONLY }
+]
 
 // Méthodes
 const router = useRouter()
