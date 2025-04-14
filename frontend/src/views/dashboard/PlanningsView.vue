@@ -1033,17 +1033,46 @@ const saveSchedule = async () => {
       schedule_type: currentItem.schedule_type,
       details: currentItem.details
         .filter(detail => detail.enabled)
-        .map(detail => ({
-          id: detail.id || undefined,
-          day_of_week: detail.day_of_week,
-          frequency_duration: currentItem.schedule_type === ScheduleTypeEnum.FREQUENCY ? detail.frequency_duration : undefined,
-          start_time_1: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.start_time_1 : undefined,
-          end_time_1: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.end_time_1 : undefined,
-          start_time_2: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.start_time_2 : undefined,
-          end_time_2: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.end_time_2 : undefined,
-          day_type: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.day_type : undefined,
-          schedule_type: currentItem.schedule_type
-        })),
+        .map(detail => {
+          // Créer un objet de base pour tous les types de planning
+          const detailData = {
+            id: detail.id || undefined,
+            day_of_week: detail.day_of_week,
+            day_type: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.day_type : undefined,
+            schedule_type: currentItem.schedule_type
+          }
+
+          // Ajouter les champs spécifiques au type de planning
+          if (currentItem.schedule_type === ScheduleTypeEnum.FREQUENCY) {
+            // Pour les plannings de type fréquence, ajouter uniquement la durée
+            detailData.frequency_duration = detail.frequency_duration
+          } else {
+            // Pour les plannings de type fixe, gérer les horaires selon le type de journée
+            if (detail.day_type === DayTypeEnum.FULL) {
+              // Journée complète: tous les horaires sont requis
+              detailData.start_time_1 = detail.start_time_1
+              detailData.end_time_1 = detail.end_time_1
+              detailData.start_time_2 = detail.start_time_2
+              detailData.end_time_2 = detail.end_time_2
+            } else if (detail.day_type === DayTypeEnum.AM) {
+              // Matin uniquement: horaires du matin uniquement
+              detailData.start_time_1 = detail.start_time_1
+              detailData.end_time_1 = detail.end_time_1
+              // Explicitement définir les horaires de l'après-midi comme undefined
+              detailData.start_time_2 = undefined
+              detailData.end_time_2 = undefined
+            } else if (detail.day_type === DayTypeEnum.PM) {
+              // Après-midi uniquement: horaires de l'après-midi uniquement
+              detailData.start_time_2 = detail.start_time_2
+              detailData.end_time_2 = detail.end_time_2
+              // Explicitement définir les horaires du matin comme undefined
+              detailData.start_time_1 = undefined
+              detailData.end_time_1 = undefined
+            }
+          }
+
+          return detailData
+        }),
       is_active: currentItem.is_active,
       enabled: currentItem.enabled,
       // Ajout des paramètres de tolérance selon le type de planning
