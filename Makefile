@@ -79,12 +79,12 @@ tests:
 			users.tests.test_permissions users.tests.test_serializers; \
 	elif [ "$(filter timesheets,$(MAKECMDGOALS))" = "timesheets" ]; then \
 		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
-			timesheets.tests.test_fixed_schedule_anomalies timesheets.tests.test_frequency_schedule_anomalies timesheets.tests.test_schedule_matching timesheets.tests.test_anomaly_cleanup; \
+			timesheets.tests.test_fixed_schedule_anomalies timesheets.tests.test_frequency_schedule_anomalies timesheets.tests.test_schedule_matching timesheets.tests.test_anomaly_cleanup timesheets.tests.test_check_missed_checkins; \
 	else \
 		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
 			core.tests.test_views core.tests.test_permissions core.tests.test_serializers \
 			users.tests.test_permissions users.tests.test_serializers \
-			timesheets.tests.test_fixed_schedule_anomalies timesheets.tests.test_frequency_schedule_anomalies timesheets.tests.test_schedule_matching timesheets.tests.test_anomaly_cleanup; \
+			timesheets.tests.test_fixed_schedule_anomalies timesheets.tests.test_frequency_schedule_anomalies timesheets.tests.test_schedule_matching timesheets.tests.test_anomaly_cleanup timesheets.tests.test_check_missed_checkins; \
 	fi
 
 
