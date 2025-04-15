@@ -763,28 +763,49 @@ class AnomalyProcessor:
                 site_employee.created_at.date()
             )
 
-            self.logger.debug(f"Vérification des absences pour {site_employee.employee.get_full_name()} au site {site_employee.site.name} du {effective_start_date} au {end_date}")
+            self.logger.info(f"Vérification des absences pour {site_employee.employee.get_full_name()} (ID: {site_employee.employee.id}) au site {site_employee.site.name} (ID: {site_employee.site.id}) du {effective_start_date} au {end_date}")
 
             # Pour chaque jour dans la période
             current_date = effective_start_date
             while current_date <= end_date:
                 # Vérifier si le planning a des détails pour ce jour de la semaine
                 day_of_week = current_date.weekday()  # 0 = Lundi, 6 = Dimanche
+                day_names = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+                self.logger.debug(f"Vérification du jour {day_names[day_of_week]} ({current_date}) pour {site_employee.employee.get_full_name()}")
+
                 try:
                     schedule_detail = ScheduleDetail.objects.get(
                         schedule=schedule,
                         day_of_week=day_of_week
                     )
 
+                    # Afficher les détails du planning pour ce jour
+                    if schedule.schedule_type == Schedule.ScheduleType.FIXED:
+                        if schedule_detail.start_time_1 or schedule_detail.start_time_2:
+                            self.logger.debug(f"Planning trouvé pour {day_names[day_of_week]}: {schedule_detail.get_day_type_display()}")
+                            if schedule_detail.start_time_1:
+                                self.logger.debug(f"Horaires matin: {schedule_detail.start_time_1}-{schedule_detail.end_time_1}")
+                            if schedule_detail.start_time_2:
+                                self.logger.debug(f"Horaires après-midi: {schedule_detail.start_time_2}-{schedule_detail.end_time_2}")
+                    elif schedule.schedule_type == Schedule.ScheduleType.FREQUENCY:
+                        if schedule_detail.frequency_duration:
+                            self.logger.debug(f"Planning fréquence trouvé pour {day_names[day_of_week]}: {schedule_detail.frequency_duration} minutes")
+
                     # Pour les plannings fixes, vérifier si l'employé a pointé
                     if schedule.schedule_type == Schedule.ScheduleType.FIXED:
                         # Vérifier si l'employé a pointé son arrivée ce jour-là
-                        has_arrival = Timesheet.objects.filter(
+                        arrivals = Timesheet.objects.filter(
                             employee=site_employee.employee,
                             site=site_employee.site,
                             timestamp__date=current_date,
                             entry_type=Timesheet.EntryType.ARRIVAL
-                        ).exists()
+                        )
+                        has_arrival = arrivals.exists()
+
+                        if has_arrival:
+                            self.logger.debug(f"L'employé a pointé son arrivée le {current_date}: {arrivals.count()} arrivée(s)")
+                        else:
+                            self.logger.debug(f"L'employé n'a pas pointé son arrivée le {current_date}")
 
                         # Si l'employé n'a pas pointé son arrivée et qu'il devrait avoir un planning ce jour-là
                         if not has_arrival and (schedule_detail.start_time_1 or schedule_detail.start_time_2):
@@ -824,11 +845,17 @@ class AnomalyProcessor:
                     # On vérifie si l'employé a pointé au moins une fois dans la journée
                     elif schedule.schedule_type == Schedule.ScheduleType.FREQUENCY:
                         # Vérifier si l'employé a pointé au moins une fois ce jour-là
-                        has_timesheet = Timesheet.objects.filter(
+                        timesheets = Timesheet.objects.filter(
                             employee=site_employee.employee,
                             site=site_employee.site,
                             timestamp__date=current_date
-                        ).exists()
+                        )
+                        has_timesheet = timesheets.exists()
+
+                        if has_timesheet:
+                            self.logger.debug(f"L'employé a pointé le {current_date}: {timesheets.count()} pointage(s)")
+                        else:
+                            self.logger.debug(f"L'employé n'a pas pointé du tout le {current_date}")
 
                         # Si l'employé n'a pas pointé du tout et qu'il devrait avoir un planning ce jour-là
                         if not has_timesheet and schedule_detail.frequency_duration:
