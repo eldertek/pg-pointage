@@ -1,7 +1,17 @@
 <template>
   <div>
-    <Title level="1" class="mb-4">Tableau de bord</Title>
-    
+    <div class="d-flex justify-space-between align-center mb-4">
+      <Title level="1">Tableau de bord</Title>
+      <v-btn
+        color="primary"
+        :loading="loading.stats || loading.anomalies"
+        @click="refreshDashboard"
+      >
+        <v-icon class="me-2">mdi-refresh</v-icon>
+        Actualiser
+      </v-btn>
+    </div>
+
     <v-row>
       <v-col cols="12" md="6" lg="3">
         <v-card class="mb-4" :loading="loading.stats">
@@ -12,7 +22,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" md="6" lg="3">
         <v-card class="mb-4" :loading="loading.stats">
           <v-card-text class="text-center">
@@ -22,7 +32,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" md="6" lg="3">
         <v-card class="mb-4" :loading="loading.stats">
           <v-card-text class="text-center">
@@ -32,7 +42,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" md="6" lg="3">
         <v-card class="mb-4" :loading="loading.stats">
           <v-card-text class="text-center">
@@ -43,7 +53,7 @@
         </v-card>
       </v-col>
     </v-row>
-    
+
     <v-row>
       <v-col cols="12" lg="8">
         <v-card class="mb-4">
@@ -53,7 +63,7 @@
           </v-card-text>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" lg="4">
         <v-card class="mb-4" :loading="loading.anomalies">
           <v-card-title class="d-flex justify-space-between align-center">
@@ -67,7 +77,7 @@
               <v-icon>mdi-refresh</v-icon>
             </v-btn>
           </v-card-title>
-          
+
           <v-alert
             v-if="error.anomalies"
             type="error"
@@ -95,7 +105,7 @@
                   {{ anomaly.status === 'PENDING' ? 'mdi-alert-circle' : 'mdi-check-circle' }}
                 </v-icon>
               </template>
-              
+
               <v-list-item-title class="font-weight-medium">
                 {{ anomaly.anomaly_type_display }}
                 <v-chip
@@ -106,17 +116,17 @@
                   {{ anomaly.status_display }}
                 </v-chip>
               </v-list-item-title>
-              
+
               <v-list-item-subtitle class="mt-1">
                 <v-icon size="small" class="me-1">mdi-account</v-icon>
                 {{ anomaly.employee_name }}
               </v-list-item-subtitle>
-              
+
               <v-list-item-subtitle>
                 <v-icon size="small" class="me-1">mdi-map-marker</v-icon>
                 {{ anomaly.site_name }}
               </v-list-item-subtitle>
-              
+
               <v-list-item-subtitle class="text-caption mt-1">
                 <v-icon size="small" class="me-1">mdi-clock-outline</v-icon>
                 {{ new Date(anomaly.created_at).toLocaleString('fr-FR', {
@@ -130,7 +140,7 @@
                 {{ anomaly.description }}
               </v-list-item-subtitle>
             </v-list-item>
-            
+
             <v-divider v-if="recentAnomalies.length > 1" class="my-2"></v-divider>
           </v-list>
         </v-card>
@@ -195,7 +205,7 @@ export default {
       timesheetsCount: 0,
       anomaliesCount: 0
     })
-    
+
     const recentAnomalies = ref<Anomaly[]>([])
     const loading = ref({
       stats: true,
@@ -205,7 +215,7 @@ export default {
       stats: null as string | null,
       anomalies: null as string | null
     })
-    
+
     const showStatsError = computed({
       get: () => !!error.value.stats,
       set: (value) => {
@@ -219,17 +229,17 @@ export default {
       try {
         loading.value.stats = true
         console.log('Fetching dashboard stats...')
-        
+
         // Récupérer le nombre de sites
         const sitesResponse = await sitesApi.getAllSites()
         console.log('Sites response:', sitesResponse.data)
         stats.value.sitesCount = sitesResponse.data?.count || sitesResponse.data?.results?.length || 0
-        
+
         // Récupérer le nombre d'employés
         const employeesResponse = await usersApi.searchUsers('')  // Recherche vide pour obtenir tous les utilisateurs
         console.log('Employees response:', employeesResponse.data)
         stats.value.employeesCount = employeesResponse.data?.count || employeesResponse.data?.results?.length || 0
-        
+
         // Récupérer le nombre de pointages du jour
         const today = new Date().toISOString().split('T')[0]
         const timesheetsResponse = await timesheetsApi.getTimesheets({
@@ -237,16 +247,30 @@ export default {
           end_date: today
         })
         console.log('Timesheets response:', timesheetsResponse.data)
-        stats.value.timesheetsCount = timesheetsResponse.data?.count || timesheetsResponse.data?.results?.length || 0
-        
+
+        // Vérifier si la réponse est un tableau ou un objet avec count/results
+        if (Array.isArray(timesheetsResponse.data)) {
+          stats.value.timesheetsCount = timesheetsResponse.data.length
+        } else {
+          stats.value.timesheetsCount = timesheetsResponse.data?.count || timesheetsResponse.data?.results?.length || 0
+        }
+
         // Récupérer le nombre d'anomalies en attente
         const anomaliesResponse = await timesheetsApi.getAnomalies({
           status: 'PENDING'
         })
         console.log('Anomalies response:', anomaliesResponse.data)
-        stats.value.anomaliesCount = anomaliesResponse.data?.count || anomaliesResponse.data?.results?.length || 0
-        
+
+        // Vérifier si la réponse est un tableau ou un objet avec count/results
+        if (Array.isArray(anomaliesResponse.data)) {
+          stats.value.anomaliesCount = anomaliesResponse.data.length
+        } else {
+          stats.value.anomaliesCount = anomaliesResponse.data?.count || anomaliesResponse.data?.results?.length || 0
+        }
+
         console.log('Updated stats:', stats.value)
+        console.log('Timesheets count:', stats.value.timesheetsCount)
+        console.log('Anomalies count:', stats.value.anomaliesCount)
       } catch (err) {
         console.error('Error fetching dashboard stats:', err)
         error.value.stats = 'Erreur lors du chargement des statistiques'
@@ -266,7 +290,14 @@ export default {
           ordering: '-created_at'
         })
         console.log('Recent anomalies received:', response.data)
-        recentAnomalies.value = response.data?.results || []
+
+        // Vérifier si la réponse est un tableau ou un objet avec results
+        if (Array.isArray(response.data)) {
+          // Si c'est un tableau, prendre les 5 premiers éléments
+          recentAnomalies.value = response.data.slice(0, 5)
+        } else {
+          recentAnomalies.value = response.data?.results || []
+        }
       } catch (err) {
         console.error('Error fetching recent anomalies:', err)
         error.value.anomalies = 'Erreur lors du chargement des anomalies'
@@ -286,20 +317,27 @@ export default {
       }, refreshInterval)
     }
 
+    const refreshDashboard = () => {
+      console.log('Manually refreshing dashboard...')
+      fetchDashboardStats()
+      fetchRecentAnomalies()
+    }
+
     onMounted(() => {
       console.log('Dashboard component mounted')
       fetchDashboardStats()
       fetchRecentAnomalies()
       startAutoRefresh()
     })
-    
+
     return {
       stats,
       recentAnomalies,
       loading,
       error,
       showStatsError,
-      fetchRecentAnomalies
+      fetchRecentAnomalies,
+      refreshDashboard
     }
   }
 }
