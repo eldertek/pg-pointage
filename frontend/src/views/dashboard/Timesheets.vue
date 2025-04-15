@@ -87,21 +87,11 @@
         :headers="headers"
         :items="timesheets"
         :loading="loading"
-        :items-per-page="itemsPerPage"
-        :page="currentPage"
-        :total-items="totalItems"
+        :items-per-page="-1"
         :no-data-text="'Aucun pointage trouvé'"
         :loading-text="'Chargement des pointages...'"
-        :items-per-page-text="'Lignes par page'"
-        :page-text="'{0}-{1} sur {2}'"
-        :items-per-page-options="[
-          { title: '5', value: 5 },
-          { title: '10', value: 10 },
-          { title: '15', value: 15 },
-          { title: 'Tout', value: -1 }
-        ]"
+        hide-default-footer
         class="elevation-1"
-        @update:options="handleTableUpdate"
         @click:row="(_: any, { item }: any) => showDetails(item)"
       >
         <template #item.entry_type="{ item }">
@@ -351,7 +341,6 @@ import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import type { ExtendedTimesheet, Filters, SiteOption, EditingTimesheet } from '@/types/sites'
 import { EntryTypeEnum } from '@/types/api'
-import type { TableOptions } from '@/types/sites'
 import { Title } from '@/components/typography'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -399,9 +388,6 @@ const statusOptions = ref([
 ])
 
 const timesheets = ref<ExtendedTimesheet[]>([])
-const currentPage = ref(1)
-const itemsPerPage = ref(10)
-const totalItems = ref(0)
 
 const detailDialog = ref(false)
 const editDialog = ref(false)
@@ -481,7 +467,7 @@ const formatTimesheet = (timesheet: ExtendedTimesheet): ExtendedTimesheet => {
   }
 }
 
-const fetchTimesheets = async (options: Partial<TableOptions> = {}) => {
+const fetchTimesheets = async () => {
   try {
     loading.value = true
     const params = {
@@ -490,8 +476,6 @@ const fetchTimesheets = async (options: Partial<TableOptions> = {}) => {
       entry_type: filters.value.entryType || undefined,
       start_date: filters.value.startDate || undefined,
       end_date: filters.value.endDate || undefined,
-      page: options.page || currentPage.value,
-      page_size: options.itemsPerPage || itemsPerPage.value,
       expand: 'employee,site'
     }
 
@@ -500,31 +484,15 @@ const fetchTimesheets = async (options: Partial<TableOptions> = {}) => {
 
     // Format timesheets for display
     timesheets.value = results.map((timesheet: ExtendedTimesheet) => formatTimesheet(timesheet))
-
-    totalItems.value = response.data.count || 0
-
-    // Update pagination state
-    currentPage.value = options.page || currentPage.value
-    itemsPerPage.value = options.itemsPerPage || itemsPerPage.value
   } catch (error) {
     console.error('Erreur lors du chargement des pointages:', error)
     timesheets.value = []
-    totalItems.value = 0
   } finally {
     loading.value = false
   }
 }
 
-const handleTableUpdate = (options: TableOptions): void => {
-  const { page, itemsPerPage: newItemsPerPage } = options
-  fetchTimesheets({
-    page: page,
-    itemsPerPage: newItemsPerPage
-  })
-}
-
 const applyFilters = () => {
-  currentPage.value = 1 // Reset to first page when applying filters
   fetchTimesheets()
 }
 
@@ -537,7 +505,6 @@ const resetFilters = () => {
     startDate: '',
     endDate: ''
   }
-  currentPage.value = 1 // Reset to first page when resetting filters
   fetchTimesheets()
 }
 
@@ -669,7 +636,6 @@ const deleteTimesheet = async () => {
 // Update the watch handler to handle the computed ref value correctly
 watch(() => currentSiteId.value, (newSiteId: number | null) => {
   filters.value.site = newSiteId
-  currentPage.value = 1
   fetchTimesheets()
 })
 

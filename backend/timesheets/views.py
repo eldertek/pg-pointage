@@ -33,6 +33,7 @@ class TimesheetListView(generics.ListCreateAPIView):
     """Vue pour lister tous les pointages et en créer de nouveaux"""
     serializer_class = TimesheetSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None  # Désactiver la pagination pour cette vue
 
     def get_queryset(self):
         user = self.request.user
