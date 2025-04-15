@@ -632,6 +632,8 @@ const timesheetsApi = {
       ...params,
       page_size: 1000 // Set a very large page size to effectively disable pagination
     });
+    console.log('[API][getAnomalies] Params avant conversion:', params);
+    console.log('[API][getAnomalies] Params après conversion:', queryParams);
     return api.get('/timesheets/anomalies/', { params: queryParams });
   },
 

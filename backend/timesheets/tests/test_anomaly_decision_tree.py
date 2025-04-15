@@ -68,13 +68,33 @@ class AnomalyDecisionTreeTestCase(TestCase):
         )
         self.employee.organizations.add(self.organization)
 
-        # Créer un planning fixe actif
+        # Créer un planning fixe actif (journée complète)
         self.active_fixed_schedule = Schedule.objects.create(
             site=self.active_site,
             schedule_type=Schedule.ScheduleType.FIXED,
             is_active=True,
             late_arrival_margin=15,
             early_departure_margin=15
+        )
+
+        # Créer un planning fixe actif (matin uniquement)
+        self.active_fixed_schedule_am = Schedule.objects.create(
+            site=self.active_site,
+            schedule_type=Schedule.ScheduleType.FIXED,
+            is_active=True,
+            late_arrival_margin=15,
+            early_departure_margin=15,
+            name="Planning Matin"
+        )
+
+        # Créer un planning fixe actif (après-midi uniquement)
+        self.active_fixed_schedule_pm = Schedule.objects.create(
+            site=self.active_site,
+            schedule_type=Schedule.ScheduleType.FIXED,
+            is_active=True,
+            late_arrival_margin=15,
+            early_departure_margin=15,
+            name="Planning Après-midi"
         )
 
         # Créer un planning fixe inactif
@@ -100,6 +120,28 @@ class AnomalyDecisionTreeTestCase(TestCase):
             day_type=ScheduleDetail.DayType.FULL,
             start_time_1=time(8, 0),
             end_time_1=time(12, 0),
+            start_time_2=time(13, 0),
+            end_time_2=time(17, 0)
+        )
+
+        # Créer les détails du planning fixe matin uniquement
+        self.schedule_detail_fixed_am = ScheduleDetail.objects.create(
+            schedule=self.active_fixed_schedule_am,
+            day_of_week=today_weekday,
+            day_type=ScheduleDetail.DayType.AM,
+            start_time_1=time(8, 0),
+            end_time_1=time(12, 0),
+            start_time_2=None,
+            end_time_2=None
+        )
+
+        # Créer les détails du planning fixe après-midi uniquement
+        self.schedule_detail_fixed_pm = ScheduleDetail.objects.create(
+            schedule=self.active_fixed_schedule_pm,
+            day_of_week=today_weekday,
+            day_type=ScheduleDetail.DayType.PM,
+            start_time_1=None,
+            end_time_1=None,
             start_time_2=time(13, 0),
             end_time_2=time(17, 0)
         )

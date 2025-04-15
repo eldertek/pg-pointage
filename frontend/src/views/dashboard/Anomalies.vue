@@ -465,14 +465,19 @@ export default {
       const params = {}
 
       if (filters.value.employee) {
-        params.employee = filters.value.employee
+        // Convertir l'ID de l'employé en nombre pour s'assurer qu'il est correctement traité
+        params.employee = Number(filters.value.employee)
+        // Ajouter des logs pour déboguer le filtrage par employé
+        console.log('[Anomalies][Filter] Employé sélectionné:', filters.value.employee)
+        console.log('[Anomalies][Filter] Employé converti:', params.employee)
+        console.log('[Anomalies][Filter] Type de l\'employé après conversion:', typeof params.employee)
       }
 
       // Ajouter des logs pour déboguer
-      console.log('Valeurs des filtres:', filters.value)
-      console.log('Site sélectionné:', filters.value.site)
-      console.log('Type du site sélectionné:', typeof filters.value.site)
-      console.log('Site actif (currentSiteId):', currentSiteId.value)
+      console.log('[Anomalies][Filter] Valeurs des filtres:', filters.value)
+      console.log('[Anomalies][Filter] Site sélectionné:', filters.value.site)
+      console.log('[Anomalies][Filter] Type du site sélectionné:', typeof filters.value.site)
+      console.log('[Anomalies][Filter] Site actif (currentSiteId):', currentSiteId.value)
 
       // Utiliser le site actif en priorité
       if (currentSiteId.value) {
@@ -505,15 +510,15 @@ export default {
       error.value = null
       try {
         const params = buildQueryParams()
-        console.log('Requête API - paramètres:', params)
+        console.log('[Anomalies][API] Requête API - paramètres:', params)
 
         // Afficher les données complètes de la requête
-        console.log('URL de la requête API:', `/timesheets/anomalies/?${new URLSearchParams(params).toString()}`)
+        console.log('[Anomalies][API] URL de la requête API:', `/timesheets/anomalies/?${new URLSearchParams(params).toString()}`)
 
         const response = await timesheetsApi.getAnomalies(params)
-        console.log('Réponse API anomalies:', response.data)
-        console.log('En-têtes de la réponse:', response.headers)
-        console.log('URL de la requête exécutée:', response.request?.responseURL)
+        console.log('[Anomalies][API] Réponse API anomalies:', response.data)
+        console.log('[Anomalies][API] En-têtes de la réponse:', response.headers)
+        console.log('[Anomalies][API] URL de la requête exécutée:', response.request?.responseURL)
 
         if (response.data?.results) {
           // Pour chaque anomalie, afficher le site associé pour vérifier le filtrage
@@ -544,6 +549,7 @@ export default {
     }
 
     const resetFilters = () => {
+      console.log('[Anomalies][ResetFilters] Réinitialisation des filtres')
       filters.value = {
         employee: '',
         site: '',
@@ -552,6 +558,10 @@ export default {
         startDate: '',
         endDate: ''
       }
+      // Réinitialiser également la recherche d'employés
+      employeeSearch.value = ''
+      employeeOptions.value = []
+      console.log('[Anomalies][ResetFilters] Filtres réinitialisés:', filters.value)
       applyFilters()
     }
 
@@ -599,15 +609,23 @@ export default {
 
       try {
         searchingEmployees.value = true
+        console.log('[Anomalies][SearchEmployees] Recherche d\'employés avec la requête:', query)
         const response = await usersApi.searchUsers(query)
+        console.log('[Anomalies][SearchEmployees] Réponse de la recherche:', response.data)
+
         if (response.data?.results) {
-          employeeOptions.value = response.data.results.map(user => ({
-            text: `${user.first_name} ${user.last_name}`,
-            value: user.id
-          }))
+          employeeOptions.value = response.data.results.map(user => {
+            const option = {
+              text: `${user.first_name} ${user.last_name}`,
+              value: user.id
+            }
+            console.log('[Anomalies][SearchEmployees] Option créée:', option)
+            return option
+          })
+          console.log('[Anomalies][SearchEmployees] Options finales:', employeeOptions.value)
         }
       } catch (error) {
-        console.error('Erreur lors de la recherche des employés:', error)
+        console.error('[Anomalies][SearchEmployees] Erreur lors de la recherche des employés:', error)
         employeeOptions.value = []
       } finally {
         searchingEmployees.value = false
