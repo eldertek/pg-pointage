@@ -344,7 +344,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSitesStore } from '@/stores/sites'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import type { ExtendedTimesheet, Filters, SiteOption, EditingTimesheet } from '@/types/sites'
+import type { Filters, SiteOption, EditingTimesheet } from '@/types/sites'
 import { EntryTypeEnum } from '@/types/api'
 import { Title } from '@/components/typography'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
@@ -394,14 +394,14 @@ const statusOptions = ref([
   { title: 'Départ anticipé', value: 'EARLY_DEPARTURE' }
 ])
 
-const timesheets = ref<ExtendedTimesheet[]>([])
+const timesheets = ref<any[]>([])
 
 const detailDialog = ref(false)
 const editDialog = ref(false)
 const deleteDialog = ref(false)
-const selectedTimesheet = ref<ExtendedTimesheet | null>(null)
+const selectedTimesheet = ref<any | null>(null)
 const editingTimesheet = ref<EditingTimesheet | null>(null)
-const timesheetToDelete = ref<ExtendedTimesheet | null>(null)
+const timesheetToDelete = ref<any | null>(null)
 let map: L.Map | null = null
 
 const canEditTimesheet = computed(() => {
