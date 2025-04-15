@@ -1,0 +1,22 @@
+{
+  "condition": "Statut du site",
+  "branches": [
+    {
+      "value": "Actif",
+      "children": {
+        "condition": "Statut du planning rattaché",
+        "branches": [
+          {
+            "value": "Actif"
+          },
+          {
+            "value": "Inactif"
+          }
+        ]
+      }
+    },
+    {
+      "value": "Inactif"
+    }
+  ]
+}
