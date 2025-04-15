@@ -23,4 +23,71 @@ Ce fichier décrit la logique de détection d'anomalies lors d'un scan, telle qu
              - **Non** :
                - → Anomalie = "Passage non planifié"
              - **Oui** :
-               - → Vérifier le **type de planning** (pas d'anomalie à ce stade)
+               - Vérifier le **type de planning** :
+                 - **Fréquence** :
+                   - 1er scan (arrivée) :
+                     - RAS
+                   - 2ème scan (départ) :
+                     - Si temps >= planning :
+                       - Pas d'anomalie créée
+                     - Si temps >= planning - marge :
+                       - Pas d'anomalie créée
+                       - Mise à jour du compteur mensuel pour heure insuffisante (= temps prévue au planning - temps effectif)
+                     - Si temps <= planning - marge :
+                       - Anomalie créée pour heures insuffisantes
+                       - Mise à jour du compteur mensuel pour heure insuffisante (= temps prévue au planning - temps effectif)
+                   - Xème scan :
+                     - Anomalie = "Scan multiple"
+                 - **Fixe** :
+                   - 1er scan (arrivée) :
+                     - Planning journalier :
+                       - Si Heure Pointage <= Heure arrivée matin :
+                         - Pas d'anomalie
+                       - Si Heure Pointage <= Heure arrivée matin + marge :
+                         - Pas d'anomalie mais Mise à jour compteur du temps de retard
+                       - Si Heure Pointage > Heure arrivée matin + marge :
+                         - Anomalie = "Retard" + mise à jour du compteur du temps de retard
+                     - Planning Demi-journée (matin/après-midi) :
+                       - Si Heure Pointage <= Heure arrivée matin/après midi :
+                         - Pas d'anomalie
+                       - Si Heure Pointage <= Heure arrivée matin/après midi + marge :
+                         - Pas d'anomalie mais Mise à jour compteur du temps de retard
+                       - Si Heure Pointage > Heure arrivée matin/après midi + marge :
+                         - Anomalie = "Retard" + mise à jour du compteur du temps de retard
+                   - 2ème scan (départ) :
+                     - Planning journalier :
+                       - Si Heure Pointage >= Heure départ matin :
+                         - Pas d'anomalie
+                       - Si Heure Pointage >= Heure départ matin - marge :
+                         - Pas d'anomalie mais Mise à jour compteur du temps de départ anticipé
+                       - Si Heure Pointage < Heure départ matin - marge :
+                         - Anomalie = "Départ anticipé" + mise à jour du compteur du temps de départ anticipé
+                     - Planning Demi-journée (matin/après-midi) :
+                       - Si Heure Pointage >= Heure départ matin/après midi :
+                         - Pas d'anomalie
+                       - Si Heure Pointage >= Heure départ matin/après midi - marge :
+                         - Pas d'anomalie mais Mise à jour compteur du temps de retard
+                       - Si Heure Pointage < Heure départ matin/après midi - marge :
+                         - Anomalie = "Départ anticipé" + mise à jour du compteur du temps de départ anticipé
+                   - 3ème scan (arrivée) :
+                     - Planning journalier :
+                       - Si Heure Pointage <= Heure arrivée après midi :
+                         - Pas d'anomalie
+                       - Si Heure Pointage <= Heure arrivée après midi + marge :
+                         - Pas d'anomalie mais Mise à jour compteur du temps de retard
+                       - Si Heure Pointage > Heure arrivée après midi + marge :
+                         - Anomalie = "Retard" + mise à jour du compteur du temps de retard
+                     - Planning Demi-journée (matin/après-midi) :
+                       - Anomalie = "Scan multiple"
+                   - 4ème scan (départ) :
+                     - Planning journalier :
+                       - Si Heure Pointage >= Heure départ après midi :
+                         - Pas d'anomalie
+                       - Si Heure Pointage >= Heure départ après midi - marge :
+                         - Pas d'anomalie mais Mise à jour compteur du temps de départ anticipé
+                       - Si Heure Pointage < Heure départ après midi - marge :
+                         - Anomalie = "Départ anticipé" + mise à jour du compteur du temps de départ anticipé
+                     - Planning Demi-journée (matin/après-midi) :
+                       - Anomalie = "Scan multiple"
+                   - Xème scan :
+                     - Anomalie = "Scan multiple"
