@@ -568,6 +568,7 @@ class SiteAnomaliesView(generics.ListAPIView):
     """Vue pour lister les anomalies d'un site"""
     permission_classes = [IsAuthenticated]
     serializer_class = AnomalySerializer
+    pagination_class = None  # Désactiver la pagination pour cette vue
 
     def get_queryset(self):
         site_pk = self.kwargs.get('pk')
@@ -680,7 +681,7 @@ class ScheduleAnomaliesView(generics.ListAPIView):
     """Vue pour lister les anomalies d'un planning"""
     permission_classes = [IsAuthenticated]
     serializer_class = AnomalySerializer
-    pagination_class = CustomPageNumberPagination
+    pagination_class = None  # Désactiver la pagination pour cette vue
 
     def get_queryset(self):
         schedule = get_object_or_404(Schedule, pk=self.kwargs['pk'])

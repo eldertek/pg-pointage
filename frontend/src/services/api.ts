@@ -317,7 +317,12 @@ const sitesApi = {
 
   // Get site anomalies
   getSiteAnomalies: (siteId: number, params: any = {}) =>
-    api.get(`/sites/${siteId}/anomalies/`, { params }),
+    api.get(`/sites/${siteId}/anomalies/`, {
+      params: {
+        ...params,
+        page_size: 1000 // Set a very large page size to effectively disable pagination
+      }
+    }),
 
   // Get site reports
   getSiteReports: (siteId: number, params: any = {}) =>
@@ -557,7 +562,12 @@ const organizationsApi = {
 
   // Get organization anomalies
   getOrganizationAnomalies: (id: number, params: any = {}) =>
-    api.get(`/organizations/${id}/anomalies/`, { params }),
+    api.get(`/organizations/${id}/anomalies/`, {
+      params: {
+        ...params,
+        page_size: 1000 // Set a very large page size to effectively disable pagination
+      }
+    }),
 
   // Get organization reports
   getOrganizationReports: (id: number, params: any = {}) =>
@@ -618,7 +628,10 @@ const timesheetsApi = {
 
   // Get anomalies
   getAnomalies: (params: any = {}) => {
-    const queryParams = convertKeysToSnakeCase(params);
+    const queryParams = convertKeysToSnakeCase({
+      ...params,
+      page_size: 1000 // Set a very large page size to effectively disable pagination
+    });
     return api.get('/timesheets/anomalies/', { params: queryParams });
   },
 
@@ -722,7 +735,7 @@ const timesheetsApi = {
 // Anomalies API methods
 const anomaliesApi = {
   getAnomaliesBySite: (siteId: number) =>
-    api.get(`/timesheets/anomalies/`, { params: { site: siteId } }),
+    api.get(`/timesheets/anomalies/`, { params: { site: siteId, page_size: 1000 } }),
 
   updateAnomaly: (id: number, data: any) =>
     api.patch(`/timesheets/anomalies/${id}/`, convertKeysToSnakeCase(data))

@@ -135,6 +135,7 @@ class AnomalyListView(generics.ListCreateAPIView):
     """Vue pour lister toutes les anomalies et en créer de nouvelles"""
     serializer_class = AnomalySerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None  # Désactiver la pagination pour cette vue
 
     def get_queryset(self):
         user = self.request.user
