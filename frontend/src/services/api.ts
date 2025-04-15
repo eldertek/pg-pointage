@@ -226,7 +226,7 @@ interface Organization {
 // Sites API methods
 const sitesApi = {
   // Get all sites with pagination
-  getAllSites: (page = 1, perPage = 10, params: { organization?: number, organizations?: number[] } = {}): Promise<AxiosResponse<ApiResponse<Site>>> => {
+  getAllSites: (page = 1, perPage = 10, params: { organization?: number, organizations?: number[], search?: string } = {}): Promise<AxiosResponse<ApiResponse<Site>>> => {
     const queryParams: Record<string, any> = {
       page,
       page_size: perPage,
@@ -613,8 +613,8 @@ const timesheetsApi = {
     return api.get('/timesheets/', { params: queryParams });
   },
 
-  // Get timesheet details
-  getTimesheetDetails: (id: number) => {
+  // Get timesheet by ID
+  getTimesheetById: (id: number) => {
     return api.get(`/timesheets/${id}/`);
   },
 

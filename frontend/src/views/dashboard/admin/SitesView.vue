@@ -342,8 +342,13 @@ const headers = [
 const loadSites = async () => {
   loading.value = true
   try {
-    // Récupérer tous les sites en une seule fois
-    const response = await sitesApi.getAllSites(1, 1000) // Valeur arbitrairement grande
+    // Récupérer tous les sites en une seule fois avec le filtre de recherche
+    const params = {
+      search: filters.value.search || ''
+    }
+    console.log('[Sites][LoadSites] Paramètres de recherche:', params)
+
+    const response = await sitesApi.getAllSites(1, 1000, params) // Valeur arbitrairement grande
     sites.value = response.data.results || []
     console.log('[Sites] Nombre de sites chargés:', sites.value.length)
   } catch (error) {

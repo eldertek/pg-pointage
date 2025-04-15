@@ -114,6 +114,7 @@ class SiteListView(generics.ListCreateAPIView):
             'schedules__schedule_employees__employee'
         )
 
+        # Filtrer par organisations
         organizations = self.request.query_params.get('organizations')
         print("[Sites][Filter] Paramètre organizations reçu:", organizations)
 
@@ -123,9 +124,18 @@ class SiteListView(generics.ListCreateAPIView):
             print("[Sites][Filter] IDs des organisations:", organization_ids)
             base_queryset = base_queryset.filter(
                 organization_id__in=organization_ids)
-            print("[Sites][Count] Nombre de sites après filtre:",
+            print("[Sites][Count] Nombre de sites après filtre organisations:",
                   base_queryset.count())
 
+        # Filtrer par recherche de nom
+        search = self.request.query_params.get('search')
+        if search:
+            print("[Sites][Filter] Paramètre search reçu:", search)
+            base_queryset = base_queryset.filter(name__icontains=search)
+            print("[Sites][Count] Nombre de sites après filtre search:",
+                  base_queryset.count())
+
+        # Filtrer selon les permissions de l'utilisateur
         if user.is_super_admin:
             return base_queryset
         elif user.is_admin or user.is_manager:
