@@ -254,7 +254,8 @@ class AnomalyProcessor:
 
                     if entry_type == Timesheet.EntryType.ARRIVAL:
                         if schedule_detail.start_time_1 and schedule_detail.end_time_1:
-                            if schedule_detail.start_time_1 <= current_time <= schedule_detail.end_time_1:
+                            # Autoriser les arrivées en avance : toute arrivée avant la fin de la plage est acceptée
+                            if current_time <= schedule_detail.end_time_1:
                                 is_matching = True
                                 if current_time > schedule_detail.start_time_1:
                                     late_minutes = int((datetime.combine(current_date, current_time) -
@@ -268,7 +269,8 @@ class AnomalyProcessor:
                                             created_anomalies.append(anomaly)
 
                         if schedule_detail.start_time_2 and schedule_detail.end_time_2 and not is_matching:
-                            if schedule_detail.start_time_2 <= current_time <= schedule_detail.end_time_2:
+                            # Autoriser les arrivées en avance sur la plage de l'après-midi
+                            if current_time <= schedule_detail.end_time_2:
                                 is_matching = True
                                 if current_time > schedule_detail.start_time_2:
                                     late_minutes = int((datetime.combine(current_date, current_time) -
