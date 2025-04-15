@@ -1,0 +1,26 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Règle de détection d'anomalies lors d'un scan
+
+Ce fichier décrit la logique de détection d'anomalies lors d'un scan, telle que représentée dans le diagramme de décision fourni.
+
+## Arbre de décision
+
+1. **Scan**
+   - Vérifier le **statut du site** :
+     - **Inactif** :
+       - → Anomalie = "Site inactif"
+     - **Actif** :
+       - Vérifier le **statut du/des planning(s) rattaché(s)** :
+         - **Inactif** :
+           - → Anomalie = "Planning inactif"
+         - **Actif** :
+           - Vérifier si le **jour planifié = aujourd'hui** :
+             - **Non** :
+               - → Anomalie = "Passage non planifié"
+             - **Oui** :
+               - → Vérifier le **type de planning** (pas d'anomalie à ce stade)
