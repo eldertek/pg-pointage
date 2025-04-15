@@ -502,13 +502,16 @@ const usersApi = {
   }),
 
   // Search users
-  searchUsers: (query: string) => api.get('/users/', {
-    params: {
-      search: query,
-      role: 'EMPLOYEE',
-      is_active: true
-    }
-  }),
+  searchUsers: (query: string) => {
+    console.log('[API][searchUsers] Recherche d\'utilisateurs avec la requête:', query);
+    return api.get('/users/', {
+      params: {
+        search: query,
+        role: 'EMPLOYEE',
+        is_active: true
+      }
+    });
+  },
 
   // Activer/désactiver un utilisateur
   toggleUserStatus: (id: number, isActive: boolean) =>

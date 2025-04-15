@@ -515,6 +515,11 @@ export default {
         // Afficher les données complètes de la requête
         console.log('[Anomalies][API] URL de la requête API:', `/timesheets/anomalies/?${new URLSearchParams(params).toString()}`)
 
+        // Vérifier spécifiquement le paramètre employé
+        if (params.employee) {
+          console.log('[Anomalies][API] Filtrage par employé activé - ID:', params.employee, 'Type:', typeof params.employee)
+        }
+
         const response = await timesheetsApi.getAnomalies(params)
         console.log('[Anomalies][API] Réponse API anomalies:', response.data)
         console.log('[Anomalies][API] En-têtes de la réponse:', response.headers)
@@ -612,8 +617,22 @@ export default {
         console.log('[Anomalies][SearchEmployees] Recherche d\'employés avec la requête:', query)
         const response = await usersApi.searchUsers(query)
         console.log('[Anomalies][SearchEmployees] Réponse de la recherche:', response.data)
+        console.log('[Anomalies][SearchEmployees] URL de la requête:', response.request?.responseURL)
 
         if (response.data?.results) {
+          console.log('[Anomalies][SearchEmployees] Nombre de résultats:', response.data.results.length)
+
+          // Vérifier si les résultats contiennent les données attendues
+          response.data.results.forEach((user, index) => {
+            console.log(`[Anomalies][SearchEmployees] Utilisateur ${index}:`, {
+              id: user.id,
+              first_name: user.first_name,
+              last_name: user.last_name,
+              username: user.username,
+              email: user.email
+            })
+          })
+
           employeeOptions.value = response.data.results.map(user => {
             const option = {
               text: `${user.first_name} ${user.last_name}`,
@@ -623,6 +642,8 @@ export default {
             return option
           })
           console.log('[Anomalies][SearchEmployees] Options finales:', employeeOptions.value)
+        } else {
+          console.warn('[Anomalies][SearchEmployees] Aucun résultat trouvé ou format de réponse inattendu')
         }
       } catch (error) {
         console.error('[Anomalies][SearchEmployees] Erreur lors de la recherche des employés:', error)

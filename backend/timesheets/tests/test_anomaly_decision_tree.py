@@ -83,8 +83,7 @@ class AnomalyDecisionTreeTestCase(TestCase):
             schedule_type=Schedule.ScheduleType.FIXED,
             is_active=True,
             late_arrival_margin=15,
-            early_departure_margin=15,
-            name="Planning Matin"
+            early_departure_margin=15
         )
 
         # Créer un planning fixe actif (après-midi uniquement)
@@ -93,8 +92,7 @@ class AnomalyDecisionTreeTestCase(TestCase):
             schedule_type=Schedule.ScheduleType.FIXED,
             is_active=True,
             late_arrival_margin=15,
-            early_departure_margin=15,
-            name="Planning Après-midi"
+            early_departure_margin=15
         )
 
         # Créer un planning fixe inactif
@@ -154,14 +152,29 @@ class AnomalyDecisionTreeTestCase(TestCase):
         )
 
         # Créer les détails du planning fixe actif pour demain (jour non planifié)
-        tomorrow_weekday = (timezone.now() + timedelta(days=1)).weekday()
         # Ne pas créer de détail pour demain pour tester le cas "jour non planifié"
 
-        # Associer l'employé au site avec le planning fixe actif
+        # Associer l'employé au site avec le planning fixe actif (journée complète)
         self.site_employee_fixed = SiteEmployee.objects.create(
             site=self.active_site,
             employee=self.employee,
             schedule=self.active_fixed_schedule,
+            is_active=True
+        )
+
+        # Associer l'employé au site avec le planning fixe actif (matin uniquement)
+        self.site_employee_fixed_am = SiteEmployee.objects.create(
+            site=self.active_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_am,
+            is_active=True
+        )
+
+        # Associer l'employé au site avec le planning fixe actif (après-midi uniquement)
+        self.site_employee_fixed_pm = SiteEmployee.objects.create(
+            site=self.active_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_pm,
             is_active=True
         )
 
@@ -211,7 +224,7 @@ class AnomalyDecisionTreeTestCase(TestCase):
         """Test: Vérifier qu'une anomalie est créée pour un planning inactif"""
         # Associer l'employé au site avec le planning inactif
         SiteEmployee.objects.all().delete()  # Supprimer les associations existantes
-        site_employee = SiteEmployee.objects.create(
+        SiteEmployee.objects.create(
             site=self.active_site,
             employee=self.employee,
             schedule=self.inactive_fixed_schedule,
@@ -475,7 +488,7 @@ class AnomalyDecisionTreeTestCase(TestCase):
         """Test: Vérifier qu'aucune anomalie n'est créée pour une arrivée avec planning fréquence"""
         # Associer l'employé au site avec le planning fréquence
         SiteEmployee.objects.all().delete()  # Supprimer les associations existantes
-        site_employee = SiteEmployee.objects.create(
+        SiteEmployee.objects.create(
             site=self.active_site,
             employee=self.employee,
             schedule=self.active_frequency_schedule,
@@ -503,7 +516,7 @@ class AnomalyDecisionTreeTestCase(TestCase):
         """Test: Vérifier qu'aucune anomalie n'est créée pour un départ avec durée suffisante"""
         # Associer l'employé au site avec le planning fréquence
         SiteEmployee.objects.all().delete()  # Supprimer les associations existantes
-        site_employee = SiteEmployee.objects.create(
+        SiteEmployee.objects.create(
             site=self.active_site,
             employee=self.employee,
             schedule=self.active_frequency_schedule,
@@ -512,7 +525,7 @@ class AnomalyDecisionTreeTestCase(TestCase):
 
         # Créer un pointage d'arrivée
         arrival_time = timezone.now() - timedelta(minutes=250)  # 4h10 (plus que la durée requise)
-        arrival = Timesheet.objects.create(
+        Timesheet.objects.create(
             employee=self.employee,
             site=self.active_site,
             entry_type=Timesheet.EntryType.ARRIVAL,
@@ -596,6 +609,342 @@ class AnomalyDecisionTreeTestCase(TestCase):
 
         # Vérifier que le résultat contient des anomalies
         self.assertTrue(result['has_anomalies'])
+
+    def test_am_schedule_on_time_arrival(self):
+        """Test: Vérifier qu'aucune anomalie n'est créée pour une arrivée à l'heure avec planning matin"""
+        # Supprimer les associations existantes pour isoler le test
+        SiteEmployee.objects.all().delete()
+        # Associer l'employé uniquement au planning matin
+        SiteEmployee.objects.create(
+            site=self.active_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_am,
+            is_active=True
+        )
+
+        # Créer un pointage d'arrivée à l'heure exacte
+        arrival_time = datetime.combine(timezone.now().date(), self.schedule_detail_fixed_am.start_time_1)
+        arrival_time = timezone.make_aware(arrival_time)
+
+        timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.active_site,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            timestamp=arrival_time
+        )
+
+        # Traiter le pointage
+        result = self.anomaly_processor.process_timesheet(timesheet)
+
+        # Vérifier que le traitement a réussi
+        self.assertTrue(result['success'])
+
+        # Vérifier qu'aucune anomalie n'a été détectée
+        self.assertFalse(result['has_anomalies'])
+
+        # Vérifier que le pointage n'est pas marqué comme en retard
+        timesheet.refresh_from_db()
+        self.assertFalse(timesheet.is_late)
+        self.assertEqual(timesheet.late_minutes, 0)
+
+    def test_am_schedule_late_beyond_margin(self):
+        """Test: Vérifier qu'une anomalie est créée pour un retard au-delà de la marge avec planning matin"""
+        # Supprimer les associations existantes pour isoler le test
+        SiteEmployee.objects.all().delete()
+        # Associer l'employé uniquement au planning matin
+        SiteEmployee.objects.create(
+            site=self.active_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_am,
+            is_active=True
+        )
+
+        # Créer un pointage d'arrivée avec un retard au-delà de la marge de tolérance (20 minutes)
+        arrival_time = datetime.combine(timezone.now().date(), self.schedule_detail_fixed_am.start_time_1)
+        arrival_time = timezone.make_aware(arrival_time) + timedelta(minutes=20)
+
+        timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.active_site,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            timestamp=arrival_time
+        )
+
+        # Forcer la mise à jour du flag d'anomalies détectées
+        self.anomaly_processor._anomalies_detected = False
+
+        # Traiter le pointage
+        result = self.anomaly_processor.process_timesheet(timesheet)
+
+        # Vérifier que le traitement a réussi
+        self.assertTrue(result['success'])
+
+        # Vérifier que le pointage est marqué comme en retard
+        timesheet.refresh_from_db()
+        self.assertTrue(timesheet.is_late)
+        self.assertEqual(timesheet.late_minutes, 20)
+
+        # Vérifier qu'une anomalie de type "LATE" a été créée
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.active_site,
+            date=timezone.now().date(),
+            anomaly_type=Anomaly.AnomalyType.LATE
+        )
+        self.assertEqual(anomalies.count(), 1)
+        self.assertEqual(anomalies.first().minutes, 20)
+
+    def test_am_schedule_on_time_departure(self):
+        """Test: Vérifier qu'aucune anomalie n'est créée pour un départ à l'heure avec planning matin"""
+        # Supprimer les associations existantes pour isoler le test
+        SiteEmployee.objects.all().delete()
+        # Associer l'employé uniquement au planning matin
+        SiteEmployee.objects.create(
+            site=self.active_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_am,
+            is_active=True
+        )
+
+        # Créer un pointage de départ à l'heure exacte
+        departure_time = datetime.combine(timezone.now().date(), self.schedule_detail_fixed_am.end_time_1)
+        departure_time = timezone.make_aware(departure_time)
+
+        timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.active_site,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            timestamp=departure_time
+        )
+
+        # Traiter le pointage
+        result = self.anomaly_processor.process_timesheet(timesheet)
+
+        # Vérifier que le traitement a réussi
+        self.assertTrue(result['success'])
+
+        # Vérifier qu'aucune anomalie n'a été détectée
+        self.assertFalse(result['has_anomalies'])
+
+        # Vérifier que le pointage n'est pas marqué comme départ anticipé
+        timesheet.refresh_from_db()
+        self.assertFalse(timesheet.is_early_departure)
+        self.assertEqual(timesheet.early_departure_minutes, 0)
+
+    def test_am_schedule_early_departure_beyond_margin(self):
+        """Test: Vérifier qu'une anomalie est créée pour un départ anticipé au-delà de la marge avec planning matin"""
+        # Supprimer les associations existantes pour isoler le test
+        SiteEmployee.objects.all().delete()
+        # Associer l'employé uniquement au planning matin
+        SiteEmployee.objects.create(
+            site=self.active_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_am,
+            is_active=True
+        )
+
+        # Créer un pointage de départ avec un départ anticipé au-delà de la marge de tolérance (20 minutes)
+        departure_time = datetime.combine(timezone.now().date(), self.schedule_detail_fixed_am.end_time_1)
+        departure_time = timezone.make_aware(departure_time) - timedelta(minutes=20)
+
+        timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.active_site,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            timestamp=departure_time
+        )
+
+        # Forcer la mise à jour du flag d'anomalies détectées
+        self.anomaly_processor._anomalies_detected = False
+
+        # Traiter le pointage
+        result = self.anomaly_processor.process_timesheet(timesheet)
+
+        # Vérifier que le traitement a réussi
+        self.assertTrue(result['success'])
+
+        # Vérifier que le pointage est marqué comme départ anticipé
+        timesheet.refresh_from_db()
+        self.assertTrue(timesheet.is_early_departure)
+        self.assertEqual(timesheet.early_departure_minutes, 20)
+
+        # Vérifier qu'une anomalie de type "EARLY_DEPARTURE" a été créée
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.active_site,
+            date=timezone.now().date(),
+            anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE
+        )
+        self.assertEqual(anomalies.count(), 1)
+        self.assertEqual(anomalies.first().minutes, 20)
+
+    def test_pm_schedule_on_time_arrival(self):
+        """Test: Vérifier qu'aucune anomalie n'est créée pour une arrivée à l'heure avec planning après-midi"""
+        # Supprimer les associations existantes pour isoler le test
+        SiteEmployee.objects.all().delete()
+        # Associer l'employé uniquement au planning après-midi
+        SiteEmployee.objects.create(
+            site=self.active_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_pm,
+            is_active=True
+        )
+
+        # Créer un pointage d'arrivée à l'heure exacte
+        arrival_time = datetime.combine(timezone.now().date(), self.schedule_detail_fixed_pm.start_time_2)
+        arrival_time = timezone.make_aware(arrival_time)
+
+        timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.active_site,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            timestamp=arrival_time
+        )
+
+        # Traiter le pointage
+        result = self.anomaly_processor.process_timesheet(timesheet)
+
+        # Vérifier que le traitement a réussi
+        self.assertTrue(result['success'])
+
+        # Vérifier qu'aucune anomalie n'a été détectée
+        self.assertFalse(result['has_anomalies'])
+
+        # Vérifier que le pointage n'est pas marqué comme en retard
+        timesheet.refresh_from_db()
+        self.assertFalse(timesheet.is_late)
+        self.assertEqual(timesheet.late_minutes, 0)
+
+    def test_pm_schedule_late_beyond_margin(self):
+        """Test: Vérifier qu'une anomalie est créée pour un retard au-delà de la marge avec planning après-midi"""
+        # Supprimer les associations existantes pour isoler le test
+        SiteEmployee.objects.all().delete()
+        # Associer l'employé uniquement au planning après-midi
+        SiteEmployee.objects.create(
+            site=self.active_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_pm,
+            is_active=True
+        )
+
+        # Créer un pointage d'arrivée avec un retard au-delà de la marge de tolérance (20 minutes)
+        arrival_time = datetime.combine(timezone.now().date(), self.schedule_detail_fixed_pm.start_time_2)
+        arrival_time = timezone.make_aware(arrival_time) + timedelta(minutes=20)
+
+        timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.active_site,
+            entry_type=Timesheet.EntryType.ARRIVAL,
+            timestamp=arrival_time
+        )
+
+        # Forcer la mise à jour du flag d'anomalies détectées
+        self.anomaly_processor._anomalies_detected = False
+
+        # Traiter le pointage
+        result = self.anomaly_processor.process_timesheet(timesheet)
+
+        # Vérifier que le traitement a réussi
+        self.assertTrue(result['success'])
+
+        # Vérifier que le pointage est marqué comme en retard
+        timesheet.refresh_from_db()
+        self.assertTrue(timesheet.is_late)
+        self.assertEqual(timesheet.late_minutes, 20)
+
+        # Vérifier qu'une anomalie de type "LATE" a été créée
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.active_site,
+            date=timezone.now().date(),
+            anomaly_type=Anomaly.AnomalyType.LATE
+        )
+        self.assertEqual(anomalies.count(), 1)
+        self.assertEqual(anomalies.first().minutes, 20)
+
+    def test_pm_schedule_on_time_departure(self):
+        """Test: Vérifier qu'aucune anomalie n'est créée pour un départ à l'heure avec planning après-midi"""
+        # Supprimer les associations existantes pour isoler le test
+        SiteEmployee.objects.all().delete()
+        # Associer l'employé uniquement au planning après-midi
+        SiteEmployee.objects.create(
+            site=self.active_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_pm,
+            is_active=True
+        )
+
+        # Créer un pointage de départ à l'heure exacte
+        departure_time = datetime.combine(timezone.now().date(), self.schedule_detail_fixed_pm.end_time_2)
+        departure_time = timezone.make_aware(departure_time)
+
+        timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.active_site,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            timestamp=departure_time
+        )
+
+        # Traiter le pointage
+        result = self.anomaly_processor.process_timesheet(timesheet)
+
+        # Vérifier que le traitement a réussi
+        self.assertTrue(result['success'])
+
+        # Vérifier qu'aucune anomalie n'a été détectée
+        self.assertFalse(result['has_anomalies'])
+
+        # Vérifier que le pointage n'est pas marqué comme départ anticipé
+        timesheet.refresh_from_db()
+        self.assertFalse(timesheet.is_early_departure)
+        self.assertEqual(timesheet.early_departure_minutes, 0)
+
+    def test_pm_schedule_early_departure_beyond_margin(self):
+        """Test: Vérifier qu'une anomalie est créée pour un départ anticipé au-delà de la marge avec planning après-midi"""
+        # Supprimer les associations existantes pour isoler le test
+        SiteEmployee.objects.all().delete()
+        # Associer l'employé uniquement au planning après-midi
+        SiteEmployee.objects.create(
+            site=self.active_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_pm,
+            is_active=True
+        )
+
+        # Créer un pointage de départ avec un départ anticipé au-delà de la marge de tolérance (20 minutes)
+        departure_time = datetime.combine(timezone.now().date(), self.schedule_detail_fixed_pm.end_time_2)
+        departure_time = timezone.make_aware(departure_time) - timedelta(minutes=20)
+
+        timesheet = Timesheet.objects.create(
+            employee=self.employee,
+            site=self.active_site,
+            entry_type=Timesheet.EntryType.DEPARTURE,
+            timestamp=departure_time
+        )
+
+        # Forcer la mise à jour du flag d'anomalies détectées
+        self.anomaly_processor._anomalies_detected = False
+
+        # Traiter le pointage
+        result = self.anomaly_processor.process_timesheet(timesheet)
+
+        # Vérifier que le traitement a réussi
+        self.assertTrue(result['success'])
+
+        # Vérifier que le pointage est marqué comme départ anticipé
+        timesheet.refresh_from_db()
+        self.assertTrue(timesheet.is_early_departure)
+        self.assertEqual(timesheet.early_departure_minutes, 20)
+
+        # Vérifier qu'une anomalie de type "EARLY_DEPARTURE" a été créée
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=self.active_site,
+            date=timezone.now().date(),
+            anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE
+        )
+        self.assertEqual(anomalies.count(), 1)
+        self.assertEqual(anomalies.first().minutes, 20)
 
     def test_consecutive_same_type_scans(self):
         """Test: Vérifier qu'une anomalie est créée pour des pointages consécutifs du même type"""

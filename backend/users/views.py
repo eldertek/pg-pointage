@@ -157,6 +157,24 @@ class UserListView(generics.ListAPIView):
                 for u in queryset
             ])
 
+        # Filtrer par terme de recherche si spécifié
+        search = self.request.query_params.get('search')
+        if search:
+            print(f"[Users][Filter] Filtrage par terme de recherche: {search}")
+            # Recherche sur le prénom, le nom ou l'email
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search) |
+                Q(username__icontains=search)
+            )
+            print(f"[Users][Count] Après filtre recherche ({search}): {queryset.count()}")
+            print(f"[Users][Debug] Utilisateurs trouvés avec le terme '{search}':", [
+                f"{u.first_name} {u.last_name} (ID: {u.id})"
+                for u in queryset
+            ])
+
         return queryset.distinct()
 
 

@@ -164,8 +164,35 @@ class AnomalyListView(generics.ListCreateAPIView):
             queryset = queryset.filter(site_id=site)
             logger.info(f"Filtre site appliqué: {site}, résultats: {queryset.count()}")
         if employee:
-            queryset = queryset.filter(employee_id=employee)
-            logger.info(f"Filtre employé appliqué: {employee}, résultats: {queryset.count()}")
+            logger.info(f"[Débogage] Paramètre employé reçu dans AnomalyListView: {employee}, type: {type(employee)}")
+            try:
+                # Convertir en entier si ce n'est pas déjà le cas
+                employee_id = int(employee)
+                logger.info(f"[Débogage] ID employé converti en entier: {employee_id}")
+
+                # Vérifier si l'employé existe
+                from users.models import User
+                try:
+                    user = User.objects.get(id=employee_id)
+                    logger.info(f"[Débogage] Employé trouvé: {user.get_full_name()} (ID: {user.id})")
+                except User.DoesNotExist:
+                    logger.warning(f"[Débogage] Employé avec ID {employee_id} non trouvé dans la base de données")
+
+                # Appliquer le filtre
+                queryset = queryset.filter(employee_id=employee_id)
+                logger.info(f"Filtre employé appliqué: {employee_id}, résultats: {queryset.count()}")
+
+                # Afficher les anomalies trouvées pour cet employé
+                if queryset.count() > 0:
+                    logger.info(f"[Débogage] Anomalies trouvées pour l'employé {employee_id}:")
+                    for anomaly in queryset[:5]:  # Limiter à 5 pour éviter des logs trop longs
+                        logger.info(f"  - Anomalie ID: {anomaly.id}, Type: {anomaly.anomaly_type}, Date: {anomaly.date}")
+                else:
+                    logger.warning(f"[Débogage] Aucune anomalie trouvée pour l'employé {employee_id}")
+            except (ValueError, TypeError) as e:
+                logger.error(f"[Débogage] Erreur lors de la conversion de l'ID employé: {str(e)}")
+                queryset = queryset.filter(employee_id=employee)
+                logger.info(f"Filtre employé appliqué sans conversion: {employee}, résultats: {queryset.count()}")
         if anomaly_type:
             queryset = queryset.filter(anomaly_type=anomaly_type)
             logger.info(f"Filtre type appliqué: {anomaly_type}, résultats: {queryset.count()}")
