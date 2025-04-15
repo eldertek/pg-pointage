@@ -253,8 +253,9 @@ class AnomalyProcessor:
                     early_departure_margin = schedule.early_departure_margin or site.early_departure_margin
 
                     if entry_type == Timesheet.EntryType.ARRIVAL:
+                        # Vérifier si l'arrivée correspond à une plage du matin
                         if schedule_detail.start_time_1 and schedule_detail.end_time_1:
-                            # Autoriser les arrivées en avance : toute arrivée avant la fin de la plage est acceptée
+                            # Cas 1: Arrivée pendant la plage horaire du matin
                             if current_time <= schedule_detail.end_time_1:
                                 is_matching = True
                                 if current_time > schedule_detail.start_time_1:
@@ -267,9 +268,22 @@ class AnomalyProcessor:
                                         anomaly = self._create_late_anomaly(timesheet, late_minutes, late_margin, schedule)
                                         if anomaly:
                                             created_anomalies.append(anomaly)
+                            # Cas 2: Arrivée après la fin de la plage du matin (considérer comme retard)
+                            elif not schedule_detail.start_time_2:  # S'il n'y a pas de plage d'après-midi
+                                is_matching = True
+                                late_minutes = int((datetime.combine(current_date, current_time) -
+                                                datetime.combine(current_date, schedule_detail.start_time_1)).total_seconds() / 60)
 
+                                timesheet.is_late = True
+                                timesheet.late_minutes = late_minutes
+                                anomaly = self._create_late_anomaly(timesheet, late_minutes, late_margin, schedule)
+                                if anomaly:
+                                    created_anomalies.append(anomaly)
+                                self.logger.debug(f"Arrivée tardive après la fin de la plage du matin: {current_time} (plage: {schedule_detail.start_time_1}-{schedule_detail.end_time_1})")
+
+                        # Vérifier si l'arrivée correspond à une plage de l'après-midi
                         if schedule_detail.start_time_2 and schedule_detail.end_time_2 and not is_matching:
-                            # Autoriser les arrivées en avance sur la plage de l'après-midi
+                            # Cas 1: Arrivée pendant la plage horaire de l'après-midi
                             if current_time <= schedule_detail.end_time_2:
                                 is_matching = True
                                 if current_time > schedule_detail.start_time_2:
@@ -282,6 +296,18 @@ class AnomalyProcessor:
                                         anomaly = self._create_late_anomaly(timesheet, late_minutes, late_margin, schedule)
                                         if anomaly:
                                             created_anomalies.append(anomaly)
+                            # Cas 2: Arrivée après la fin de la plage de l'après-midi (considérer comme retard)
+                            else:
+                                is_matching = True
+                                late_minutes = int((datetime.combine(current_date, current_time) -
+                                                datetime.combine(current_date, schedule_detail.start_time_2)).total_seconds() / 60)
+
+                                timesheet.is_late = True
+                                timesheet.late_minutes = late_minutes
+                                anomaly = self._create_late_anomaly(timesheet, late_minutes, late_margin, schedule)
+                                if anomaly:
+                                    created_anomalies.append(anomaly)
+                                self.logger.debug(f"Arrivée tardive après la fin de la plage de l'après-midi: {current_time} (plage: {schedule_detail.start_time_2}-{schedule_detail.end_time_2})")
 
                     elif entry_type == Timesheet.EntryType.DEPARTURE:
                         # Vérifier si le départ est dans la plage du matin ou de l'après-midi
@@ -693,7 +719,157 @@ class AnomalyProcessor:
         """Retourne True si des anomalies ont été détectées lors du traitement"""
         return self._anomalies_detected
 
-    def scan_anomalies(self, start_date=None, end_date=None, site_id=None, employee_id=None, force_update=False):
+    def check_employee_absences(self, start_date, end_date, site_id=None, employee_id=None):
+        """Vérifie les absences des employés sur une période donnée"""
+        # Ignorer le jour en cours pour ne pas signaler une absence alors que la journée n'est pas finie
+        today = timezone.now().date()
+        if end_date >= today:
+            end_date = today - timedelta(days=1)
+            self.logger.info(f"Ajustement de la date de fin au {end_date} pour ignorer le jour en cours")
+
+        # Récupérer toutes les relations site-employé actives
+        site_employees = SiteEmployee.objects.filter(is_active=True).select_related('site', 'employee', 'schedule')
+
+        # Filtrer par site si spécifié
+        if site_id:
+            site_employees = site_employees.filter(site_id=site_id)
+            site = Site.objects.get(id=site_id)
+            self.logger.info(f"Filtrage par site: {site.name} (ID: {site.id})")
+
+        # Filtrer par employé si spécifié
+        if employee_id:
+            site_employees = site_employees.filter(employee_id=employee_id)
+            employee = User.objects.get(id=employee_id)
+            self.logger.info(f"Filtrage par employé: {employee.get_full_name()} (ID: {employee.id})")
+
+        self.logger.info(f"Vérification des absences du {start_date} au {end_date} pour {site_employees.count()} relations site-employé")
+
+        # Compter les anomalies créées
+        anomalies_created = 0
+
+        # Pour chaque relation site-employé
+        for site_employee in site_employees:
+            # Vérifier si l'employé a un planning actif
+            schedule = site_employee.schedule
+            if not schedule or not schedule.is_active:
+                self.logger.debug(f"Pas de planning actif pour {site_employee.employee.get_full_name()} au site {site_employee.site.name}")
+                continue
+
+            # Déterminer la date de début effective pour cette relation
+            # (le plus récent entre la date de début demandée, la création du planning et la création de la relation)
+            effective_start_date = max(
+                start_date,
+                schedule.created_at.date(),
+                site_employee.created_at.date()
+            )
+
+            self.logger.debug(f"Vérification des absences pour {site_employee.employee.get_full_name()} au site {site_employee.site.name} du {effective_start_date} au {end_date}")
+
+            # Pour chaque jour dans la période
+            current_date = effective_start_date
+            while current_date <= end_date:
+                # Vérifier si le planning a des détails pour ce jour de la semaine
+                day_of_week = current_date.weekday()  # 0 = Lundi, 6 = Dimanche
+                try:
+                    schedule_detail = ScheduleDetail.objects.get(
+                        schedule=schedule,
+                        day_of_week=day_of_week
+                    )
+
+                    # Pour les plannings fixes, vérifier si l'employé a pointé
+                    if schedule.schedule_type == Schedule.ScheduleType.FIXED:
+                        # Vérifier si l'employé a pointé son arrivée ce jour-là
+                        has_arrival = Timesheet.objects.filter(
+                            employee=site_employee.employee,
+                            site=site_employee.site,
+                            timestamp__date=current_date,
+                            entry_type=Timesheet.EntryType.ARRIVAL
+                        ).exists()
+
+                        # Si l'employé n'a pas pointé son arrivée et qu'il devrait avoir un planning ce jour-là
+                        if not has_arrival and (schedule_detail.start_time_1 or schedule_detail.start_time_2):
+                            # Vérifier si une anomalie similaire existe déjà
+                            existing_anomaly = Anomaly.objects.filter(
+                                employee=site_employee.employee,
+                                site=site_employee.site,
+                                date=current_date,
+                                anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL
+                            ).first()
+
+                            if not existing_anomaly:
+                                # Créer une anomalie pour l'arrivée manquante
+                                description = f"Arrivée manquante selon le planning"
+                                if schedule_detail.start_time_1:
+                                    description += f" (heure prévue: {schedule_detail.start_time_1})"
+                                elif schedule_detail.start_time_2:
+                                    description += f" (heure prévue: {schedule_detail.start_time_2})"
+
+                                anomaly = Anomaly.objects.create(
+                                    employee=site_employee.employee,
+                                    site=site_employee.site,
+                                    date=current_date,
+                                    anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL,
+                                    description=description,
+                                    status=Anomaly.AnomalyStatus.PENDING,
+                                    schedule=schedule
+                                )
+
+                                anomalies_created += 1
+                                self._anomalies_detected = True
+                                self.logger.info(f"Anomalie créée: MISSING_ARRIVAL - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {current_date}")
+                            else:
+                                self.logger.debug(f"Anomalie existante pour {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {current_date}")
+
+                    # Pour les plannings fréquence, la logique est différente
+                    # On vérifie si l'employé a pointé au moins une fois dans la journée
+                    elif schedule.schedule_type == Schedule.ScheduleType.FREQUENCY:
+                        # Vérifier si l'employé a pointé au moins une fois ce jour-là
+                        has_timesheet = Timesheet.objects.filter(
+                            employee=site_employee.employee,
+                            site=site_employee.site,
+                            timestamp__date=current_date
+                        ).exists()
+
+                        # Si l'employé n'a pas pointé du tout et qu'il devrait avoir un planning ce jour-là
+                        if not has_timesheet and schedule_detail.frequency_duration:
+                            # Vérifier si une anomalie similaire existe déjà
+                            existing_anomaly = Anomaly.objects.filter(
+                                employee=site_employee.employee,
+                                site=site_employee.site,
+                                date=current_date,
+                                anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL
+                            ).first()
+
+                            if not existing_anomaly:
+                                # Créer une anomalie pour l'arrivée manquante
+                                description = f"Pointage manquant selon le planning fréquence (durée prévue: {schedule_detail.frequency_duration} minutes)"
+
+                                anomaly = Anomaly.objects.create(
+                                    employee=site_employee.employee,
+                                    site=site_employee.site,
+                                    date=current_date,
+                                    anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL,
+                                    description=description,
+                                    status=Anomaly.AnomalyStatus.PENDING,
+                                    schedule=schedule
+                                )
+
+                                anomalies_created += 1
+                                self._anomalies_detected = True
+                                self.logger.info(f"Anomalie créée: MISSING_ARRIVAL - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {current_date}")
+                            else:
+                                self.logger.debug(f"Anomalie existante pour {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {current_date}")
+
+                except ScheduleDetail.DoesNotExist:
+                    self.logger.debug(f"Pas de détails de planning pour {site_employee.employee.get_full_name()} au site {site_employee.site.name} le jour {day_of_week} ({current_date})")
+
+                # Passer au jour suivant
+                current_date += timedelta(days=1)
+
+        self.logger.info(f"Vérification des absences terminée: {anomalies_created} anomalies créées")
+        return anomalies_created
+
+    def scan_anomalies(self, start_date=None, end_date=None, site_id=None, employee_id=None, force_update=False, check_absences=False):
         """Scan complet des anomalies sur une période"""
         try:
             with transaction.atomic():
@@ -761,11 +937,19 @@ class AnomalyProcessor:
                             for anomaly in result['anomalies']:
                                 self.logger.debug(f"Anomalie détectée: {anomaly.anomaly_type} - {anomaly.description}")
 
-                self.logger.info(f"Scan terminé: {anomalies_created} anomalies détectées sur {processed_count} pointages traités")
+                # Vérifier les absences si demandé
+                absences_detected = 0
+                if check_absences:
+                    self.logger.info("Vérification des absences...")
+                    absences_detected = self.check_employee_absences(start_date, end_date, site_id, employee_id)
+                    anomalies_created += absences_detected
+
+                self.logger.info(f"Scan terminé: {anomalies_created} anomalies détectées ({processed_count} pointages traités, {absences_detected} absences détectées)")
                 return Response({
                     'message': f'{anomalies_created} anomalies traitées',
                     'anomalies_created': anomalies_created,
                     'timesheets_processed': processed_count,
+                    'absences_detected': absences_detected,
                     'force_update': force_update,
                     'period': f"{start_date} au {end_date}"
                 })

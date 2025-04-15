@@ -50,6 +50,9 @@ class Command(BaseCommand):
 
     # Ne pas supprimer et recréer les pointages (utiliser le recalcul simple)
     python manage.py timesheets_repair --no-recreate-entries
+
+    # Ne pas vérifier les absences des employés selon leur planning (désactiver la vérification par défaut)
+    python manage.py timesheets_repair --no-check-absences
     '''
 
     def _is_timesheet_matching_schedule(self, timesheet, schedule):
@@ -219,6 +222,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Ne pas supprimer et recréer les pointages (utiliser le recalcul simple)'
         )
+        parser.add_argument(
+            '--no-check-absences',
+            action='store_true',
+            help='Ne pas vérifier les absences des employés selon leur planning'
+        )
 
     def handle(self, *args, **options):
         # Configurer le logger
@@ -278,6 +286,11 @@ class Command(BaseCommand):
         if self.ignore_errors:
             self.stdout.write(self.style.WARNING("Ignorer les erreurs activé - les erreurs seront ignorées et le traitement continuera"))
 
+        if not options.get('no_check_absences', False):
+            self.stdout.write("Vérification des absences activée par défaut - les absences des employés seront vérifiées selon leur planning")
+        else:
+            self.stdout.write(self.style.WARNING("Vérification des absences désactivée - les absences des employés ne seront pas vérifiées"))
+
         # Commencer la réparation
         try:
             with transaction.atomic():
@@ -294,6 +307,18 @@ class Command(BaseCommand):
                     # Supprimer et recréer les pointages
                     processed_count = self._recreate_timesheet_entries(start_date, end_date, options['site'], options['employee'], options['dry_run'])
                     self.stdout.write(self.style.SUCCESS(f"{processed_count} pointages recréés"))
+
+                # 3. Vérifier les absences par défaut, sauf si l'option no-check-absences est activée
+                if not options.get('no_check_absences', False):
+                    self.stdout.write("Vérification des absences des employés...")
+                    processor = AnomalyProcessor()
+                    absences_detected = processor.check_employee_absences(
+                        start_date=start_date,
+                        end_date=end_date,
+                        site_id=options['site'],
+                        employee_id=options['employee']
+                    )
+                    self.stdout.write(self.style.SUCCESS(f"{absences_detected} anomalies d'absence détectées"))
 
                 if options['dry_run']:
                     # Annuler la transaction en mode simulation
