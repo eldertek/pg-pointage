@@ -4,6 +4,7 @@ from django.db.models import Q, F, Prefetch
 from datetime import datetime, timedelta
 import pytz
 from tabulate import tabulate
+import json
 
 from sites.models import Site, Schedule, ScheduleDetail, SiteEmployee
 from users.models import User
@@ -75,6 +76,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Afficher des informations détaillées'
         )
+        parser.add_argument(
+            '--json',
+            action='store_true',
+            help='Afficher les résultats au format JSON (dans la sortie standard)'
+        )
     
     def handle(self, *args, **options):
         # Récupérer les paramètres
@@ -85,6 +91,7 @@ class Command(BaseCommand):
         schedule_id = options.get('schedule')
         anomalies_only = options.get('anomalies_only', False)
         days = options.get('days', 1)
+        export_json = options.get('json', False)
         
         # Définir la période
         if date_param:
@@ -272,20 +279,21 @@ class Command(BaseCommand):
                 'Statut Anomalie': 'Statut Anomalie',
                 'Description': 'Description'
             }
-            
-            # Convertir les données en liste pour tabulate
-            table_data = []
-            for row in all_data:
-                table_row = [row.get(key, '') for key in headers.keys()]
-                table_data.append(table_row)
-            
-            # Afficher le tableau
-            self.stdout.write(tabulate(
-                table_data,
-                headers=headers.values(),
-                tablefmt='grid'
-            ))
-            
-            self.stdout.write(self.style.SUCCESS(f"{len(all_data)} lignes affichées"))
+            if export_json:
+                self.stdout.write(json.dumps(all_data, ensure_ascii=False, indent=2))
+                self.stdout.write(self.style.SUCCESS(f"{len(all_data)} lignes exportées en JSON"))
+            else:
+                # Convertir les données en liste pour tabulate
+                table_data = []
+                for row in all_data:
+                    table_row = [row.get(key, '') for key in headers.keys()]
+                    table_data.append(table_row)
+                # Afficher le tableau
+                self.stdout.write(tabulate(
+                    table_data,
+                    headers=headers.values(),
+                    tablefmt='grid'
+                ))
+                self.stdout.write(self.style.SUCCESS(f"{len(all_data)} lignes affichées"))
         else:
             self.stdout.write(self.style.WARNING("Aucune donnée trouvée pour les critères spécifiés"))
