@@ -83,6 +83,11 @@
     </v-card>
 
     <v-card>
+      <!-- Debug info -->
+      <div v-if="timesheets.length > 0" class="pa-2 text-caption">
+        {{ timesheets.length }} pointages trouvés
+      </div>
+
       <v-data-table
         :headers="headers"
         :items="timesheets"
@@ -92,7 +97,7 @@
         :loading-text="'Chargement des pointages...'"
         hide-default-footer
         class="elevation-1"
-        @click:row="(_: any, { item }: any) => showDetails(item)"
+        @click:row="showDetails"
       >
         <template #item.entry_type="{ item }">
           <v-chip
@@ -367,6 +372,8 @@ const headers = ref([
   { title: 'Actions', align: 'center' as const, key: 'actions', sortable: false }
 ])
 
+console.log('Headers du tableau:', headers.value)
+
 const filters = ref<Filters>({
   employee: '',
   site: null,
@@ -401,13 +408,13 @@ const canEditTimesheet = computed(() => {
   return auth.user?.role === 'SUPER_ADMIN' || auth.user?.role === 'MANAGER'
 })
 
-const getStatusColor = (timesheet: ExtendedTimesheet): string => {
+const getStatusColor = (timesheet: any): string => {
   if (timesheet.is_late) return 'warning'
   if (timesheet.is_early_departure) return 'error'
   return 'success'
 }
 
-const getStatusLabel = (timesheet: ExtendedTimesheet): string => {
+const getStatusLabel = (timesheet: any): string => {
   if (timesheet.is_late) return `Retard (${timesheet.late_minutes} min)`
   if (timesheet.is_early_departure) return `Départ anticipé (${timesheet.early_departure_minutes} min)`
   return 'Normal'
@@ -428,9 +435,11 @@ const formatTime = (timeString: string): string => {
   }
 }
 
-const formatTimesheet = (timesheet: ExtendedTimesheet): ExtendedTimesheet => {
+const formatTimesheet = (timesheet: any): any => {
   try {
+    console.log('Formatage du pointage:', timesheet)
     if (!timesheet.timestamp) {
+      console.warn('Timestamp manquant dans le pointage:', timesheet)
       return {
         ...timesheet,
         date: 'Date invalide',
@@ -448,13 +457,15 @@ const formatTimesheet = (timesheet: ExtendedTimesheet): ExtendedTimesheet => {
       }
     }
 
-    return {
+    const formatted = {
       ...timesheet,
       date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
       time: format(timestamp, 'HH:mm', { locale: fr }),
       employee: timesheet.employee_name || 'Employé inconnu',
       site: timesheet.site_name || 'Site inconnu'
     }
+    console.log('Pointage formaté:', formatted)
+    return formatted
   } catch (error) {
     console.error('Erreur lors du formatage du pointage:', error)
     return {
@@ -479,11 +490,19 @@ const fetchTimesheets = async () => {
       expand: 'employee,site'
     }
 
+    console.log('Paramètres de la requête:', params)
     const response = await timesheetsApi.getTimesheets(params)
+    console.log('Réponse API complète:', response)
+    console.log('Données reçues:', response.data)
+
     const results = response.data.results || []
+    console.log('Nombre de résultats:', results.length)
 
     // Format timesheets for display
-    timesheets.value = results.map((timesheet: ExtendedTimesheet) => formatTimesheet(timesheet))
+    const formattedTimesheets = results.map((timesheet: any) => formatTimesheet(timesheet))
+    console.log('Pointages formatés:', formattedTimesheets)
+    timesheets.value = formattedTimesheets
+    console.log('Variable timesheets après affectation:', timesheets.value)
   } catch (error) {
     console.error('Erreur lors du chargement des pointages:', error)
     timesheets.value = []
@@ -508,7 +527,7 @@ const resetFilters = () => {
   fetchTimesheets()
 }
 
-const showDetails = (item: ExtendedTimesheet): void => {
+const showDetails = (item: any): void => {
   try {
     if (!item.timestamp) {
       console.error('Timestamp manquant')
@@ -571,7 +590,7 @@ const showDetails = (item: ExtendedTimesheet): void => {
   }
 }
 
-const editTimesheet = (item: ExtendedTimesheet): void => {
+const editTimesheet = (item: any): void => {
   try {
     if (!item.timestamp) {
       console.error('Timestamp manquant pour l\'édition')
@@ -614,7 +633,7 @@ const saveTimesheet = async () => {
   }
 }
 
-const confirmDelete = (item: ExtendedTimesheet): void => {
+const confirmDelete = (item: any): void => {
   timesheetToDelete.value = item
   deleteDialog.value = true
 }
