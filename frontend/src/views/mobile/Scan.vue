@@ -482,7 +482,25 @@ export default {
           showAmbiguousDialog.value = true
         } else {
           // Enregistrement réussi
-          showSuccess(result.message || 'Enregistrement effectué avec succès')
+          let message = result.message || 'Enregistrement effectué avec succès'
+
+          // Afficher des informations supplémentaires si des anomalies ont été détectées
+          if (result.has_anomalies && result.anomalies && result.anomalies.length > 0) {
+            const anomaly = result.anomalies[0] // Prendre la première anomalie pour simplifier
+
+            // Ajouter des informations sur l'anomalie au message
+            if (anomaly.anomaly_type === 'LATE') {
+              message += `\nRetard détecté (${anomaly.minutes} minutes)`
+            } else if (anomaly.anomaly_type === 'EARLY_DEPARTURE') {
+              message += `\nDépart anticipé détecté (${anomaly.minutes} minutes)`
+            } else if (anomaly.anomaly_type === 'UNLINKED_SCHEDULE') {
+              message += '\nAttention: Vous n\'avez pas de planning associé à ce site'
+            } else if (anomaly.anomaly_type === 'OTHER' && anomaly.description.includes('Site inactif')) {
+              message += '\nAttention: Ce site est actuellement inactif'
+            }
+          }
+
+          showSuccess(message)
         }
 
         scanning.value = false
@@ -509,7 +527,25 @@ export default {
           timestamp: timestamp // Ajouter le timestamp pour éviter les doublons
         })
 
-        showSuccess(result.message || 'Enregistrement effectué avec succès')
+        let message = result.message || 'Enregistrement effectué avec succès'
+
+        // Afficher des informations supplémentaires si des anomalies ont été détectées
+        if (result.has_anomalies && result.anomalies && result.anomalies.length > 0) {
+          const anomaly = result.anomalies[0] // Prendre la première anomalie pour simplifier
+
+          // Ajouter des informations sur l'anomalie au message
+          if (anomaly.anomaly_type === 'LATE') {
+            message += `\nRetard détecté (${anomaly.minutes} minutes)`
+          } else if (anomaly.anomaly_type === 'EARLY_DEPARTURE') {
+            message += `\nDépart anticipé détecté (${anomaly.minutes} minutes)`
+          } else if (anomaly.anomaly_type === 'UNLINKED_SCHEDULE') {
+            message += '\nAttention: Vous n\'avez pas de planning associé à ce site'
+          } else if (anomaly.anomaly_type === 'OTHER' && anomaly.description.includes('Site inactif')) {
+            message += '\nAttention: Ce site est actuellement inactif'
+          }
+        }
+
+        showSuccess(message)
       } catch (err) {
         console.error('Erreur lors de l\'enregistrement ambigu:', err)
 

@@ -1,4 +1,4 @@
-.PHONY: help setup-backend setup-frontend run-backend run-frontend migrate makemigrations test-backend test-frontend lint-backend lint-frontend clean tests
+.PHONY: help setup-backend setup-frontend run-backend run-frontend migrate makemigrations test-backend test-frontend lint-backend lint-frontend clean tests core users timesheets anomalies site-inactive schedule-inactive unplanned-day late-arrival early-departure frequency-insufficient consecutive-scans
 
 # Variables
 PYTHON = python3
@@ -16,8 +16,19 @@ help:
 	@echo "  run-frontend     - Lancer le serveur de développement Vue.js"
 	@echo "  migrate          - Appliquer les migrations Django"
 	@echo "  makemigrations   - Créer les migrations Django"
-	@echo "  tests            - Exécuter les tests spécifiques du module core"
+	@echo "  tests            - Exécuter tous les tests"
+	@echo "  tests core       - Exécuter les tests du module core"
+	@echo "  tests users      - Exécuter les tests du module users"
 	@echo "  tests timesheets - Exécuter les tests du module timesheets"
+	@echo "  tests anomalies  - Exécuter tous les tests d'anomalies"
+	@echo "  Tests spécifiques pour les règles d'anomalies (.cursor/rules/anomalies.mdc):"
+	@echo "  tests site-inactive        - Tester la détection d'anomalie pour un site inactif"
+	@echo "  tests schedule-inactive    - Tester la détection d'anomalie pour un planning inactif"
+	@echo "  tests unplanned-day        - Tester la détection d'anomalie pour un jour non planifié"
+	@echo "  tests late-arrival         - Tester la détection d'anomalie pour un retard"
+	@echo "  tests early-departure      - Tester la détection d'anomalie pour un départ anticipé"
+	@echo "  tests frequency-insufficient - Tester la détection d'anomalie pour une durée insuffisante"
+	@echo "  tests consecutive-scans    - Tester la détection d'anomalie pour des scans consécutifs"
 	@echo "  lint-backend     - Vérifier le code backend"
 	@echo "  lint-frontend    - Vérifier le code frontend"
 	@echo "  clean            - Nettoyer les fichiers temporaires"
@@ -72,19 +83,36 @@ clean:
 tests:
 	@echo "Exécution des tests..."
 	@if [ "$(filter core,$(MAKECMDGOALS))" = "core" ]; then \
-		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
-			core.tests.test_views core.tests.test_permissions core.tests.test_serializers; \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test core; \
 	elif [ "$(filter users,$(MAKECMDGOALS))" = "users" ]; then \
-		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
-			users.tests.test_permissions users.tests.test_serializers; \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test users; \
 	elif [ "$(filter timesheets,$(MAKECMDGOALS))" = "timesheets" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test timesheets; \
+	elif [ "$(filter anomalies,$(MAKECMDGOALS))" = "anomalies" ]; then \
 		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
-			timesheets.tests.test_fixed_schedule_anomalies timesheets.tests.test_frequency_schedule_anomalies timesheets.tests.test_schedule_matching timesheets.tests.test_anomaly_cleanup timesheets.tests.test_check_missed_checkins; \
+			timesheets.tests.test_anomaly_decision_tree; \
+	elif [ "$(filter site-inactive,$(MAKECMDGOALS))" = "site-inactive" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			timesheets.tests.test_anomaly_decision_tree.AnomalyDecisionTreeTestCase.test_inactive_site; \
+	elif [ "$(filter schedule-inactive,$(MAKECMDGOALS))" = "schedule-inactive" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			timesheets.tests.test_anomaly_decision_tree.AnomalyDecisionTreeTestCase.test_inactive_schedule; \
+	elif [ "$(filter unplanned-day,$(MAKECMDGOALS))" = "unplanned-day" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			timesheets.tests.test_anomaly_decision_tree.AnomalyDecisionTreeTestCase.test_unplanned_day; \
+	elif [ "$(filter late-arrival,$(MAKECMDGOALS))" = "late-arrival" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			timesheets.tests.test_anomaly_decision_tree.AnomalyDecisionTreeTestCase.test_fixed_schedule_late_beyond_margin; \
+	elif [ "$(filter early-departure,$(MAKECMDGOALS))" = "early-departure" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			timesheets.tests.test_anomaly_decision_tree.AnomalyDecisionTreeTestCase.test_fixed_schedule_early_departure_beyond_margin; \
+	elif [ "$(filter frequency-insufficient,$(MAKECMDGOALS))" = "frequency-insufficient" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			timesheets.tests.test_anomaly_decision_tree.AnomalyDecisionTreeTestCase.test_frequency_schedule_insufficient_duration; \
+	elif [ "$(filter consecutive-scans,$(MAKECMDGOALS))" = "consecutive-scans" ]; then \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
+			timesheets.tests.test_anomaly_decision_tree.AnomalyDecisionTreeTestCase.test_consecutive_same_type_scans; \
 	else \
-		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test \
-			core.tests.test_views core.tests.test_permissions core.tests.test_serializers \
-			users.tests.test_permissions users.tests.test_serializers \
-			timesheets.tests.test_fixed_schedule_anomalies timesheets.tests.test_frequency_schedule_anomalies timesheets.tests.test_schedule_matching timesheets.tests.test_anomaly_cleanup timesheets.tests.test_check_missed_checkins; \
+		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test; \
 	fi
-
 

@@ -175,7 +175,9 @@ class AnomalyProcessor:
         return None
 
     def _match_schedule_and_check_anomalies(self, timesheet):
-        """Vérifie la correspondance avec le planning et crée les anomalies nécessaires"""
+        """Vérifie la correspondance avec le planning et crée les anomalies nécessaires
+        Suit l'arbre de décision défini dans .cursor/rules/anomalies.mdc
+        """
         employee = timesheet.employee
         site = timesheet.site
         entry_type = timesheet.entry_type
@@ -189,6 +191,40 @@ class AnomalyProcessor:
 
         created_anomalies = []
 
+        # 1. Vérifier le statut du site (actif/inactif)
+        if not site.is_active:
+            timesheet.is_out_of_schedule = True
+            timesheet.save()
+
+            # Vérifier si une anomalie similaire existe déjà
+            existing_anomaly = Anomaly.objects.filter(
+                employee=employee,
+                site=site,
+                date=current_date,
+                anomaly_type=Anomaly.AnomalyType.OTHER,
+                description__contains="Site inactif"
+            ).first()
+
+            if not existing_anomaly:
+                anomaly = Anomaly.objects.create(
+                    employee=employee,
+                    site=site,
+                    timesheet=timesheet,
+                    date=current_date,
+                    anomaly_type=Anomaly.AnomalyType.OTHER,
+                    description=f"Site inactif: Le site {site.name} est actuellement désactivé.",
+                    status=Anomaly.AnomalyStatus.PENDING
+                )
+                self._anomalies_detected = True
+                created_anomalies.append(anomaly)
+                self.logger.info(f"Anomalie créée: Site inactif - {site.name} pour {employee.get_full_name()}")
+            else:
+                self.logger.info(f"Anomalie existante trouvée pour site inactif {site.name}, pas de création de doublon")
+                created_anomalies.append(existing_anomaly)
+
+            return True, created_anomalies
+
+        # 2. Récupérer les relations site-employé
         site_employee_relations = SiteEmployee.objects.filter(
             site=site,
             employee=employee,
@@ -198,6 +234,7 @@ class AnomalyProcessor:
         is_ambiguous = False
         is_out_of_schedule = True
 
+        # 3. Vérifier si l'employé est rattaché au site
         if not site_employee_relations.exists():
             timesheet.is_out_of_schedule = True
             timesheet.save()
@@ -232,25 +269,34 @@ class AnomalyProcessor:
 
         matching_schedules = []
 
+        # 4. Vérifier les plannings associés à l'employé sur ce site
         for site_employee in site_employee_relations:
             schedule = site_employee.schedule
+
+            # 5. Vérifier si le planning est actif
             if not schedule or not schedule.is_active:
+                self.logger.debug(f"Planning inactif ou non défini pour {employee.get_full_name()} au site {site.name}")
                 continue
 
+            # 6. Vérifier si le planning a des détails pour ce jour
             try:
                 schedule_detail = ScheduleDetail.objects.get(
                     schedule=schedule,
                     day_of_week=current_date.weekday()
                 )
 
+                # 7. Traiter selon le type de planning (fixe ou fréquence)
                 if schedule.schedule_type == Schedule.ScheduleType.FIXED:
                     is_matching = False
 
                     # Suppression de la vérification arbitraire des heures 7h30-19h00
                     # qui causait des faux positifs "hors planning"
 
+                    # Récupérer les marges de tolérance (du planning ou du site par défaut)
                     late_margin = schedule.late_arrival_margin or site.late_margin
                     early_departure_margin = schedule.early_departure_margin or site.early_departure_margin
+
+                    self.logger.debug(f"Marges de tolérance: retard={late_margin}min, départ anticipé={early_departure_margin}min")
 
                     if entry_type == Timesheet.EntryType.ARRIVAL:
                         # Vérifier si l'arrivée correspond à une plage du matin
@@ -328,18 +374,24 @@ class AnomalyProcessor:
                                 self.logger.debug(f"Départ du matin détecté: {current_time} (plage: {schedule_detail.start_time_1}-{end_time_1_plus_30})")
 
                                 # Vérifier si c'est un départ anticipé
+                                # Correction du bug: ne pas signaler les départs exactement à l'heure comme anticipés
                                 if current_time < schedule_detail.end_time_1:
                                     early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_1) -
                                                     datetime.combine(current_date, current_time)).total_seconds() / 60)
 
                                     self.logger.debug(f"Départ anticipé détecté (matin): {early_minutes} minutes avant {schedule_detail.end_time_1}")
 
-                                    if early_minutes > early_departure_margin:
+                                    # Ne créer une anomalie que si le départ est réellement anticipé (minutes > 0) et dépasse la marge
+                                    if early_minutes > 0 and early_minutes > early_departure_margin:
                                         timesheet.is_early_departure = True
                                         timesheet.early_departure_minutes = early_minutes
                                         anomaly = self._create_early_departure_anomaly(timesheet, early_minutes, early_departure_margin, schedule)
                                         if anomaly:
                                             created_anomalies.append(anomaly)
+                                    elif early_minutes == 0:
+                                        self.logger.debug(f"Départ exactement à l'heure de fin du matin: {current_time}, pas d'anomalie créée")
+                                    else:
+                                        self.logger.debug(f"Départ anticipé de {early_minutes} minutes dans la marge de tolérance ({early_departure_margin}min)")
                                 else:
                                     self.logger.debug(f"Départ normal du matin: {current_time} (fin prévue: {schedule_detail.end_time_1})")
 
@@ -356,18 +408,24 @@ class AnomalyProcessor:
                                 self.logger.debug(f"Départ de l'après-midi détecté: {current_time} (plage: {schedule_detail.start_time_2}-{end_time_2_plus_30})")
 
                                 # Vérifier si c'est un départ anticipé
+                                # Correction du bug: ne pas signaler les départs exactement à l'heure comme anticipés
                                 if current_time < schedule_detail.end_time_2:
                                     early_minutes = int((datetime.combine(current_date, schedule_detail.end_time_2) -
                                                     datetime.combine(current_date, current_time)).total_seconds() / 60)
 
                                     self.logger.debug(f"Départ anticipé détecté (après-midi): {early_minutes} minutes avant {schedule_detail.end_time_2}")
 
-                                    if early_minutes > early_departure_margin:
+                                    # Ne créer une anomalie que si le départ est réellement anticipé (minutes > 0) et dépasse la marge
+                                    if early_minutes > 0 and early_minutes > early_departure_margin:
                                         timesheet.is_early_departure = True
                                         timesheet.early_departure_minutes = early_minutes
                                         anomaly = self._create_early_departure_anomaly(timesheet, early_minutes, early_departure_margin, schedule)
                                         if anomaly:
                                             created_anomalies.append(anomaly)
+                                    elif early_minutes == 0:
+                                        self.logger.debug(f"Départ exactement à l'heure de fin de l'après-midi: {current_time}, pas d'anomalie créée")
+                                    else:
+                                        self.logger.debug(f"Départ anticipé de {early_minutes} minutes dans la marge de tolérance ({early_departure_margin}min)")
                                 else:
                                     self.logger.debug(f"Départ normal de l'après-midi: {current_time} (fin prévue: {schedule_detail.end_time_2})")
 
@@ -413,39 +471,45 @@ class AnomalyProcessor:
 
                                 # Vérifier si la durée est inférieure à la durée minimale requise
                                 if duration_minutes < min_duration:
-                                    timesheet.is_early_departure = True
+                                    # Calculer les minutes manquantes
                                     early_minutes = int(min_duration - duration_minutes)
-                                    timesheet.early_departure_minutes = early_minutes
-                                    self.logger.info(f"Départ anticipé détecté: {early_minutes} minutes manquantes")
 
-                                    # Vérifier si une anomalie similaire existe déjà
-                                    existing_anomaly = Anomaly.objects.filter(
-                                        employee=employee,
-                                        site=site,
-                                        date=current_date,
-                                        anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                        minutes=early_minutes
-                                    ).first()
+                                    # Ne créer une anomalie que si le départ est réellement anticipé (minutes > 0)
+                                    if early_minutes > 0:
+                                        timesheet.is_early_departure = True
+                                        timesheet.early_departure_minutes = early_minutes
+                                        self.logger.info(f"Départ anticipé détecté: {early_minutes} minutes manquantes")
 
-                                    if not existing_anomaly:
-                                        # Créer une anomalie pour le départ anticipé en mode fréquence
-                                        anomaly = Anomaly.objects.create(
+                                        # Vérifier si une anomalie similaire existe déjà
+                                        existing_anomaly = Anomaly.objects.filter(
                                             employee=employee,
                                             site=site,
-                                            timesheet=timesheet,
                                             date=current_date,
                                             anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                                            description=f'Durée insuffisante: {duration_minutes:.1f} minutes au lieu de {min_duration:.1f} minutes minimum (tolérance: {tolerance_percentage}%).',
-                                            minutes=early_minutes,
-                                            status=Anomaly.AnomalyStatus.PENDING,
-                                            schedule=schedule
-                                        )
-                                        anomaly.related_timesheets.add(timesheet)
-                                        self._anomalies_detected = True
-                                        created_anomalies.append(anomaly)
-                                        self.logger.info(f"Anomalie créée: EARLY_DEPARTURE (fréquence) - Durée insuffisante: {duration_minutes:.1f}min au lieu de {min_duration:.1f}min pour {employee.get_full_name()} à {site.name}")
+                                            minutes=early_minutes
+                                        ).first()
+
+                                        if not existing_anomaly:
+                                            # Créer une anomalie pour le départ anticipé en mode fréquence
+                                            anomaly = Anomaly.objects.create(
+                                                employee=employee,
+                                                site=site,
+                                                timesheet=timesheet,
+                                                date=current_date,
+                                                anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                                                description=f'Durée insuffisante: {duration_minutes:.1f} minutes au lieu de {min_duration:.1f} minutes minimum (tolérance: {tolerance_percentage}%).',
+                                                minutes=early_minutes,
+                                                status=Anomaly.AnomalyStatus.PENDING,
+                                                schedule=schedule
+                                            )
+                                            anomaly.related_timesheets.add(timesheet)
+                                            self._anomalies_detected = True
+                                            created_anomalies.append(anomaly)
+                                            self.logger.info(f"Anomalie créée: EARLY_DEPARTURE (fréquence) - Durée insuffisante: {duration_minutes:.1f}min au lieu de {min_duration:.1f}min pour {employee.get_full_name()} à {site.name}")
+                                        else:
+                                            self.logger.info(f"Anomalie existante trouvée pour la durée insuffisante de {employee.get_full_name()} à {site.name}, pas de création de doublon")
                                     else:
-                                        self.logger.info(f"Anomalie existante trouvée pour la durée insuffisante de {employee.get_full_name()} à {site.name}, pas de création de doublon")
+                                        self.logger.debug(f"Durée presque suffisante: {duration_minutes:.1f} minutes, seulement {early_minutes} minutes manquantes")
                                 else:
                                     self.logger.info(f"Durée suffisante: {duration_minutes:.1f} minutes >= {min_duration:.1f} minutes minimales requises")
 
@@ -527,7 +591,13 @@ class AnomalyProcessor:
         return created_anomaly
 
     def _create_early_departure_anomaly(self, timesheet, early_minutes, early_departure_margin, schedule):
-        """Crée une anomalie de départ anticipé"""
+        """Crée une anomalie de départ anticipé
+
+        Ne crée une anomalie que si:
+        1. Aucune anomalie similaire n'existe déjà
+        2. Le départ est réellement anticipé (minutes > 0)
+        3. Le départ anticipé dépasse la marge de tolérance
+        """
         # Vérifier si une anomalie similaire existe déjà pour ce pointage ou cette date/employé/site
         existing_anomaly = Anomaly.objects.filter(
             employee=timesheet.employee,
@@ -825,7 +895,7 @@ class AnomalyProcessor:
                                 elif schedule_detail.start_time_2:
                                     description += f" (heure prévue: {schedule_detail.start_time_2})"
 
-                                anomaly = Anomaly.objects.create(
+                                created_anomaly = Anomaly.objects.create(
                                     employee=site_employee.employee,
                                     site=site_employee.site,
                                     date=current_date,
@@ -871,7 +941,7 @@ class AnomalyProcessor:
                                 # Créer une anomalie pour l'arrivée manquante
                                 description = f"Pointage manquant selon le planning fréquence (durée prévue: {schedule_detail.frequency_duration} minutes)"
 
-                                anomaly = Anomaly.objects.create(
+                                created_anomaly = Anomaly.objects.create(
                                     employee=site_employee.employee,
                                     site=site_employee.site,
                                     date=current_date,
