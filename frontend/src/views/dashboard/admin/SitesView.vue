@@ -36,15 +36,24 @@
 
     <!-- Tableau -->
     <v-data-table
+      v-model:page="page"
       :headers="headers"
       :items="filteredSites"
       :loading="loading"
       :no-data-text="'Aucun site trouvé'"
       :loading-text="'Chargement des sites...'"
       :sort-by="[{ key: 'name' }]"
-      :items-per-page="-1"
-      hide-default-footer
+      :items-per-page="itemsPerPage"
+      :items-length="filteredSites.length"
       class="elevation-1"
+      :items-per-page-options="[
+        { title: '5', value: 5 },
+        { title: '10', value: 10 },
+        { title: '15', value: 15 },
+        { title: 'Tout', value: -1 }
+      ]"
+      :page-text="'{0}-{1} sur {2}'"
+      :items-per-page-text="'Lignes par page'"
       @click:row="handleRowClick"
     >
       <!-- Adresse -->
@@ -653,6 +662,9 @@ const filteredSites = computed(() => {
   console.log('[Sites][Filter] Nombre de sites après filtrage:', filtered.length)
   return filtered
 })
+
+const page = ref(1)
+const itemsPerPage = ref(10)
 </script>
 
 <style scoped>

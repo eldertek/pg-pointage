@@ -51,15 +51,24 @@
     <!-- Tableau des utilisateurs -->
     <v-data-table
       v-if="canView"
+      v-model:page="page"
       :headers="headers"
       :items="filteredUsers"
-      :items-per-page="-1"
+      :items-per-page="itemsPerPage"
+      :items-length="filteredUsers.length"
       :loading="loading"
       :no-data-text="'Aucun utilisateur trouvé'"
       :loading-text="'Chargement des utilisateurs...'"
       :sort-by="[{ key: 'last_name' }, { key: 'first_name' }, { key: 'role' }]"
       class="elevation-1"
-      hide-default-footer
+      :items-per-page-options="[
+        { title: '5', value: 5 },
+        { title: '10', value: 10 },
+        { title: '15', value: 15 },
+        { title: 'Tout', value: -1 }
+      ]"
+      :page-text="'{0}-{1} sur {2}'"
+      :items-per-page-text="'Lignes par page'"
       @click:row="handleRowClick"
     >
       <!-- Rôle -->
@@ -1040,6 +1049,9 @@ const resetFormState = () => {
     form.value.resetValidation();
   }
 }
+
+const page = ref(1)
+const itemsPerPage = ref(10)
 </script>
 
 <style scoped>

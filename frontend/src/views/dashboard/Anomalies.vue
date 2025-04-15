@@ -114,14 +114,23 @@
 
     <v-card>
       <v-data-table
+        v-model:page="page"
         :headers="headers"
         :items="anomalies"
         :loading="loading"
-        :items-per-page="-1"
+        :items-per-page="itemsPerPage"
+        :items-length="anomalies.length"
         :no-data-text="'Aucune anomalie trouvée'"
         :loading-text="'Chargement des anomalies...'"
-        :hide-default-footer="true"
         class="elevation-1"
+        :items-per-page-options="[
+          { title: '5', value: 5 },
+          { title: '10', value: 10 },
+          { title: '15', value: 15 },
+          { title: 'Tout', value: -1 }
+        ]"
+        :page-text="'{0}-{1} sur {2}'"
+        :items-per-page-text="'Lignes par page'"
         @click:row="handleRowClick"
       >
         <template #created_at="{ item }">
@@ -385,6 +394,9 @@ export default {
     ])
 
     const anomalies = ref([])
+
+    const page = ref(1)
+    const itemsPerPage = ref(10)
 
     // Charger les sites
     const loadSites = async () => {
@@ -837,7 +849,9 @@ export default {
       showAnomalyDetails,
       resolveSelectedAnomaly,
       ignoreSelectedAnomaly,
-      deleteSelectedAnomaly
+      deleteSelectedAnomaly,
+      page,
+      itemsPerPage
     }
   }
 }

@@ -42,14 +42,20 @@
     </v-card>
 
     <v-card>
-      <!-- Debug info -->
-      <div v-if="timesheets.length > 0" class="pa-2 text-caption">
-        {{ timesheets.length }} pointages trouvés
-      </div>
-
-      <v-data-table :headers="headers" :items="timesheets" :loading="loading" :items-per-page="-1"
-        :no-data-text="'Aucun pointage trouvé'" :loading-text="'Chargement des pointages...'" hide-default-footer
-        class="elevation-1" @click:row="showDetails">
+      <v-data-table :headers="headers" :items="timesheets" :loading="loading" :items-per-page="itemsPerPage"
+        :page.sync="page"
+        :items-length="timesheets.length"
+        :no-data-text="'Aucun pointage trouvé'" :loading-text="'Chargement des pointages...'"
+        class="elevation-1"
+        :items-per-page-options="[
+          { title: '5', value: 5 },
+          { title: '10', value: 10 },
+          { title: '15', value: 15 },
+          { title: 'Tout', value: -1 }
+        ]"
+        :page-text="'{0}-{1} sur {2}'"
+        :items-per-page-text="'Lignes par page'"
+        @click:row="showDetails">
         <template #item.entry_type="{ item }">
           <v-chip :color="item.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'" size="small">
             {{ getEntryTypeLabel(item.entry_type) }}
@@ -582,6 +588,9 @@ const loadSites = async () => {
     siteOptions.value = []
   }
 }
+
+const page = ref(1)
+const itemsPerPage = ref(10)
 
 onMounted(() => {
   if (currentSiteId.value) {
