@@ -9,74 +9,33 @@
       <v-card-text>
         <DashboardFilters @reset="resetFilters">
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
-            <v-text-field
-              v-model="filters.employee"
-              label="Employé"
-              variant="outlined"
-              prepend-inner-icon="mdi-account-search"
-              clearable
-              @update:model-value="applyFilters"
-            ></v-text-field>
+            <v-text-field v-model="filters.employee" label="Employé" variant="outlined"
+              prepend-inner-icon="mdi-account-search" clearable @update:model-value="applyFilters"></v-text-field>
           </v-col>
 
           <v-col v-if="!currentSiteId" cols="12" :md="currentSiteId ? 4 : 3">
-            <v-select
-              v-model="filters.site"
-              label="Site"
-              :items="siteOptions"
-              variant="outlined"
-              prepend-inner-icon="mdi-map-marker"
-              clearable
-              @update:model-value="applyFilters"
-            ></v-select>
+            <v-select v-model="filters.site" label="Site" :items="siteOptions" variant="outlined"
+              prepend-inner-icon="mdi-map-marker" clearable @update:model-value="applyFilters"></v-select>
           </v-col>
 
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
-            <v-select
-              v-model="filters.entryType"
-              label="Type de pointage"
-              :items="entryTypeOptions"
-              variant="outlined"
-              prepend-inner-icon="mdi-clock-time-four"
-              clearable
-              @update:model-value="applyFilters"
-            ></v-select>
+            <v-select v-model="filters.entryType" label="Type de pointage" :items="entryTypeOptions" variant="outlined"
+              prepend-inner-icon="mdi-clock-time-four" clearable @update:model-value="applyFilters"></v-select>
           </v-col>
 
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
-            <v-select
-              v-model="filters.status"
-              label="Statut"
-              :items="statusOptions"
-              variant="outlined"
-              prepend-inner-icon="mdi-alert-circle"
-              clearable
-              @update:model-value="applyFilters"
-            ></v-select>
+            <v-select v-model="filters.status" label="Statut" :items="statusOptions" variant="outlined"
+              prepend-inner-icon="mdi-alert-circle" clearable @update:model-value="applyFilters"></v-select>
           </v-col>
 
           <v-col cols="12" md="4">
-            <v-text-field
-              v-model="filters.startDate"
-              label="Du"
-              type="date"
-              variant="outlined"
-              prepend-inner-icon="mdi-calendar"
-              clearable
-              @update:model-value="applyFilters"
-            ></v-text-field>
+            <v-text-field v-model="filters.startDate" label="Du" type="date" variant="outlined"
+              prepend-inner-icon="mdi-calendar" clearable @update:model-value="applyFilters"></v-text-field>
           </v-col>
 
           <v-col cols="12" md="4">
-            <v-text-field
-              v-model="filters.endDate"
-              label="Au"
-              type="date"
-              variant="outlined"
-              prepend-inner-icon="mdi-calendar"
-              clearable
-              @update:model-value="applyFilters"
-            ></v-text-field>
+            <v-text-field v-model="filters.endDate" label="Au" type="date" variant="outlined"
+              prepend-inner-icon="mdi-calendar" clearable @update:model-value="applyFilters"></v-text-field>
           </v-col>
         </DashboardFilters>
       </v-card-text>
@@ -88,53 +47,26 @@
         {{ timesheets.length }} pointages trouvés
       </div>
 
-      <v-data-table
-        :headers="headers"
-        :items="timesheets"
-        :loading="loading"
-        :items-per-page="-1"
-        :no-data-text="'Aucun pointage trouvé'"
-        :loading-text="'Chargement des pointages...'"
-        hide-default-footer
-        class="elevation-1"
-        @click:row="showDetails"
-      >
+      <v-data-table :headers="headers" :items="timesheets" :loading="loading" :items-per-page="-1"
+        :no-data-text="'Aucun pointage trouvé'" :loading-text="'Chargement des pointages...'" hide-default-footer
+        class="elevation-1" @click:row="showDetails">
         <template #item.entry_type="{ item }">
-          <v-chip
-            :color="item.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'"
-            size="small"
-          >
+          <v-chip :color="item.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'" size="small">
             {{ getEntryTypeLabel(item.entry_type) }}
           </v-chip>
         </template>
         <template #item.status="{ item }">
-          <v-chip
-            :color="getStatusColor(item)"
-            size="small"
-          >
+          <v-chip :color="getStatusColor(item)" size="small">
             {{ getStatusLabel(item) }}
           </v-chip>
         </template>
         <template #item.actions="{ item }">
-          <v-btn
-            v-if="canEditTimesheet"
-            icon="mdi-pencil"
-            size="small"
-            color="primary"
-            variant="text"
-            class="mr-2"
-            @click.stop="editTimesheet(item)"
-          >
+          <v-btn v-if="canEditTimesheet" icon="mdi-pencil" size="small" color="primary" variant="text" class="mr-2"
+            @click.stop="editTimesheet(item)">
             <v-tooltip activator="parent" location="top">Modifier</v-tooltip>
           </v-btn>
-          <v-btn
-            v-if="canEditTimesheet"
-            icon="mdi-delete"
-            size="small"
-            color="error"
-            variant="text"
-            @click.stop="confirmDelete(item)"
-          >
+          <v-btn v-if="canEditTimesheet" icon="mdi-delete" size="small" color="error" variant="text"
+            @click.stop="confirmDelete(item)">
             <v-tooltip activator="parent" location="top">Supprimer</v-tooltip>
           </v-btn>
         </template>
@@ -177,7 +109,8 @@
                     <v-icon color="primary">mdi-clock-outline</v-icon>
                   </template>
                   <v-list-item-title class="text-subtitle-2 mb-1">Date et heure</v-list-item-title>
-                  <v-list-item-subtitle>{{ selectedTimesheet.date }} à {{ selectedTimesheet.time }}</v-list-item-subtitle>
+                  <v-list-item-subtitle>{{ selectedTimesheet.date }} à {{ selectedTimesheet.time
+                    }}</v-list-item-subtitle>
                 </v-list-item>
 
                 <v-list-item>
@@ -186,10 +119,8 @@
                   </template>
                   <v-list-item-title class="text-subtitle-2 mb-1">Type</v-list-item-title>
                   <v-list-item-subtitle>
-                    <v-chip
-                      :color="selectedTimesheet.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'"
-                      size="small"
-                    >
+                    <v-chip :color="selectedTimesheet.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'"
+                      size="small">
                       {{ getEntryTypeLabel(selectedTimesheet.entry_type) }}
                     </v-chip>
                   </v-list-item-subtitle>
@@ -201,10 +132,7 @@
                   </template>
                   <v-list-item-title class="text-subtitle-2 mb-1">Statut</v-list-item-title>
                   <v-list-item-subtitle>
-                    <v-chip
-                      :color="getStatusColor(selectedTimesheet)"
-                      size="small"
-                    >
+                    <v-chip :color="getStatusColor(selectedTimesheet)" size="small">
                       {{ getStatusLabel(selectedTimesheet) }}
                     </v-chip>
                   </v-list-item-subtitle>
@@ -220,11 +148,15 @@
                     <div class="text-caption">
                       Type: {{ selectedTimesheet.schedule_details.schedule_type_display }}
                       <template v-if="selectedTimesheet.schedule_details.schedule_type === 'FIXED'">
-                        <div v-if="selectedTimesheet.schedule_details.start_time_1 && selectedTimesheet.schedule_details.end_time_1">
-                          Matin: {{ formatTime(selectedTimesheet.schedule_details.start_time_1) }} - {{ formatTime(selectedTimesheet.schedule_details.end_time_1) }}
+                        <div
+                          v-if="selectedTimesheet.schedule_details.start_time_1 && selectedTimesheet.schedule_details.end_time_1">
+                          Matin: {{ formatTime(selectedTimesheet.schedule_details.start_time_1) }} - {{
+                            formatTime(selectedTimesheet.schedule_details.end_time_1) }}
                         </div>
-                        <div v-if="selectedTimesheet.schedule_details.start_time_2 && selectedTimesheet.schedule_details.end_time_2">
-                          Après-midi: {{ formatTime(selectedTimesheet.schedule_details.start_time_2) }} - {{ formatTime(selectedTimesheet.schedule_details.end_time_2) }}
+                        <div
+                          v-if="selectedTimesheet.schedule_details.start_time_2 && selectedTimesheet.schedule_details.end_time_2">
+                          Après-midi: {{ formatTime(selectedTimesheet.schedule_details.start_time_2) }} - {{
+                            formatTime(selectedTimesheet.schedule_details.end_time_2) }}
                         </div>
                       </template>
                       <template v-else-if="selectedTimesheet.schedule_details.schedule_type === 'FREQUENCY'">
@@ -248,27 +180,18 @@
             </v-col>
 
             <v-col v-if="selectedTimesheet.latitude && selectedTimesheet.longitude" cols="12" md="6">
-              <div id="mapContainer" style="height: 300px; width: 100%; border-radius: 4px; position: relative; z-index: 1;"></div>
+              <div id="mapContainer"
+                style="height: 300px; width: 100%; border-radius: 4px; position: relative; z-index: 1;"></div>
             </v-col>
           </v-row>
         </v-card-text>
 
         <v-card-actions v-if="canEditTimesheet">
           <v-spacer></v-spacer>
-          <v-btn
-            color="primary"
-            variant="text"
-            prepend-icon="mdi-pencil"
-            @click="editTimesheet(selectedTimesheet)"
-          >
+          <v-btn color="primary" variant="text" prepend-icon="mdi-pencil" @click="editTimesheet(selectedTimesheet)">
             Modifier
           </v-btn>
-          <v-btn
-            color="error"
-            variant="text"
-            prepend-icon="mdi-delete"
-            @click="confirmDelete(selectedTimesheet)"
-          >
+          <v-btn color="error" variant="text" prepend-icon="mdi-delete" @click="confirmDelete(selectedTimesheet)">
             Supprimer
           </v-btn>
         </v-card-actions>
@@ -286,26 +209,14 @@
 
         <v-card-text>
           <v-form ref="editForm">
-            <v-text-field
-              v-model="editingTimesheet.timestamp"
-              label="Date et heure"
-              type="datetime-local"
-              variant="outlined"
-            ></v-text-field>
+            <v-text-field v-model="editingTimesheet.timestamp" label="Date et heure" type="datetime-local"
+              variant="outlined"></v-text-field>
 
-            <v-select
-              v-model="editingTimesheet.entry_type"
-              :items="entryTypeOptions"
-              label="Type de pointage"
-              variant="outlined"
-            ></v-select>
+            <v-select v-model="editingTimesheet.entry_type" :items="entryTypeOptions" label="Type de pointage"
+              variant="outlined"></v-select>
 
-            <v-textarea
-              v-model="editingTimesheet.correction_note"
-              label="Note de correction"
-              variant="outlined"
-              rows="3"
-            ></v-textarea>
+            <v-textarea v-model="editingTimesheet.correction_note" label="Note de correction" variant="outlined"
+              rows="3"></v-textarea>
           </v-form>
         </v-card-text>
 
@@ -495,7 +406,7 @@ const fetchTimesheets = async () => {
     console.log('Réponse API complète:', response)
     console.log('Données reçues:', response.data)
 
-    const results = response.data.results || []
+    const results = Array.isArray(response.data) ? response.data : (response.data.results || []);
     console.log('Nombre de résultats:', results.length)
 
     // Format timesheets for display
@@ -761,4 +672,3 @@ onMounted(() => {
   opacity: 0 !important;
 }
 </style>
-
