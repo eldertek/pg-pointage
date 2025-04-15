@@ -133,17 +133,15 @@
         :items-per-page-text="'Lignes par page'"
         @click:row="handleRowClick"
       >
-        <template #created_at="{ item }">
-          <div @click="console.log('Item clicked:', item)">
-            {{ formatDate(item.raw.created_at) }}
-          </div>
+        <template #item.formatted_date="{ item }">
+          {{ formatDate(item.date) }}
         </template>
-        <template #type="{ item }">
+        <template #item.anomaly_type_display="{ item }">
           <v-chip
-            :color="getTypeColor(item.raw.anomaly_type_display)"
+            :color="getTypeColor(item.anomaly_type_display)"
             size="small"
           >
-            {{ item.raw.anomaly_type_display }}
+            {{ item.anomaly_type_display }}
           </v-chip>
         </template>
 
@@ -526,13 +524,7 @@ export default {
 
           anomalies.value = response.data.results.map(anomaly => ({
             ...anomaly,
-            formatted_date: new Date(anomaly.created_at).toLocaleString('fr-FR', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })
+            formatted_date: formatDate(anomaly.date)
           }))
           console.log('Anomalies formatées:', anomalies.value)
         } else if (Array.isArray(response.data)) {
