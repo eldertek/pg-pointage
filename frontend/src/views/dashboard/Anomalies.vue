@@ -362,6 +362,7 @@ export default {
       { title: 'Employé', align: 'start', key: 'employee_name' },
       { title: 'Site', align: 'start', key: 'site_name' },
       { title: 'Type', align: 'center', key: 'anomaly_type_display' },
+      { title: 'Description', align: 'start', key: 'description' },
       { title: 'Actions', align: 'center', key: 'actions', sortable: false }
     ])
 
