@@ -664,12 +664,34 @@ onMounted(() => {
   z-index: 1 !important;
 }
 
-/* Style des boutons dans le tableau */
+/* Styles pour les boutons d'action dans le tableau */
+:deep(.v-data-table .v-data-table__td--action) {
+  padding: 0 8px !important;
+  white-space: nowrap !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+:deep(.v-data-table .v-data-table__td--action .v-btn) {
+  margin: 0 2px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 10 !important;
+  position: relative !important;
+  display: inline-flex !important;
+}
+
 :deep(.v-data-table .v-btn--icon) {
   background-color: transparent !important;
   opacity: 1 !important;
   visibility: visible !important;
   display: inline-flex !important;
+  z-index: 10 !important;
 }
 
 :deep(.v-data-table .v-btn--icon[color="primary"]) {
@@ -730,77 +752,17 @@ onMounted(() => {
   opacity: 0 !important;
 }
 
-/* Style spécifique pour les boutons d'action dans la colonne actions */
-:deep(.v-data-table .v-data-table__td--action .v-btn) {
-  margin: 0 2px;
-  min-width: 36px;
-  min-height: 36px;
-  opacity: 1 !important;
-  visibility: visible !important;
-  z-index: 5 !important;
-}
-
-:deep(.v-data-table .v-data-table__td--action) {
-  padding: 0 8px;
-  white-space: nowrap;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
 /* Styles supplémentaires pour assurer la visibilité des boutons d'action */
+:deep(.v-data-table tbody tr td:last-child) {
+  position: relative !important;
+  z-index: 10 !important;
+}
+
 :deep(.v-data-table tbody tr td:last-child .v-btn) {
   opacity: 1 !important;
   visibility: visible !important;
   display: inline-flex !important;
-  z-index: 5 !important;
-}
-
-:deep(.v-data-table tbody tr .v-btn--icon) {
-  margin: 0 4px;
-  border: none;
-  display: inline-flex !important;
-  min-width: 36px;
-  height: 36px;
-  opacity: 1 !important;
-  z-index: 5 !important;
-}
-
-:deep(.v-data-table .v-data-table-header__icon) {
-  opacity: 1 !important;
-}
-
-/* Surcharge des styles possiblement conflictuels */
-:deep(.v-data-table .v-btn) {
-  opacity: 1 !important;
-  visibility: visible !important;
-  z-index: 5 !important;
-}
-
-/* Styles pour la colonne actions */
-:deep(.v-data-table tbody td:last-child) {
-  position: relative !important;
-  overflow: visible !important;
-}
-
-:deep(.v-data-table .v-data-table__td--action) {
-  padding: 0 8px;
-  white-space: nowrap;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative !important;
-  overflow: visible !important;
-}
-
-:deep(.v-data-table .v-data-table__td--action .v-btn) {
-  margin: 0 2px;
-  min-width: 36px;
-  min-height: 36px;
-  opacity: 1 !important;
-  visibility: visible !important;
-  z-index: 5 !important;
-  position: relative !important;
+  z-index: 10 !important;
 }
 
 /* Empêcher que d'autres éléments couvrent les boutons */
@@ -822,5 +784,15 @@ onMounted(() => {
   opacity: 1 !important;
   visibility: visible !important;
   color: currentColor !important;
+}
+
+/* Surcharge des styles de Vuetify qui pourraient causer des problèmes */
+:deep(.v-data-table .v-data-table__td) {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+:deep(.v-data-table .v-data-table__td--action) {
+  z-index: 10 !important;
 }
 </style>
