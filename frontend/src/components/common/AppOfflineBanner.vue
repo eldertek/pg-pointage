@@ -9,13 +9,14 @@
 
 <script>
 import { ref, onMounted, onUnmounted } from 'vue'
+import api from '@/services/api'
 
 export default {
   name: 'AppOfflineBanner',
   setup() {
     const isReallyOffline = ref(false)
     const pingInterval = ref(null)
-    const pingUrl = '/api/v1/users/profile/' // Use an existing endpoint for connectivity check
+    // Use the API service for connectivity check
     const lastCheckTime = ref(new Date().toISOString())
     const lastCheckResult = ref('Not checked yet')
 
@@ -41,7 +42,7 @@ export default {
       while (attempts < maxAttempts) {
         try {
           attempts++
-          console.log(`[AppOfflineBanner] Connection attempt ${attempts}/${maxAttempts} to ${pingUrl}`)
+          console.log(`[AppOfflineBanner] Connection attempt ${attempts}/${maxAttempts} using API service`)
 
           // Try to fetch from the server with a timeout
           const controller = new AbortController()
@@ -50,15 +51,13 @@ export default {
             controller.abort()
           }, 5000) // 5 second timeout
 
-          console.log('[AppOfflineBanner] Sending fetch request...')
+          console.log('[AppOfflineBanner] Sending API request...')
           const startTime = performance.now()
 
-          const response = await fetch(pingUrl, {
-            method: 'HEAD', // Just check headers, don't need body
-            cache: 'no-store', // Don't use cache
-            signal: controller.signal,
-            // Include credentials to handle authenticated endpoints
-            credentials: 'include'
+          // Use the API instance instead of direct fetch
+          const response = await api.get('/users/profile/', {
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal
           })
 
           const endTime = performance.now()
@@ -68,7 +67,7 @@ export default {
           console.log(`[AppOfflineBanner] Received response in ${requestTime}ms with status:`, response.status)
 
           // If we get a successful response, we're online
-          if (response.ok) {
+          if (response.status >= 200 && response.status < 300) {
             if (isReallyOffline.value) {
               console.log('[AppOfflineBanner] Connection restored (200 OK)')
             }
@@ -80,7 +79,7 @@ export default {
 
           // If response is not OK but it's a 401 Unauthorized, we're still online
           // just not authenticated, which is fine for connectivity check
-          if (response.status === 401) {
+          if (response.status === 401 || response.status === 403) {
             if (isReallyOffline.value) {
               console.log('[AppOfflineBanner] Connection restored (401 response)')
             }
@@ -100,8 +99,11 @@ export default {
           }
 
         } catch (error) {
-          console.log(`[AppOfflineBanner] Connection check attempt ${attempts}/${maxAttempts} failed:`, error.name, error.message)
-          lastCheckResult.value = `Error: ${error.name} - ${error.message}`
+          console.log(`[AppOfflineBanner] Connection check attempt ${attempts}/${maxAttempts} failed:`, error)
+          // Handle Axios error format which is different from fetch
+          const errorName = error.name || 'NetworkError'
+          const errorMessage = error.message || 'Connection failed'
+          lastCheckResult.value = `Error: ${errorName} - ${errorMessage}`
 
           // Wait a bit before retrying
           if (attempts < maxAttempts) {
