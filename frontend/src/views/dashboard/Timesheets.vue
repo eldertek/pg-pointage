@@ -74,16 +74,18 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
           </v-chip>
         </template>
         <template #item.actions="{ item }">
-          <v-btn
+          <div class="d-flex justify-center">
+            <v-btn
 v-if="canEditTimesheet" icon="mdi-pencil" size="small" color="primary" variant="text" class="mr-2 action-button"
-            @click.stop="editTimesheet(item)">
-            <v-tooltip activator="parent" location="top">Modifier</v-tooltip>
-          </v-btn>
-          <v-btn
+              @click.stop="editTimesheet(item)">
+              <v-tooltip activator="parent" location="top">Modifier</v-tooltip>
+            </v-btn>
+            <v-btn
 v-if="canEditTimesheet" icon="mdi-delete" size="small" color="error" variant="text" class="action-button"
-            @click.stop="confirmDelete(item)">
-            <v-tooltip activator="parent" location="top">Supprimer</v-tooltip>
-          </v-btn>
+              @click.stop="confirmDelete(item)">
+              <v-tooltip activator="parent" location="top">Supprimer</v-tooltip>
+            </v-btn>
+          </div>
         </template>
       </v-data-table>
     </v-card>
@@ -300,7 +302,7 @@ const headers = ref([
   { title: 'Site', align: 'start' as const, key: 'site' },
   { title: 'Type', align: 'center' as const, key: 'entry_type' },
   { title: 'Statut', align: 'center' as const, key: 'status' },
-  { title: 'Actions', align: 'center' as const, key: 'actions', sortable: false }
+  { title: 'Actions', align: 'center' as const, key: 'actions', sortable: false, width: '120px' }
 ])
 
 console.log('Headers du tableau:', headers.value)
@@ -780,5 +782,21 @@ onMounted(() => {
 /* Empêcher que d'autres éléments couvrent les boutons */
 :deep(.v-data-table) {
   overflow: visible !important;
+}
+
+/* Styles spécifiques pour les boutons d'action */
+.action-button {
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 10 !important;
+  position: relative !important;
+  display: inline-flex !important;
+}
+
+/* Forcer la visibilité des icônes dans les boutons */
+:deep(.v-btn .v-icon) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  color: currentColor !important;
 }
 </style>
