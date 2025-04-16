@@ -623,7 +623,7 @@ const timesheetsApi = {
 
   // Update a timesheet
   updateTimesheet: (id: number, data: any) =>
-    api.put(`/timesheets/${id}/`, convertKeysToSnakeCase(data)),
+    api.patch(`/timesheets/${id}/`, convertKeysToSnakeCase(data)),
 
   // Delete a timesheet
   deleteTimesheet: (id: number) =>

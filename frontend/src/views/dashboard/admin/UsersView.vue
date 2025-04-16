@@ -165,7 +165,7 @@
     <!-- Formulaire -->
     <template #form>
       <DashboardForm ref="form" :errors="formErrors" @submit="saveUser">
-        <v-col cols="12" sm="6">
+        <v-col v-if="editedItem" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).last_name"
             label="Nom"
@@ -174,7 +174,7 @@
             autocomplete="family-name"
           ></v-text-field>
         </v-col>
-        <v-col cols="12" sm="6">
+        <v-col v-if="editedItem" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).first_name"
             label="Prénom"
@@ -183,7 +183,7 @@
             autocomplete="given-name"
           ></v-text-field>
         </v-col>
-        <v-col cols="12" sm="6">
+        <v-col v-if="editedItem" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).phone_number"
             label="Téléphone"
@@ -192,7 +192,7 @@
             autocomplete="tel"
           ></v-text-field>
         </v-col>
-        <v-col v-if="(editedItem as UserFormData).id" cols="12" sm="6">
+        <v-col v-if="editedItem && (editedItem as UserFormData).id" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).employee_id"
             label="ID"
@@ -202,7 +202,7 @@
             autocomplete="off"
           ></v-text-field>
         </v-col>
-        <v-col cols="12" sm="6">
+        <v-col v-if="editedItem" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).email"
             label="Email"
@@ -213,7 +213,7 @@
             @update:model-value="handleEmailChange"
           ></v-text-field>
         </v-col>
-        <v-col cols="12" sm="6">
+        <v-col v-if="editedItem" cols="12" sm="6">
           <v-select
             v-model="(editedItem as UserFormData).role"
             :items="roles"
@@ -225,7 +225,7 @@
           ></v-select>
         </v-col>
         <!-- Sélection des organisations pour tous les rôles sauf Super Admin -->
-        <v-col v-if="(editedItem as UserFormData).role !== RoleEnum.SUPER_ADMIN" cols="12" sm="6">
+        <v-col v-if="editedItem && (editedItem as UserFormData).role !== RoleEnum.SUPER_ADMIN" cols="12" sm="6">
           <v-select
             v-model="selectedOrganizations"
             :items="organizationItems"
@@ -259,7 +259,7 @@
         </v-col>
 
         <!-- Mot de passe en mode création -->
-        <v-col v-if="!(editedItem as UserFormData).id" cols="12" sm="6">
+        <v-col v-if="editedItem && !(editedItem as UserFormData).id" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).password"
             label="Mot de passe"
@@ -285,7 +285,7 @@
         </v-col>
 
         <!-- Confirmation mot de passe en mode création -->
-        <v-col v-if="!(editedItem as UserFormData).id" cols="12" sm="6">
+        <v-col v-if="editedItem && !(editedItem as UserFormData).id" cols="12" sm="6">
           <v-text-field
             v-model="confirmPassword"
             label="Confirmer le mot de passe"
@@ -294,7 +294,7 @@
             :error-messages="formErrors.confirm_password"
             :rules="[
               v => !!v || 'La confirmation du mot de passe est requise',
-              v => v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
+              v => !editedItem || v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
             ]"
             autocomplete="new-password"
           >
@@ -311,7 +311,7 @@
         </v-col>
 
         <!-- Préférence de scan (pour les employés) -->
-        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
+        <v-col v-if="editedItem && (editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
           <v-select
             v-model="(editedItem as UserFormData).scan_preference"
             :items="scanPreferences"
@@ -324,7 +324,7 @@
         </v-col>
 
         <!-- Switch pour la vue mobile simplifiée (pour les employés) -->
-        <v-col v-if="(editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
+        <v-col v-if="editedItem && (editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
           <v-switch
             v-model="(editedItem as UserFormData).simplified_mobile_view"
             label="Vue mobile simplifiée"
@@ -333,7 +333,7 @@
         </v-col>
 
         <!-- Section de réinitialisation du mot de passe (uniquement en mode modification) -->
-        <v-col v-if="(editedItem as UserFormData).id" cols="12">
+        <v-col v-if="editedItem && (editedItem as UserFormData).id" cols="12">
           <v-divider class="my-4"></v-divider>
           <v-card-title class="text-subtitle-1 font-weight-medium">
             Réinitialisation du mot de passe
@@ -351,7 +351,7 @@
         </v-col>
 
         <!-- Mot de passe en mode modification -->
-        <v-col v-if="(editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
+        <v-col v-if="editedItem && (editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).password"
             label="Nouveau mot de passe"
@@ -377,14 +377,14 @@
         </v-col>
 
         <!-- Confirmation mot de passe en mode modification -->
-        <v-col v-if="(editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
+        <v-col v-if="editedItem && (editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
           <v-text-field
             v-model="confirmPassword"
             label="Confirmer le nouveau mot de passe"
             :type="showConfirmPassword ? 'text' : 'password'"
             :error-messages="formErrors.confirm_password"
             :rules="[
-              v => !v || v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
+              v => !v || !editedItem || v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
             ]"
             hint="Laissez vide pour ne pas modifier le mot de passe"
             persistent-hint
@@ -719,8 +719,7 @@ const selectedOrganizations = ref<number[]>([]);
 
 // Watcher pour synchroniser les changements
 watch(() => editedItem.value?.organizations, (newVal) => {
-  console.log('[Debug][Orgs] Watcher déclenché avec:', JSON.stringify(newVal));
-  if (newVal) {
+  if (Array.isArray(newVal)) {
     selectedOrganizations.value = [...newVal];
     console.log('[Debug][Orgs] Mise à jour selectedOrganizations:', JSON.stringify(selectedOrganizations.value));
   }
@@ -761,7 +760,16 @@ onMounted(async () => {
 
 const openDialog = (item?: ExtendedUser) => {
   // Réinitialiser complètement l'état du formulaire
-  resetFormState();
+  // Mais ne pas mettre editedItem à null tout de suite
+  formErrors.value = {};
+  confirmPassword.value = '';
+  showPassword.value = false;
+  showConfirmPassword.value = false;
+
+  // Réinitialiser la validation du formulaire si nécessaire
+  if (form.value?.resetValidation) {
+    form.value.resetValidation();
+  }
 
   if (item) {
     console.log('[Users][OpenDialog] Item organizations:', JSON.stringify(item.organizations));
@@ -913,21 +921,27 @@ const saveUser = async () => {
       )
 
       if (userData.id) {
-        await usersApi.updateUser(userData.id, {
+        // Ne pas envoyer le champ password s'il est vide
+        const updatePayload = {
           ...userData,
           organizations: organizations
-        })
+        };
+        if (!userData.password) {
+          delete updatePayload.password;
+        }
+        await usersApi.updateUser(userData.id, updatePayload);
       } else {
         await usersApi.createUser({
           ...userData,
           organizations: organizations
-        })
+        });
       }
       await loadUsers()
       dashboardView.value.showForm = false
-
-      // Réinitialiser complètement l'état du formulaire après sauvegarde réussie
-      resetFormState();
+      // Attendre que le dialogue soit fermé avant de réinitialiser l'état du formulaire
+      setTimeout(() => {
+        resetFormState()
+      }, 300)
     }
   } catch (error: any) {
     console.error('[Users][Error] Erreur lors de la sauvegarde:', error)
@@ -1041,13 +1055,15 @@ const resetFormState = () => {
   // Réinitialiser la sélection des organisations
   selectedOrganizations.value = [];
 
-  // Réinitialiser l'item édité
-  editedItem.value = null;
-
   // Si le formulaire existe, réinitialiser sa validation
   if (form.value?.resetValidation) {
     form.value.resetValidation();
   }
+
+  // Réinitialiser l'item édité en dernier pour éviter les erreurs de rendu
+  nextTick(() => {
+    editedItem.value = null;
+  });
 }
 
 const page = ref(1)

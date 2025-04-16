@@ -74,6 +74,7 @@ class TimesheetListView(generics.ListCreateAPIView):
 class TimesheetDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Vue pour obtenir, mettre à jour et supprimer un pointage"""
     serializer_class = TimesheetSerializer
+    http_method_names = ['get', 'put', 'patch', 'delete', 'head', 'options']
 
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS:
@@ -88,6 +89,35 @@ class TimesheetDetailView(generics.RetrieveUpdateDestroyAPIView):
             return Timesheet.objects.filter(site__organization__in=user.organizations.all())
         else:
             return Timesheet.objects.filter(employee=user)
+
+    def perform_update(self, serializer):
+        try:
+            # Enregistrer qui a effectué la modification
+            serializer.save(
+                corrected_by=self.request.user,
+                correction_date=timezone.now()
+            )
+        except ValidationError as e:
+            # Lever une erreur API qui sera gérée par le framework
+            raise serializers.ValidationError(e.message_dict)
+            
+    def update(self, request, *args, **kwargs):
+        try:
+            return super().update(request, *args, **kwargs)
+        except serializers.ValidationError as e:
+            return Response({'detail': e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            # Gestion des ValidationError de Django
+            if hasattr(e, 'message_dict'):
+                details = e.message_dict
+            else:
+                details = {'detail': e.messages if hasattr(e, 'messages') else str(e)}
+            return Response(details, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # Log l'erreur inattendue
+            logger = logging.getLogger(__name__)
+            logger.error(f"Erreur inattendue lors de la mise à jour du pointage: {str(e)}", exc_info=True)
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class TimesheetCreateView(generics.CreateAPIView):
     """Vue pour créer un pointage via l'application mobile"""

@@ -112,16 +112,27 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
 
     <!-- Dialog de détails -->
     <v-dialog v-model="detailDialog" max-width="800">
-      <v-card v-if="selectedTimesheet">
-        <v-card-title class="text-h5 pb-2">
-          Détails du pointage
-          <v-spacer></v-spacer>
-          <v-btn icon="mdi-close" variant="text" @click="detailDialog = false"></v-btn>
-        </v-card-title>
+      <v-card v-if="selectedTimesheet" class="form-dialog">
+        <div class="form-dialog-header">
+          <div class="form-dialog-title">
+            <span class="text-h4">Détails du pointage</span>
+            <span class="text-subtitle">Informations complètes du pointage</span>
+          </div>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="grey"
+            class="close-button"
+            @click="detailDialog = false"
+          >
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
 
         <v-divider></v-divider>
 
-        <v-card-text class="pt-4">
+        <v-card-text class="pt-6">
           <v-row>
             <v-col cols="12" :md="selectedTimesheet.latitude && selectedTimesheet.longitude ? 6 : 12">
               <v-list>
@@ -225,12 +236,26 @@ id="mapContainer"
           </v-row>
         </v-card-text>
 
+        <v-divider v-if="canEditTimesheet"></v-divider>
+
         <v-card-actions v-if="canEditTimesheet">
           <v-spacer></v-spacer>
-          <v-btn color="primary" variant="text" prepend-icon="mdi-pencil" @click="editTimesheet(selectedTimesheet)">
+          <v-btn 
+            color="primary" 
+            variant="text" 
+            prepend-icon="mdi-pencil"
+            class="action-button"
+            @click="editTimesheet(selectedTimesheet)"
+          >
             Modifier
           </v-btn>
-          <v-btn color="error" variant="text" prepend-icon="mdi-delete" @click="confirmDelete(selectedTimesheet)">
+          <v-btn 
+            color="error" 
+            variant="text" 
+            prepend-icon="mdi-delete"
+            class="action-button"
+            @click="confirmDelete(selectedTimesheet)"
+          >
             Supprimer
           </v-btn>
         </v-card-actions>
@@ -238,49 +263,165 @@ id="mapContainer"
     </v-dialog>
 
     <!-- Dialog d'édition -->
-    <v-dialog v-model="editDialog" max-width="500" persistent>
-      <v-card v-if="editingTimesheet">
-        <v-card-title>
-          Modifier le pointage
-          <v-spacer></v-spacer>
-          <v-btn icon="mdi-close" variant="text" @click="editDialog = false"></v-btn>
-        </v-card-title>
-
+    <v-dialog v-model="editDialog" max-width="800" persistent>
+      <v-card v-if="editingTimesheet" class="form-dialog">
+        <div class="form-dialog-header">
+          <div class="form-dialog-title">
+            <span class="text-h4">Modifier le pointage</span>
+            <span class="text-subtitle">Modifiez les informations du pointage</span>
+          </div>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="grey"
+            class="close-button"
+            @click="editDialog = false"
+          >
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+        <v-divider></v-divider>
         <v-card-text>
-          <v-form ref="editForm">
-            <v-text-field
-v-model="editingTimesheet.timestamp" label="Date et heure" type="datetime-local"
-              variant="outlined"></v-text-field>
-
-            <v-select
-v-model="editingTimesheet.entry_type" :items="entryTypeOptions" label="Type de pointage"
-              variant="outlined"></v-select>
-
-            <v-textarea
-v-model="editingTimesheet.correction_note" label="Note de correction" variant="outlined"
-              rows="3"></v-textarea>
-          </v-form>
+          <v-container>
+            <DashboardForm id="editForm" ref="editForm" :errors="formErrors" @submit="saveTimesheet">
+              <v-row>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="editingTimesheet.timestamp"
+                    label="Date et heure"
+                    type="datetime-local"
+                    variant="outlined"
+                    required
+                    :error-messages="getFieldErrors('timestamp')"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="editingTimesheet.entry_type"
+                    :items="entryTypeOptions"
+                    label="Type de pointage"
+                    variant="outlined"
+                    required
+                    :error-messages="getFieldErrors('entry_type')"
+                  ></v-select>
+                </v-col>
+                
+                <v-col cols="12">
+                  <v-divider class="my-4"></v-divider>
+                  <v-card-title class="text-subtitle-1 font-weight-medium">
+                    Note de correction
+                    <v-chip
+                      color="grey"
+                      size="small"
+                      class="ml-2"
+                    >
+                      Optionnel
+                    </v-chip>
+                  </v-card-title>
+                  <v-card-text class="text-caption text-grey">
+                    Vous pouvez ajouter une note pour expliquer la raison de cette modification.
+                  </v-card-text>
+                </v-col>
+                
+                <v-col cols="12">
+                  <v-textarea
+                    v-model="editingTimesheet.correction_note"
+                    label="Note de correction"
+                    variant="outlined"
+                    rows="3"
+                    hint="Laissez vide si aucune correction n'est nécessaire"
+                    persistent-hint
+                    :error-messages="getFieldErrors('correction_note')"
+                  ></v-textarea>
+                </v-col>
+              </v-row>
+            </DashboardForm>
+          </v-container>
         </v-card-text>
-
+        <v-divider></v-divider>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="error" variant="text" @click="editDialog = false">Annuler</v-btn>
-          <v-btn color="primary" @click="saveTimesheet">Enregistrer</v-btn>
+          <v-btn 
+            color="grey" 
+            variant="text" 
+            class="action-button"
+            @click="editDialog = false"
+          >
+            Annuler
+          </v-btn>
+          <v-btn 
+            color="primary" 
+            variant="text" 
+            :loading="loading"
+            class="action-button"
+            type="submit" 
+            form="editForm" 
+            @click="saveTimesheet"
+          >
+            Enregistrer
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <!-- Dialog de confirmation de suppression -->
-    <v-dialog v-model="deleteDialog" max-width="400" persistent>
-      <v-card>
-        <v-card-title>Confirmer la suppression</v-card-title>
-        <v-card-text>
-          Êtes-vous sûr de vouloir supprimer ce pointage ? Cette action est irréversible.
+    <v-dialog v-model="deleteDialog" max-width="500" persistent>
+      <v-card class="form-dialog">
+        <div class="form-dialog-header">
+          <div class="form-dialog-title">
+            <span class="text-h4">Confirmer la suppression</span>
+            <span class="text-subtitle">Cette action est irréversible</span>
+          </div>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            color="grey"
+            class="close-button"
+            @click="deleteDialog = false"
+          >
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+        <v-divider></v-divider>
+        <v-card-text class="pa-6">
+          <v-alert
+            type="warning"
+            variant="tonal"
+            border="start"
+            class="mb-4"
+          >
+            <div class="d-flex align-center">
+              <v-icon icon="mdi-alert-circle" class="mr-2"></v-icon>
+              <span class="font-weight-medium">Êtes-vous sûr de vouloir supprimer ce pointage ?</span>
+            </div>
+            <div class="mt-2">
+              Cette action est définitive et ne pourra pas être annulée.
+            </div>
+          </v-alert>
         </v-card-text>
+        <v-divider></v-divider>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="error" variant="text" @click="deleteDialog = false">Annuler</v-btn>
-          <v-btn color="primary" @click="deleteTimesheet">Supprimer</v-btn>
+          <v-btn 
+            color="grey" 
+            variant="text" 
+            class="action-button"
+            @click="deleteDialog = false"
+          >
+            Annuler
+          </v-btn>
+          <v-btn 
+            color="error" 
+            variant="text" 
+            :loading="loading"
+            class="action-button"
+            @click="deleteTimesheet"
+          >
+            Supprimer
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -301,6 +442,7 @@ import type { Filters, SiteOption, EditingTimesheet } from '@/types/sites'
 import { EntryTypeEnum } from '@/types/api'
 import { Title } from '@/components/typography'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
+import DashboardForm from '@/components/dashboard/DashboardForm.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const props = defineProps<{
@@ -355,6 +497,7 @@ const deleteDialog = ref(false)
 const selectedTimesheet = ref<any | null>(null)
 const editingTimesheet = ref<EditingTimesheet | null>(null)
 const timesheetToDelete = ref<any | null>(null)
+const formErrors = ref<Record<string, string[]>>({})
 let map: L.Map | null = null
 
 const canEditTimesheet = computed(() => {
@@ -375,6 +518,12 @@ const getStatusLabel = (timesheet: any): string => {
 
 const getEntryTypeLabel = (type: EntryTypeEnum): string => {
   return type === EntryTypeEnum.ARRIVAL ? 'Arrivée' : 'Départ'
+}
+
+// Fonction pour récupérer les messages d'erreur d'un champ spécifique
+const getFieldErrors = (field: string): string[] => {
+  if (!formErrors.value) return []
+  return formErrors.value[field] || []
 }
 
 const formatTime = (timeString: string): string => {
@@ -595,6 +744,10 @@ const editTimesheet = (item: any): void => {
 const saveTimesheet = async () => {
   try {
     if (!editingTimesheet.value) return;
+
+    // Réinitialiser les erreurs
+    formErrors.value = {}
+
     loading.value = true
     await timesheetsApi.updateTimesheet(editingTimesheet.value.id, {
       timestamp: editingTimesheet.value.timestamp,
@@ -603,8 +756,56 @@ const saveTimesheet = async () => {
     })
     editDialog.value = false
     await fetchTimesheets()
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur lors de la mise à jour du pointage:', error)
+
+    // Traitement des erreurs de validation
+    if (error.response?.data) {
+      const processedErrors: Record<string, string[]> = {}
+
+      // Traitement spécial pour le format d'erreur spécifique montré dans la capture d'écran
+      if (error.response.data.detail && typeof error.response.data.detail === 'string') {
+        try {
+          // Essayer de parser le message JSON dans le champ detail
+          const detailObj = JSON.parse(error.response.data.detail.replace(/'/g, '"'))
+
+          // Si c'est un objet avec entry_type, utiliser directement
+          if (detailObj.entry_type) {
+            processedErrors.entry_type = Array.isArray(detailObj.entry_type)
+              ? detailObj.entry_type
+              : [detailObj.entry_type]
+          } else {
+            // Sinon, garder le message complet
+            processedErrors.detail = [error.response.data.detail]
+          }
+        } catch (_) {
+          // Si le parsing échoue, utiliser le message tel quel
+          processedErrors.detail = [error.response.data.detail]
+        }
+      } else {
+        // Traitement standard pour les autres formats d'erreur
+        Object.entries(error.response.data).forEach(([field, messages]) => {
+          // Gérer les erreurs imbriquées comme "detail.entry_type"
+          if (field === 'detail' && typeof messages === 'object' && !Array.isArray(messages)) {
+            // Parcourir les sous-champs dans detail
+            Object.entries(messages as Record<string, any>).forEach(([subField, subMessages]) => {
+              if (Array.isArray(subMessages)) {
+                processedErrors[subField] = subMessages
+              } else {
+                processedErrors[subField] = [subMessages as string]
+              }
+            })
+          } else if (Array.isArray(messages)) {
+            processedErrors[field] = messages
+          } else {
+            processedErrors[field] = [messages as string]
+          }
+        })
+      }
+
+      formErrors.value = processedErrors
+      console.log('Erreurs de formulaire:', formErrors.value)
+    }
   } finally {
     loading.value = false
   }
@@ -673,6 +874,83 @@ onMounted(() => {
 
 .v-dialog {
   z-index: 1000 !important;
+}
+
+/* Styles pour le formulaire d'édition */
+.form-dialog {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.form-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+}
+
+.form-dialog-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-dialog-title .text-h4 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #00346E;
+  margin: 0;
+}
+
+.form-dialog-title .text-subtitle {
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #666;
+}
+
+.close-button {
+  margin-top: -0.5rem;
+  margin-right: -0.5rem;
+}
+
+.action-button {
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+}
+
+/* Styles pour l'en-tête du formulaire */
+:deep(.form-header) {
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+:deep(.form-header h2) {
+  color: #00346E;
+  margin-bottom: 4px;
+}
+
+:deep(.form-header p) {
+  margin-top: 0;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* Styles pour les messages d'erreur */
+:deep(.form-errors) {
+  margin-bottom: 16px;
+}
+
+:deep(.v-alert.v-alert--density-default.v-alert--variant-tonal) {
+  border-left: 4px solid #F78C48;
+}
+
+:deep(.v-alert strong) {
+  color: #00346E;
+  font-weight: 600;
 }
 
 .v-list-item {

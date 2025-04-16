@@ -48,18 +48,30 @@ const fieldLabels: Record<string, string> = {
   is_active: 'Statut',
   scan_preference: 'Préférence de scan',
   simplified_mobile_view: 'Vue mobile simplifiée',
-  organization: 'Organisation'
+  organization: 'Organisation',
+  // Champs pour les pointages
+  timestamp: 'Date et heure',
+  entry_type: 'Type de pointage',
+  correction_note: 'Note de correction',
+  detail: 'Détail'
 }
 
 const getFieldLabel = (field: string): string => {
   return fieldLabels[field] || field
 }
 
-const formatError = (error: string | string[]): string => {
+const formatError = (error: string | string[] | Record<string, any>): string => {
   if (Array.isArray(error)) {
     return error[0]
+  } else if (typeof error === 'object' && error !== null) {
+    // Gérer les objets JSON imbriqués comme { "entry_type": ["Vous avez déjà pointé..."] }
+    const firstKey = Object.keys(error)[0]
+    if (firstKey && Array.isArray(error[firstKey])) {
+      return error[firstKey][0]
+    }
+    return JSON.stringify(error)
   }
-  return error
+  return error as string
 }
 </script>
 
@@ -88,4 +100,4 @@ const formatError = (error: string | string[]): string => {
   color: #00346E;
   font-weight: 600;
 }
-</style> 
+</style>

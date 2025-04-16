@@ -1,7 +1,7 @@
 <template>
   <div class="history-container">
     <Title :level="1" class="mb-4">Historique des enregistrements</Title>
-    
+
     <v-card class="mb-4">
       <v-card-title>Filtres</v-card-title>
       <v-card-text>
@@ -13,7 +13,7 @@
           clearable
           class="mb-2"
         ></v-select>
-        
+
         <v-select
           v-model="filters.type"
           label="Type"
@@ -22,7 +22,7 @@
           clearable
           class="mb-2"
         ></v-select>
-        
+
         <v-select
           v-model="filters.status"
           label="Statut"
@@ -31,7 +31,7 @@
           clearable
           class="mb-2"
         ></v-select>
-        
+
         <div class="d-flex">
           <v-text-field
             v-model="filters.startDate"
@@ -40,7 +40,7 @@
             variant="outlined"
             class="mr-2"
           ></v-text-field>
-          
+
           <v-text-field
             v-model="filters.endDate"
             label="Au"
@@ -48,7 +48,7 @@
             variant="outlined"
           ></v-text-field>
         </div>
-        
+
         <div class="d-flex justify-space-between mt-2">
           <v-btn
             color="primary"
@@ -56,7 +56,7 @@
           >
             Appliquer
           </v-btn>
-          
+
           <v-btn
             color="error"
             variant="text"
@@ -67,16 +67,16 @@
         </div>
       </v-card-text>
     </v-card>
-    
+
     <div v-if="loading" class="text-center my-4">
       <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
     </div>
-    
+
     <template v-else>
       <div v-if="timesheets.length === 0" class="text-center my-4">
         <p class="text-subtitle-1">Aucun enregistrement trouvé</p>
       </div>
-      
+
       <template v-else>
         <v-timeline density="compact" align="start">
           <v-timeline-item
@@ -105,24 +105,15 @@
                 variant="outlined"
                 class="mt-1"
               >
-                {{ timesheet.is_late ? `Retard de ${timesheet.late_minutes} minutes` : 
+                {{ timesheet.is_late ? `Retard de ${timesheet.late_minutes} minutes` :
                    timesheet.is_early_departure ? `Départ anticipé de ${timesheet.early_departure_minutes} minutes` : '' }}
               </v-chip>
             </div>
           </v-timeline-item>
         </v-timeline>
-        
-        <div class="text-center mt-4">
-          <v-btn
-            v-if="hasMoreTimesheets"
-            color="primary"
-            variant="outlined"
-            :loading="loadingMore"
-            @click="loadMoreTimesheets"
-          >
-            Charger plus
-          </v-btn>
-        </div>
+
+        <!-- Le bouton "Charger plus" est supprimé car la pagination est désactivée sur le backend -->
+        <!-- Tous les résultats sont déjà chargés en une seule requête -->
       </template>
     </template>
   </div>
@@ -133,7 +124,7 @@ import { ref, onMounted } from 'vue'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { timesheetsApi, sitesApi } from '@/services/api'
-import { Title, Text } from '@/components/typography'
+import { Title } from '@/components/typography'
 
 interface Timesheet {
   id: number;
@@ -147,21 +138,25 @@ interface Timesheet {
 }
 
 interface TimesheetParams {
-  page: number;
-  pageSize: number;
+  // Paramètres de pagination (optionnels car la pagination est désactivée sur le backend)
+  page?: number;
+  page_size?: number;
+
+  // Paramètres de filtrage
   site?: string;
-  entryType?: string;
-  startDate?: string;
-  endDate?: string;
-  isLate?: boolean;
-  isEarlyDeparture?: boolean;
+  entry_type?: string; // 'ARRIVAL' ou 'DEPARTURE'
+  start_date?: string; // Format YYYY-MM-DD
+  end_date?: string; // Format YYYY-MM-DD
+  is_late?: boolean;
+  is_early_departure?: boolean;
 }
 
 const loading = ref(true)
-const loadingMore = ref(false)
-const hasMoreTimesheets = ref(true)
-const currentPage = ref(1)
-const perPage = ref(10)
+// Ces variables ne sont plus utilisées car la pagination est désactivée sur le backend
+// const loadingMore = ref(false)
+// const hasMoreTimesheets = ref(false)
+// const currentPage = ref(1)
+// const perPage = ref(10)
 
 const filters = ref({
   site: '',
@@ -188,12 +183,13 @@ const getTimesheetColor = (timesheet: Timesheet): string => {
   return timesheet.entry_type === 'ARRIVAL' ? 'success' : 'info'
 }
 
-const getStatusColor = (status: string): string => {
-  if (status === 'Normal') return 'success'
-  if (status === 'Retard') return 'warning'
-  if (status === 'Départ anticipé') return 'error'
-  return 'grey'
-}
+// Fonction non utilisée, commentée pour éviter les avertissements du linter
+// const getStatusColor = (status: string): string => {
+//   if (status === 'Normal') return 'success'
+//   if (status === 'Retard') return 'warning'
+//   if (status === 'Départ anticipé') return 'error'
+//   return 'grey'
+// }
 
 const loadSites = async () => {
   try {
@@ -206,55 +202,59 @@ const loadSites = async () => {
 
 const fetchTimesheets = async () => {
   try {
-    const params: TimesheetParams = {
-      page: currentPage.value,
-      pageSize: perPage.value
-    }
+    // Nous n'avons pas besoin de paramètres de pagination car la pagination est désactivée sur le backend
+    const params: TimesheetParams = {}
+
+    console.log('Historique - Début de la récupération des pointages')
 
     // Ajouter les filtres seulement s'ils sont définis
     if (filters.value.site) {
       params.site = filters.value.site
     }
-    
+
     if (filters.value.type) {
-      params.entryType = filters.value.type === 'Arrivée' ? 'ARRIVAL' : 'DEPARTURE'
+      params.entry_type = filters.value.type === 'Arrivée' ? 'ARRIVAL' : 'DEPARTURE' // Changed from entryType to entry_type
     }
-    
+
     if (filters.value.startDate) {
-      params.startDate = filters.value.startDate
+      params.start_date = filters.value.startDate // Changed from startDate to start_date
     }
-    
+
     if (filters.value.endDate) {
-      params.endDate = filters.value.endDate
+      params.end_date = filters.value.endDate // Changed from endDate to end_date
     }
-    
+
     if (filters.value.status === 'Retard') {
-      params.isLate = true
+      params.is_late = true // Changed from isLate to is_late
     } else if (filters.value.status === 'Départ anticipé') {
-      params.isEarlyDeparture = true
+      params.is_early_departure = true // Changed from isEarlyDeparture to is_early_departure
     }
 
+    console.log('Historique - Paramètres de la requête:', params)
     const response = await timesheetsApi.getTimesheets(params)
-    const data = response.data
+    console.log('Historique - Réponse API complète:', response)
+    console.log('Historique - Données reçues:', response.data)
 
-    if (currentPage.value === 1) {
-      timesheets.value = data.results || []
-    } else {
-      timesheets.value = [...timesheets.value, ...(data.results || [])]
-    }
+    // Déterminer si la réponse est un tableau ou un objet avec results
+    const results = Array.isArray(response.data) ? response.data : (response.data.results || [])
+    console.log('Historique - Nombre de résultats:', results.length)
 
-    hasMoreTimesheets.value = data.next !== null
+    // Affecter directement les résultats (pas de pagination)
+    timesheets.value = results
+    console.log('Historique - Timesheets après affectation:', timesheets.value.length)
+
+    // La vue backend TimesheetListView a pagination_class = None, donc il n'y a pas de pagination
+    // Nous recevons toujours tous les résultats en une seule requête
+    console.log('Historique - Pagination désactivée sur le backend, tous les résultats sont déjà chargés')
   } catch (error) {
     console.error('Erreur lors de la récupération des enregistrements:', error)
   } finally {
     loading.value = false
-    loadingMore.value = false
   }
 }
 
 const applyFilters = () => {
   loading.value = true
-  currentPage.value = 1
   fetchTimesheets()
 }
 
@@ -269,11 +269,15 @@ const resetFilters = () => {
   applyFilters()
 }
 
-const loadMoreTimesheets = () => {
-  loadingMore.value = true
-  currentPage.value++
-  fetchTimesheets()
-}
+// Cette fonction n'est plus utilisée car la pagination est désactivée sur le backend
+// Tous les résultats sont déjà chargés en une seule requête
+// const loadMoreTimesheets = () => {
+//   console.log('Fonction loadMoreTimesheets non utilisée - pagination désactivée')
+//   // Code conservé pour référence
+//   // loadingMore.value = true
+//   // currentPage.value++
+//   // fetchTimesheets()
+// }
 
 // Charger les données initiales
 onMounted(async () => {

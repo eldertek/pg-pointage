@@ -23,6 +23,10 @@ class TimesheetSerializer(serializers.ModelSerializer, OrganizationPermissionMix
             'created_at', 'updated_at', 'schedule_details'
         ]
         read_only_fields = ['created_at', 'updated_at', 'schedule_details']
+        extra_kwargs = {
+            'employee': {'required': False},
+            'site': {'required': False}
+        }
 
     def validate(self, data):
         user = self.context['request'].user

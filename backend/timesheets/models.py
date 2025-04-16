@@ -115,24 +115,27 @@ class Timesheet(models.Model):
 
             # En mode test, permettre la création de pointages consécutifs du même type
             if not is_test_mode:
+                formatted_time = timezone.localtime(last_timesheet.timestamp).strftime('%H:%M')
                 if self.entry_type == self.EntryType.ARRIVAL:
                     raise ValidationError({
-                        'entry_type': _('Vous avez déjà pointé votre arrivée. Vous devez d\'abord pointer votre départ.')
+                        'entry_type': _('Vous avez déjà pointé votre arrivée à {}. Vous devez d\'abord pointer votre départ.').format(formatted_time)
                     })
                 else:
                     raise ValidationError({
-                        'entry_type': _('Vous avez déjà pointé votre départ. Vous devez d\'abord pointer votre arrivée.')
+                        'entry_type': _('Vous avez déjà pointé votre départ à {}. Vous devez d\'abord pointer votre arrivée.').format(formatted_time)
                     })
 
         # Vérifier la cohérence arrivée/départ
         if last_timesheet and not is_test_mode:
             if self.entry_type == self.EntryType.ARRIVAL and last_timesheet.entry_type == self.EntryType.ARRIVAL:
+                formatted_time = timezone.localtime(last_timesheet.timestamp).strftime('%H:%M')
                 raise ValidationError({
-                    'entry_type': _('Vous devez d\'abord pointer votre départ avant de pointer une nouvelle arrivée.')
+                    'entry_type': _('Vous devez d\'abord pointer votre départ avant de pointer une nouvelle arrivée. Dernière arrivée à {}.').format(formatted_time)
                 })
             elif self.entry_type == self.EntryType.DEPARTURE and last_timesheet.entry_type == self.EntryType.DEPARTURE:
+                formatted_time = timezone.localtime(last_timesheet.timestamp).strftime('%H:%M')
                 raise ValidationError({
-                    'entry_type': _('Vous devez d\'abord pointer votre arrivée avant de pointer un nouveau départ.')
+                    'entry_type': _('Vous devez d\'abord pointer votre arrivée avant de pointer un nouveau départ. Dernier départ à {}.').format(formatted_time)
                 })
 
     def create_consecutive_anomaly(self):
