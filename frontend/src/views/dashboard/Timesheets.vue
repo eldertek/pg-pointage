@@ -627,9 +627,6 @@ onMounted(() => {
 /* Style des boutons dans le tableau */
 :deep(.v-data-table .v-btn--icon) {
   background-color: transparent !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: inline-flex !important;
 }
 
 :deep(.v-data-table .v-btn--icon[color="primary"]) {
@@ -655,12 +652,6 @@ onMounted(() => {
 :deep(.v-data-table .v-btn--icon .v-icon) {
   opacity: 1 !important;
   color: inherit !important;
-  visibility: visible !important;
-}
-
-/* Style pour le tableau avec pointeur */
-:deep(.v-data-table tbody tr) {
-  cursor: pointer;
 }
 
 /* Style des boutons colorés */
@@ -690,7 +681,7 @@ onMounted(() => {
   opacity: 0 !important;
 }
 
-/* Style spécifique pour les boutons d'action dans la colonne actions */
+/* Styles pour la colonne actions */
 :deep(.v-data-table .v-data-table__td--action .v-btn) {
   margin: 0 2px;
   min-width: 36px;
