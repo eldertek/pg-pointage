@@ -70,10 +70,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.verbose = options['verbose']
-        
+
         # Définir la date à vérifier
         check_date = options['date'] or timezone.now().date()
-        
+
         # Filtrer par site si spécifié
         site_id = options['site']
         site = None
@@ -84,7 +84,7 @@ class Command(BaseCommand):
             except Site.DoesNotExist:
                 self.stdout.write(self.style.ERROR(f"Site avec ID {site_id} non trouvé"))
                 return
-        
+
         # Filtrer par employé si spécifié
         employee_id = options['employee']
         employee = None
@@ -95,13 +95,13 @@ class Command(BaseCommand):
             except User.DoesNotExist:
                 self.stdout.write(self.style.ERROR(f"Employé avec ID {employee_id} non trouvé"))
                 return
-        
+
         dry_run = options['dry_run']
         if dry_run:
             self.stdout.write(self.style.WARNING("Mode simulation activé - aucune modification ne sera effectuée"))
-        
+
         self.stdout.write(f"Vérification des pointages manquants pour le {check_date}")
-        
+
         # Commencer la vérification
         try:
             # Utiliser une transaction seulement si on n'est pas en mode simulation
@@ -113,22 +113,22 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Erreur lors de la vérification des pointages manquants: {str(e)}"))
             raise
-            
+
     def _check_missed_checkins(self, check_date, site=None, employee=None, dry_run=False):
         # Récupérer toutes les relations site-employé actives
         site_employees = SiteEmployee.objects.filter(is_active=True).select_related('site', 'employee', 'schedule')
-        
+
         # Filtrer par site si spécifié
         if site:
             site_employees = site_employees.filter(site=site)
-        
+
         # Filtrer par employé si spécifié
         if employee:
             site_employees = site_employees.filter(employee=employee)
-        
+
         # Compter les anomalies créées
         anomalies_created = 0
-        
+
         # Pour chaque relation site-employé
         for site_employee in site_employees:
             # Vérifier si l'employé a un planning actif
@@ -137,7 +137,7 @@ class Command(BaseCommand):
                 if self.verbose:
                     self.stdout.write(f"Pas de planning actif pour {site_employee.employee.get_full_name()} au site {site_employee.site.name}")
                 continue
-            
+
             # Vérifier si le planning a des détails pour ce jour de la semaine
             day_of_week = check_date.weekday()  # 0 = Lundi, 6 = Dimanche
             try:
@@ -149,19 +149,33 @@ class Command(BaseCommand):
                 if self.verbose:
                     self.stdout.write(f"Pas de détails de planning pour {site_employee.employee.get_full_name()} au site {site_employee.site.name} le jour {day_of_week}")
                 continue
-            
+
             # Pour les plannings fixes, vérifier si l'employé a pointé
             if schedule.schedule_type == Schedule.ScheduleType.FIXED:
-                # Vérifier si l'employé a pointé son arrivée ce jour-là
-                has_arrival = Timesheet.objects.filter(
+                # Récupérer tous les pointages de l'employé pour ce jour
+                timesheets = Timesheet.objects.filter(
                     employee=site_employee.employee,
                     site=site_employee.site,
-                    timestamp__date=check_date,
-                    entry_type=Timesheet.EntryType.ARRIVAL
-                ).exists()
-                
-                # Si l'employé n'a pas pointé son arrivée et qu'il devrait avoir un planning ce jour-là
-                if not has_arrival and (schedule_detail.start_time_1 or schedule_detail.start_time_2):
+                    timestamp__date=check_date
+                )
+
+                # Compter les arrivées et départs
+                arrivals = timesheets.filter(entry_type=Timesheet.EntryType.ARRIVAL).count()
+                departures = timesheets.filter(entry_type=Timesheet.EntryType.DEPARTURE).count()
+                total_entries = arrivals + departures
+
+                # Déterminer si c'est un planning journalier ou demi-journée
+                is_full_day = schedule_detail.start_time_1 and schedule_detail.end_time_1 and schedule_detail.start_time_2 and schedule_detail.end_time_2
+                is_half_day = (schedule_detail.start_time_1 and schedule_detail.end_time_1 and not schedule_detail.start_time_2) or \
+                              (not schedule_detail.start_time_1 and schedule_detail.start_time_2 and schedule_detail.end_time_2)
+
+                if self.verbose:
+                    self.stdout.write(f"Pointages pour {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}: "
+                                     f"{arrivals} arrivées, {departures} départs, {total_entries} total")
+                    self.stdout.write(f"Type de journée: {'Journée complète' if is_full_day else 'Demi-journée' if is_half_day else 'Indéterminé'}")
+
+                # Vérifier les arrivées manquantes
+                if arrivals == 0 and (schedule_detail.start_time_1 or schedule_detail.start_time_2):
                     # Vérifier si une anomalie similaire existe déjà
                     existing_anomaly = Anomaly.objects.filter(
                         employee=site_employee.employee,
@@ -169,7 +183,7 @@ class Command(BaseCommand):
                         date=check_date,
                         anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL
                     ).first()
-                    
+
                     if not existing_anomaly and not dry_run:
                         # Créer une anomalie pour l'arrivée manquante
                         description = f"Arrivée manquante selon le planning"
@@ -177,7 +191,7 @@ class Command(BaseCommand):
                             description += f" (heure prévue: {schedule_detail.start_time_1})"
                         elif schedule_detail.start_time_2:
                             description += f" (heure prévue: {schedule_detail.start_time_2})"
-                        
+
                         anomaly = Anomaly.objects.create(
                             employee=site_employee.employee,
                             site=site_employee.site,
@@ -187,36 +201,128 @@ class Command(BaseCommand):
                             status=Anomaly.AnomalyStatus.PENDING,
                             schedule=schedule
                         )
-                        
+
                         anomalies_created += 1
                         self.stdout.write(self.style.SUCCESS(
                             f"Anomalie créée: MISSING_ARRIVAL - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}"
                         ))
                     elif existing_anomaly:
                         if self.verbose:
-                            self.stdout.write(f"Anomalie existante pour {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}")
+                            self.stdout.write(f"Anomalie existante pour arrivée manquante de {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}")
                     elif dry_run:
                         # En mode simulation, on compte quand même l'anomalie
                         anomalies_created += 1
                         self.stdout.write(self.style.SUCCESS(
                             f"Anomalie simulée: MISSING_ARRIVAL - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}"
                         ))
-                elif has_arrival:
-                    if self.verbose:
-                        self.stdout.write(f"{site_employee.employee.get_full_name()} a déjà pointé son arrivée au site {site_employee.site.name} le {check_date}")
-            
+
+                # Vérifier les départs manquants
+                if departures < arrivals and (schedule_detail.end_time_1 or schedule_detail.end_time_2):
+                    # Vérifier si une anomalie similaire existe déjà
+                    existing_anomaly = Anomaly.objects.filter(
+                        employee=site_employee.employee,
+                        site=site_employee.site,
+                        date=check_date,
+                        anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE
+                    ).first()
+
+                    if not existing_anomaly and not dry_run:
+                        # Créer une anomalie pour le départ manquant
+                        description = f"Départ manquant selon le planning"
+                        if schedule_detail.end_time_1 and not schedule_detail.end_time_2:
+                            description += f" (heure prévue: {schedule_detail.end_time_1})"
+                        elif schedule_detail.end_time_2:
+                            description += f" (heure prévue: {schedule_detail.end_time_2})"
+
+                        anomaly = Anomaly.objects.create(
+                            employee=site_employee.employee,
+                            site=site_employee.site,
+                            date=check_date,
+                            anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE,
+                            description=description,
+                            status=Anomaly.AnomalyStatus.PENDING,
+                            schedule=schedule
+                        )
+
+                        anomalies_created += 1
+                        self.stdout.write(self.style.SUCCESS(
+                            f"Anomalie créée: MISSING_DEPARTURE - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}"
+                        ))
+                    elif existing_anomaly:
+                        if self.verbose:
+                            self.stdout.write(f"Anomalie existante pour départ manquant de {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}")
+                    elif dry_run:
+                        # En mode simulation, on compte quand même l'anomalie
+                        anomalies_created += 1
+                        self.stdout.write(self.style.SUCCESS(
+                            f"Anomalie simulée: MISSING_DEPARTURE - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}"
+                        ))
+
+                # Vérifier le nombre total de pointages selon le type de journée
+                expected_entries = 4 if is_full_day else 2 if is_half_day else 0
+                if expected_entries > 0 and total_entries < expected_entries and total_entries > 0:
+                    # Vérifier si une anomalie similaire existe déjà
+                    existing_anomaly = Anomaly.objects.filter(
+                        employee=site_employee.employee,
+                        site=site_employee.site,
+                        date=check_date,
+                        anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL
+                    ).first() or Anomaly.objects.filter(
+                        employee=site_employee.employee,
+                        site=site_employee.site,
+                        date=check_date,
+                        anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE
+                    ).first()
+
+                    if not existing_anomaly and not dry_run:
+                        # Créer une anomalie pour pointage manquant
+                        description = f"Pointage manquant selon le planning ({total_entries}/{expected_entries})"
+
+                        anomaly = Anomaly.objects.create(
+                            employee=site_employee.employee,
+                            site=site_employee.site,
+                            date=check_date,
+                            anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL if arrivals < (expected_entries // 2) else Anomaly.AnomalyType.MISSING_DEPARTURE,
+                            description=description,
+                            status=Anomaly.AnomalyStatus.PENDING,
+                            schedule=schedule
+                        )
+
+                        anomalies_created += 1
+                        self.stdout.write(self.style.SUCCESS(
+                            f"Anomalie créée: Pointage manquant - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}"
+                        ))
+                    elif existing_anomaly:
+                        if self.verbose:
+                            self.stdout.write(f"Anomalie existante pour pointage manquant de {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}")
+                    elif dry_run:
+                        # En mode simulation, on compte quand même l'anomalie
+                        anomalies_created += 1
+                        self.stdout.write(self.style.SUCCESS(
+                            f"Anomalie simulée: Pointage manquant - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}"
+                        ))
+
             # Pour les plannings fréquence, la logique est différente
-            # On vérifie si l'employé a pointé au moins une fois dans la journée
+            # On vérifie le nombre de pointages dans la journée
             elif schedule.schedule_type == Schedule.ScheduleType.FREQUENCY:
-                # Vérifier si l'employé a pointé au moins une fois ce jour-là
-                has_timesheet = Timesheet.objects.filter(
+                # Récupérer tous les pointages de l'employé pour ce jour
+                timesheets = Timesheet.objects.filter(
                     employee=site_employee.employee,
                     site=site_employee.site,
                     timestamp__date=check_date
-                ).exists()
-                
+                )
+
+                # Compter les arrivées et départs
+                arrivals = timesheets.filter(entry_type=Timesheet.EntryType.ARRIVAL).count()
+                departures = timesheets.filter(entry_type=Timesheet.EntryType.DEPARTURE).count()
+                total_entries = arrivals + departures
+
+                if self.verbose:
+                    self.stdout.write(f"Pointages pour {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date} (fréquence): "
+                                     f"{arrivals} arrivées, {departures} départs, {total_entries} total")
+
                 # Si l'employé n'a pas pointé du tout et qu'il devrait avoir un planning ce jour-là
-                if not has_timesheet and schedule_detail.frequency_duration:
+                if total_entries == 0 and schedule_detail.frequency_duration:
                     # Vérifier si une anomalie similaire existe déjà
                     existing_anomaly = Anomaly.objects.filter(
                         employee=site_employee.employee,
@@ -224,11 +330,11 @@ class Command(BaseCommand):
                         date=check_date,
                         anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL
                     ).first()
-                    
+
                     if not existing_anomaly and not dry_run:
-                        # Créer une anomalie pour l'arrivée manquante
-                        description = f"Pointage manquant selon le planning fréquence (durée prévue: {schedule_detail.frequency_duration} minutes)"
-                        
+                        # Créer une anomalie pour le passage manqué
+                        description = f"Passage manqué selon le planning fréquence (durée prévue: {schedule_detail.frequency_duration} minutes)"
+
                         anomaly = Anomaly.objects.create(
                             employee=site_employee.employee,
                             site=site_employee.site,
@@ -238,22 +344,62 @@ class Command(BaseCommand):
                             status=Anomaly.AnomalyStatus.PENDING,
                             schedule=schedule
                         )
-                        
+
                         anomalies_created += 1
                         self.stdout.write(self.style.SUCCESS(
                             f"Anomalie créée: MISSING_ARRIVAL - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}"
                         ))
                     elif existing_anomaly:
                         if self.verbose:
-                            self.stdout.write(f"Anomalie existante pour {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}")
+                            self.stdout.write(f"Anomalie existante pour passage manqué de {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}")
                     elif dry_run:
                         # En mode simulation, on compte quand même l'anomalie
                         anomalies_created += 1
                         self.stdout.write(self.style.SUCCESS(
                             f"Anomalie simulée: MISSING_ARRIVAL - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}"
                         ))
-                elif has_timesheet:
+                # Si l'employé a pointé une seule fois (arrivée sans départ ou départ sans arrivée)
+                elif total_entries == 1 and schedule_detail.frequency_duration:
+                    # Vérifier si une anomalie similaire existe déjà
+                    existing_anomaly = Anomaly.objects.filter(
+                        employee=site_employee.employee,
+                        site=site_employee.site,
+                        date=check_date,
+                        anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE if arrivals > departures else Anomaly.AnomalyType.MISSING_ARRIVAL
+                    ).first()
+
+                    if not existing_anomaly and not dry_run:
+                        # Créer une anomalie pour le pointage manquant
+                        anomaly_type = Anomaly.AnomalyType.MISSING_DEPARTURE if arrivals > departures else Anomaly.AnomalyType.MISSING_ARRIVAL
+                        description = f"Pointage manquant selon le planning fréquence (durée prévue: {schedule_detail.frequency_duration} minutes)"
+
+                        anomaly = Anomaly.objects.create(
+                            employee=site_employee.employee,
+                            site=site_employee.site,
+                            date=check_date,
+                            anomaly_type=anomaly_type,
+                            description=description,
+                            status=Anomaly.AnomalyStatus.PENDING,
+                            schedule=schedule
+                        )
+
+                        anomalies_created += 1
+                        self.stdout.write(self.style.SUCCESS(
+                            f"Anomalie créée: {anomaly_type} - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}"
+                        ))
+                    elif existing_anomaly:
+                        if self.verbose:
+                            self.stdout.write(f"Anomalie existante pour pointage manquant de {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}")
+                    elif dry_run:
+                        # En mode simulation, on compte quand même l'anomalie
+                        anomalies_created += 1
+                        anomaly_type = Anomaly.AnomalyType.MISSING_DEPARTURE if arrivals > departures else Anomaly.AnomalyType.MISSING_ARRIVAL
+                        self.stdout.write(self.style.SUCCESS(
+                            f"Anomalie simulée: {anomaly_type} - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {check_date}"
+                        ))
+                # Si l'employé a pointé au moins 2 fois, c'est déjà traité dans le scan
+                elif total_entries >= 2:
                     if self.verbose:
-                        self.stdout.write(f"{site_employee.employee.get_full_name()} a déjà pointé au site {site_employee.site.name} le {check_date}")
-        
+                        self.stdout.write(f"{site_employee.employee.get_full_name()} a pointé {total_entries} fois au site {site_employee.site.name} le {check_date} (déjà traité dans le scan)")
+
         self.stdout.write(self.style.SUCCESS(f"{anomalies_created} anomalies créées pour les pointages manquants"))

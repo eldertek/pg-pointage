@@ -598,6 +598,11 @@ class AnomalyProcessor:
         2. Le départ est réellement anticipé (minutes > 0)
         3. Le départ anticipé dépasse la marge de tolérance
         """
+        # Si le départ est exactement à l'heure prévue, ne pas créer d'anomalie
+        if early_minutes <= 0:
+            self.logger.debug(f"Départ à l'heure ou après l'heure prévue, pas d'anomalie créée pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+            return None
+
         # Vérifier si une anomalie similaire existe déjà pour ce pointage ou cette date/employé/site
         existing_anomaly = Anomaly.objects.filter(
             employee=timesheet.employee,
