@@ -9,32 +9,38 @@
       <v-card-text>
         <DashboardFilters @reset="resetFilters">
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
-            <v-text-field v-model="filters.employee" label="Employé" variant="outlined"
+            <v-text-field
+v-model="filters.employee" label="Employé" variant="outlined"
               prepend-inner-icon="mdi-account-search" clearable @update:model-value="applyFilters"></v-text-field>
           </v-col>
 
           <v-col v-if="!currentSiteId" cols="12" :md="currentSiteId ? 4 : 3">
-            <v-select v-model="filters.site" label="Site" :items="siteOptions" variant="outlined"
+            <v-select
+v-model="filters.site" label="Site" :items="siteOptions" variant="outlined"
               prepend-inner-icon="mdi-map-marker" clearable @update:model-value="applyFilters"></v-select>
           </v-col>
 
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
-            <v-select v-model="filters.entryType" label="Type de pointage" :items="entryTypeOptions" variant="outlined"
+            <v-select
+v-model="filters.entryType" label="Type de pointage" :items="entryTypeOptions" variant="outlined"
               prepend-inner-icon="mdi-clock-time-four" clearable @update:model-value="applyFilters"></v-select>
           </v-col>
 
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
-            <v-select v-model="filters.status" label="Statut" :items="statusOptions" variant="outlined"
+            <v-select
+v-model="filters.status" label="Statut" :items="statusOptions" variant="outlined"
               prepend-inner-icon="mdi-alert-circle" clearable @update:model-value="applyFilters"></v-select>
           </v-col>
 
           <v-col cols="12" md="4">
-            <v-text-field v-model="filters.startDate" label="Du" type="date" variant="outlined"
+            <v-text-field
+v-model="filters.startDate" label="Du" type="date" variant="outlined"
               prepend-inner-icon="mdi-calendar" clearable @update:model-value="applyFilters"></v-text-field>
           </v-col>
 
           <v-col cols="12" md="4">
-            <v-text-field v-model="filters.endDate" label="Au" type="date" variant="outlined"
+            <v-text-field
+v-model="filters.endDate" label="Au" type="date" variant="outlined"
               prepend-inner-icon="mdi-calendar" clearable @update:model-value="applyFilters"></v-text-field>
           </v-col>
         </DashboardFilters>
@@ -42,8 +48,9 @@
     </v-card>
 
     <v-card>
-      <v-data-table :headers="headers" :items="timesheets" :loading="loading" :items-per-page="itemsPerPage"
-        :page.sync="page"
+      <v-data-table
+v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
+        :items-per-page="itemsPerPage"
         :items-length="timesheets.length"
         :no-data-text="'Aucun pointage trouvé'" :loading-text="'Chargement des pointages...'"
         class="elevation-1"
@@ -67,11 +74,13 @@
           </v-chip>
         </template>
         <template #item.actions="{ item }">
-          <v-btn v-if="canEditTimesheet" icon="mdi-pencil" size="small" color="primary" variant="text" class="mr-2"
+          <v-btn
+v-if="canEditTimesheet" icon="mdi-pencil" size="small" color="primary" variant="text" class="mr-2 action-button"
             @click.stop="editTimesheet(item)">
             <v-tooltip activator="parent" location="top">Modifier</v-tooltip>
           </v-btn>
-          <v-btn v-if="canEditTimesheet" icon="mdi-delete" size="small" color="error" variant="text"
+          <v-btn
+v-if="canEditTimesheet" icon="mdi-delete" size="small" color="error" variant="text" class="action-button"
             @click.stop="confirmDelete(item)">
             <v-tooltip activator="parent" location="top">Supprimer</v-tooltip>
           </v-btn>
@@ -125,7 +134,8 @@
                   </template>
                   <v-list-item-title class="text-subtitle-2 mb-1">Type</v-list-item-title>
                   <v-list-item-subtitle>
-                    <v-chip :color="selectedTimesheet.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'"
+                    <v-chip
+:color="selectedTimesheet.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'"
                       size="small">
                       {{ getEntryTypeLabel(selectedTimesheet.entry_type) }}
                     </v-chip>
@@ -186,7 +196,8 @@
             </v-col>
 
             <v-col v-if="selectedTimesheet.latitude && selectedTimesheet.longitude" cols="12" md="6">
-              <div id="mapContainer"
+              <div
+id="mapContainer"
                 style="height: 300px; width: 100%; border-radius: 4px; position: relative; z-index: 1;"></div>
             </v-col>
           </v-row>
@@ -215,13 +226,16 @@
 
         <v-card-text>
           <v-form ref="editForm">
-            <v-text-field v-model="editingTimesheet.timestamp" label="Date et heure" type="datetime-local"
+            <v-text-field
+v-model="editingTimesheet.timestamp" label="Date et heure" type="datetime-local"
               variant="outlined"></v-text-field>
 
-            <v-select v-model="editingTimesheet.entry_type" :items="entryTypeOptions" label="Type de pointage"
+            <v-select
+v-model="editingTimesheet.entry_type" :items="entryTypeOptions" label="Type de pointage"
               variant="outlined"></v-select>
 
-            <v-textarea v-model="editingTimesheet.correction_note" label="Note de correction" variant="outlined"
+            <v-textarea
+v-model="editingTimesheet.correction_note" label="Note de correction" variant="outlined"
               rows="3"></v-textarea>
           </v-form>
         </v-card-text>
@@ -627,6 +641,9 @@ onMounted(() => {
 /* Style des boutons dans le tableau */
 :deep(.v-data-table .v-btn--icon) {
   background-color: transparent !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
 }
 
 :deep(.v-data-table .v-btn--icon[color="primary"]) {
@@ -652,6 +669,12 @@ onMounted(() => {
 :deep(.v-data-table .v-btn--icon .v-icon) {
   opacity: 1 !important;
   color: inherit !important;
+  visibility: visible !important;
+}
+
+/* Style pour le tableau avec pointeur */
+:deep(.v-data-table tbody tr) {
+  cursor: pointer;
 }
 
 /* Style des boutons colorés */
@@ -681,13 +704,14 @@ onMounted(() => {
   opacity: 0 !important;
 }
 
-/* Styles pour la colonne actions */
+/* Style spécifique pour les boutons d'action dans la colonne actions */
 :deep(.v-data-table .v-data-table__td--action .v-btn) {
   margin: 0 2px;
   min-width: 36px;
   min-height: 36px;
   opacity: 1 !important;
   visibility: visible !important;
+  z-index: 5 !important;
 }
 
 :deep(.v-data-table .v-data-table__td--action) {
@@ -696,5 +720,65 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+/* Styles supplémentaires pour assurer la visibilité des boutons d'action */
+:deep(.v-data-table tbody tr td:last-child .v-btn) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  z-index: 5 !important;
+}
+
+:deep(.v-data-table tbody tr .v-btn--icon) {
+  margin: 0 4px;
+  border: none;
+  display: inline-flex !important;
+  min-width: 36px;
+  height: 36px;
+  opacity: 1 !important;
+  z-index: 5 !important;
+}
+
+:deep(.v-data-table .v-data-table-header__icon) {
+  opacity: 1 !important;
+}
+
+/* Surcharge des styles possiblement conflictuels */
+:deep(.v-data-table .v-btn) {
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 5 !important;
+}
+
+/* Styles pour la colonne actions */
+:deep(.v-data-table tbody td:last-child) {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+:deep(.v-data-table .v-data-table__td--action) {
+  padding: 0 8px;
+  white-space: nowrap;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+:deep(.v-data-table .v-data-table__td--action .v-btn) {
+  margin: 0 2px;
+  min-width: 36px;
+  min-height: 36px;
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 5 !important;
+  position: relative !important;
+}
+
+/* Empêcher que d'autres éléments couvrent les boutons */
+:deep(.v-data-table) {
+  overflow: visible !important;
 }
 </style>
