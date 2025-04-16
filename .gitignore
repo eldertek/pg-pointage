@@ -40,3 +40,7 @@ __pycache__/
 # Pytest
 .coverage
 .pytest_cache/
+
+# Database backups
+/backups/
+/opt/pg-pointage/backups/
