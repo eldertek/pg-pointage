@@ -128,6 +128,9 @@ import { useTimesheetStore } from '@/stores/timesheet'
 import { useGeolocation } from '@/composables/useGeolocation'
 import { usersApi } from '@/services/api'
 
+// Import du son de notification
+import beepSound from '@/assets/sounds/beep.mp3'
+
 // Détection de la plateforme
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
 const isAndroid = /Android/.test(navigator.userAgent)
@@ -581,6 +584,14 @@ export default {
 
     // Fonctions pour afficher des messages
     const showSuccess = (text) => {
+      // Jouer un bip sonore à la validation
+      try {
+        const audio = new Audio(beepSound)
+        audio.play()
+      } catch (e) {
+        // Ignore les erreurs de lecture audio
+        console.error('Erreur lors de la lecture du son:', e)
+      }
       snackbar.value = {
         show: true,
         text,

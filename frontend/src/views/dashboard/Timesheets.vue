@@ -62,7 +62,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
         ]"
         :page-text="'{0}-{1} sur {2}'"
         :items-per-page-text="'Lignes par page'"
-        @click:row="showDetails">
+        @click:row="handleRowClick">
         <template #item.entry_type="{ item }">
           <v-chip :color="item.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'" size="small">
             {{ getEntryTypeLabel(item.entry_type) }}
@@ -74,18 +74,38 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
           </v-chip>
         </template>
         <template #item.actions="{ item }">
-          <div class="d-flex justify-center" data-no-row-click>
-            <v-btn
-v-if="canEditTimesheet" icon="mdi-pencil" size="small" color="primary" variant="text" class="mr-2 action-button"
-              @click.stop="editTimesheet(item)">
-              <v-tooltip activator="parent" location="top">Modifier</v-tooltip>
-            </v-btn>
-            <v-btn
-v-if="canEditTimesheet" icon="mdi-delete" size="small" color="error" variant="text" class="action-button"
-              @click.stop="confirmDelete(item)">
-              <v-tooltip activator="parent" location="top">Supprimer</v-tooltip>
-            </v-btn>
-          </div>
+          <v-btn
+            icon="mdi-eye"
+            size="small"
+            color="primary"
+            variant="text"
+            @click.stop="showDetails(item)"
+          >
+            <v-icon>mdi-eye</v-icon>
+            <v-tooltip activator="parent">Voir les détails</v-tooltip>
+          </v-btn>
+          <v-btn
+            v-if="canEditTimesheet"
+            icon="mdi-pencil"
+            size="small"
+            color="primary"
+            variant="text"
+            @click.stop="editTimesheet(item)"
+          >
+            <v-icon>mdi-pencil</v-icon>
+            <v-tooltip activator="parent">Modifier</v-tooltip>
+          </v-btn>
+          <v-btn
+            v-if="canEditTimesheet"
+            icon="mdi-delete"
+            size="small"
+            color="error"
+            variant="text"
+            @click.stop="confirmDelete(item)"
+          >
+            <v-icon>mdi-delete</v-icon>
+            <v-tooltip activator="parent">Supprimer</v-tooltip>
+          </v-btn>
         </template>
       </v-data-table>
     </v-card>
@@ -595,6 +615,10 @@ const confirmDelete = (item: any): void => {
   deleteDialog.value = true
 }
 
+const handleRowClick = (item: any): void => {
+  showDetails(item)
+}
+
 const deleteTimesheet = async () => {
   try {
     if (!timesheetToDelete.value) return;
@@ -664,34 +688,9 @@ onMounted(() => {
   z-index: 1 !important;
 }
 
-/* Styles pour les boutons d'action dans le tableau */
-:deep(.v-data-table .v-data-table__td--action) {
-  padding: 0 8px !important;
-  white-space: nowrap !important;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  position: relative !important;
-  z-index: 10 !important;
-}
-
-:deep(.v-data-table .v-data-table__td--action .v-btn) {
-  margin: 0 2px !important;
-  min-width: 36px !important;
-  min-height: 36px !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  z-index: 10 !important;
-  position: relative !important;
-  display: inline-flex !important;
-}
-
+/* Style des boutons dans le tableau */
 :deep(.v-data-table .v-btn--icon) {
   background-color: transparent !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: inline-flex !important;
-  z-index: 10 !important;
 }
 
 :deep(.v-data-table .v-btn--icon[color="primary"]) {
@@ -718,11 +717,6 @@ onMounted(() => {
   opacity: 1 !important;
   color: inherit !important;
   visibility: visible !important;
-}
-
-/* Style pour le tableau avec pointeur */
-:deep(.v-data-table tbody tr) {
-  cursor: pointer;
 }
 
 /* Style des boutons colorés */
@@ -794,5 +788,15 @@ onMounted(() => {
 
 :deep(.v-data-table .v-data-table__td--action) {
   z-index: 10 !important;
+  padding: 0 8px !important;
+  white-space: nowrap !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Style pour le tableau avec pointeur */
+:deep(.v-data-table tbody tr) {
+  cursor: pointer;
 }
 </style>

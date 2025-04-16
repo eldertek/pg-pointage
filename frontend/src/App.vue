@@ -3,18 +3,14 @@
     <v-main>
       <router-view />
     </v-main>
-    <app-offline-banner />
   </v-app>
 </template>
 
 <script>
-import AppOfflineBanner from '@/components/common/AppOfflineBanner.vue'
 
 export default {
   name: 'App',
-  components: {
-    AppOfflineBanner
-  }
+  components: {}
 }
 </script>
 
