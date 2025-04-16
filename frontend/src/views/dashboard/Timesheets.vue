@@ -74,7 +74,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
           </v-chip>
         </template>
         <template #item.actions="{ item }">
-          <div class="d-flex justify-center">
+          <div class="d-flex justify-center" data-no-row-click>
             <v-btn
 v-if="canEditTimesheet" icon="mdi-pencil" size="small" color="primary" variant="text" class="mr-2 action-button"
               @click.stop="editTimesheet(item)">
@@ -376,7 +376,9 @@ const formatTimesheet = (timesheet: any): any => {
       return {
         ...timesheet,
         date: 'Date invalide',
-        time: '--:--'
+        time: '--:--',
+        // Conserver l'original pour le débogage
+        original_timestamp: timesheet.timestamp
       }
     }
 
@@ -386,7 +388,9 @@ const formatTimesheet = (timesheet: any): any => {
       return {
         ...timesheet,
         date: 'Date invalide',
-        time: '--:--'
+        time: '--:--',
+        // Conserver l'original pour le débogage
+        original_timestamp: timesheet.timestamp
       }
     }
 
@@ -395,7 +399,9 @@ const formatTimesheet = (timesheet: any): any => {
       date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
       time: format(timestamp, 'HH:mm', { locale: fr }),
       employee: timesheet.employee_name || 'Employé inconnu',
-      site: timesheet.site_name || 'Site inconnu'
+      site: timesheet.site_name || 'Site inconnu',
+      // Conserver l'original pour le débogage
+      original_timestamp: timesheet.timestamp
     }
     console.log('Pointage formaté:', formatted)
     return formatted
@@ -406,7 +412,8 @@ const formatTimesheet = (timesheet: any): any => {
       date: 'Erreur',
       time: '--:--',
       employee: 'Erreur',
-      site: 'Erreur'
+      site: 'Erreur',
+      original_timestamp: timesheet?.timestamp
     }
   }
 }
@@ -462,6 +469,23 @@ const resetFilters = () => {
 
 const showDetails = (item: any): void => {
   try {
+    console.log('showDetails appelé avec:', item)
+
+    // Vérifier si l'item est complet
+    if (!item) {
+      console.error('Item manquant')
+      return
+    }
+
+    // Si l'item n'a pas de timestamp mais a déjà date et time (formaté précédemment)
+    if (!item.timestamp && item.date && item.time) {
+      console.log('Utilisation des champs date et time déjà formatés')
+      selectedTimesheet.value = { ...item }
+      detailDialog.value = true
+      return
+    }
+
+    // Vérification du timestamp
     if (!item.timestamp) {
       console.error('Timestamp manquant')
       return
