@@ -3,7 +3,7 @@
     <!-- En-tête avec titre et actions -->
     <div class="d-flex justify-space-between align-center mb-4">
       <div>
-        <Title :level="1">{{ title }}</Title>
+        <Title :level="1">{{ $t(title) }}</Title>
         <slot name="subtitle"></slot>
       </div>
       <div class="d-flex gap-2">
@@ -13,7 +13,7 @@
 
     <!-- Filtres -->
     <v-card v-if="$slots.filters" class="mb-4">
-      <v-card-title>Filtres</v-card-title>
+      <v-card-title>{{ $t('reports.filters') }}</v-card-title>
       <v-card-text>
         <slot name="filters"></slot>
       </v-card-text>
@@ -30,7 +30,7 @@
         <div class="form-dialog-header">
           <div class="form-dialog-title">
             <span class="text-h4">{{ formTitle }}</span>
-            <span class="text-subtitle">Remplissez les informations ci-dessous</span>
+            <span class="text-subtitle">{{ $t('dashboard.remplissez_les_informations_cidessous') }}</span>
           </div>
           <v-btn
             icon
@@ -52,22 +52,22 @@
         <v-divider></v-divider>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn 
-            color="grey" 
-            variant="text" 
+          <v-btn
+            color="grey"
+            variant="text"
             class="action-button"
             @click="closeForm"
           >
-            Annuler
+            {{ $t('common.cancel') }}
           </v-btn>
-          <v-btn 
-            color="primary" 
-            variant="text" 
+          <v-btn
+            color="primary"
+            variant="text"
             :loading="saving"
             class="action-button"
             @click="$emit('save')"
           >
-            Enregistrer
+            {{ $t('common.save') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -79,12 +79,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { Title } from '@/components/typography'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { typography } from '@/styles/typography'
 
-const props = defineProps({
+defineProps({
   title: {
     type: String,
     required: true
@@ -99,8 +99,6 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['save'])
-
 const showForm = ref(false)
 
 const closeForm = () => {
@@ -110,6 +108,8 @@ const closeForm = () => {
 defineExpose({
   showForm
 })
+
+defineEmits(['save'])
 </script>
 
 <style scoped>
@@ -214,4 +214,4 @@ defineExpose({
 :deep(.v-divider) {
   margin: 0;
 }
-</style> 
+</style>

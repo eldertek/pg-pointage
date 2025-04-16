@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Title level="1" class="text-h4">Nouvelle organisation</Title>
+    <Title level="1" class="text-h4">{{ $t('dashboard.nouvelle_organisation') }}</Title>
 
     <div class="d-flex align-center mb-4">
       <v-btn icon class="mr-4" to="/dashboard/organizations">
@@ -15,21 +15,21 @@
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="organizationForm.name"
-                label="Nom de l'organisation"
+                :label="$t('dashboard.nom_de_lorganisation')"
                 required
-                :rules="[v => !!v || 'Le nom est requis']"
+                :rules="[v => !!v || t('organizations.nameRequired')]"
               ></v-text-field>
             </v-col>
 
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="organizationForm.contact_email"
-                label="Email de contact"
+                :label="$t('organizations.contactEmail')"
                 type="email"
                 required
                 :rules="[
-                  v => !!v || 'L\'email est requis',
-                  v => /.+@.+\..+/.test(v) || 'L\'email doit être valide'
+                  v => !!v || t('common.fieldRequired'),
+                  v => /.+@.+\..+/.test(v) || t('auth.invalidEmail')
                 ]"
               ></v-text-field>
             </v-col>
@@ -37,20 +37,20 @@
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="organizationForm.phone"
-                label="Téléphone"
+                :label="$t('profile.phone')"
                 required
-                :rules="[v => !!v || 'Le téléphone est requis']"
+                :rules="[v => !!v || t('organizations.phoneRequired')]"
               ></v-text-field>
             </v-col>
 
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="organizationForm.siret"
-                label="SIRET"
+                :label="$t('organizations.siret')"
                 required
                 :rules="[
-                  v => !!v || 'Le SIRET est requis',
-                  v => /^\d{14}$/.test(v) || 'Le SIRET doit contenir 14 chiffres'
+                  v => !!v || t('organizations.siretRequired'),
+                  v => /^\d{14}$/.test(v) || t('organizations.siretFormat', 'Le SIRET doit contenir 14 chiffres')
                 ]"
               ></v-text-field>
             </v-col>
@@ -58,20 +58,20 @@
             <v-col cols="12">
               <v-text-field
                 v-model="organizationForm.address"
-                label="Adresse"
+                :label="$t('sites.address')"
                 required
-                :rules="[v => !!v || 'L\'adresse est requise']"
+                :rules="[v => !!v || t('sites.addressRequired')]"
               ></v-text-field>
             </v-col>
 
             <v-col cols="12" md="4">
               <v-text-field
                 v-model="organizationForm.postal_code"
-                label="Code postal"
+                :label="$t('sites.postalCode')"
                 required
                 :rules="[
-                  v => !!v || 'Le code postal est requis',
-                  v => /^\d{5}$/.test(v) || 'Le code postal doit contenir 5 chiffres'
+                  v => !!v || t('organizations.postalCodeRequired'),
+                  v => /^\d{5}$/.test(v) || t('sites.postalCodeFormat')
                 ]"
               ></v-text-field>
             </v-col>
@@ -79,25 +79,25 @@
             <v-col cols="12" md="4">
               <v-text-field
                 v-model="organizationForm.city"
-                label="Ville"
+                :label="$t('sites.city')"
                 required
-                :rules="[v => !!v || 'La ville est requise']"
+                :rules="[v => !!v || t('organizations.cityRequired')]"
               ></v-text-field>
             </v-col>
 
             <v-col cols="12" md="4">
               <v-text-field
                 v-model="organizationForm.country"
-                label="Pays"
+                :label="$t('sites.country')"
                 required
-                :rules="[v => !!v || 'Le pays est requis']"
+                :rules="[v => !!v || t('organizations.countryRequired')]"
               ></v-text-field>
             </v-col>
 
             <v-col cols="12">
               <v-textarea
                 v-model="organizationForm.notes"
-                label="Notes"
+                :label="$t('organizations.notes')"
                 rows="3"
               ></v-textarea>
             </v-col>
@@ -106,36 +106,36 @@
 
         <v-divider></v-divider>
 
-        <v-card-title>Responsable de l'organisation</v-card-title>
+        <v-card-title>{{ $t('dashboard.responsable_de_lorganisation') }}</v-card-title>
         <v-card-text>
           <v-row>
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="managerForm.first_name"
-                label="Prénom"
+                :label="$t('profile.firstName')"
                 required
-                :rules="[v => !!v || 'Le prénom est requis']"
+                :rules="[v => !!v || t('common.firstNameRequired')]"
               ></v-text-field>
             </v-col>
 
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="managerForm.last_name"
-                label="Nom"
+                :label="$t('profile.lastName')"
                 required
-                :rules="[v => !!v || 'Le nom est requis']"
+                :rules="[v => !!v || t('common.lastNameRequired')]"
               ></v-text-field>
             </v-col>
 
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="managerForm.email"
-                label="Email"
+                :label="$t('auth.email')"
                 type="email"
                 required
                 :rules="[
-                  v => !!v || 'L\'email est requis',
-                  v => /.+@.+\..+/.test(v) || 'L\'email doit être valide'
+                  v => !!v || t('common.fieldRequired'),
+                  v => /.+@.+\..+/.test(v) || t('auth.invalidEmail')
                 ]"
               ></v-text-field>
             </v-col>
@@ -143,9 +143,9 @@
             <v-col cols="12" md="6">
               <v-text-field
                 v-model="managerForm.phone"
-                label="Téléphone"
+                :label="$t('profile.phone')"
                 required
-                :rules="[v => !!v || 'Le téléphone est requis']"
+                :rules="[v => !!v || t('common.phoneRequired')]"
               ></v-text-field>
             </v-col>
           </v-row>
@@ -158,14 +158,14 @@
             variant="text"
             :to="{ name: 'Organizations' }"
           >
-            Annuler
+            {{ $t('common.cancel') }}
           </v-btn>
           <v-btn
             color="primary"
             type="submit"
             :loading="saving"
           >
-            Créer l'organisation
+            {{ $t('dashboard.crer_lorganisation') }}
           </v-btn>
         </v-card-actions>
       </v-form>
@@ -174,6 +174,7 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -185,6 +186,7 @@ export default {
     Title
   },
   setup() {
+    const { t } = useI18n()
     const router = useRouter()
     const form = ref(null)
     const saving = ref(false)
@@ -211,7 +213,7 @@ export default {
 
     const saveOrganization = async () => {
       const { valid } = await form.value.validate()
-      
+
       if (!valid) {
         console.log('Formulaire invalide, validation échouée')
         return
@@ -269,4 +271,4 @@ export default {
     }
   }
 }
-</script> 
+</script>

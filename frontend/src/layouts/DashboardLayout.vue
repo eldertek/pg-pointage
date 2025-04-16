@@ -5,7 +5,7 @@
         :icon="rail ? 'mdi-menu' : 'mdi-menu-open'"
         @click="$vuetify.display.lgAndUp ? (rail = !rail) : (drawer = !drawer)"
       ></v-app-bar-nav-icon>
-      <v-app-bar-title>Planète Gardiens - Administration</v-app-bar-title>
+      <v-app-bar-title>{{ $t("auth.appName") }} - {{ $t("users.roles.ADMIN") }}</v-app-bar-title>
       <v-spacer></v-spacer>
       
       <v-btn icon @click="showLogoutDialog = true">
@@ -33,10 +33,10 @@
               <template #prepend>
                 <v-icon>mdi-view-dashboard</v-icon>
               </template>
-              <v-list-item-title>Tableau de bord</v-list-item-title>
+              <v-list-item-title>{{ $t('common.tableau_de_bord') }}</v-list-item-title>
             </v-list-item>
           </template>
-          <span>Tableau de bord</span>
+          <span>{{ $t('common.tableau_de_bord') }}</span>
         </v-tooltip>
 
         <!-- Utilisateurs - Super Admin, Admin et Manager -->
@@ -51,10 +51,10 @@
               <template #prepend>
                 <v-icon>mdi-account-group</v-icon>
               </template>
-              <v-list-item-title>Utilisateurs</v-list-item-title>
+              <v-list-item-title>{{ $t('users.title') }}</v-list-item-title>
             </v-list-item>
           </template>
-          <span>Utilisateurs</span>
+          <span>{{ $t('users.title') }}</span>
         </v-tooltip>
 
         <!-- Sites - Super Admin, Admin et Manager -->
@@ -69,10 +69,10 @@
               <template #prepend>
                 <v-icon>mdi-domain</v-icon>
               </template>
-              <v-list-item-title>Sites</v-list-item-title>
+              <v-list-item-title>{{ $t('sites.title') }}</v-list-item-title>
             </v-list-item>
           </template>
-          <span>Sites</span>
+          <span>{{ $t('sites.title') }}</span>
         </v-tooltip>
 
         <!-- Plannings - Super Admin, Admin et Manager -->
@@ -82,10 +82,10 @@
               <template #prepend>
                 <v-icon>mdi-calendar</v-icon>
               </template>
-              <v-list-item-title>Plannings</v-list-item-title>
+              <v-list-item-title>{{ $t('plannings.title') }}</v-list-item-title>
             </v-list-item>
           </template>
-          <span>Plannings</span>
+          <span>{{ $t('plannings.title') }}</span>
         </v-tooltip>
 
         <!-- Pointages - Super Admin, Admin et Manager -->
@@ -95,10 +95,10 @@
               <template #prepend>
                 <v-icon>mdi-clock-time-four</v-icon>
               </template>
-              <v-list-item-title>Pointages</v-list-item-title>
+              <v-list-item-title>{{ $t('timesheets.title') }}</v-list-item-title>
             </v-list-item>
           </template>
-          <span>Pointages</span>
+          <span>{{ $t('timesheets.title') }}</span>
         </v-tooltip>
 
         <!-- Anomalies - Super Admin, Admin et Manager -->
@@ -108,10 +108,10 @@
               <template #prepend>
                 <v-icon>mdi-alert</v-icon>
               </template>
-              <v-list-item-title>Anomalies</v-list-item-title>
+              <v-list-item-title>{{ $t('anomalies.title') }}</v-list-item-title>
             </v-list-item>
           </template>
-          <span>Anomalies</span>
+          <span>{{ $t('anomalies.title') }}</span>
         </v-tooltip>
 
         <!-- Rapports - Super Admin, Admin et Manager -->
@@ -121,10 +121,10 @@
               <template #prepend>
                 <v-icon>mdi-file-chart</v-icon>
               </template>
-              <v-list-item-title>Rapports</v-list-item-title>
+              <v-list-item-title>{{ $t('reports.title') }}</v-list-item-title>
             </v-list-item>
           </template>
-          <span>Rapports</span>
+          <span>{{ $t('reports.title') }}</span>
         </v-tooltip>
 
         <!-- Gestion des accès - Super Admin uniquement -->
@@ -139,10 +139,10 @@
               <template #prepend>
                 <v-icon>mdi-domain</v-icon>
               </template>
-              <v-list-item-title>Gestion des accès</v-list-item-title>
+              <v-list-item-title>{{ $t('dashboard.gestion_des_accs') }}</v-list-item-title>
             </v-list-item>
           </template>
-          <span>Gestion des accès</span>
+          <span>{{ $t('dashboard.gestion_des_accs') }}</span>
         </v-tooltip>
 
         <!-- Paramètres - Super Admin, Admin et Manager -->
@@ -152,10 +152,10 @@
               <template #prepend>
                 <v-icon>mdi-cog</v-icon>
               </template>
-              <v-list-item-title>Paramètres</v-list-item-title>
+              <v-list-item-title>{{ $t('settings.title') }}</v-list-item-title>
             </v-list-item>
           </template>
-          <span>Paramètres</span>
+          <span>{{ $t('settings.title') }}</span>
         </v-tooltip>
       </v-list>
     </v-navigation-drawer>
@@ -168,12 +168,12 @@
 
     <v-dialog v-model="showLogoutDialog" max-width="300">
       <v-card>
-        <v-card-title>Déconnexion</v-card-title>
-        <v-card-text>Êtes-vous sûr de vouloir vous déconnecter ?</v-card-text>
+        <v-card-title>{{ $t('auth.logout') }}</v-card-title>
+        <v-card-text>{{ $t('mobile.tesvous_sr_de_vouloir_vous_dconnecter') }}</v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="primary" variant="text" @click="showLogoutDialog = false">Annuler</v-btn>
-          <v-btn color="error" variant="text" @click="logout">Déconnecter</v-btn>
+          <v-btn color="primary" variant="text" @click="showLogoutDialog = false">{{ $t('common.cancel') }}</v-btn>
+          <v-btn color="error" variant="text" @click="logout">{{ $t('mobile.dconnecter') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

@@ -18,7 +18,7 @@
         class="mr-2"
         @click.stop="editItem"
       >
-        Modifier
+        {{ $t('common.edit') }}
       </v-btn>
       <v-btn
         v-if="canCreateDelete"
@@ -26,7 +26,7 @@
         prepend-icon="mdi-delete"
         @click.stop="confirmDelete"
       >
-        Supprimer
+        {{ $t('common.delete') }}
       </v-btn>
     </div>
 
@@ -40,10 +40,10 @@
     <template v-else>
       <v-card>
         <v-tabs v-model="activeTab" color="#00346E">
-          <v-tab value="details">Informations</v-tab>
-          <v-tab value="sites">Sites</v-tab>
-          <v-tab value="employees">Employés</v-tab>
-          <v-tab value="reports">Rapports</v-tab>
+          <v-tab value="details">{{ $t('dashboard.informations') }}</v-tab>
+          <v-tab value="sites">{{ $t('sites.title') }}</v-tab>
+          <v-tab value="employees">{{ $t('reports.reportTypes.EMPLOYEE') }}</v-tab>
+          <v-tab value="reports">{{ $t('reports.title') }}</v-tab>
         </v-tabs>
 
         <v-card-text>
@@ -77,8 +77,8 @@
                               <template v-else-if="field.type === 'status'">
                                 <StatusChip
                                   :status="item[field.key]"
-                                  :active-label="field.activeLabel"
-                                  :inactive-label="field.inactiveLabel"
+                                  :active-:label="$t('dashboard.fieldactivelabel')"
+                                  :inactive-:label="$t('dashboard.fieldinactivelabel')"
                                 />
                               </template>
                               <template v-else>
@@ -91,7 +91,7 @@
                     </v-col>
                     <v-col cols="12" md="6">
                       <v-card v-if="item.logo" class="mb-4">
-                        <v-card-title>Logo</v-card-title>
+                        <v-card-title>{{ $t('organizations.logo') }}</v-card-title>
                         <v-card-text class="text-center">
                           <v-img
                             :src="item.logo"
@@ -102,7 +102,7 @@
                         </v-card-text>
                       </v-card>
                       <v-card class="mb-4">
-                        <v-card-title>Statistiques</v-card-title>
+                        <v-card-title>{{ $t('dashboard.statistics') }}</v-card-title>
                         <v-card-text>
                           <v-row>
                             <template v-for="(stat) in statistics" :key="stat.label">
@@ -123,10 +123,10 @@
             <!-- Onglet Sites -->
             <v-window-item value="sites">
               <DataTable
-                title="Sites"
+                :title="$t('sites.title')"
                 :headers="sitesHeaders"
                 :items="sites"
-                :no-data-text="'Aucun site trouvé'"
+                :no-data-:text="$t('dashboard.aucun_site_trouv')"
                 :detail-route="'/dashboard/sites/:id'"
                 :edit-route="'/dashboard/sites/:id/edit'"
                 @toggle-status="(item: TableItem) => handleToggleStatus('sites', item)"
@@ -147,10 +147,10 @@
             <!-- Onglet Employés -->
             <v-window-item value="employees">
               <DataTable
-                title="Employés"
+                :title="$t('reports.reportTypes.EMPLOYEE')"
                 :headers="employeesHeaders"
                 :items="employees"
-                :no-data-text="'Aucun employé trouvé'"
+                :no-data-:text="$t('dashboard.aucun_employ_trouv')"
                 :detail-route="'/dashboard/admin/users/:id'"
                 :edit-route="'/dashboard/admin/users/:id/edit'"
                 @toggle-status="(item: TableItem) => handleToggleStatus('employees', item)"
@@ -162,7 +162,7 @@
                 </template>
                 
                 <template #item.phone_number="{ item: rowItem }">
-                  <v-tooltip location="top" text="Cliquer pour appeler">
+                  <v-tooltip location="top" :text="$t('dashboard.cliquer_pour_appeler')">
                     <template #activator="{ props }">
                       <a 
                         v-bind="props"
@@ -185,10 +185,10 @@
             <!-- Onglet Rapports -->
             <v-window-item value="reports">
               <DataTable
-                title="Rapports"
+                :title="$t('reports.title')"
                 :headers="reportsHeaders"
                 :items="reports"
-                :no-data-text="'Aucun rapport trouvé'"
+                :no-data-:text="$t('dashboard.aucun_rapport_trouv')"
               >
                 <template #item.created_at="{ item: rowItem }">
                   {{ formatDate(rowItem.created_at) }}
@@ -215,6 +215,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'

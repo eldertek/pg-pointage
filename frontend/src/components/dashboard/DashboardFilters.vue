@@ -2,14 +2,14 @@
   <v-row>
     <slot></slot>
     <v-col cols="12" class="d-flex align-center justify-end">
-      <v-btn 
-        color="error" 
-        variant="outlined" 
+      <v-btn
+        color="error"
+        variant="outlined"
         prepend-icon="mdi-refresh"
         class="px-4"
         @click="$emit('reset')"
       >
-        Réinitialiser les filtres
+        {{ $t('common.resetFilters') }}
       </v-btn>
     </v-col>
   </v-row>
@@ -28,4 +28,4 @@ defineEmits(['reset'])
 .v-col {
   padding: 8px;
 }
-</style> 
+</style>

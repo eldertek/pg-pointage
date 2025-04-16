@@ -2,15 +2,15 @@
   <div class="login-container">
     <v-card class="login-card">
       <v-card-title class="text-center">
-        <Title :level="1" class="text-h4 mb-2">Planète Gardiens</Title>
-        <p class="text-subtitle-1">Connexion</p>
+        <Title :level="1" class="text-h4 mb-2">{{ $t('auth.appName') }}</Title>
+        <p class="text-subtitle-1">{{ $t('auth.login') }}</p>
       </v-card-title>
-      
+
       <v-card-text>
         <v-form ref="form" @submit.prevent="login">
           <v-text-field
             v-model="email"
-            label="Email"
+            :label="$t('auth.email')"
             type="email"
             :rules="[rules.required, rules.email]"
             prepend-inner-icon="mdi-email"
@@ -18,10 +18,10 @@
             class="mb-4"
             autocomplete="username email"
           ></v-text-field>
-          
+
           <v-text-field
             v-model="password"
-            label="Mot de passe"
+            :label="$t('auth.password')"
             :type="showPassword ? 'text' : 'password'"
             :rules="[rules.required]"
             prepend-inner-icon="mdi-lock"
@@ -31,7 +31,7 @@
             autocomplete="current-password"
             @click:append-inner="showPassword = !showPassword"
           ></v-text-field>
-          
+
           <v-alert
             v-if="error"
             type="error"
@@ -40,7 +40,7 @@
           >
             {{ error }}
           </v-alert>
-          
+
           <v-btn
             type="submit"
             color="primary"
@@ -48,9 +48,9 @@
             size="large"
             :loading="loading"
           >
-            Se connecter
+            {{ $t('auth.login') }}
           </v-btn>
-          
+
           <div class="text-center mt-4">
             <v-btn
               variant="text"
@@ -58,7 +58,7 @@
               to="/forgot-password"
               size="small"
             >
-              Mot de passe oublié ?
+              {{ $t('auth.forgotPassword') }}
             </v-btn>
           </div>
         </v-form>
@@ -68,6 +68,7 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { Title } from '@/components/typography'
@@ -78,6 +79,7 @@ export default {
     Title
   },
   setup() {
+    const { t } = useI18n()
     const authStore = useAuthStore()
     const form = ref(null)
     const email = ref('')
@@ -85,36 +87,36 @@ export default {
     const showPassword = ref(false)
     const loading = ref(false)
     const error = ref(null)
-    
+
     const rules = {
-      required: v => !!v || 'Ce champ est requis',
-      email: v => /.+@.+\..+/.test(v) || 'Veuillez entrer un email valide'
+      required: v => !!v || t('auth.fieldRequired'),
+      email: v => /.+@.+\..+/.test(v) || t('auth.invalidEmail')
     }
-    
+
     const login = async () => {
       const isValid = await form.value.validate()
-      
+
       if (isValid.valid) {
         loading.value = true
         error.value = null
-        
+
         try {
           const success = await authStore.login({
             email: email.value,
             password: password.value
           })
-          
+
           if (!success) {
             error.value = authStore.error
           }
         } catch (err) {
-          error.value = 'Une erreur est survenue lors de la connexion'
+          error.value = t('auth.loginError')
         } finally {
           loading.value = false
         }
       }
     }
-    
+
     return {
       form,
       email,

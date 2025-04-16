@@ -1,8 +1,8 @@
 <template>
   <DashboardView
     ref="dashboardView"
-    title="Utilisateurs"
-    :form-title="editedItem?.id ? 'Modifier un utilisateur' : 'Nouvel utilisateur'"
+    :title="$t('users.title')"
+    :form-:title="$t('dashboard.editeditemid_modifier_un_utilisateur_nouvel_utilisateur')"
     :saving="saving"
     @save="saveUser"
     @cancel="resetFormState"
@@ -13,7 +13,7 @@
         <v-col cols="12" md="4">
           <v-text-field
             v-model="filters.search"
-            label="Rechercher"
+            :label="$t('common.search')"
             variant="outlined"
             prepend-inner-icon="mdi-magnify"
             clearable
@@ -24,9 +24,9 @@
           <v-select
             v-model="filters.role"
             :items="roles"
-            item-title="label"
+            item-:title="$t('dashboard.label')"
             item-value="value"
-            label="Rôle"
+            :label="$t('profile.role')"
             variant="outlined"
             prepend-inner-icon="mdi-account-key"
             clearable
@@ -44,7 +44,7 @@
         prepend-icon="mdi-plus"
         @click="openDialog()"
       >
-        Nouvel utilisateur
+        {{ $t('dashboard.newUser') }}
       </v-btn>
     </template>
 
@@ -57,18 +57,18 @@
       :items-per-page="itemsPerPage"
       :items-length="filteredUsers.length"
       :loading="loading"
-      :no-data-text="'Aucun utilisateur trouvé'"
-      :loading-text="'Chargement des utilisateurs...'"
+      :no-data-:text="$t('dashboard.aucun_utilisateur_trouv')"
+      :loading-:text="$t('dashboard.chargement_des_utilisateurs')"
       :sort-by="[{ key: 'last_name' }, { key: 'first_name' }, { key: 'role' }]"
       class="elevation-1"
       :items-per-page-options="[
         { title: '5', value: 5 },
         { title: '10', value: 10 },
         { title: '15', value: 15 },
-        { title: 'Tout', value: -1 }
+        { title: t('common.all'), value: -1 }
       ]"
-      :page-text="'{0}-{1} sur {2}'"
-      :items-per-page-text="'Lignes par page'"
+      :page-:text="$t('dashboard.01_sur_2')"
+      :items-per-page-:text="$t('dashboard.lignes_par_page')"
       @click:row="handleRowClick"
     >
       <!-- Rôle -->
@@ -108,7 +108,7 @@
           </v-chip>
         </template>
         <span v-else class="text-grey">
-          Aucune organisation
+          {{ $t('organizations.noOrganizations') }}
         </span>
       </template>
 
@@ -124,7 +124,7 @@
           @click.stop
         >
           <v-icon>mdi-eye</v-icon>
-          <v-tooltip activator="parent">Voir les détails</v-tooltip>
+          <v-tooltip activator="parent">{{ $t('common.viewDetails') }}</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canEdit && (item as ExtendedUser)?.id !== authStore.user?.id"
@@ -135,7 +135,7 @@
           @click.stop="openDialog(item as ExtendedUser)"
         >
           <v-icon>mdi-pencil</v-icon>
-          <v-tooltip activator="parent">Modifier</v-tooltip>
+          <v-tooltip activator="parent">{{ $t('common.edit') }}</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canCreateDelete && (item as ExtendedUser)?.id !== authStore.user?.id"
@@ -146,7 +146,7 @@
           @click.stop="toggleStatus(item as ExtendedUser)"
         >
           <v-icon>{{ (item as ExtendedUser).is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
-          <v-tooltip activator="parent">{{ (item as ExtendedUser).is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+          <v-tooltip activator="parent">{{ (item as ExtendedUser).is_active ? $t('common.deactivate') : $t('common.activate') }}</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canCreateDelete && (item as ExtendedUser)?.id !== authStore.user?.id"
@@ -157,7 +157,7 @@
           @click.stop="confirmDelete(item as ExtendedUser)"
         >
           <v-icon>mdi-delete</v-icon>
-          <v-tooltip activator="parent">Supprimer</v-tooltip>
+          <v-tooltip activator="parent">{{ $t('common.delete') }}</v-tooltip>
         </v-btn>
       </template>
     </v-data-table>
@@ -168,7 +168,7 @@
         <v-col v-if="editedItem" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).last_name"
-            label="Nom"
+            :label="$t('profile.lastName')"
             required
             :error-messages="formErrors.last_name"
             autocomplete="family-name"
@@ -177,7 +177,7 @@
         <v-col v-if="editedItem" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).first_name"
-            label="Prénom"
+            :label="$t('profile.firstName')"
             required
             :error-messages="formErrors.first_name"
             autocomplete="given-name"
@@ -186,7 +186,7 @@
         <v-col v-if="editedItem" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).phone_number"
-            label="Téléphone"
+            :label="$t('profile.phone')"
             required
             :error-messages="formErrors.phone_number"
             autocomplete="tel"
@@ -205,7 +205,7 @@
         <v-col v-if="editedItem" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).email"
-            label="Email"
+            :label="$t('auth.email')"
             type="email"
             required
             :error-messages="formErrors.email"
@@ -217,9 +217,9 @@
           <v-select
             v-model="(editedItem as UserFormData).role"
             :items="roles"
-            item-title="label"
+            item-:title="$t('dashboard.label')"
             item-value="value"
-            label="Rôle"
+            :label="$t('profile.role')"
             required
             :error-messages="formErrors.role"
           ></v-select>
@@ -229,15 +229,15 @@
           <v-select
             v-model="selectedOrganizations"
             :items="organizationItems"
-            item-title="name"
+            item-:title="$t('dashboard.name')"
             item-value="id"
-            label="Organisations"
+            :label="$t('users.organizations')"
             multiple
             chips
             required
             :error-messages="formErrors.organizations"
-            :rules="[v => (v && v.length > 0) || 'Au moins une organisation est requise']"
-            no-data-text="Aucune organisation disponible"
+            :rules="[v => (v && v.length > 0) || t('users.organizationRequired', 'Au moins une organisation est requise')]"
+            no-data-:text="$t('dashboard.aucune_organisation_disponible')"
             :return-object="false"
             @update:model-value="(val: number[]) => {
               if (editedItem && Array.isArray(val)) {
@@ -250,7 +250,7 @@
             <template #chip="{ props: slotProps, item }">
               <v-chip
                 v-bind="slotProps"
-                :text="organizationsMap.get(item.value) || item.title"
+                ::text="$t('dashboard.organizationsmapgetitemvalue_itemtitle')"
                 color="primary"
                 size="small"
               ></v-chip>
@@ -262,13 +262,13 @@
         <v-col v-if="editedItem && !(editedItem as UserFormData).id" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).password"
-            label="Mot de passe"
+            :label="$t('auth.password')"
             :type="showPassword ? 'text' : 'password'"
             required
             :error-messages="formErrors.password"
             :rules="[
-              v => !!v || 'Le mot de passe est requis',
-              v => !v || v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
+              v => !!v || t('common.passwordRequired'),
+              v => !v || v.length >= 8 || t('auth.passwordMinLength')
             ]"
             autocomplete="new-password"
           >
@@ -288,13 +288,13 @@
         <v-col v-if="editedItem && !(editedItem as UserFormData).id" cols="12" sm="6">
           <v-text-field
             v-model="confirmPassword"
-            label="Confirmer le mot de passe"
+            :label="$t('auth.confirmPassword')"
             :type="showConfirmPassword ? 'text' : 'password'"
             required
             :error-messages="formErrors.confirm_password"
             :rules="[
-              v => !!v || 'La confirmation du mot de passe est requise',
-              v => !editedItem || v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
+              v => !!v || t('common.confirmPasswordRequired'),
+              v => !editedItem || v === (editedItem as UserFormData).password || t('auth.passwordMismatch')
             ]"
             autocomplete="new-password"
           >
@@ -315,9 +315,9 @@
           <v-select
             v-model="(editedItem as UserFormData).scan_preference"
             :items="scanPreferences"
-            item-title="label"
+            item-:title="$t('dashboard.label')"
             item-value="value"
-            label="Méthode de scan"
+            :label="$t('mobile.mthode_de_scan')"
             required
             :error-messages="formErrors.scan_preference"
           ></v-select>
@@ -327,7 +327,7 @@
         <v-col v-if="editedItem && (editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
           <v-switch
             v-model="(editedItem as UserFormData).simplified_mobile_view"
-            label="Vue mobile simplifiée"
+            :label="$t('dashboard.vue_mobile_simplifie')"
             :error-messages="formErrors.simplified_mobile_view"
           ></v-switch>
         </v-col>
@@ -336,17 +336,17 @@
         <v-col v-if="editedItem && (editedItem as UserFormData).id" cols="12">
           <v-divider class="my-4"></v-divider>
           <v-card-title class="text-subtitle-1 font-weight-medium">
-            Réinitialisation du mot de passe
+            {{ $t('users.passwordReset', 'Réinitialisation du mot de passe') }}
             <v-chip
               color="grey"
               size="small"
               class="ml-2"
             >
-              Optionnel
+              {{ $t('users.optional', 'Optionnel') }}
             </v-chip>
           </v-card-title>
           <v-card-text class="text-caption text-grey">
-            Vous pouvez réinitialiser le mot de passe de l'utilisateur. Laissez ces champs vides si vous ne souhaitez pas modifier le mot de passe.
+            {{ $t('dashboard.vous_pouvez_rinitialiser_le_mot_de_passe_de_lutilisateur_laissez_ces_champs_vides_si_vous_ne_souhaitez_pas_modifier_le_mot_de_passe') }}
           </v-card-text>
         </v-col>
 
@@ -354,13 +354,13 @@
         <v-col v-if="editedItem && (editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as UserFormData).password"
-            label="Nouveau mot de passe"
+            :label="$t('auth.newPassword')"
             :type="showPassword ? 'text' : 'password'"
             :error-messages="formErrors.password"
             :rules="[
-              v => !v || v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères'
+              v => !v || v.length >= 8 || t('auth.passwordMinLength')
             ]"
-            hint="Laissez vide pour ne pas modifier le mot de passe"
+            :hint="t('users.leaveEmptyPassword', 'Laissez vide pour ne pas modifier le mot de passe')"
             persistent-hint
             autocomplete="new-password"
           >
@@ -380,13 +380,13 @@
         <v-col v-if="editedItem && (editedItem as UserFormData).id && (canCreateDelete || (editedItem as UserFormData).organizations.some(orgId => authStore.user?.organizations.some(userOrg => userOrg.id === orgId)))" cols="12" sm="6">
           <v-text-field
             v-model="confirmPassword"
-            label="Confirmer le nouveau mot de passe"
+            :label="$t('dashboard.confirmer_le_nouveau_mot_de_passe')"
             :type="showConfirmPassword ? 'text' : 'password'"
             :error-messages="formErrors.confirm_password"
             :rules="[
-              v => !v || !editedItem || v === (editedItem as UserFormData).password || 'Les mots de passe ne correspondent pas'
+              v => !v || !editedItem || v === (editedItem as UserFormData).password || t('auth.passwordMismatch')
             ]"
-            hint="Laissez vide pour ne pas modifier le mot de passe"
+            :hint="t('users.leaveEmptyPassword', 'Laissez vide pour ne pas modifier le mot de passe')"
             persistent-hint
             autocomplete="new-password"
           >
@@ -409,6 +409,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { usersApi, organizationsApi } from '@/services/api'
 import type { Organization } from '@/types/api'
 import { RoleEnum, ScanPreferenceEnum } from '@/types/api'
@@ -420,6 +421,8 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useRouter } from 'vue-router'
 import { useConfirmDialog } from '@/utils/dialogs'
 import type { DialogState } from '@/utils/dialogs'
+
+const { t } = useI18n()
 
 // Interface étendue pour les utilisateurs avec les propriétés supplémentaires
 interface ExtendedUser {
@@ -494,14 +497,14 @@ const organizationsMap = ref<Map<number, string>>(new Map())
 
 // En-têtes des tableaux
 const headers = [
-  { title: 'ID', key: 'employee_id' },
-  { title: 'Nom', key: 'last_name' },
-  { title: 'Prénom', key: 'first_name' },
-  { title: 'Téléphone', key: 'phone_number' },
-  { title: 'Email', key: 'email' },
-  { title: 'Rôle', key: 'role' },
-  { title: 'Organisations', key: 'organizations_names', sortable: false },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { title: t('common.id'), key: 'employee_id' },
+  { title: t('common.lastName'), key: 'last_name' },
+  { title: t('common.firstName'), key: 'first_name' },
+  { title: t('common.phone'), key: 'phone_number' },
+  { title: t('common.email'), key: 'email' },
+  { title: t('common.role'), key: 'role' },
+  { title: t('common.organizations'), key: 'organizations_names', sortable: false },
+  { title: t('common.actions'), key: 'actions', sortable: false }
 ]
 
 // Rôles disponibles
@@ -974,8 +977,8 @@ const saveUser = async () => {
 const confirmDelete = (item: ExtendedUser) => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Confirmation de suppression'
-  state.message = 'Êtes-vous sûr de vouloir supprimer cet utilisateur ?'
+  state.title = t('common.deleteConfirmation')
+  state.message = t('users.deleteUserConfirmation')
   state.confirmText = 'Supprimer'
   state.cancelText = 'Annuler'
   state.confirmColor = 'error'
@@ -1021,7 +1024,7 @@ const getRoleLabel = (role: string): string => {
 const toggleStatus = async (item: ExtendedUser) => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Confirmation de changement de statut'
+  state.title = t('common.statusChangeConfirmation')
   state.message = `Êtes-vous sûr de vouloir ${item.is_active ? 'désactiver' : 'activer'} cet utilisateur ?`
   state.confirmText = item.is_active ? 'Désactiver' : 'Activer'
   state.cancelText = 'Annuler'

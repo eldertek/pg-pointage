@@ -1,8 +1,8 @@
 <template>
   <DashboardView
     ref="dashboardView"
-    title="Plannings"
-    :form-title="editedItem?.id ? 'Modifier' : 'Nouveau' + ' planning'"
+    :title="$t('plannings.title')"
+    :form-:title="$t('dashboard.editeditemid_modifier_nouveau_planning')"
     :saving="saving"
     @save="saveSchedule"
   >
@@ -14,7 +14,7 @@
         prepend-icon="mdi-plus"
         @click="openDialog()"
       >
-        Nouveau planning
+        {{ $t('dashboard.nouveau_planning') }}
       </v-btn>
     </template>
 
@@ -25,9 +25,9 @@
           <v-select
             v-model="filters.site"
             :items="sites"
-            item-title="name"
+            item-:title="$t('dashboard.name')"
             item-value="id"
-            label="Site"
+            :label="$t('timesheets.site')"
             variant="outlined"
             prepend-inner-icon="mdi-map-marker"
             clearable
@@ -38,7 +38,7 @@
           <v-select
             v-model="filters.type"
             :items="scheduleTypes"
-            label="Type de planning"
+            :label="$t('plannings.type')"
             variant="outlined"
             prepend-inner-icon="mdi-calendar-clock"
             clearable
@@ -56,15 +56,15 @@
       :loading="loading"
       :items-per-page="itemsPerPage"
       :items-length="totalItems"
-      :no-data-text="'Aucun planning trouvé'"
-      :loading-text="'Chargement des plannings...'"
-      :items-per-page-text="'Lignes par page'"
-      :page-text="'{0}-{1} sur {2}'"
+      :no-data-:text="$t('dashboard.aucun_planning_trouv')"
+      :loading-:text="$t('dashboard.chargement_des_plannings')"
+      :items-per-page-:text="$t('dashboard.lignes_par_page')"
+      :page-:text="$t('dashboard.01_sur_2')"
       :items-per-page-options="[
         { title: '5', value: 5 },
         { title: '10', value: 10 },
         { title: '15', value: 15 },
-        { title: 'Tout', value: -1 }
+        { title: $t('common.all'), value: -1 }
       ]"
       class="elevation-1"
       @click:row="handleRowClick"
@@ -103,7 +103,7 @@
           :color="item.schedule_type === 'FIXED' ? 'primary' : 'secondary'"
           size="small"
         >
-          {{ item.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+          {{ item.schedule_type === 'FIXED' ? t('plannings.planningTypes.FIXED') : t('plannings.planningTypes.FREQUENCY') }}
         </v-chip>
       </template>
 
@@ -162,12 +162,12 @@
               v-if="editedItem"
               v-model="editedItem.schedule_type"
               :items="[
-                { title: 'Fixe', value: 'FIXED' },
-                { title: 'Fréquence', value: 'FREQUENCY' }
+                { title: t('plannings.planningTypes.FIXED'), value: 'FIXED' },
+                { title: t('plannings.planningTypes.FREQUENCY'), value: 'FREQUENCY' }
               ]"
-              item-title="title"
+              item-:title="$t('dashboard.title')"
               item-value="value"
-              label="Type de planning"
+              :label="$t('plannings.type')"
               required
               density="comfortable"
               variant="outlined"
@@ -178,9 +178,9 @@
               v-if="editedItem"
               v-model="editedItem.site"
               :items="sites"
-              item-title="name"
+              item-:title="$t('dashboard.name')"
               item-value="id"
-              label="Site"
+              :label="$t('timesheets.site')"
               :rules="[v => !!v || 'Le site est requis']"
               required
               density="comfortable"
@@ -193,9 +193,9 @@
               v-if="editedItem && employees.length >= 0"
               v-model="editedItem.employees"
               :items="employees"
-              item-title="employee_name"
+              item-:title="$t('dashboard.employee_name')"
               item-value="id"
-              label="Employés"
+              :label="$t('reports.reportTypes.EMPLOYEE')"
               multiple
               chips
               closable-chips
@@ -208,13 +208,13 @@
               <template #chip="{ props: chipProps, item }">
                 <v-chip
                   v-bind="chipProps"
-                  :text="item.raw.employee_name"
+                  ::text="$t('dashboard.itemrawemployee_name')"
                   color="primary"
                   variant="outlined"
                 ></v-chip>
               </template>
               <template #no-data>
-                <div class="pa-2 text-center">Aucun employé disponible pour ce site</div>
+                <div class="pa-2 text-center">{{ $t('dashboard.aucun_employ_disponible_pour_ce_site') }}</div>
               </template>
             </v-select>
           </v-col>
@@ -224,7 +224,7 @@
         <v-row v-if="editedItem" class="mb-6">
           <v-col cols="12">
             <v-card variant="outlined" class="pa-4">
-              <v-card-title class="text-subtitle-1 mb-4">Paramètres de tolérance</v-card-title>
+              <v-card-title class="text-subtitle-1 mb-4">{{ $t('dashboard.paramtres_de_tolrance') }}</v-card-title>
 
               <!-- Paramètres pour planning type fréquence -->
               <template v-if="editedItem.schedule_type === ScheduleTypeEnum.FREQUENCY">
@@ -233,7 +233,7 @@
                     <v-text-field
                       v-model="editedItem.frequency_tolerance_percentage"
                       type="number"
-                      label="Marge de tolérance (%)"
+                      :label="$t('dashboard.marge_de_tolrance')"
                       min="0"
                       max="100"
                       step="1"
@@ -261,7 +261,7 @@
                     <v-text-field
                       v-model="editedItem.late_arrival_margin"
                       type="number"
-                      label="Marge de retard"
+                      :label="$t('dashboard.marge_de_retard')"
                       min="0"
                       step="1"
                       density="comfortable"
@@ -271,7 +271,7 @@
                       hide-details="auto"
                     >
                       <template #append-inner>
-                        <span class="text-grey">min</span>
+                        <span class="text-grey">{{ $t('dashboard.min') }}</span>
                       </template>
                     </v-text-field>
                   </v-col>
@@ -279,7 +279,7 @@
                     <v-text-field
                       v-model="editedItem.early_departure_margin"
                       type="number"
-                      label="Marge de départ anticipé"
+                      :label="$t('dashboard.marge_de_dpart_anticip')"
                       min="0"
                       step="1"
                       density="comfortable"
@@ -289,7 +289,7 @@
                       hide-details="auto"
                     >
                       <template #append-inner>
-                        <span class="text-grey">min</span>
+                        <span class="text-grey">{{ $t('dashboard.min') }}</span>
                       </template>
                     </v-text-field>
                   </v-col>
@@ -304,11 +304,11 @@
           <v-row>
             <v-col cols="12">
               <v-card variant="outlined" class="pa-4">
-                <v-card-title class="text-subtitle-1 mb-4">Sélectionnez les jours et définissez la durée de présence</v-card-title>
+                <v-card-title class="text-subtitle-1 mb-4">{{ $t('dashboard.slectionnez_les_jours_et_dfinissez_la_dure_de_prsence') }}</v-card-title>
                 <div v-for="(detail, index) in editedItem.details" :key="index" class="day-container mb-4">
                   <v-checkbox
                     v-model="detail.enabled"
-                    :label="daysOfWeek.find(d => d.value === detail.day_of_week)?.label || ''"
+                    ::label="$t('dashboard.daysofweekfindd_dvalue_detailday_of_weeklabel')"
                     class="mb-2 day-checkbox"
                     color="primary"
                     hide-details
@@ -316,11 +316,11 @@
 
                   <div v-if="detail.enabled" class="day-content pl-8">
                     <div class="time-section">
-                      <div class="text-subtitle-2 mb-3">Durée de présence</div>
+                      <div class="text-subtitle-2 mb-3">{{ $t('dashboard.dure_de_prsence') }}</div>
                       <v-text-field
                         v-model="detail.frequency_duration"
                         type="number"
-                        label="Durée (minutes)"
+                        :label="$t('dashboard.dure_minutes')"
                         min="0"
                         step="1"
                         density="comfortable"
@@ -330,7 +330,7 @@
                         hide-details
                       >
                         <template #append-inner>
-                          <span class="text-grey">min</span>
+                          <span class="text-grey">{{ $t('dashboard.min') }}</span>
                         </template>
                       </v-text-field>
                     </div>
@@ -354,11 +354,11 @@
           <v-row>
             <v-col cols="12">
               <v-card variant="outlined" class="pa-4">
-                <v-card-title class="text-subtitle-1 mb-4">Sélectionnez les jours et définissez les horaires</v-card-title>
+                <v-card-title class="text-subtitle-1 mb-4">{{ $t('dashboard.slectionnez_les_jours_et_dfinissez_les_horaires') }}</v-card-title>
                 <div v-for="(detail, index) in editedItem.details" :key="index" class="day-container mb-4">
                   <v-checkbox
                     v-model="detail.enabled"
-                    :label="daysOfWeek.find(d => d.value === detail.day_of_week)?.label || ''"
+                    ::label="$t('dashboard.daysofweekfindd_dvalue_detailday_of_weeklabel')"
                     class="mb-2 day-checkbox"
                     color="primary"
                     hide-details
@@ -368,13 +368,13 @@
                     <v-select
                       v-model="detail.day_type"
                       :items="[
-                        { text: 'Journée entière', value: DayTypeEnum.FULL },
-                        { text: 'Matin uniquement', value: DayTypeEnum.AM },
-                        { text: 'Après-midi uniquement', value: DayTypeEnum.PM }
+                        { text: t('plannings.dayTypes.FULL'), value: DayTypeEnum.FULL },
+                        { text: t('plannings.dayTypes.AM'), value: DayTypeEnum.AM },
+                        { text: t('plannings.dayTypes.PM'), value: DayTypeEnum.PM }
                       ]"
-                      item-title="text"
+                      item-:title="$t('mobile.text')"
                       item-value="value"
-                      label="Type de journée"
+                      :label="$t('dashboard.type_de_journe')"
                       class="mb-4"
                       density="comfortable"
                       variant="outlined"
@@ -384,7 +384,7 @@
                     <div class="d-flex gap-4">
                       <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.AM">
                         <div class="time-section flex-grow-1">
-                          <div class="text-subtitle-2 mb-3">Horaires du matin</div>
+                          <div class="text-subtitle-2 mb-3">{{ $t('dashboard.horaires_du_matin') }}</div>
                           <div class="d-flex gap-4">
                             <v-menu
                               v-model="detail.showStartTime1Menu"
@@ -394,7 +394,7 @@
                               <template #activator="{ props: startTime1Props }">
                                 <v-text-field
                                   v-model="detail.start_time_1"
-                                  label="Début"
+                                  :label="$t('dashboard.dbut')"
                                   v-bind="startTime1Props"
                                   density="comfortable"
                                   variant="outlined"
@@ -410,7 +410,7 @@
                                 v-model="detail.start_time_1"
                                 format="24hr"
                                 ok-text="OK"
-                                cancel-text="Annuler"
+                                cancel-:text="$t('common.cancel')"
                                 hide-header
                                 @click:save="detail.showStartTime1Menu = false"
                                 @click:cancel="detail.showStartTime1Menu = false"
@@ -424,7 +424,7 @@
                               <template #activator="{ props: endTime1Props }">
                                 <v-text-field
                                   v-model="detail.end_time_1"
-                                  label="Fin"
+                                  :label="$t('dashboard.fin')"
                                   v-bind="endTime1Props"
                                   density="comfortable"
                                   variant="outlined"
@@ -440,7 +440,7 @@
                                 v-model="detail.end_time_1"
                                 format="24hr"
                                 ok-text="OK"
-                                cancel-text="Annuler"
+                                cancel-:text="$t('common.cancel')"
                                 hide-header
                                 @click:save="detail.showEndTime1Menu = false"
                                 @click:cancel="detail.showEndTime1Menu = false"
@@ -452,7 +452,7 @@
 
                       <template v-if="detail.day_type === DayTypeEnum.FULL || detail.day_type === DayTypeEnum.PM">
                         <div class="time-section flex-grow-1">
-                          <div class="text-subtitle-2 mb-3">Horaires de l'après-midi</div>
+                          <div class="text-subtitle-2 mb-3">{{ $t('dashboard.horaires_de_laprsmidi') }}</div>
                           <div class="d-flex gap-4">
                             <v-menu
                               v-model="detail.showStartTime2Menu"
@@ -462,7 +462,7 @@
                               <template #activator="{ props: startTime2Props }">
                                 <v-text-field
                                   v-model="detail.start_time_2"
-                                  label="Début"
+                                  :label="$t('dashboard.dbut')"
                                   v-bind="startTime2Props"
                                   density="comfortable"
                                   variant="outlined"
@@ -478,7 +478,7 @@
                                 v-model="detail.start_time_2"
                                 format="24hr"
                                 ok-text="OK"
-                                cancel-text="Annuler"
+                                cancel-:text="$t('common.cancel')"
                                 hide-header
                                 @click:save="detail.showStartTime2Menu = false"
                                 @click:cancel="detail.showStartTime2Menu = false"
@@ -492,7 +492,7 @@
                               <template #activator="{ props: endTime2Props }">
                                 <v-text-field
                                   v-model="detail.end_time_2"
-                                  label="Fin"
+                                  :label="$t('dashboard.fin')"
                                   v-bind="endTime2Props"
                                   density="comfortable"
                                   variant="outlined"
@@ -508,7 +508,7 @@
                                 v-model="detail.end_time_2"
                                 format="24hr"
                                 ok-text="OK"
-                                cancel-text="Annuler"
+                                cancel-:text="$t('common.cancel')"
                                 hide-header
                                 @click:save="detail.showEndTime2Menu = false"
                                 @click:cancel="detail.showEndTime2Menu = false"
@@ -539,6 +539,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { sitesApi, schedulesApi, organizationsApi } from '@/services/api'
@@ -553,6 +554,9 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { VTimePicker } from 'vuetify/labs/VTimePicker'
 import { useConfirmDialog } from '@/utils/dialogs'
 import type { DialogState } from '@/utils/dialogs'
+
+// Initialize i18n
+const { t } = useI18n()
 
 // Configuration de la locale pour Vuetify
 
@@ -677,27 +681,27 @@ const employees = ref<Employee[]>([])
 
 // En-têtes des tableaux
 const headers = [
-  { title: 'Site', key: 'site_name' },
-  { title: 'Employés', key: 'employees' },
-  { title: 'Type', key: 'schedule_type' },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { title: t('sites.title'), key: 'site_name' },
+  { title: t('users.employees'), key: 'employees' },
+  { title: t('plannings.type'), key: 'schedule_type' },
+  { title: t('common.actions'), key: 'actions', sortable: false }
 ]
 
 // Jours de la semaine
 const daysOfWeek = [
-  { label: 'Lundi', value: DayOfWeekEnum._0 },
-  { label: 'Mardi', value: DayOfWeekEnum._1 },
-  { label: 'Mercredi', value: DayOfWeekEnum._2 },
-  { label: 'Jeudi', value: DayOfWeekEnum._3 },
-  { label: 'Vendredi', value: DayOfWeekEnum._4 },
-  { label: 'Samedi', value: DayOfWeekEnum._5 },
-  { label: 'Dimanche', value: DayOfWeekEnum._6 }
+  { label: t('plannings.days.monday'), value: DayOfWeekEnum._0 },
+  { label: t('plannings.days.tuesday'), value: DayOfWeekEnum._1 },
+  { label: t('plannings.days.wednesday'), value: DayOfWeekEnum._2 },
+  { label: t('plannings.days.thursday'), value: DayOfWeekEnum._3 },
+  { label: t('plannings.days.friday'), value: DayOfWeekEnum._4 },
+  { label: t('plannings.days.saturday'), value: DayOfWeekEnum._5 },
+  { label: t('plannings.days.sunday'), value: DayOfWeekEnum._6 }
 ]
 
 // Types de planning
 const scheduleTypes = [
-  { title: 'Fixe', value: ScheduleTypeEnum.FIXED },
-  { title: 'Fréquence', value: ScheduleTypeEnum.FREQUENCY }
+  { title: t('plannings.planningTypes.FIXED'), value: ScheduleTypeEnum.FIXED },
+  { title: t('plannings.planningTypes.FREQUENCY'), value: ScheduleTypeEnum.FREQUENCY }
 ]
 
 // Filtrer les plannings selon les permissions
@@ -1135,10 +1139,10 @@ const saveSchedule = async () => {
 const confirmDelete = (item: ExtendedSchedule) => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Confirmation de suppression'
-  state.message = 'Êtes-vous sûr de vouloir supprimer ce planning ?'
-  state.confirmText = 'Supprimer'
-  state.cancelText = 'Annuler'
+  state.title = t('common.deleteConfirmation')
+  state.message = t('plannings.deleteConfirmation')
+  state.confirmText = t('common.delete')
+  state.cancelText = t('common.cancel')
   state.confirmColor = 'error'
   state.loading = false
   state.onConfirm = async () => {
@@ -1169,10 +1173,12 @@ const toggleStatus = async (item: ExtendedSchedule) => {
 
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Confirmation'
-  state.message = `Êtes-vous sûr de vouloir ${item.is_active ? 'désactiver' : 'activer'} ce planning ?`
-  state.confirmText = item.is_active ? 'Désactiver' : 'Activer'
-  state.cancelText = 'Annuler'
+  state.title = t('common.confirm')
+  state.message = item.is_active
+    ? t('sites.deactivateConfirmation')
+    : t('sites.activateConfirmation')
+  state.confirmText = item.is_active ? t('common.deactivate') : t('common.activate')
+  state.cancelText = t('common.cancel')
   state.confirmColor = 'warning'
   state.loading = false
   state.onConfirm = async () => {

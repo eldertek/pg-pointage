@@ -50,12 +50,12 @@
     
     <v-dialog v-model="showLogoutDialog" max-width="300">
       <v-card>
-        <v-card-title>Déconnexion</v-card-title>
-        <v-card-text>Êtes-vous sûr de vouloir vous déconnecter ?</v-card-text>
+        <v-card-title>{{ $t('auth.logout') }}</v-card-title>
+        <v-card-text>{{ $t('mobile.tesvous_sr_de_vouloir_vous_dconnecter') }}</v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="primary" variant="text" @click="showLogoutDialog = false">Annuler</v-btn>
-          <v-btn color="error" variant="text" @click="logout">Déconnecter</v-btn>
+          <v-btn color="primary" variant="text" @click="showLogoutDialog = false">{{ $t('common.cancel') }}</v-btn>
+          <v-btn color="error" variant="text" @click="logout">{{ $t('mobile.dconnecter') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -63,6 +63,7 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
@@ -70,6 +71,7 @@ import { useRouter } from 'vue-router'
 export default {
   name: 'MobileLayout',
   setup() {
+    const { t } = useI18n()
     const authStore = useAuthStore()
     const router = useRouter()
     const showLogoutDialog = ref(false)

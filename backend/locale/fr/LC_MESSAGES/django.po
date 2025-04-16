@@ -1,0 +1,840 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-04-16 20:13+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+#: alerts/models.py:8 timesheets/models.py:177
+msgid "Retard"
+msgstr ""
+
+#: alerts/models.py:9 timesheets/models.py:178
+msgid "Départ anticipé"
+msgstr ""
+
+#: alerts/models.py:10 timesheets/models.py:179
+msgid "Arrivée manquante"
+msgstr ""
+
+#: alerts/models.py:11 timesheets/models.py:180
+msgid "Départ manquant"
+msgstr ""
+
+#: alerts/models.py:12 timesheets/models.py:181
+msgid "Heures insuffisantes"
+msgstr ""
+
+#: alerts/models.py:13 timesheets/models.py:183
+msgid "Pointages consécutifs du même type"
+msgstr ""
+
+#: alerts/models.py:14 timesheets/models.py:184
+msgid "Planning non lié"
+msgstr ""
+
+#: alerts/models.py:15
+msgid "Anomalie signalée"
+msgstr ""
+
+#: alerts/models.py:16 timesheets/models.py:185
+msgid "Autre"
+msgstr ""
+
+#: alerts/models.py:19 timesheets/models.py:188
+msgid "En attente"
+msgstr ""
+
+#: alerts/models.py:20
+msgid "Envoyé"
+msgstr ""
+
+#: alerts/models.py:21
+msgid "Échec"
+msgstr ""
+
+#: alerts/models.py:22 timesheets/models.py:189
+msgid "Résolu"
+msgstr ""
+
+#: alerts/models.py:28 sites/models.py:325 timesheets/models.py:23
+#: timesheets/models.py:196 timesheets/models.py:275
+msgid "employé"
+msgstr ""
+
+#: alerts/models.py:34 reports/models.py:32 sites/models.py:89
+#: sites/models.py:138 sites/models.py:319 timesheets/models.py:29
+#: timesheets/models.py:202 timesheets/models.py:281
+msgid "site"
+msgstr ""
+
+#: alerts/models.py:42 timesheets/models.py:260
+msgid "anomalie"
+msgstr ""
+
+#: alerts/models.py:45
+msgid "type d'alerte"
+msgstr ""
+
+#: alerts/models.py:49
+msgid "message"
+msgstr ""
+
+#: alerts/models.py:51
+msgid "destinataires"
+msgstr ""
+
+#: alerts/models.py:52
+msgid ""
+"Séparez les emails par des virgules. Inclut automatiquement le manager du "
+"site."
+msgstr ""
+
+#: alerts/models.py:55 timesheets/models.py:234
+msgid "statut"
+msgstr ""
+
+#: alerts/models.py:60
+msgid "envoyé le"
+msgstr ""
+
+#: alerts/models.py:61
+msgid "message d'erreur"
+msgstr ""
+
+#: alerts/models.py:63 organizations/models.py:25 reports/models.py:60
+#: sites/models.py:84 sites/models.py:184 sites/models.py:336
+#: timesheets/models.py:95 timesheets/models.py:256 timesheets/models.py:303
+msgid "créé le"
+msgstr ""
+
+#: alerts/models.py:64 organizations/models.py:26 sites/models.py:85
+#: sites/models.py:185 timesheets/models.py:96 timesheets/models.py:257
+msgid "mis à jour le"
+msgstr ""
+
+#: alerts/models.py:67
+msgid "alerte"
+msgstr ""
+
+#: alerts/models.py:68
+msgid "alertes"
+msgstr ""
+
+#: core/apps.py:7
+msgid "Core"
+msgstr ""
+
+#: organizations/models.py:8 reports/models.py:17 sites/models.py:12
+msgid "nom"
+msgstr ""
+
+#: organizations/models.py:10
+msgid "ID Organisation"
+msgstr ""
+
+#: organizations/models.py:13
+msgid "ID unique de l'organisation au format O + 3 chiffres"
+msgstr ""
+
+#: organizations/models.py:15 sites/models.py:13
+msgid "adresse"
+msgstr ""
+
+#: organizations/models.py:16 sites/models.py:14
+msgid "code postal"
+msgstr ""
+
+#: organizations/models.py:17 sites/models.py:15
+msgid "ville"
+msgstr ""
+
+#: organizations/models.py:18 sites/models.py:16
+msgid "pays"
+msgstr ""
+
+#: organizations/models.py:19
+msgid "téléphone"
+msgstr ""
+
+#: organizations/models.py:20
+msgid "email"
+msgstr ""
+
+#: organizations/models.py:21
+msgid "email de contact"
+msgstr ""
+
+#: organizations/models.py:22
+msgid "SIRET"
+msgstr ""
+
+#: organizations/models.py:23
+msgid "logo"
+msgstr ""
+
+#: organizations/models.py:24
+msgid "notes"
+msgstr ""
+
+#: organizations/models.py:27 sites/models.py:86 sites/models.py:186
+#: sites/models.py:337 users/models.py:58
+msgid "actif"
+msgstr ""
+
+#: organizations/models.py:30 reports/models.py:24 sites/models.py:21
+msgid "organisation"
+msgstr ""
+
+#: organizations/models.py:31 users/models.py:54
+msgid "organisations"
+msgstr ""
+
+#: organizations/models.py:45
+msgid "L'ID de l'organisation doit commencer par O"
+msgstr ""
+
+#: organizations/models.py:51
+msgid "L'ID de l'organisation doit être au format O + nombre entre 000 et 999"
+msgstr ""
+
+#: organizations/models.py:55
+msgid "L'ID de l'organisation doit être au format O + 3 chiffres"
+msgstr ""
+
+#: reports/models.py:8
+msgid "Journalier"
+msgstr ""
+
+#: reports/models.py:9
+msgid "Hebdomadaire"
+msgstr ""
+
+#: reports/models.py:10
+msgid "Mensuel"
+msgstr ""
+
+#: reports/models.py:13
+msgid "PDF"
+msgstr ""
+
+#: reports/models.py:14
+msgid "CSV"
+msgstr ""
+
+#: reports/models.py:15
+msgid "Excel"
+msgstr ""
+
+#: reports/models.py:35
+msgid "type de rapport"
+msgstr ""
+
+#: reports/models.py:40
+msgid "format du rapport"
+msgstr ""
+
+#: reports/models.py:45 timesheets/models.py:283
+msgid "date de début"
+msgstr ""
+
+#: reports/models.py:46 timesheets/models.py:284
+msgid "date de fin"
+msgstr ""
+
+#: reports/models.py:48
+msgid "fichier"
+msgstr ""
+
+#: reports/models.py:58
+msgid "créé par"
+msgstr ""
+
+#: reports/models.py:63
+msgid "rapport"
+msgstr ""
+
+#: reports/models.py:64
+msgid "rapports"
+msgstr ""
+
+#: sites/models.py:22
+msgid "Organisation à laquelle le site est rattaché"
+msgstr ""
+
+#: sites/models.py:29
+msgid "manager"
+msgstr ""
+
+#: sites/models.py:30
+msgid "Manager responsable du site"
+msgstr ""
+
+#: sites/models.py:37 sites/models.py:150
+msgid "employés"
+msgstr ""
+
+#: sites/models.py:38
+msgid "Employés assignés à ce site"
+msgstr ""
+
+#: sites/models.py:41
+msgid "ID Site"
+msgstr ""
+
+#: sites/models.py:45
+msgid ""
+"Format: FFF-Sxxxx où FFF est l'ID de l'organisation et xxxx est un nombre "
+"entre 0001 et 9999"
+msgstr ""
+
+#: sites/models.py:48 timesheets/models.py:17
+msgid "QR Code"
+msgstr ""
+
+#: sites/models.py:52 sites/models.py:169
+msgid "marge de retard (minutes)"
+msgstr ""
+
+#: sites/models.py:54 sites/models.py:176
+msgid "marge de départ anticipé (minutes)"
+msgstr ""
+
+#: sites/models.py:56
+msgid "tolérance planning fréquence (%)"
+msgstr ""
+
+#: sites/models.py:59
+msgid "Pourcentage de tolérance pour la durée des plannings fréquence"
+msgstr ""
+
+#: sites/models.py:62
+msgid "marge pour cas ambigus (minutes)"
+msgstr ""
+
+#: sites/models.py:66
+msgid "emails pour alertes"
+msgstr ""
+
+#: sites/models.py:69
+msgid ""
+"Séparez les emails par des virgules. Les alertes seront également envoyées "
+"au manager du site."
+msgstr ""
+
+#: sites/models.py:74
+msgid "géolocalisation requise"
+msgstr ""
+
+#: sites/models.py:76
+msgid "rayon de géolocalisation (mètres)"
+msgstr ""
+
+#: sites/models.py:80
+msgid "autoriser le mode hors ligne"
+msgstr ""
+
+#: sites/models.py:82
+msgid "durée maximale hors ligne (heures)"
+msgstr ""
+
+#: sites/models.py:90
+msgid "sites"
+msgstr ""
+
+#: sites/models.py:103
+msgid "L'ID du site doit être au format FFF-Sxxxx"
+msgstr ""
+
+#: sites/models.py:110
+msgid "Le manager doit appartenir à l'organisation du site"
+msgstr ""
+
+#: sites/models.py:114
+msgid "L'utilisateur sélectionné doit avoir le rôle de manager"
+msgstr ""
+
+#: sites/models.py:131
+msgid "Fixe"
+msgstr ""
+
+#: sites/models.py:132
+msgid "Fréquence"
+msgstr ""
+
+#: sites/models.py:141
+msgid "type de planning"
+msgstr ""
+
+#: sites/models.py:151
+msgid "Employés assignés à ce planning"
+msgstr ""
+
+#: sites/models.py:156
+msgid "marge de tolérance (%)"
+msgstr ""
+
+#: sites/models.py:160
+msgid ""
+"Pourcentage de tolérance pour la durée de présence (plannings fréquence)"
+msgstr ""
+
+#: sites/models.py:172
+msgid "Marge de tolérance pour les retards (plannings fixes)"
+msgstr ""
+
+#: sites/models.py:180
+msgid "Marge de tolérance pour les départs anticipés (plannings fixes)"
+msgstr ""
+
+#: sites/models.py:189 sites/models.py:237 sites/models.py:334
+#: timesheets/models.py:218
+msgid "planning"
+msgstr ""
+
+#: sites/models.py:190
+msgid "plannings"
+msgstr ""
+
+#: sites/models.py:204
+msgid ""
+"La marge de tolérance en pourcentage ne doit pas être définie pour un "
+"planning fixe"
+msgstr ""
+
+#: sites/models.py:213
+msgid ""
+"Les marges en minutes ne doivent pas être définies pour un planning fréquence"
+msgstr ""
+
+#: sites/models.py:220
+msgid "Lundi"
+msgstr ""
+
+#: sites/models.py:221
+msgid "Mardi"
+msgstr ""
+
+#: sites/models.py:222
+msgid "Mercredi"
+msgstr ""
+
+#: sites/models.py:223
+msgid "Jeudi"
+msgstr ""
+
+#: sites/models.py:224
+msgid "Vendredi"
+msgstr ""
+
+#: sites/models.py:225
+msgid "Samedi"
+msgstr ""
+
+#: sites/models.py:226
+msgid "Dimanche"
+msgstr ""
+
+#: sites/models.py:229
+msgid "Journée entière"
+msgstr ""
+
+#: sites/models.py:230
+msgid "Matin"
+msgstr ""
+
+#: sites/models.py:231
+msgid "Après-midi"
+msgstr ""
+
+#: sites/models.py:240
+msgid "jour de la semaine"
+msgstr ""
+
+#: sites/models.py:244
+msgid "type de journée"
+msgstr ""
+
+#: sites/models.py:250
+msgid "heure de début 1"
+msgstr ""
+
+#: sites/models.py:251
+msgid "heure de fin 1"
+msgstr ""
+
+#: sites/models.py:253
+msgid "heure de début 2"
+msgstr ""
+
+#: sites/models.py:254
+msgid "heure de fin 2"
+msgstr ""
+
+#: sites/models.py:256
+msgid "durée en minutes"
+msgstr ""
+
+#: sites/models.py:259
+msgid "Pour les plannings de type fréquence uniquement"
+msgstr ""
+
+#: sites/models.py:263
+msgid "détail du planning"
+msgstr ""
+
+#: sites/models.py:264
+msgid "détails des plannings"
+msgstr ""
+
+#: sites/models.py:280
+msgid "La durée en minutes ne doit pas être définie pour un planning fixe"
+msgstr ""
+
+#: sites/models.py:286
+msgid "Tous les horaires doivent être définis pour une journée entière"
+msgstr ""
+
+#: sites/models.py:290
+msgid "Les horaires du matin doivent être définis"
+msgstr ""
+
+#: sites/models.py:293
+msgid "Les horaires de l'après-midi ne doivent pas être définis"
+msgstr ""
+
+#: sites/models.py:297
+msgid "Les horaires de l'après-midi doivent être définis"
+msgstr ""
+
+#: sites/models.py:300
+msgid "Les horaires du matin ne doivent pas être définis"
+msgstr ""
+
+#: sites/models.py:305
+msgid "La durée en minutes doit être définie pour un planning fréquence"
+msgstr ""
+
+#: sites/models.py:309
+msgid "Les horaires ne doivent pas être définis pour un planning fréquence"
+msgstr ""
+
+#: sites/models.py:340
+msgid "employé du site"
+msgstr ""
+
+#: sites/models.py:341
+msgid "employés du site"
+msgstr ""
+
+#: sites/models.py:360
+msgid "L'employé doit appartenir à l'organisation du site"
+msgstr ""
+
+#: timesheets/apps.py:7
+msgid "Pointages"
+msgstr ""
+
+#: timesheets/models.py:12
+msgid "Arrivée"
+msgstr ""
+
+#: timesheets/models.py:13
+msgid "Départ"
+msgstr ""
+
+#: timesheets/models.py:16
+msgid "NFC"
+msgstr ""
+
+#: timesheets/models.py:31
+msgid "horodatage"
+msgstr ""
+
+#: timesheets/models.py:33
+msgid "type d'entrée"
+msgstr ""
+
+#: timesheets/models.py:38
+msgid "type de scan"
+msgstr ""
+
+#: timesheets/models.py:46
+msgid "latitude"
+msgstr ""
+
+#: timesheets/models.py:53
+msgid "longitude"
+msgstr ""
+
+#: timesheets/models.py:61
+msgid "en retard"
+msgstr ""
+
+#: timesheets/models.py:63
+msgid "minutes de retard"
+msgstr ""
+
+#: timesheets/models.py:65
+msgid "départ anticipé"
+msgstr ""
+
+#: timesheets/models.py:67
+msgid "minutes de départ anticipé"
+msgstr ""
+
+#: timesheets/models.py:70
+msgid "hors planning"
+msgstr ""
+
+#: timesheets/models.py:71
+msgid "pointage ambigu"
+msgstr ""
+
+#: timesheets/models.py:74
+msgid "créé hors ligne"
+msgstr ""
+
+#: timesheets/models.py:76
+msgid "synchronisé le"
+msgstr ""
+
+#: timesheets/models.py:80
+msgid "géolocalisation activée"
+msgstr ""
+
+#: timesheets/models.py:89 timesheets/models.py:250
+msgid "corrigé par"
+msgstr ""
+
+#: timesheets/models.py:91 timesheets/models.py:254
+msgid "note de correction"
+msgstr ""
+
+#: timesheets/models.py:93 timesheets/models.py:253
+msgid "date de correction"
+msgstr ""
+
+#: timesheets/models.py:121
+msgid ""
+"Vous avez déjà pointé votre arrivée à {}. Vous devez d'abord pointer votre "
+"départ."
+msgstr ""
+
+#: timesheets/models.py:125
+msgid ""
+"Vous avez déjà pointé votre départ à {}. Vous devez d'abord pointer votre "
+"arrivée."
+msgstr ""
+
+#: timesheets/models.py:133
+msgid ""
+"Vous devez d'abord pointer votre départ avant de pointer une nouvelle "
+"arrivée. Dernière arrivée à {}."
+msgstr ""
+
+#: timesheets/models.py:138
+msgid ""
+"Vous devez d'abord pointer votre arrivée avant de pointer un nouveau départ. "
+"Dernier départ à {}."
+msgstr ""
+
+#: timesheets/models.py:165 timesheets/models.py:210
+msgid "pointage"
+msgstr ""
+
+#: timesheets/models.py:166
+msgid "pointages"
+msgstr ""
+
+#: timesheets/models.py:190
+msgid "Ignoré"
+msgstr ""
+
+#: timesheets/models.py:223
+msgid "pointages associés"
+msgstr ""
+
+#: timesheets/models.py:226
+msgid "date"
+msgstr ""
+
+#: timesheets/models.py:228
+msgid "type d'anomalie"
+msgstr ""
+
+#: timesheets/models.py:232
+msgid "description"
+msgstr ""
+
+#: timesheets/models.py:241
+msgid "minutes"
+msgstr ""
+
+#: timesheets/models.py:261
+msgid "anomalies"
+msgstr ""
+
+#: timesheets/models.py:288
+msgid "total des heures"
+msgstr ""
+
+#: timesheets/models.py:293
+msgid "nombre de retards"
+msgstr ""
+
+#: timesheets/models.py:295
+msgid "minutes totales de retard"
+msgstr ""
+
+#: timesheets/models.py:297
+msgid "nombre de départs anticipés"
+msgstr ""
+
+#: timesheets/models.py:299
+msgid "minutes totales de départ anticipé"
+msgstr ""
+
+#: timesheets/models.py:301
+msgid "nombre d'anomalies"
+msgstr ""
+
+#: timesheets/models.py:306
+msgid "rapport d'employé"
+msgstr ""
+
+#: timesheets/models.py:307
+msgid "rapports d'employés"
+msgstr ""
+
+#: timesheets/signals.py:22
+msgid "Anomalie détectée : Pointages consécutifs du même type\n"
+msgstr ""
+
+#: timesheets/signals.py:42
+msgid "Anomalie détectée : Retard\n"
+msgstr ""
+
+#: timesheets/signals.py:67
+msgid "Anomalie détectée : Départ anticipé\n"
+msgstr ""
+
+#: timesheets/signals.py:82
+msgid "Anomalie détectée : Arrivée manquante\n"
+msgstr ""
+
+#: timesheets/signals.py:92
+msgid "Anomalie détectée : Départ manquant\n"
+msgstr ""
+
+#: timesheets/signals.py:102
+msgid "Anomalie détectée : Heures insuffisantes\n"
+msgstr ""
+
+#: timesheets/signals.py:113
+msgid "Anomalie détectée : Planning non lié\n"
+msgstr ""
+
+#: timesheets/signals.py:123
+msgid "Anomalie détectée : Autre\n"
+msgstr ""
+
+#: users/models.py:10
+msgid "Super Admin"
+msgstr ""
+
+#: users/models.py:11
+msgid "Admin"
+msgstr ""
+
+#: users/models.py:12
+msgid "Manager"
+msgstr ""
+
+#: users/models.py:13
+msgid "Employé"
+msgstr ""
+
+#: users/models.py:16
+msgid "NFC et QR Code"
+msgstr ""
+
+#: users/models.py:17
+msgid "NFC uniquement"
+msgstr ""
+
+#: users/models.py:18
+msgid "QR Code uniquement"
+msgstr ""
+
+#: users/models.py:21
+msgid "Français"
+msgstr ""
+
+#: users/models.py:22
+msgid "Anglais"
+msgstr ""
+
+#: users/models.py:24
+msgid "adresse email"
+msgstr ""
+
+#: users/models.py:26
+msgid "rôle"
+msgstr ""
+
+#: users/models.py:32
+msgid "préférence de scan"
+msgstr ""
+
+#: users/models.py:38
+msgid "Uniquement pour les employés"
+msgstr ""
+
+#: users/models.py:42
+msgid "Si activé, affiche uniquement le bouton de pointage sur mobile"
+msgstr ""
+
+#: users/models.py:45
+msgid "langue"
+msgstr ""
+
+#: users/models.py:49
+msgid "Langue préférée de l'utilisateur"
+msgstr ""
+
+#: users/models.py:55
+msgid "Organisations auxquelles l'utilisateur est rattaché"
+msgstr ""
+
+#: users/models.py:57
+msgid "numéro de téléphone"
+msgstr ""
+
+#: users/models.py:62
+msgid "ID employé"
+msgstr ""
+
+#: users/models.py:66
+msgid "ID unique de l'utilisateur au format UXXXXX"
+msgstr ""
+
+#: users/models.py:73
+msgid "utilisateur"
+msgstr ""
+
+#: users/models.py:74
+msgid "utilisateurs"
+msgstr ""

@@ -2,20 +2,20 @@
   <div class="scan-container">
     <v-card class="scan-card">
       <v-card-title class="text-center">
-        Enregistrement
+        {{ $t('mobile.enregistrement') }}
       </v-card-title>
 
       <v-card-text>
         <div v-if="!scanning" class="text-center">
           <p class="mb-4">
             <span v-if="userScanPreference === 'BOTH'">
-              Choisissez votre méthode de scan ci-dessous
+              {{ $t('mobile.choisissez_votre_mthode_de_scan_cidessous') }}
             </span>
             <span v-else-if="userScanPreference === 'NFC_ONLY'">
-              Appuyez sur le bouton ci-dessous pour scanner
+              {{ $t('mobile.appuyez_sur_le_bouton_cidessous_pour_scanner') }}
             </span>
             <span v-else>
-              Appuyez sur le bouton ci-dessous pour scanner
+              {{ $t('mobile.appuyez_sur_le_bouton_cidessous_pour_scanner') }}
             </span>
           </p>
 
@@ -58,10 +58,10 @@
           </div>
           <p v-else class="mb-4">
             <span v-if="scanMode === 'NFC'">
-              Approchez votre téléphone du badge NFC
+              {{ $t('mobile.approchez_votre_tlphone_du_badge_nfc') }}
             </span>
             <span v-else>
-              Scannez le QR code
+              {{ $t('mobile.scannez_le_qr_code') }}
             </span>
           </p>
           <div class="loading-container">
@@ -76,24 +76,24 @@
               class="ml-4"
               @click="cancelScan"
             >
-              Annuler
+              {{ $t('common.cancel') }}
             </v-btn>
           </div>
         </div>
 
         <v-dialog v-model="showAmbiguousDialog" max-width="500">
           <v-card>
-            <v-card-title>Précisez votre action</v-card-title>
+            <v-card-title>{{ $t('mobile.prcisez_votre_action') }}</v-card-title>
             <v-card-text>
-              <p>Cet enregistrement est entre deux plages horaires. Veuillez préciser s'il s'agit d'un départ ou d'une arrivée.</p>
+              <p>{{ $t('mobile.cet_enregistrement_est_entre_deux_plages_horaires_veuillez_prciser_sil_sagit_dun_dpart_ou_dune_arrive') }}</p>
             </v-card-text>
             <v-card-actions>
               <v-spacer></v-spacer>
               <v-btn color="primary" @click="confirmAmbiguousTimesheet('ARRIVAL')">
-                Arrivée
+                {{ $t('timesheets.entryTypes.ARRIVAL') }}
               </v-btn>
               <v-btn color="secondary" @click="confirmAmbiguousTimesheet('DEPARTURE')">
-                Départ
+                {{ $t('timesheets.entryTypes.DEPARTURE') }}
               </v-btn>
             </v-card-actions>
           </v-card>
@@ -115,7 +115,7 @@
           variant="text"
           @click="snackbar.show = false"
         >
-          Fermer
+          {{ $t('common.close') }}
         </v-btn>
       </template>
     </v-snackbar>
@@ -123,6 +123,7 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted } from 'vue'
 import { useTimesheetStore } from '@/stores/timesheet'
 import { useGeolocation } from '@/composables/useGeolocation'
@@ -169,6 +170,7 @@ const getNFCImplementation = () => {
 export default {
   name: 'ScanView',
   setup() {
+    const { t } = useI18n()
     const timesheetStore = useTimesheetStore()
     const { getCurrentPosition, position } = useGeolocation()
 

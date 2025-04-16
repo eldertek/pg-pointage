@@ -9,13 +9,13 @@
           :loading="scanning"
           @click="scanForAnomalies"
         >
-          Scanner les anomalies
+          {{ $t('dashboard.scanner_les_anomalies') }}
         </v-btn>
       </div>
     </div>
 
     <v-card v-if="!isDetailView" class="mb-4">
-      <v-card-title>Filtres</v-card-title>
+      <v-card-title>{{ $t('reports.filters') }}</v-card-title>
       <v-card-text>
         <DashboardFilters @reset="resetFilters">
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
@@ -24,8 +24,8 @@
               v-model:search-input="employeeSearch"
               :loading="searchingEmployees"
               :items="employeeOptions"
-              label="Employé"
-              item-title="text"
+              :label="$t('users.roles.EMPLOYEE')"
+              item-:title="$t('mobile.text')"
               item-value="value"
               variant="outlined"
               prepend-inner-icon="mdi-account-search"
@@ -36,7 +36,7 @@
               <template #no-data>
                 <v-list-item>
                   <v-list-item-title>
-                    Commencez à taper pour rechercher un employé
+                    {{ $t('dashboard.commencez_taper_pour_rechercher_un_employ') }}
                   </v-list-item-title>
                 </v-list-item>
               </template>
@@ -46,9 +46,9 @@
           <v-col v-if="!currentSiteId" cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.site"
-              label="Site"
+              :label="$t('timesheets.site')"
               :items="siteOptions"
-              item-title="text"
+              item-:title="$t('mobile.text')"
               item-value="value"
               variant="outlined"
               prepend-inner-icon="mdi-map-marker"
@@ -60,9 +60,9 @@
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.type"
-              label="Type d'anomalie"
+              :label="$t('anomalies.type')"
               :items="anomalyTypeOptions"
-              item-title="text"
+              item-:title="$t('mobile.text')"
               item-value="value"
               variant="outlined"
               prepend-inner-icon="mdi-alert-circle"
@@ -74,9 +74,9 @@
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
               v-model="filters.status"
-              label="Statut"
+              :label="$t('timesheets.status')"
               :items="statusOptions"
-              item-title="text"
+              item-:title="$t('mobile.text')"
               item-value="value"
               variant="outlined"
               prepend-inner-icon="mdi-check-circle"
@@ -88,7 +88,7 @@
           <v-col cols="12" md="4">
             <v-text-field
               v-model="filters.startDate"
-              label="Du"
+              :label="$t('reports.fromDate')"
               type="date"
               variant="outlined"
               prepend-inner-icon="mdi-calendar"
@@ -100,7 +100,7 @@
           <v-col cols="12" md="4">
             <v-text-field
               v-model="filters.endDate"
-              label="Au"
+              :label="$t('reports.toDate')"
               type="date"
               variant="outlined"
               prepend-inner-icon="mdi-calendar"
@@ -120,17 +120,17 @@
         :loading="loading"
         :items-per-page="itemsPerPage"
         :items-length="anomalies.length"
-        :no-data-text="'Aucune anomalie trouvée'"
-        :loading-text="'Chargement des anomalies...'"
+        :no-data-text="$t('dashboard.aucune_anomalie_trouve')"
+        :loading-text="$t('dashboard.chargement_des_anomalies')"
         class="elevation-1"
         :items-per-page-options="[
           { title: '5', value: 5 },
           { title: '10', value: 10 },
           { title: '15', value: 15 },
-          { title: 'Tout', value: -1 }
+          { title: $t('common.all'), value: -1 }
         ]"
-        :page-text="'{0}-{1} sur {2}'"
-        :items-per-page-text="'Lignes par page'"
+        :page-text="$t('dashboard.01_sur_2')"
+        :items-per-page-text="$t('dashboard.lignes_par_page')"
         @click:row="handleRowClick"
       >
         <template #item.formatted_date="{ item }">
@@ -154,7 +154,7 @@
             @click.stop="showAnomalyDetails(item)"
           >
             <v-icon>mdi-eye</v-icon>
-            <v-tooltip activator="parent">Voir les détails</v-tooltip>
+            <v-tooltip activator="parent">{{ $t('common.viewDetails') }}</v-tooltip>
           </v-btn>
         </template>
       </v-data-table>
@@ -179,7 +179,7 @@
               >
                 {{ selectedAnomaly.anomaly_type_display }}
               </v-chip>
-              Détails de l'anomalie
+              {{ $t('anomalies.details', 'Détails de l\'anomalie') }}
             </span>
           </div>
           <v-btn
@@ -198,14 +198,14 @@
         <v-card-text>
           <v-row>
             <v-col cols="12" md="6">
-              <p><strong>Date:</strong> {{ formatDate(selectedAnomaly.created_at) }}</p>
-              <p><strong>Employé:</strong> {{ selectedAnomaly.employee_name }}</p>
-              <p><strong>Site:</strong> {{ selectedAnomaly.site_name }}</p>
+              <p><strong>{{ $t('common.date') }}:</strong> {{ formatDate(selectedAnomaly.created_at) }}</p>
+              <p><strong>{{ $t('common.employee') }}:</strong> {{ selectedAnomaly.employee_name }}</p>
+              <p><strong>{{ $t('common.site') }}:</strong> {{ selectedAnomaly.site_name }}</p>
             </v-col>
 
             <v-col cols="12" md="6">
-              <p><strong>Description:</strong></p>
-              <p>{{ selectedAnomaly.description || 'Aucune description disponible' }}</p>
+              <p><strong>{{ $t('anomalies.description') }}:</strong></p>
+              <p>{{ selectedAnomaly.translated_description || selectedAnomaly.description || $t('anomalies.noDescription', 'Aucune description disponible') }}</p>
             </v-col>
           </v-row>
 
@@ -213,19 +213,19 @@
 
           <!-- Planning associé -->
           <div v-if="selectedAnomaly.schedule_details">
-            <h3 class="text-h6 mb-3">Planning associé</h3>
+            <h3 class="text-h6 mb-3">{{ $t('dashboard.planning_associ') }}</h3>
             <v-card variant="outlined" class="mb-4 pa-3">
-              <p><strong>Nom:</strong> {{ selectedAnomaly.schedule_details.name }}</p>
-              <p><strong>Type:</strong> {{ selectedAnomaly.schedule_details.schedule_type_display }}</p>
+              <p><strong>{{ $t('common.name') }}:</strong> {{ selectedAnomaly.schedule_details.name }}</p>
+              <p><strong>{{ $t('common.type') }}:</strong> {{ selectedAnomaly.schedule_details.schedule_type_display }}</p>
 
               <div v-if="selectedAnomaly.schedule_details.schedule_type === 'FIXED'">
                 <p v-if="selectedAnomaly.schedule_details.start_time_1">
-                  <strong>Matin:</strong>
+                  <strong>{{ $t('plannings.dayTypes.AM') }}:</strong>
                   {{ formatTime(selectedAnomaly.schedule_details.start_time_1) }} -
                   {{ formatTime(selectedAnomaly.schedule_details.end_time_1) }}
                 </p>
                 <p v-if="selectedAnomaly.schedule_details.start_time_2">
-                  <strong>Après-midi:</strong>
+                  <strong>{{ $t('plannings.dayTypes.PM') }}:</strong>
                   {{ formatTime(selectedAnomaly.schedule_details.start_time_2) }} -
                   {{ formatTime(selectedAnomaly.schedule_details.end_time_2) }}
                 </p>
@@ -233,11 +233,11 @@
 
               <div v-if="selectedAnomaly.schedule_details.schedule_type === 'FREQUENCY'">
                 <p>
-                  <strong>Durée de fréquence:</strong>
-                  {{ selectedAnomaly.schedule_details.frequency_duration }} minutes
+                  <strong>{{ $t('plannings.duration') }}:</strong>
+                  {{ selectedAnomaly.schedule_details.frequency_duration }} {{ $t('dashboard.min') }}
                 </p>
                 <p>
-                  <strong>Tolérance:</strong>
+                  <strong>{{ $t('dashboard.marge_de_tolrance', 'Tolérance') }}:</strong>
                   {{ selectedAnomaly.schedule_details.tolerance_percentage || 10 }}%
                 </p>
               </div>
@@ -246,12 +246,12 @@
 
           <!-- Pointages concernés -->
           <div v-if="relatedTimesheets.length > 0">
-            <h3 class="text-h6 mb-3">Pointages concernés</h3>
+            <h3 class="text-h6 mb-3">{{ $t('dashboard.pointages_concerns') }}</h3>
             <v-table density="compact">
               <thead>
                 <tr>
-                  <th>Date et heure</th>
-                  <th>Type</th>
+                  <th>{{ $t('timesheets.dateTime') }}</th>
+                  <th>{{ $t('common.type') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -262,7 +262,7 @@
                       :color="timesheet.entry_type === 'ARRIVAL' ? 'success' : 'info'"
                       size="x-small"
                     >
-                      {{ timesheet.entry_type === 'ARRIVAL' ? 'Arrivée' : 'Départ' }}
+                      {{ timesheet.entry_type === 'ARRIVAL' ? $t('timesheets.entryTypes.ARRIVAL') : $t('timesheets.entryTypes.DEPARTURE') }}
                     </v-chip>
                   </td>
                 </tr>
@@ -270,7 +270,7 @@
             </v-table>
           </div>
           <div v-else-if="!selectedAnomaly.schedule_details" class="text-center py-4">
-            <p>Aucune information complémentaire disponible pour cette anomalie</p>
+            <p>{{ $t('dashboard.aucune_information_complmentaire_disponible_pour_cette_anomalie') }}</p>
           </div>
         </v-card-text>
 
@@ -284,7 +284,7 @@
             class="action-button"
             @click="deleteSelectedAnomaly"
           >
-            Supprimer
+            {{ $t('common.delete') }}
           </v-btn>
           <v-spacer></v-spacer>
           <v-btn
@@ -293,7 +293,7 @@
             class="action-button"
             @click="showDetailsDialog = false"
           >
-            Fermer
+            {{ $t('common.close') }}
           </v-btn>
           <v-btn
             v-if="selectedAnomaly.status === 'PENDING'"
@@ -302,7 +302,7 @@
             class="action-button"
             @click="resolveSelectedAnomaly"
           >
-            Résoudre
+            {{ $t('dashboard.rsoudre') }}
           </v-btn>
           <v-btn
             v-if="selectedAnomaly.status === 'PENDING'"
@@ -311,7 +311,7 @@
             class="action-button"
             @click="ignoreSelectedAnomaly"
           >
-            Ignorer
+            {{ $t('dashboard.ignorer') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -320,6 +320,7 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref, watch, computed } from 'vue'
 import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
 import { useToast } from 'vue-toastification'
@@ -346,6 +347,7 @@ export default {
   setup(props) {
     const toast = useToast()
     const sitesStore = useSitesStore()
+    const { t } = useI18n()
     const loading = ref(true)
     const scanning = ref(false)
 
@@ -358,12 +360,12 @@ export default {
     const employeeOptions = ref([])
 
     const headers = ref([
-      { title: 'Date', align: 'start', key: 'formatted_date' },
-      { title: 'Employé', align: 'start', key: 'employee_name' },
-      { title: 'Site', align: 'start', key: 'site_name' },
-      { title: 'Type', align: 'center', key: 'anomaly_type_display' },
-      { title: 'Description', align: 'start', key: 'description' },
-      { title: 'Actions', align: 'center', key: 'actions', sortable: false }
+      { title: t('common.date'), align: 'start', key: 'formatted_date' },
+      { title: t('common.employee'), align: 'start', key: 'employee_name' },
+      { title: t('common.site'), align: 'start', key: 'site_name' },
+      { title: t('common.type'), align: 'center', key: 'anomaly_type_display' },
+      { title: t('anomalies.description'), align: 'start', key: 'translated_description', value: 'translated_description' },
+      { title: t('common.actions'), align: 'center', key: 'actions', sortable: false }
     ])
 
     const filters = ref({
@@ -535,7 +537,9 @@ export default {
 
           anomalies.value = response.data.results.map(anomaly => ({
             ...anomaly,
-            formatted_date: formatDate(anomaly.date)
+            formatted_date: formatDate(anomaly.date),
+            // Utiliser la description traduite si disponible, sinon la description originale
+            description: anomaly.translated_description || anomaly.description
           }))
           console.log('Anomalies formatées:', anomalies.value)
         } else if (Array.isArray(response.data)) {
@@ -883,7 +887,8 @@ export default {
       ignoreSelectedAnomaly,
       deleteSelectedAnomaly,
       page,
-      itemsPerPage
+      itemsPerPage,
+      t
     }
   }
 }

@@ -18,7 +18,7 @@
         class="mr-2"
         @click.stop="editItem"
       >
-        Modifier
+        {{ $t('common.edit') }}
       </v-btn>
       <v-btn
         v-if="canCreateDelete"
@@ -26,7 +26,7 @@
         prepend-icon="mdi-delete"
         @click.stop="confirmDelete"
       >
-        Supprimer
+        {{ $t('common.delete') }}
       </v-btn>
     </div>
 
@@ -40,8 +40,8 @@
     <template v-else>
       <v-card>
         <v-tabs v-model="activeTab" color="#00346E">
-          <v-tab value="details">Informations</v-tab>
-          <v-tab value="employees">Employés</v-tab>
+          <v-tab value="details">{{ $t('dashboard.informations') }}</v-tab>
+          <v-tab value="employees">{{ $t('reports.reportTypes.EMPLOYEE') }}</v-tab>
         </v-tabs>
 
         <v-card-text>
@@ -67,8 +67,8 @@
                               <template v-if="field.type === 'status'">
                                 <StatusChip
                                   :status="item[field.key]"
-                                  :active-label="field.activeLabel"
-                                  :inactive-label="field.inactiveLabel"
+                                  :active-:label="$t('dashboard.fieldactivelabel')"
+                                  :inactive-:label="$t('dashboard.fieldinactivelabel')"
                                 />
                               </template>
                               <template v-else-if="field.type === 'schedule_type'">
@@ -76,7 +76,7 @@
                                   :color="item[field.key] === 'FIXED' ? 'primary' : 'secondary'"
                                   size="small"
                                 >
-                                  {{ item[field.key] === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                                  {{ item[field.key] === 'FIXED' ? t('plannings.planningTypes.FIXED') : t('plannings.planningTypes.FREQUENCY') }}
                                 </v-chip>
                               </template>
                               <template v-else>
@@ -90,12 +90,12 @@
 
                     <v-col cols="12" md="6">
                       <v-card class="mb-4">
-                        <v-card-title>Statistiques</v-card-title>
+                        <v-card-title>{{ $t('dashboard.statistics') }}</v-card-title>
                         <v-card-text>
                           <v-row>
                             <v-col cols="12" class="text-center">
                               <div class="text-h4">{{ statistics.total_employees }}</div>
-                              <div class="text-subtitle-1">Employés assignés</div>
+                              <div class="text-subtitle-1">{{ $t('plannings.assignedEmployees') }}</div>
                             </v-col>
                           </v-row>
                         </v-card-text>
@@ -115,10 +115,10 @@
               </v-row>
               <DataTable
                 v-else
-                title="Employés"
+                :title="$t('reports.reportTypes.EMPLOYEE')"
                 :headers="employeesHeaders"
                 :items="employees"
-                :no-data-text="'Aucun employé trouvé'"
+                :no-data-:text="$t('dashboard.aucun_employ_trouv')"
                 :detail-route="'/dashboard/admin/users/:id'"
                 :edit-route="'/dashboard/admin/users/:id/edit'"
                 @toggle-status="(item: TableItem) => handleToggleStatus(item)"
@@ -136,7 +136,7 @@
                     @click.stop
                   >
                     <v-icon>mdi-eye</v-icon>
-                    <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    <v-tooltip activator="parent">{{ $t("common.viewDetails") }}</v-tooltip>
                   </v-btn>
                   <v-btn
                     v-if="canCreateDelete"
@@ -158,7 +158,7 @@
                     @click.stop="confirmDeleteUser(rowItem)"
                   >
                     <v-icon>mdi-delete</v-icon>
-                    <v-tooltip activator="parent">Supprimer l'utilisateur</v-tooltip>
+                    <v-tooltip activator="parent">{{ $t("users.deleteUser") }}</v-tooltip>
                   </v-btn>
                 </template>
               </DataTable>
@@ -168,7 +168,7 @@
       </v-card>
     </template>
     <ConfirmDialog />
-    
+
     <!-- Snackbar pour les notifications -->
     <v-snackbar
       v-model="snackbar.show"
@@ -185,6 +185,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
@@ -197,6 +198,9 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useConfirmDialog } from '@/utils/dialogs'
 import type { DialogState } from '@/utils/dialogs'
 import { useAuthStore } from '@/stores/auth'
+
+// Initialize i18n
+const { t } = useI18n()
 
 // Types
 interface Field {
@@ -284,8 +288,8 @@ const reports = ref<any[]>([])
 
 // En-têtes des tableaux
 const employeesHeaders = [
-  { title: 'Nom', key: 'employee_name' },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { title: t('common.name'), key: 'employee_name' },
+  { title: t('common.actions'), key: 'actions', sortable: false }
 ]
 
 // Configuration des onglets
@@ -304,28 +308,28 @@ watch(activeTab, (newTab, oldTab) => {
 // Computed properties
 const itemId = computed(() => Number(route.params.id))
 
-const title = computed(() => 'Détails du planning')
+const title = computed(() => t('plannings.planningDetails'))
 
 const backRoute = computed(() => '/dashboard/plannings')
 
 const displayFields = computed((): Field[] => {
   return [
-    { key: 'site_name', label: 'Site', icon: 'mdi-map-marker' },
+    { key: 'site_name', label: t('sites.title'), icon: 'mdi-map-marker' },
     {
       key: 'schedule_type',
-      label: 'Type de planning',
+      label: t('plannings.type'),
       icon: 'mdi-calendar-clock',
       type: 'schedule_type'
     },
-    { key: 'created_at', label: 'Date de création', icon: 'mdi-calendar-plus', format: 'date', dateFormat: 'dd/MM/yyyy HH:mm' },
-    { key: 'updated_at', label: 'Dernière modification', icon: 'mdi-calendar-clock', format: 'date', dateFormat: 'dd/MM/yyyy HH:mm' },
+    { key: 'created_at', label: t('reports.creationDate'), icon: 'mdi-calendar-plus', format: 'date', dateFormat: 'dd/MM/yyyy HH:mm' },
+    { key: 'updated_at', label: t('reports.lastModified'), icon: 'mdi-calendar-clock', format: 'date', dateFormat: 'dd/MM/yyyy HH:mm' },
     {
       key: 'is_active',
-      label: 'Statut',
+      label: t('common.status'),
       icon: 'mdi-check-circle',
       type: 'status',
-      activeLabel: 'Actif',
-      inactiveLabel: 'Inactif'
+      activeLabel: t('sites.active'),
+      inactiveLabel: t('sites.inactive')
     }
   ]
 })
@@ -371,10 +375,10 @@ const editItem = () => {
 const confirmDelete = () => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Confirmation de suppression'
-  state.message = 'Êtes-vous sûr de vouloir supprimer ce planning ?'
-  state.confirmText = 'Supprimer'
-  state.cancelText = 'Annuler'
+  state.title = t('common.deleteConfirmation')
+  state.message = t('plannings.deleteConfirmation')
+  state.confirmText = t('common.delete')
+  state.cancelText = t('common.cancel')
   state.confirmColor = 'error'
   state.loading = false
   state.onConfirm = async () => {
@@ -489,39 +493,39 @@ const toggleUserStatus = async (user: any) => {
   try {
     // La fonction toggleUserStatus nécessite l'ID de l'utilisateur et le nouveau statut (inverse du statut actuel)
     await usersApi.toggleUserStatus(user.employee, !user.is_active)
-    
+
     // Recharger les données des employés après la modification
     if (item.value?.site) {
       await loadEmployees(item.value.site)
     }
-    
+
     // Afficher un message de succès
-    showSuccess(`Utilisateur ${user.is_active ? 'désactivé' : 'activé'} avec succès`)
+    showSuccess(user.is_active ? t('profile.userDeactivated') : t('profile.userActivated'))
   } catch (error) {
     console.error('[PlanningDetail][ToggleUserStatus] Erreur lors de la modification du statut de l\'utilisateur:', error)
-    showError(`Erreur lors de la ${user.is_active ? 'désactivation' : 'activation'} de l'utilisateur`)
+    showError(user.is_active ? t('profile.userDeactivationError') : t('profile.userActivationError'))
   }
 }
 
 const confirmDeleteUser = (user: any) => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Confirmation de suppression'
-  state.message = `Êtes-vous sûr de vouloir supprimer définitivement l'utilisateur ${user.employee_name} ?`
-  state.confirmText = 'Supprimer'
-  state.cancelText = 'Annuler'
+  state.title = t('common.deleteConfirmation')
+  state.message = t('users.deleteUserConfirmation').replace('cet utilisateur', user.employee_name)
+  state.confirmText = t('common.delete')
+  state.cancelText = t('common.cancel')
   state.confirmColor = 'error'
   state.loading = false
   state.onConfirm = async () => {
     state.loading = true
     try {
       await usersApi.deleteUser(user.employee)
-      
+
       // Recharger les données des employés après la suppression
       if (item.value?.site) {
         await loadEmployees(item.value.site)
       }
-      
+
       showSuccess('Utilisateur supprimé avec succès')
     } catch (error) {
       console.error('[PlanningDetail][DeleteUser] Erreur lors de la suppression de l\'utilisateur:', error)

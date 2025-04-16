@@ -1,15 +1,15 @@
 <template>
   <v-card class="auth-card">
     <v-card-title class="text-center">
-      <Title level="2" class="mb-2">Réinitialisation du mot de passe</Title>
-      <Text>Définir un nouveau mot de passe</Text>
+      <Title level="2" class="mb-2">{{ $t('auth.resetPassword') }}</Title>
+      <Text>{{ $t('auth.setNewPassword', 'Définir un nouveau mot de passe') }}</Text>
     </v-card-title>
-    
+
     <v-card-text>
       <v-form ref="form" @submit.prevent="resetPassword">
         <v-text-field
           v-model="password"
-          label="Nouveau mot de passe"
+          :label="$t('auth.newPassword')"
           :type="showPassword ? 'text' : 'password'"
           :rules="[rules.required, rules.minLength]"
           prepend-inner-icon="mdi-lock"
@@ -18,10 +18,10 @@
           class="mb-4"
           @click:append-inner="showPassword = !showPassword"
         ></v-text-field>
-        
+
         <v-text-field
           v-model="confirmPassword"
-          label="Confirmer le mot de passe"
+          :label="$t('auth.confirmPassword')"
           :type="showConfirmPassword ? 'text' : 'password'"
           :rules="[rules.required, rules.match]"
           prepend-inner-icon="mdi-lock-check"
@@ -30,7 +30,7 @@
           class="mb-6"
           @click:append-inner="showConfirmPassword = !showConfirmPassword"
         ></v-text-field>
-        
+
         <v-alert
           v-if="error"
           type="error"
@@ -39,7 +39,7 @@
         >
           {{ error }}
         </v-alert>
-        
+
         <v-alert
           v-if="success"
           type="success"
@@ -48,7 +48,7 @@
         >
           {{ success }}
         </v-alert>
-        
+
         <v-btn
           type="submit"
           color="primary"
@@ -56,9 +56,9 @@
           size="large"
           :loading="loading"
         >
-          Réinitialiser le mot de passe
+          {{ $t('auth.resetPassword') }}
         </v-btn>
-        
+
         <div class="text-center mt-4">
           <v-btn
             variant="text"
@@ -66,7 +66,7 @@
             to="/login"
             size="small"
           >
-            Retour à la connexion
+            {{ $t('auth.retour_la_connexion') }}
           </v-btn>
         </div>
       </v-form>
@@ -75,6 +75,7 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title, Text } from '@/components/typography'
@@ -86,6 +87,7 @@ export default {
     Text
   },
   setup() {
+    const { t } = useI18n()
     const route = useRoute()
     const router = useRouter()
     const form = ref(null)
@@ -96,38 +98,38 @@ export default {
     const loading = ref(false)
     const error = ref(null)
     const success = ref(null)
-    
+
     const token = computed(() => route.params.token)
-    
+
     const rules = {
-      required: v => !!v || 'Ce champ est requis',
-      minLength: v => v.length >= 8 || 'Le mot de passe doit contenir au moins 8 caractères',
-      match: v => v === password.value || 'Les mots de passe ne correspondent pas'
+      required: v => !!v || t('auth.fieldRequired'),
+      minLength: v => v.length >= 8 || t('auth.passwordMinLength', 'Le mot de passe doit contenir au moins 8 caractères'),
+      match: v => v === password.value || t('auth.passwordMismatch')
     }
-    
+
     const resetPassword = async () => {
       const isValid = await form.value.validate()
-      
+
       if (isValid.valid) {
         loading.value = true
         error.value = null
         success.value = null
-        
+
         try {
           // Simulation d'API call
           await new Promise(resolve => setTimeout(resolve, 1000))
-          success.value = 'Votre mot de passe a été réinitialisé avec succès.'
+          success.value = t('auth.passwordChanged')
           setTimeout(() => {
             router.push('/login')
           }, 2000)
         } catch (err) {
-          error.value = 'Une erreur est survenue lors de la réinitialisation du mot de passe'
+          error.value = t('auth.passwordResetError', 'Une erreur est survenue lors de la réinitialisation du mot de passe')
         } finally {
           loading.value = false
         }
       }
     }
-    
+
     return {
       form,
       password,

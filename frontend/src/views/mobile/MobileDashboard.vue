@@ -12,7 +12,7 @@
             class="mb-4"
             block
           >
-            S'enregistrer maintenant
+            {{ $t('mobile.senregistrer_maintenant') }}
           </v-btn>
           <v-btn
             variant="text"
@@ -20,7 +20,7 @@
             to="/mobile/profile"
             size="small"
           >
-            Accéder au profil
+            {{ $t('mobile.accder_au_profil') }}
           </v-btn>
         </v-card-text>
       </v-card>
@@ -29,7 +29,7 @@
     <!-- Vue complète -->
     <v-card v-else class="dashboard-card">
       <v-card-title class="text-center">
-        Tableau de bord
+        {{ $t('dashboard.title') }}
       </v-card-title>
       
       <v-card-text>
@@ -42,9 +42,9 @@
           <v-col cols="6">
             <v-card variant="outlined" class="stat-card">
               <v-card-text class="text-center">
-                <div class="text-overline mb-1">Retards</div>
+                <div class="text-overline mb-1">{{ $t('mobile.retards') }}</div>
                 <div class="text-h4 mb-2">{{ stats?.lateCount || 0 }}</div>
-                <div class="text-caption">Ce mois-ci</div>
+                <div class="text-caption">{{ $t('mobile.ce_moisci') }}</div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -52,9 +52,9 @@
           <v-col cols="6">
             <v-card variant="outlined" class="stat-card">
               <v-card-text class="text-center">
-                <div class="text-overline mb-1">Départs anticipés</div>
+                <div class="text-overline mb-1">{{ $t('mobile.dparts_anticips') }}</div>
                 <div class="text-h4 mb-2">{{ stats?.earlyDepartureCount || 0 }}</div>
-                <div class="text-caption">Ce mois-ci</div>
+                <div class="text-caption">{{ $t('mobile.ce_moisci') }}</div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -106,7 +106,7 @@
               to="/mobile/history"
               size="small"
             >
-              Voir tout l'historique
+              {{ $t('mobile.voir_tout_lhistorique') }}
             </v-btn>
           </div>
         </div>
@@ -137,7 +137,7 @@
           to="/mobile/scan"
           block
         >
-          S'enregistrer maintenant
+          {{ $t('mobile.senregistrer_maintenant') }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -145,6 +145,7 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTimesheetStore } from '@/stores/timesheet'
@@ -159,6 +160,7 @@ export default {
     Text
   },
   setup() {
+    const { t } = useI18n()
     const authStore = useAuthStore()
     const timesheetStore = useTimesheetStore()
     

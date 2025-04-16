@@ -18,7 +18,7 @@
         class="mr-2"
         @click.stop="editItem"
       >
-        Modifier
+        {{ $t('common.edit') }}
       </v-btn>
       <v-btn
         v-if="canCreateDelete"
@@ -26,7 +26,7 @@
         prepend-icon="mdi-delete"
         @click.stop="confirmDelete"
       >
-        Supprimer
+        {{ $t('common.delete') }}
       </v-btn>
     </div>
 
@@ -40,12 +40,12 @@
     <template v-else>
       <v-card>
         <v-tabs v-model="activeTab" color="#00346E">
-          <v-tab value="details">Informations</v-tab>
-          <v-tab value="employees">Employés</v-tab>
-          <v-tab value="plannings">Plannings</v-tab>
-          <v-tab value="pointages">Pointages</v-tab>
-          <v-tab value="anomalies">Anomalies</v-tab>
-          <v-tab value="reports">Rapports</v-tab>
+          <v-tab value="details">{{ $t('dashboard.informations') }}</v-tab>
+          <v-tab value="employees">{{ $t('reports.reportTypes.EMPLOYEE') }}</v-tab>
+          <v-tab value="plannings">{{ $t('plannings.title') }}</v-tab>
+          <v-tab value="pointages">{{ $t('timesheets.title') }}</v-tab>
+          <v-tab value="anomalies">{{ $t('anomalies.title') }}</v-tab>
+          <v-tab value="reports">{{ $t('reports.title') }}</v-tab>
         </v-tabs>
 
         <v-card-text>
@@ -82,8 +82,8 @@
                               <template v-else-if="field.type === 'status'">
                                 <StatusChip
                                   :status="item[field.key]"
-                                  :active-label="field.activeLabel"
-                                  :inactive-label="field.inactiveLabel"
+                                  :active-:label="$t('dashboard.fieldactivelabel')"
+                                  :inactive-:label="$t('dashboard.fieldinactivelabel')"
                                 />
                               </template>
 
@@ -102,7 +102,7 @@
                       <v-card class="qr-code-card" variant="outlined">
                         <v-card-title class="d-flex align-center">
                           <v-icon icon="mdi-qrcode" class="mr-2"></v-icon>
-                          QR Code du site
+                          {{ $t('sites.qrCode') }}
                         </v-card-title>
                         <v-card-text class="text-center">
                           <div v-if="item.qr_code" class="qr-code-container">
@@ -118,14 +118,14 @@
                                 prepend-icon="mdi-download"
                                 @click="downloadQRCode"
                               >
-                                Télécharger
+                                {{ $t('dashboard.tlcharger') }}
                               </v-btn>
                               <v-btn
                                 color="#F78C48"
                                 prepend-icon="mdi-refresh"
                                 @click="generateQRCode"
                               >
-                                Régénérer
+                                {{ $t('dashboard.rgnrer') }}
                               </v-btn>
                             </div>
                           </div>
@@ -151,10 +151,10 @@
               </v-row>
               <DataTable
                 v-else
-                title="Employés"
+                :title="$t('reports.reportTypes.EMPLOYEE')"
                 :headers="employeesHeaders"
                 :items="employees"
-                :no-data-text="'Aucun employé trouvé'"
+                :no-data-:text="$t('dashboard.aucun_employ_trouv')"
                 :detail-route="'/dashboard/admin/users/:id'"
                 :edit-route="'/dashboard/admin/users/:id/edit'"
                 @toggle-status="(item: TableItem) => handleToggleStatus('employees', item)"
@@ -172,7 +172,7 @@
                     @click.stop
                   >
                     <v-icon>mdi-eye</v-icon>
-                    <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    <v-tooltip activator="parent">{{ $t('common.viewDetails') }}</v-tooltip>
                   </v-btn>
                   <v-btn
                     v-if="canCreateDelete"
@@ -183,7 +183,7 @@
                     @click.stop="unassignEmployeeFromSite(rowItem.id)"
                   >
                     <v-icon>mdi-account-remove</v-icon>
-                    <v-tooltip activator="parent">Retirer du site</v-tooltip>
+                    <v-tooltip activator="parent">{{ $t('common.removeFromSite') }}</v-tooltip>
                   </v-btn>
                 </template>
               </DataTable>
@@ -204,7 +204,7 @@
                 <v-data-table
                   :headers="planningsHeaders"
                   :items="item.schedules || []"
-                  :no-data-text="'Aucun planning trouvé'"
+                  :no-data-:text="$t('dashboard.aucun_planning_trouv')"
                   class="elevation-1"
                   @click:row="(item) => router.push(`/dashboard/plannings/${item.id}`)"
                 >
@@ -231,7 +231,7 @@
                         color="grey"
                         variant="outlined"
                       >
-                        Aucun employé
+                        {{ $t('plannings.noEmployees') }}
                       </v-chip>
                     </v-chip-group>
                   </template>
@@ -242,7 +242,7 @@
                       :color="item.schedule_type === 'FIXED' ? 'primary' : 'secondary'"
                       size="small"
                     >
-                      {{ item.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                      {{ item.schedule_type === 'FIXED' ? $t('plannings.fixed') : $t('plannings.frequency') }}
                     </v-chip>
                   </template>
 
@@ -256,7 +256,7 @@
                       @click.stop="viewPlanningDetails(item)"
                     >
                       <v-icon>mdi-eye</v-icon>
-                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                      <v-tooltip activator="parent">{{ $t('common.viewDetails') }}</v-tooltip>
                     </v-btn>
                     <v-btn
                       icon
@@ -266,7 +266,7 @@
                       @click.stop="navigateToPlanning(item)"
                     >
                       <v-icon>mdi-pencil</v-icon>
-                      <v-tooltip activator="parent">Modifier</v-tooltip>
+                      <v-tooltip activator="parent">{{ $t('common.edit') }}</v-tooltip>
                     </v-btn>
                     <v-btn
                       icon
@@ -276,7 +276,7 @@
                       @click.stop="confirmTogglePlanningStatus(item)"
                     >
                       <v-icon>{{ item.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
-                      <v-tooltip activator="parent">{{ item.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+                      <v-tooltip activator="parent">{{ item.is_active ? $t('common.deactivate') : $t('common.activate') }}</v-tooltip>
                     </v-btn>
                     <v-btn
                       icon
@@ -286,7 +286,7 @@
                       @click.stop="confirmDeletePlanning(item)"
                     >
                       <v-icon>mdi-delete</v-icon>
-                      <v-tooltip activator="parent">Supprimer</v-tooltip>
+                      <v-tooltip activator="parent">{{ $t('common.delete') }}</v-tooltip>
                     </v-btn>
                   </template>
                 </v-data-table>
@@ -302,10 +302,10 @@
               </v-row>
               <DataTable
                 v-else
-                title="Pointages"
+                :title="$t('timesheets.title')"
                 :headers="pointagesHeaders"
                 :items="pointages"
-                :no-data-text="'Aucun pointage trouvé'"
+                :no-data-:text="$t('dashboard.aucun_pointage_trouv')"
               >
                 <template #item.status="{ item: rowItem }">
                   <v-chip
@@ -331,10 +331,10 @@
               </v-row>
               <DataTable
                 v-else
-                title="Anomalies"
+                :title="$t('anomalies.title')"
                 :headers="anomaliesHeaders"
                 :items="anomalies"
-                :no-data-text="'Aucune anomalie trouvée'"
+                :no-data-:text="$t('dashboard.aucune_anomalie_trouve')"
               >
                 <template #item.status="{ item: rowItem }">
                   <v-chip
@@ -360,10 +360,10 @@
               </v-row>
               <DataTable
                 v-else
-                title="Rapports"
+                :title="$t('reports.title')"
                 :headers="reportsHeaders"
                 :items="reports"
-                :no-data-text="'Aucun rapport trouvé'"
+                :no-data-:text="$t('dashboard.aucun_rapport_trouv')"
               >
                 <template #item.created_at="{ item: rowItem }">
                   {{ formatDate(rowItem.created_at) }}
@@ -378,7 +378,7 @@
                     @click.stop="downloadReport(rowItem.id)"
                   >
                     <v-icon>mdi-download</v-icon>
-                    <v-tooltip activator="parent">Télécharger le rapport</v-tooltip>
+                    <v-tooltip activator="parent">{{ $t('common.downloadReport') }}</v-tooltip>
                   </v-btn>
                 </template>
               </DataTable>
@@ -393,6 +393,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
@@ -474,38 +475,40 @@ const pointages = ref<any[]>([])
 const anomalies = ref<any[]>([])
 const reports = ref<any[]>([])
 
+const { t } = useI18n()
+
 // En-têtes des tableaux
 const employeesHeaders = [
-  { title: 'Nom', key: 'employee_name' },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { title: t('common.name'), key: 'employee_name' },
+  { title: t('common.actions'), key: 'actions', sortable: false }
 ]
 
 const planningsHeaders = [
-  { title: 'Site', key: 'site_name', align: 'start' },
-  { title: 'Employés', key: 'employees', align: 'start' },
-  { title: 'Type', key: 'schedule_type', align: 'start' },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
+  { title: t('common.site'), key: 'site_name', align: 'start' },
+  { title: t('common.employee'), key: 'employees', align: 'start' },
+  { title: t('common.type'), key: 'schedule_type', align: 'start' },
+  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' }
 ]
 
 const pointagesHeaders = [
-  { title: 'Employé', key: 'employee_name' },
-  { title: 'Type', key: 'type' },
-  { title: 'Date/Heure', key: 'created_at' },
-  { title: 'Statut', key: 'status' }
+  { title: t('common.employee'), key: 'employee_name' },
+  { title: t('common.type'), key: 'type' },
+  { title: t('timesheets.dateTime'), key: 'created_at' },
+  { title: t('common.status'), key: 'status' }
 ]
 
 const anomaliesHeaders = [
-  { title: 'Employé', key: 'employee_name' },
-  { title: 'Type', key: 'type' },
-  { title: 'Date/Heure', key: 'created_at' },
-  { title: 'Statut', key: 'status' }
+  { title: t('common.employee'), key: 'employee_name' },
+  { title: t('common.type'), key: 'type' },
+  { title: t('timesheets.dateTime'), key: 'created_at' },
+  { title: t('common.status'), key: 'status' }
 ]
 
 const reportsHeaders = [
-  { title: 'Nom', key: 'name' },
-  { title: 'Type', key: 'type' },
-  { title: 'Date de création', key: 'created_at' },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.type'), key: 'type' },
+  { title: t('reports.creationDate'), key: 'created_at' },
+  { title: t('common.actions'), key: 'actions', sortable: false }
 ]
 
 // Snackbar pour les notifications
@@ -547,7 +550,7 @@ watch(activeTab, (newTab, oldTab) => {
 // Computed properties
 const itemId = computed(() => Number(route.params.id))
 
-const title = computed(() => 'Détails du site')
+const title = computed(() => t('sites.siteDetails'))
 
 const backRoute = computed(() => '/dashboard/sites')
 

@@ -1,4 +1,4 @@
-.PHONY: help setup-backend setup-frontend run-backend run-frontend migrate makemigrations test-backend test-frontend lint-backend lint-frontend clean tests core users timesheets anomalies site-inactive schedule-inactive unplanned-day late-arrival early-departure frequency-insufficient consecutive-scans
+.PHONY: help setup-backend setup-frontend run-backend run-frontend migrate makemigrations test-backend test-frontend lint-backend lint-frontend clean tests core users timesheets anomalies site-inactive schedule-inactive unplanned-day late-arrival early-departure frequency-insufficient consecutive-scans makemessages compilemessages i18n-extract i18n-compile
 
 # Variables
 PYTHON = python3
@@ -21,6 +21,8 @@ help:
 	@echo "  tests users      - Exécuter les tests du module users"
 	@echo "  tests timesheets - Exécuter les tests du module timesheets"
 	@echo "  tests anomalies  - Exécuter tous les tests d'anomalies"
+	@echo "  i18n-extract     - Extraire les chaînes de traduction"
+	@echo "  i18n-compile     - Compiler les fichiers de traduction"
 	@echo "  Tests spécifiques pour les règles d'anomalies (.cursor/rules/anomalies.mdc):"
 	@echo "  tests site-inactive        - Tester la détection d'anomalie pour un site inactif"
 	@echo "  tests schedule-inactive    - Tester la détection d'anomalie pour un planning inactif"
@@ -80,6 +82,16 @@ clean:
 	find . -type d -name "build" -exec rm -rf {} +
 	find . -type d -name "node_modules" -exec rm -rf {} +
 
+# Commandes pour l'internationalisation
+i18n-extract:
+	@echo "Extraction des chaînes de traduction..."
+	$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py makemessages -l fr -l en --ignore=venv --ignore=.venv --ignore=node_modules
+
+# Compiler les fichiers de traduction
+i18n-compile:
+	@echo "Compilation des fichiers de traduction..."
+	$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py compilemessages
+
 tests:
 	@echo "Exécution des tests..."
 	@if [ "$(filter core,$(MAKECMDGOALS))" = "core" ]; then \
@@ -115,4 +127,14 @@ tests:
 	else \
 		$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test; \
 	fi
+
+# Commandes pour les tests des arbres de décision des anomalies
+tests minute-anomalies:
+	$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test --noinput timesheets.tests.test_minute_anomalies_decision_tree
+
+tests half-day-anomalies:
+	$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test --noinput timesheets.tests.test_half_day_anomalies_decision_tree
+
+tests scan-anomalies:
+	$(VENV_ACTIVATE) && cd backend && $(PYTHON) manage.py test --noinput timesheets.tests.test_multiple_scans_decision_tree
 

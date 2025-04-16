@@ -3,12 +3,12 @@
     <Title level="1" class="text-h5 mb-4">Signaler une anomalie</Title>
     
     <v-card>
-      <v-card-title>Détails de l'anomalie</v-card-title>
+      <v-card-title>{{ $t('mobile.dtails_de_lanomalie') }}</v-card-title>
       <v-card-text>
         <v-form ref="form" @submit.prevent="submitAnomaly">
           <v-select
             v-model="anomaly.site"
-            label="Site"
+            :label="$t('timesheets.site')"
             :items="siteOptions"
             variant="outlined"
             :rules="[rules.required]"
@@ -17,7 +17,7 @@
           
           <v-select
             v-model="anomaly.type"
-            label="Type d'anomalie"
+            :label="$t('anomalies.type')"
             :items="anomalyTypeOptions"
             variant="outlined"
             :rules="[rules.required]"
@@ -26,7 +26,7 @@
           
           <v-text-field
             v-model="anomaly.date"
-            label="Date"
+            :label="$t('timesheets.date')"
             type="date"
             variant="outlined"
             :rules="[rules.required]"
@@ -35,7 +35,7 @@
           
           <v-textarea
             v-model="anomaly.description"
-            label="Description"
+            :label="$t('anomalies.description')"
             variant="outlined"
             :rules="[rules.required]"
             class="mb-4"
@@ -46,7 +46,7 @@
           
           <v-file-input
             v-model="anomaly.files"
-            label="Joindre des photos (optionnel)"
+            :label="$t('mobile.joindre_des_photos_optionnel')"
             variant="outlined"
             prepend-icon="mdi-camera"
             accept="image/*"
@@ -62,7 +62,7 @@
             size="large"
             :loading="submitting"
           >
-            Soumettre l'anomalie
+            {{ $t('mobile.soumettre_lanomalie') }}
           </v-btn>
         </v-form>
       </v-card-text>
@@ -82,13 +82,13 @@
           variant="text"
           @click="goToHistory"
         >
-          Voir l'historique
+          {{ $t('mobile.voir_lhistorique') }}
         </v-btn>
         <v-btn
           variant="text"
           @click="snackbar.show = false"
         >
-          Fermer
+          {{ $t('common.close') }}
         </v-btn>
       </template>
     </v-snackbar>
@@ -96,6 +96,7 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
@@ -106,6 +107,7 @@ export default {
     Title
   },
   setup() {
+    const { t } = useI18n()
     const router = useRouter()
     const form = ref(null)
     const submitting = ref(false)

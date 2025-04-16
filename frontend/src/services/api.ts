@@ -17,6 +17,12 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
 
+      // Ajouter l'en-tête de langue si disponible
+      const language = localStorage.getItem("language")
+      if (language) {
+        config.headers["Accept-Language"] = language
+      }
+
       // Ajouter des logs pour les données envoyées
       if (config.data) {
         console.log("Données envoyées dans la requête:", {
@@ -469,6 +475,7 @@ const usersApi = {
       username: string;
       scan_preference?: string;
       simplified_mobile_view?: boolean;
+      language?: string;
     }
 
     const profileData: ProfileData = {
@@ -477,6 +484,11 @@ const usersApi = {
       email: data.email,
       phone_number: data.phone,
       username: data.username,
+    }
+
+    // Ajouter les préférences utilisateur
+    if (data.language) {
+      profileData.language = data.language
     }
 
     // Ajouter scan_preference et simplified_mobile_view uniquement pour les employés
@@ -489,10 +501,20 @@ const usersApi = {
   },
 
   // Update user preferences
-  updatePreferences: (data: { simplifiedMobileView: boolean }) => {
-    return api.patch('/users/profile/', convertKeysToSnakeCase({
-      simplified_mobile_view: data.simplifiedMobileView
-    }))
+  updatePreferences: (data: { simplifiedMobileView?: boolean, language?: string }) => {
+    const preferences: any = {}
+
+    if (data.simplifiedMobileView !== undefined) {
+      preferences.simplified_mobile_view = data.simplifiedMobileView
+    }
+
+    if (data.language) {
+      preferences.language = data.language
+      // Mettre à jour le localStorage pour les futures requêtes
+      localStorage.setItem("language", data.language)
+    }
+
+    return api.patch('/users/profile/', convertKeysToSnakeCase(preferences))
   },
 
   // Change password

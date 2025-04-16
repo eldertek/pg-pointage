@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <Title level="1">Employés</Title>
+      <Title level="1">{{ $t('users.employees', 'Employés') }}</Title>
     </div>
 
     <!-- Message d'erreur -->
@@ -13,7 +13,7 @@
     >
       {{ employeesStore.error }}
     </v-alert>
-    
+
     <v-card>
       <v-data-table
         :headers="headers"
@@ -22,10 +22,10 @@
         :items-per-page="employeesStore.itemsPerPage"
         :page="employeesStore.currentPage"
         :total-items="employeesStore.totalEmployees"
-        :no-data-text="'Aucun employé trouvé'"
-        :loading-text="'Chargement des employés...'"
-        :items-per-page-text="'Lignes par page'"
-        :page-text="'{0}-{1} sur {2}'"
+        :no-data-:text="$t('dashboard.aucun_employ_trouv')"
+        :loading-:text="$t('dashboard.chargement_des_employs')"
+        :items-per-page-:text="$t('dashboard.lignes_par_page')"
+        :page-:text="$t('dashboard.01_sur_2')"
         :items-per-page-options="[
           { title: '5', value: 5 },
           { title: '10', value: 10 },
@@ -39,7 +39,7 @@
         <template #item.is_active="{ item }">
           <v-chip
             :color="item.is_active ? 'success' : 'error'"
-            :text="item.is_active ? 'Actif' : 'Inactif'"
+            ::text="$t('dashboard.itemis_active_actif_inactif')"
             size="small"
           />
         </template>
@@ -81,7 +81,7 @@
     <v-dialog v-model="showDialog" max-width="600px" persistent>
       <v-card>
         <v-card-title>
-          <span class="text-h5">{{ isEditing ? 'Modifier' : 'Ajouter' }} un employé</span>
+          <span class="text-h5">{{ isEditing ? $t('users.editUser') : $t('users.addUser') }}</span>
         </v-card-title>
 
         <v-card-text>
@@ -91,36 +91,36 @@
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model="formData.first_name"
-                    label="Prénom"
+                    :label="$t('profile.firstName')"
                     required
-                    :rules="[v => !!v || 'Le prénom est requis']"
+                    :rules="[v => !!v || t('common.firstNameRequired')]"
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model="formData.last_name"
-                    label="Nom"
+                    :label="$t('profile.lastName')"
                     required
-                    :rules="[v => !!v || 'Le nom est requis']"
+                    :rules="[v => !!v || t('common.lastNameRequired')]"
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12">
                   <v-text-field
                     v-model="formData.email"
-                    label="Email"
+                    :label="$t('auth.email')"
                     type="email"
                     required
                     :rules="[
-                      v => !!v || 'L\'email est requis',
-                      v => /.+@.+\..+/.test(v) || 'L\'email doit être valide'
+                      v => !!v || t('common.fieldRequired'),
+                      v => /.+@.+\..+/.test(v) || t('auth.invalidEmail')
                     ]"
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12">
                   <v-text-field
                     v-model="formData.phone_number"
-                    label="Téléphone"
-                    :rules="[v => !v || /^[0-9]{10}$/.test(v.replace(/\D/g, '')) || 'Le numéro de téléphone doit contenir 10 chiffres']"
+                    :label="$t('profile.phone')"
+                    :rules="[v => !v || /^[0-9]{10}$/.test(v.replace(/\D/g, '')) || t('profile.phoneFormat', 'Le numéro de téléphone doit contenir 10 chiffres')]"
                     :value="formData.phone_number ? formatPhoneNumber(formData.phone_number) : ''"
                     @input="e => formData.phone_number = e.target.value.replace(/\D/g, '')"
                   ></v-text-field>
@@ -128,14 +128,14 @@
                 <v-col cols="12">
                   <v-text-field
                     v-model="formData.employee_id"
-                    label="ID Employé"
-                    :rules="[v => !!v || 'L\'ID employé est requis']"
+                    :label="$t('mobile.id_employ')"
+                    :rules="[v => !!v || t('users.employeeIdRequired', 'L\'ID employé est requis')]"
                   ></v-text-field>
                 </v-col>
                 <v-col cols="12">
                   <v-switch
                     v-model="formData.is_active"
-                    label="Actif"
+                    :label="$t('users.active')"
                     color="success"
                   ></v-switch>
                 </v-col>
@@ -151,7 +151,7 @@
             variant="text"
             @click="closeDialog"
           >
-            Annuler
+            {{ $t('common.cancel') }}
           </v-btn>
           <v-btn
             color="primary"
@@ -160,7 +160,7 @@
             :disabled="!isFormValid"
             @click="saveEmployee"
           >
-            {{ isEditing ? 'Modifier' : 'Ajouter' }}
+            {{ isEditing ? $t('common.edit') : $t('common.add') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -169,9 +169,9 @@
     <!-- Dialog de confirmation de suppression -->
     <v-dialog v-model="showDeleteDialog" max-width="400px">
       <v-card>
-        <v-card-title class="text-h5">Confirmer la suppression</v-card-title>
+        <v-card-title class="text-h5">{{ $t('dashboard.confirmer_la_suppression') }}</v-card-title>
         <v-card-text>
-          Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.
+          {{ $t('dashboard.tesvous_sr_de_vouloir_supprimer_cet_employ_cette_action_est_irrversible') }}
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
@@ -180,7 +180,7 @@
             variant="text"
             @click="showDeleteDialog = false"
           >
-            Annuler
+            {{ $t('common.cancel') }}
           </v-btn>
           <v-btn
             color="error"
@@ -188,7 +188,7 @@
             :loading="employeesStore.loading"
             @click="deleteEmployee"
           >
-            Supprimer
+            {{ $t('common.delete') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -197,6 +197,7 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted } from 'vue'
 import { useEmployeesStore } from '@/stores/employees'
 import { formatPhoneNumber } from '@/utils/formatters'
@@ -208,6 +209,7 @@ export default {
     Title
   },
   setup() {
+    const { t } = useI18n()
     const employeesStore = useEmployeesStore()
     const form = ref(null)
     const isFormValid = ref(false)
@@ -217,13 +219,13 @@ export default {
     const selectedEmployeeId = ref(null)
 
     const headers = ref([
-      { title: 'Prénom', align: 'start', key: 'first_name' },
-      { title: 'Nom', align: 'start', key: 'last_name' },
-      { title: 'Email', align: 'start', key: 'email' },
-      { title: 'Téléphone', align: 'start', key: 'phone_number', format: value => value ? formatPhoneNumber(value) : '-' },
-      { title: 'ID Employé', align: 'start', key: 'employee_id' },
-      { title: 'Statut', align: 'center', key: 'is_active' },
-      { title: 'Actions', align: 'end', key: 'actions', sortable: false }
+      { title: t('common.firstName'), align: 'start', key: 'first_name' },
+      { title: t('common.lastName'), align: 'start', key: 'last_name' },
+      { title: t('common.email'), align: 'start', key: 'email' },
+      { title: t('common.phone'), align: 'start', key: 'phone_number', format: value => value ? formatPhoneNumber(value) : '-' },
+      { title: t('mobile.id_employ'), align: 'start', key: 'employee_id' },
+      { title: t('common.status'), align: 'center', key: 'is_active' },
+      { title: t('common.actions'), align: 'end', key: 'actions', sortable: false }
     ])
 
     const formData = ref({

@@ -1,8 +1,8 @@
 <template>
   <DashboardView
     ref="dashboardView"
-    title="Gestion des accès"
-    :form-title="(editedItem as OrganizationFormData)?.id ? 'Modifier l\'organisation' : 'Nouvelle organisation'"
+    :title="$t('dashboard.gestion_des_accs')"
+    :form-:title="$t('dashboard.editeditem_as_organizationformdataid_modifier_lorganisation_nouvelle_organisation')"
     :saving="saving"
     @save="saveOrganization"
   >
@@ -12,7 +12,7 @@
         <v-col cols="12" md="4">
           <v-text-field
             v-model="filters.search"
-            label="Rechercher"
+            :label="$t('common.search')"
             variant="outlined"
             prepend-inner-icon="mdi-magnify"
             clearable
@@ -29,7 +29,7 @@
         prepend-icon="mdi-plus"
         @click="openDialog()"
       >
-        Nouvelle organisation
+        {{ $t('dashboard.nouvelle_organisation') }}
       </v-btn>
     </template>
 
@@ -41,15 +41,15 @@
       :loading="loading"
       :items-per-page="itemsPerPage"
       :items-length="totalItems"
-      :no-data-text="'Aucune organisation trouvée'"
-      :loading-text="'Chargement des organisations...'"
-      :items-per-page-text="'Lignes par page'"
-      :page-text="'{0}-{1} sur {2}'"
+      :no-data-:text="$t('dashboard.aucune_organisation_trouve')"
+      :loading-:text="$t('dashboard.chargement_des_organisations')"
+      :items-per-page-:text="$t('dashboard.lignes_par_page')"
+      :page-:text="$t('dashboard.01_sur_2')"
       :items-per-page-options="[
         { title: '5', value: 5 },
         { title: '10', value: 10 },
         { title: '15', value: 15 },
-        { title: 'Tout', value: -1 }
+        { title: t('common.all'), value: -1 }
       ]"
       class="elevation-1"
       @click:row="handleRowClick"
@@ -112,39 +112,39 @@
         <v-col cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as OrganizationFormData).name"
-            label="Nom"
+            :label="$t('profile.lastName')"
             required
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as OrganizationFormData).phone"
-            label="Téléphone"
+            :label="$t('profile.phone')"
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as OrganizationFormData).contact_email"
-            label="Email de contact"
+            :label="$t('organizations.contactEmail')"
             type="email"
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as OrganizationFormData).address"
-            label="Adresse"
+            :label="$t('sites.address')"
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as OrganizationFormData).postal_code"
-            label="Code postal"
+            :label="$t('sites.postalCode')"
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as OrganizationFormData).city"
-            label="Ville"
+            :label="$t('sites.city')"
           ></v-text-field>
         </v-col>
         <v-col cols="12" sm="6">
@@ -152,36 +152,36 @@
             v-model="(editedItem as OrganizationFormData).country"
             v-model:search-input="searchCountry"
             :items="countries"
-            item-title="title"
+            item-:title="$t('dashboard.title')"
             item-value="value"
-            label="Pays"
+            :label="$t('sites.country')"
             variant="outlined"
             prepend-inner-icon="mdi-earth"
             :filter="customFilter"
             :error-messages="formErrors.country"
-            no-data-text="Aucun pays trouvé"
+            no-data-:text="$t('dashboard.aucun_pays_trouv')"
           ></v-autocomplete>
         </v-col>
         <v-col cols="12" sm="6">
           <v-text-field
             v-model="(editedItem as OrganizationFormData).siret"
-            label="Numéro SIRET"
+            :label="$t('dashboard.numro_siret')"
             :rules="[
-              v => !v || v.length <= 14 || 'Le numéro SIRET ne peut pas dépasser 14 caractères'
+              v => !v || v.length <= 14 || $t('organizations.siretFormat')
             ]"
           ></v-text-field>
         </v-col>
         <v-col cols="12">
           <v-textarea
             v-model="(editedItem as OrganizationFormData).notes"
-            label="Notes"
+            :label="$t('organizations.notes')"
             rows="3"
           ></v-textarea>
         </v-col>
         <v-col cols="12" sm="6">
           <v-switch
             v-model="(editedItem as OrganizationFormData).is_active"
-            label="Organisation active"
+            :label="$t('dashboard.organisation_active')"
           ></v-switch>
         </v-col>
       </DashboardForm>
@@ -191,6 +191,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted } from 'vue'
 import { organizationsApi } from '@/services/api'
 import DashboardView from '@/components/dashboard/DashboardView.vue'
@@ -282,15 +283,18 @@ const filters = ref({
 // Données
 const organizations = ref<Organization[]>([])
 
+// Import i18n
+const { t } = useI18n()
+
 // En-têtes du tableau
 const organizationHeaders = [
-  { title: 'ID', key: 'org_id' },
-  { title: 'Nom', key: 'name' },
-  { title: 'Téléphone', key: 'phone' },
-  { title: 'Email', key: 'contact_email' },
-  { title: 'Adresse', key: 'address', component: AddressWithMap },
-  { title: 'Ville', key: 'city' },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { title: t('common.id'), key: 'org_id' },
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.phone'), key: 'phone' },
+  { title: t('common.email'), key: 'contact_email' },
+  { title: t('sites.address'), key: 'address', component: AddressWithMap },
+  { title: t('sites.city'), key: 'city' },
+  { title: t('common.actions'), key: 'actions', sortable: false }
 ] as const
 
 // Liste des pays
@@ -355,7 +359,7 @@ const loadOrganizations = async () => {
     organizations.value = response.data.results || []
     totalItems.value = response.data.count
   } catch (error) {
-    console.error('Erreur lors du chargement des organisations:', error)
+    console.error('[AccessManagement][LoadOrganizations] Error loading organizations:', error)
   } finally {
     loading.value = false
   }
@@ -365,17 +369,17 @@ const loadUsers = async () => {
   try {
     const response = await organizationsApi.getUnassignedEmployees(editedItem.value?.id || 0)
     const unassignedUsers = response.data.results || []
-    
+
     // Combiner avec les utilisateurs existants
     const allUsers = [...users.value, ...unassignedUsers]
-    
+
     // Formater les noms complets
     users.value = allUsers.map(user => ({
       ...user,
       full_name: `${user.last_name} ${user.first_name} (${user.email})`
     }))
   } catch (error) {
-    console.error('[AccessManagement][LoadUsers] Erreur lors du chargement des utilisateurs:', error)
+    console.error('[AccessManagement][LoadUsers] Error loading users:', error)
   }
 }
 
@@ -387,14 +391,14 @@ const loadOrganizationUsers = async (organizationId: number) => {
     if (editedItem.value) {
       editedItem.value.users = selectedUsers.value
     }
-    
+
     // Ajouter les utilisateurs actuels à la liste des utilisateurs disponibles
     users.value = organizationUsers.map((user: any) => ({
       ...user,
       full_name: `${user.last_name} ${user.first_name} (${user.email})`
     }))
   } catch (error) {
-    console.error('[AccessManagement][LoadOrganizationUsers] Erreur lors du chargement des utilisateurs de l\'organisation:', error)
+    console.error('[AccessManagement][LoadOrganizationUsers] Error loading organization users:', error)
   }
 }
 
@@ -409,7 +413,7 @@ const openDialog = async (item?: Organization) => {
   // Réinitialiser les utilisateurs
   users.value = []
   selectedUsers.value = []
-  
+
   editedItem.value = item ? {
     id: item.id,
     name: item.name,
@@ -441,7 +445,7 @@ const openDialog = async (item?: Organization) => {
   if (item?.id) {
     await loadOrganizationUsers(item.id)
   }
-  
+
   // Ensuite charger les utilisateurs non assignés
   await loadUsers()
   dashboardView.value.showForm = true
@@ -452,7 +456,7 @@ const saveOrganization = async () => {
 
   saving.value = true
   formErrors.value = {}
-  
+
   try {
     if (editedItem.value) {
       const orgData = editedItem.value as OrganizationFormData
@@ -471,7 +475,7 @@ const saveOrganization = async () => {
       dashboardView.value.showForm = false
     }
   } catch (error: any) {
-    console.error('[AccessManagement][SaveOrganization] Erreur lors de la sauvegarde:', error)
+    console.error('[AccessManagement][SaveOrganization] Error saving organization:', error)
     if (error.response?.data) {
       formErrors.value = error.response.data
     }
@@ -483,10 +487,10 @@ const saveOrganization = async () => {
 const confirmDelete = (item: Organization) => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Confirmation de suppression'
-  state.message = 'Êtes-vous sûr de vouloir supprimer cette organisation ?'
-  state.confirmText = 'Supprimer'
-  state.cancelText = 'Annuler'
+  state.title = t('common.deleteConfirmation')
+  state.message = t('organizations.deleteConfirmation')
+  state.confirmText = t('common.delete')
+  state.cancelText = t('common.cancel')
   state.confirmColor = 'error'
   state.loading = false
   state.onConfirm = async () => {
@@ -502,17 +506,17 @@ const deleteOrganization = async (item: Organization) => {
     await organizationsApi.deleteOrganization(item.id)
     await loadOrganizations()
   } catch (error) {
-    console.error('Erreur lors de la suppression:', error)
+    console.error('[AccessManagement][DeleteOrganization] Error deleting organization:', error)
   }
 }
 
 const toggleStatus = async (item: Organization) => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Confirmation de changement de statut'
-  state.message = `Êtes-vous sûr de vouloir ${item.is_active ? 'désactiver' : 'activer'} cette organisation ?`
-  state.confirmText = item.is_active ? 'Désactiver' : 'Activer'
-  state.cancelText = 'Annuler'
+  state.title = t('common.statusChangeConfirmation')
+  state.message = item.is_active ? t('organizations.deactivateConfirmation') : t('organizations.activateConfirmation')
+  state.confirmText = item.is_active ? t('common.deactivate') : t('common.activate')
+  state.cancelText = t('common.cancel')
   state.confirmColor = 'warning'
   state.loading = false
   state.onConfirm = async () => {
@@ -522,7 +526,7 @@ const toggleStatus = async (item: Organization) => {
       await organizationsApi.toggleOrganizationStatus(item.id, newStatus);
       await loadOrganizations();
     } catch (error) {
-      console.error('Erreur lors du changement de statut:', error);
+      console.error('[AccessManagement][ToggleStatus] Error changing status:', error);
     } finally {
       state.show = false
       state.loading = false
@@ -548,7 +552,7 @@ onMounted(async () => {
       const response = await organizationsApi.getOrganization(Number(props.editId))
       openDialog(response.data)
     } catch (error) {
-      console.error('Erreur lors du chargement des données:', error)
+      console.error('[AccessManagement][LoadData] Error loading data:', error)
     }
   }
 })
@@ -579,4 +583,4 @@ onMounted(async () => {
   opacity: 1 !important;
   color: inherit !important;
 }
-</style> 
+</style>

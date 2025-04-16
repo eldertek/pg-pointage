@@ -17,6 +17,10 @@ class User(AbstractUser):
         NFC_ONLY = 'NFC_ONLY', _('NFC uniquement')
         QR_ONLY = 'QR_ONLY', _('QR Code uniquement')
 
+    class Language(models.TextChoices):
+        FRENCH = 'fr', _('Français')
+        ENGLISH = 'en', _('Anglais')
+
     email = models.EmailField(_('adresse email'), unique=True)
     role = models.CharField(
         _('rôle'),
@@ -35,7 +39,14 @@ class User(AbstractUser):
     )
     simplified_mobile_view = models.BooleanField(
         default=False,
-        help_text='Si activé, affiche uniquement le bouton de pointage sur mobile'
+        help_text=_('Si activé, affiche uniquement le bouton de pointage sur mobile')
+    )
+    language = models.CharField(
+        _('langue'),
+        max_length=2,
+        choices=Language.choices,
+        default=Language.FRENCH,
+        help_text=_('Langue préférée de l\'utilisateur')
     )
     organizations = models.ManyToManyField(
         'organizations.Organization',

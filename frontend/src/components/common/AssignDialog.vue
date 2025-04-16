@@ -31,12 +31,12 @@
                 v-model="selectedItem"
                 :items="items"
                 item-value="id"
-                :label="label"
-                :placeholder="placeholder"
+                ::label="$t('dashboard.label')"
+                ::placeholder="$t('common.placeholder')"
                 return-object
                 :loading="loading"
-                :no-data-text="noDataText"
-                :item-title="getItemTitle"
+                :no-data-:text="$t('common.nodatatext')"
+                :item-:title="$t('common.getitemtitle')"
               >
                 <template #item="{ props, item }">
                   <v-list-item v-bind="props">
@@ -65,7 +65,7 @@
           class="action-button"
           @click="$emit('update:modelValue', false)"
         >
-          Annuler
+          {{ $t('common.cancel') }}
         </v-btn>
         <v-btn 
           color="primary" 
@@ -75,7 +75,7 @@
           class="action-button"
           @click="handleSubmit"
         >
-          Assigner
+          {{ $t('common.assigner') }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -83,6 +83,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, watch } from 'vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
 import { typography } from '@/styles/typography'

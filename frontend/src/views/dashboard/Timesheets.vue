@@ -1,46 +1,46 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <Title :level="1">Pointages</Title>
+      <Title :level="1">{{ $t('timesheets.title') }}</Title>
     </div>
 
     <v-card v-if="!isDetailView" class="mb-4">
-      <v-card-title>Filtres</v-card-title>
+      <v-card-title>{{ $t('reports.filters') }}</v-card-title>
       <v-card-text>
         <DashboardFilters @reset="resetFilters">
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-text-field
-v-model="filters.employee" label="Employé" variant="outlined"
+v-model="filters.employee" :label="$t('users.roles.EMPLOYEE')" variant="outlined"
               prepend-inner-icon="mdi-account-search" clearable @update:model-value="applyFilters"></v-text-field>
           </v-col>
 
           <v-col v-if="!currentSiteId" cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
-v-model="filters.site" label="Site" :items="siteOptions" variant="outlined"
+v-model="filters.site" :label="$t('timesheets.site')" :items="siteOptions" variant="outlined"
               prepend-inner-icon="mdi-map-marker" clearable @update:model-value="applyFilters"></v-select>
           </v-col>
 
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
-v-model="filters.entryType" label="Type de pointage" :items="entryTypeOptions" variant="outlined"
+v-model="filters.entryType" :label="$t('dashboard.type_de_pointage')" :items="entryTypeOptions" variant="outlined"
               prepend-inner-icon="mdi-clock-time-four" clearable @update:model-value="applyFilters"></v-select>
           </v-col>
 
           <v-col cols="12" :md="currentSiteId ? 4 : 3">
             <v-select
-v-model="filters.status" label="Statut" :items="statusOptions" variant="outlined"
+v-model="filters.status" :label="$t('timesheets.status')" :items="statusOptions" variant="outlined"
               prepend-inner-icon="mdi-alert-circle" clearable @update:model-value="applyFilters"></v-select>
           </v-col>
 
           <v-col cols="12" md="4">
             <v-text-field
-v-model="filters.startDate" label="Du" type="date" variant="outlined"
+v-model="filters.startDate" :label="$t('reports.fromDate')" type="date" variant="outlined"
               prepend-inner-icon="mdi-calendar" clearable @update:model-value="applyFilters"></v-text-field>
           </v-col>
 
           <v-col cols="12" md="4">
             <v-text-field
-v-model="filters.endDate" label="Au" type="date" variant="outlined"
+v-model="filters.endDate" :label="$t('reports.toDate')" type="date" variant="outlined"
               prepend-inner-icon="mdi-calendar" clearable @update:model-value="applyFilters"></v-text-field>
           </v-col>
         </DashboardFilters>
@@ -52,16 +52,16 @@ v-model="filters.endDate" label="Au" type="date" variant="outlined"
 v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
         :items-per-page="itemsPerPage"
         :items-length="timesheets.length"
-        :no-data-text="'Aucun pointage trouvé'" :loading-text="'Chargement des pointages...'"
+        :no-data-text="$t('common.noData')" :loading-text="$t('common.loading')"
         class="elevation-1"
         :items-per-page-options="[
           { title: '5', value: 5 },
           { title: '10', value: 10 },
           { title: '15', value: 15 },
-          { title: 'Tout', value: -1 }
+          { title: t('common.all'), value: -1 }
         ]"
-        :page-text="'{0}-{1} sur {2}'"
-        :items-per-page-text="'Lignes par page'"
+        :page-text="$t('common.pageInfo')"
+        :items-per-page-text="$t('common.rowsPerPage')"
         @click:row="handleRowClick">
         <template #item.entry_type="{ item }">
           <v-chip :color="item.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'" size="small">
@@ -82,7 +82,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
             @click.stop="showDetails(item)"
           >
             <v-icon>mdi-eye</v-icon>
-            <v-tooltip activator="parent">Voir les détails</v-tooltip>
+            <v-tooltip activator="parent">{{ $t('common.view') }}</v-tooltip>
           </v-btn>
           <v-btn
             v-if="canEditTimesheet"
@@ -93,7 +93,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
             @click.stop="editTimesheet(item)"
           >
             <v-icon>mdi-pencil</v-icon>
-            <v-tooltip activator="parent">Modifier</v-tooltip>
+            <v-tooltip activator="parent">{{ $t('common.edit') }}</v-tooltip>
           </v-btn>
           <v-btn
             v-if="canEditTimesheet"
@@ -104,7 +104,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
             @click.stop="confirmDelete(item)"
           >
             <v-icon>mdi-delete</v-icon>
-            <v-tooltip activator="parent">Supprimer</v-tooltip>
+            <v-tooltip activator="parent">{{ $t('common.delete') }}</v-tooltip>
           </v-btn>
         </template>
       </v-data-table>
@@ -115,8 +115,8 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
       <v-card v-if="selectedTimesheet" class="form-dialog">
         <div class="form-dialog-header">
           <div class="form-dialog-title">
-            <span class="text-h4">Détails du pointage</span>
-            <span class="text-subtitle">Informations complètes du pointage</span>
+            <span class="text-h4">{{ $t('dashboard.dtails_du_pointage') }}</span>
+            <span class="text-subtitle">{{ $t('dashboard.informations_compltes_du_pointage') }}</span>
           </div>
           <v-btn
             icon
@@ -140,7 +140,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
                   <template #prepend>
                     <v-icon color="primary">mdi-account</v-icon>
                   </template>
-                  <v-list-item-title class="text-subtitle-2 mb-1">Employé</v-list-item-title>
+                  <v-list-item-title class="text-subtitle-2 mb-1">{{ $t('users.roles.EMPLOYEE') }}</v-list-item-title>
                   <v-list-item-subtitle>{{ selectedTimesheet.employee }}</v-list-item-subtitle>
                 </v-list-item>
 
@@ -148,7 +148,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
                   <template #prepend>
                     <v-icon color="primary">mdi-map-marker</v-icon>
                   </template>
-                  <v-list-item-title class="text-subtitle-2 mb-1">Site</v-list-item-title>
+                  <v-list-item-title class="text-subtitle-2 mb-1">{{ $t('timesheets.site') }}</v-list-item-title>
                   <v-list-item-subtitle>{{ selectedTimesheet.site }}</v-list-item-subtitle>
                 </v-list-item>
 
@@ -156,7 +156,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
                   <template #prepend>
                     <v-icon color="primary">mdi-clock-outline</v-icon>
                   </template>
-                  <v-list-item-title class="text-subtitle-2 mb-1">Date et heure</v-list-item-title>
+                  <v-list-item-title class="text-subtitle-2 mb-1">{{ $t('dashboard.date_et_heure') }}</v-list-item-title>
                   <v-list-item-subtitle>{{ selectedTimesheet.date }} à {{ selectedTimesheet.time
                     }}</v-list-item-subtitle>
                 </v-list-item>
@@ -165,7 +165,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
                   <template #prepend>
                     <v-icon color="primary">mdi-gesture-tap-button</v-icon>
                   </template>
-                  <v-list-item-title class="text-subtitle-2 mb-1">Type</v-list-item-title>
+                  <v-list-item-title class="text-subtitle-2 mb-1">{{ $t('timesheets.entryType') }}</v-list-item-title>
                   <v-list-item-subtitle>
                     <v-chip
 :color="selectedTimesheet.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'"
@@ -179,7 +179,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
                   <template #prepend>
                     <v-icon :color="selectedTimesheet.is_late ? 'warning' : 'error'">mdi-alert-circle</v-icon>
                   </template>
-                  <v-list-item-title class="text-subtitle-2 mb-1">Statut</v-list-item-title>
+                  <v-list-item-title class="text-subtitle-2 mb-1">{{ $t('timesheets.status') }}</v-list-item-title>
                   <v-list-item-subtitle>
                     <v-chip :color="getStatusColor(selectedTimesheet)" size="small">
                       {{ getStatusLabel(selectedTimesheet) }}
@@ -191,7 +191,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
                   <template #prepend>
                     <v-icon color="primary">mdi-calendar-clock</v-icon>
                   </template>
-                  <v-list-item-title class="text-subtitle-2 mb-1">Planning associé</v-list-item-title>
+                  <v-list-item-title class="text-subtitle-2 mb-1">{{ $t('dashboard.planning_associ') }}</v-list-item-title>
                   <v-list-item-subtitle>
                     <div>{{ selectedTimesheet.schedule_details.name }}</div>
                     <div class="text-caption">
@@ -222,7 +222,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
                   <template #prepend>
                     <v-icon color="primary">mdi-note-text</v-icon>
                   </template>
-                  <v-list-item-title class="text-subtitle-2 mb-1">Note de correction</v-list-item-title>
+                  <v-list-item-title class="text-subtitle-2 mb-1">{{ $t('dashboard.note_de_correction') }}</v-list-item-title>
                   <v-list-item-subtitle>{{ selectedTimesheet.correction_note }}</v-list-item-subtitle>
                 </v-list-item>
               </v-list>
@@ -240,23 +240,23 @@ id="mapContainer"
 
         <v-card-actions v-if="canEditTimesheet">
           <v-spacer></v-spacer>
-          <v-btn 
-            color="primary" 
-            variant="text" 
+          <v-btn
+            color="primary"
+            variant="text"
             prepend-icon="mdi-pencil"
             class="action-button"
             @click="editTimesheet(selectedTimesheet)"
           >
-            Modifier
+            {{ $t('common.edit') }}
           </v-btn>
-          <v-btn 
-            color="error" 
-            variant="text" 
+          <v-btn
+            color="error"
+            variant="text"
             prepend-icon="mdi-delete"
             class="action-button"
             @click="confirmDelete(selectedTimesheet)"
           >
-            Supprimer
+            {{ $t('common.delete') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -267,8 +267,8 @@ id="mapContainer"
       <v-card v-if="editingTimesheet" class="form-dialog">
         <div class="form-dialog-header">
           <div class="form-dialog-title">
-            <span class="text-h4">Modifier le pointage</span>
-            <span class="text-subtitle">Modifiez les informations du pointage</span>
+            <span class="text-h4">{{ $t('timesheets.editTimesheet') }}</span>
+            <span class="text-subtitle">{{ $t('dashboard.modifiez_les_informations_du_pointage') }}</span>
           </div>
           <v-btn
             icon
@@ -289,25 +289,25 @@ id="mapContainer"
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model="editingTimesheet.timestamp"
-                    label="Date et heure"
+                    :label="$t('dashboard.date_et_heure')"
                     type="datetime-local"
                     variant="outlined"
                     required
                     :error-messages="getFieldErrors('timestamp')"
                   ></v-text-field>
                 </v-col>
-                
+
                 <v-col cols="12" sm="6">
                   <v-select
                     v-model="editingTimesheet.entry_type"
                     :items="entryTypeOptions"
-                    label="Type de pointage"
+                    :label="$t('dashboard.type_de_pointage')"
                     variant="outlined"
                     required
                     :error-messages="getFieldErrors('entry_type')"
                   ></v-select>
                 </v-col>
-                
+
                 <v-col cols="12">
                   <v-divider class="my-4"></v-divider>
                   <v-card-title class="text-subtitle-1 font-weight-medium">
@@ -321,14 +321,14 @@ id="mapContainer"
                     </v-chip>
                   </v-card-title>
                   <v-card-text class="text-caption text-grey">
-                    Vous pouvez ajouter une note pour expliquer la raison de cette modification.
+                    {{ $t('dashboard.vous_pouvez_ajouter_une_note_pour_expliquer_la_raison_de_cette_modification') }}
                   </v-card-text>
                 </v-col>
-                
+
                 <v-col cols="12">
                   <v-textarea
                     v-model="editingTimesheet.correction_note"
-                    label="Note de correction"
+                    :label="$t('dashboard.note_de_correction')"
                     variant="outlined"
                     rows="3"
                     hint="Laissez vide si aucune correction n'est nécessaire"
@@ -343,24 +343,24 @@ id="mapContainer"
         <v-divider></v-divider>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn 
-            color="grey" 
-            variant="text" 
+          <v-btn
+            color="grey"
+            variant="text"
             class="action-button"
             @click="editDialog = false"
           >
-            Annuler
+            {{ $t('common.cancel') }}
           </v-btn>
-          <v-btn 
-            color="primary" 
-            variant="text" 
+          <v-btn
+            color="primary"
+            variant="text"
             :loading="loading"
             class="action-button"
-            type="submit" 
-            form="editForm" 
+            type="submit"
+            form="editForm"
             @click="saveTimesheet"
           >
-            Enregistrer
+            {{ $t('common.save') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -371,8 +371,8 @@ id="mapContainer"
       <v-card class="form-dialog">
         <div class="form-dialog-header">
           <div class="form-dialog-title">
-            <span class="text-h4">Confirmer la suppression</span>
-            <span class="text-subtitle">Cette action est irréversible</span>
+            <span class="text-h4">{{ $t('dashboard.confirmer_la_suppression') }}</span>
+            <span class="text-subtitle">{{ $t('dashboard.cette_action_est_irrversible') }}</span>
           </div>
           <v-btn
             icon
@@ -395,32 +395,32 @@ id="mapContainer"
           >
             <div class="d-flex align-center">
               <v-icon icon="mdi-alert-circle" class="mr-2"></v-icon>
-              <span class="font-weight-medium">Êtes-vous sûr de vouloir supprimer ce pointage ?</span>
+              <span class="font-weight-medium">{{ $t('dashboard.tesvous_sr_de_vouloir_supprimer_ce_pointage') }}</span>
             </div>
             <div class="mt-2">
-              Cette action est définitive et ne pourra pas être annulée.
+              {{ $t('dashboard.cette_action_est_dfinitive_et_ne_pourra_pas_tre_annule') }}
             </div>
           </v-alert>
         </v-card-text>
         <v-divider></v-divider>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn 
-            color="grey" 
-            variant="text" 
+          <v-btn
+            color="grey"
+            variant="text"
             class="action-button"
             @click="deleteDialog = false"
           >
-            Annuler
+            {{ $t('common.cancel') }}
           </v-btn>
-          <v-btn 
-            color="error" 
-            variant="text" 
+          <v-btn
+            color="error"
+            variant="text"
             :loading="loading"
             class="action-button"
             @click="deleteTimesheet"
           >
-            Supprimer
+            {{ $t('common.delete') }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -430,6 +430,7 @@ id="mapContainer"
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted, computed, watch } from 'vue'
 import { sitesApi, timesheetsApi } from '@/services/api'
 import { format } from 'date-fns'
@@ -457,14 +458,16 @@ const loading = ref(true)
 // Computed pour le site courant - priorité au siteId passé en prop
 const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
 
+const { t } = useI18n()
+
 const headers = ref([
-  { title: 'Date', align: 'start' as const, key: 'date' },
-  { title: 'Heure', align: 'start' as const, key: 'time' },
-  { title: 'Employé', align: 'start' as const, key: 'employee' },
-  { title: 'Site', align: 'start' as const, key: 'site' },
-  { title: 'Type', align: 'center' as const, key: 'entry_type' },
-  { title: 'Statut', align: 'center' as const, key: 'status' },
-  { title: 'Actions', align: 'center' as const, key: 'actions', sortable: false, width: '120px' }
+  { title: t('common.date'), align: 'start' as const, key: 'date' },
+  { title: t('common.time'), align: 'start' as const, key: 'time' },
+  { title: t('common.employee'), align: 'start' as const, key: 'employee' },
+  { title: t('common.site'), align: 'start' as const, key: 'site' },
+  { title: t('common.type'), align: 'start' as const, key: 'entry_type' },
+  { title: t('common.status'), align: 'start' as const, key: 'status' },
+  { title: t('common.actions'), align: 'center' as const, key: 'actions', sortable: false, width: '120px' }
 ])
 
 console.log('Headers du tableau:', headers.value)
@@ -480,13 +483,13 @@ const filters = ref<Filters>({
 
 const siteOptions = ref<SiteOption[]>([])
 const entryTypeOptions = ref([
-  { title: 'Arrivée', value: EntryTypeEnum.ARRIVAL },
-  { title: 'Départ', value: EntryTypeEnum.DEPARTURE }
+  { title: t('timesheets.entryTypes.ARRIVAL'), value: EntryTypeEnum.ARRIVAL },
+  { title: t('timesheets.entryTypes.DEPARTURE'), value: EntryTypeEnum.DEPARTURE }
 ])
 const statusOptions = ref([
-  { title: 'Normal', value: 'NORMAL' },
-  { title: 'Retard', value: 'LATE' },
-  { title: 'Départ anticipé', value: 'EARLY_DEPARTURE' }
+  { title: t('timesheets.statuses.VALIDATED'), value: 'NORMAL' },
+  { title: t('anomalies.anomalyTypes.LATE_ARRIVAL'), value: 'LATE' },
+  { title: t('anomalies.anomalyTypes.EARLY_DEPARTURE'), value: 'EARLY_DEPARTURE' }
 ])
 
 const timesheets = ref<any[]>([])

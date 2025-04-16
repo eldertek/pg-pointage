@@ -9,7 +9,7 @@
     >
       <div class="d-flex flex-column">
         <div class="text-body-1 mb-2">
-          Installez l'application sur votre appareil pour un accès rapide
+          {{ $t('common.installez_lapplication_sur_votre_appareil_pour_un_accs_rapide') }}
         </div>
         <div class="d-flex gap-2">
           <v-btn
@@ -17,13 +17,13 @@
             :loading="installing"
             @click="installPwa"
           >
-            Installer l'application
+            {{ $t('common.installer_lapplication') }}
           </v-btn>
           <v-btn
             variant="text"
             @click="dismissPrompt"
           >
-            Plus tard
+            {{ $t('common.plus_tard') }}
           </v-btn>
         </div>
       </div>
@@ -32,11 +32,13 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 export default {
   name: 'PwaInstall',
   setup() {
+    const { t } = useI18n()
     const deferredPrompt = ref(null)
     const showInstallPrompt = ref(false)
     const installing = ref(false)

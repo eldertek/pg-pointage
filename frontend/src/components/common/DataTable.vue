@@ -4,10 +4,10 @@
     :headers="headers"
     :items="items"
     :items-per-page="itemsPerPage"
-    :no-data-text="noDataText || defaultNoDataText"
-    :loading-text="loadingText || defaultLoadingText"
-    :items-per-page-text="itemsPerPageText || defaultItemsPerPageText"
-    :page-text="pageText || defaultPageText"
+    :no-data-text="$t('common.noData')"
+    :loading-text="$t('common.loading')"
+    :items-per-page-text="$t('common.rowsPerPage')"
+    :page-text="$t('common.pageInfo')"
     :items-per-page-options="itemsPerPageOptions || defaultItemsPerPageOptions"
     class="elevation-1"
     @click:row="handleRowClick"
@@ -37,7 +37,7 @@
           @click.stop
         >
           <v-icon>mdi-eye</v-icon>
-          <v-tooltip activator="parent">Voir les détails</v-tooltip>
+          <v-tooltip activator="parent">{{ $t('common.view') }}</v-tooltip>
         </v-btn>
         <v-btn
           icon
@@ -48,7 +48,7 @@
           @click.stop
         >
           <v-icon>mdi-pencil</v-icon>
-          <v-tooltip activator="parent">Modifier</v-tooltip>
+          <v-tooltip activator="parent">{{ $t('common.edit') }}</v-tooltip>
         </v-btn>
         <template v-if="!isManager">
           <v-btn
@@ -59,7 +59,7 @@
             @click.stop="$emit('toggle-status', rowItem)"
           >
             <v-icon>{{ rowItem.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
-            <v-tooltip activator="parent">{{ rowItem.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+            <v-tooltip activator="parent">{{ rowItem.is_active ? $t('users.inactive') : $t('users.active') }}</v-tooltip>
           </v-btn>
           <v-btn
             icon
@@ -69,7 +69,7 @@
             @click.stop="$emit('delete', rowItem)"
           >
             <v-icon>mdi-delete</v-icon>
-            <v-tooltip activator="parent">Supprimer</v-tooltip>
+            <v-tooltip activator="parent">{{ $t('common.delete') }}</v-tooltip>
           </v-btn>
         </template>
       </slot>
@@ -78,6 +78,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 
 interface TableHeader {
@@ -120,11 +121,13 @@ const props = defineProps<{
   isManager?: boolean;
 }>()
 
+const { t } = useI18n()
+
 // Valeurs par défaut pour les textes
-const defaultItemsPerPageText = "Lignes par page :"
-const defaultLoadingText = "Chargement..."
-const defaultPageText = "{0}-{1} sur {2}"
-const defaultNoDataText = "Aucune donnée disponible"
+const defaultItemsPerPageText = t('common.rowsPerPage')
+const defaultLoadingText = t('common.loading')
+const defaultPageText = t('common.pageInfo')
+const defaultNoDataText = t('common.noData')
 const defaultItemsPerPageOptions = [
   { title: '5', value: 5 },
   { title: '10', value: 10 },
@@ -205,4 +208,4 @@ const formatEditRoute = (item: TableItem): string => {
   font-size: 1.25rem;
   font-weight: 500;
 }
-</style> 
+</style>

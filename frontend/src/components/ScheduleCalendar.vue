@@ -40,7 +40,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="primary" text @click="selectedOpen = false">Fermer</v-btn>
+          <v-btn color="primary" text @click="selectedOpen = false">{{ $t('common.close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

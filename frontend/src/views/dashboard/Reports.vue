@@ -1,27 +1,27 @@
 <template>
   <DashboardView
     ref="dashboardView"
-    title="Rapports"
-    form-title="Générer un rapport"
+    :title="$t('reports.title')"
+    form-:title="$t('reports.generateReport')"
     :saving="generating"
     @save="generateReport"
   >
     <!-- Statistiques -->
     <v-card class="mb-4">
-      <v-card-title>Statistiques des rapports</v-card-title>
+      <v-card-title>{{ $t('dashboard.statistiques_des_rapports') }}</v-card-title>
       <v-card-text>
         <v-row>
           <v-col cols="12" sm="4">
             <div class="text-h4">{{ totalReports }}</div>
-            <div class="text-subtitle-1">Rapports générés</div>
+            <div class="text-subtitle-1">{{ $t('dashboard.rapports_gnrs') }}</div>
           </v-col>
           <v-col cols="12" sm="4">
             <div class="text-h4">{{ pendingReports }}</div>
-            <div class="text-subtitle-1">En attente</div>
+            <div class="text-subtitle-1">{{ $t('timesheets.statuses.PENDING') }}</div>
           </v-col>
           <v-col cols="12" sm="4">
             <div class="text-h4">{{ completedReports }}</div>
-            <div class="text-subtitle-1">Complétés</div>
+            <div class="text-subtitle-1">{{ $t('dashboard.complts') }}</div>
           </v-col>
         </v-row>
       </v-card-text>
@@ -34,7 +34,7 @@
         prepend-icon="mdi-file-plus"
         @click="openDialog()"
       >
-        Générer un rapport
+        {{ $t('reports.generateReport') }}
       </v-btn>
     </template>
 
@@ -44,7 +44,7 @@
         <v-col cols="12" md="4">
           <v-text-field
             v-model="filters.search"
-            label="Rechercher"
+            :label="$t('common.search')"
             variant="outlined"
             prepend-inner-icon="mdi-magnify"
             clearable
@@ -54,7 +54,7 @@
         <v-col cols="12" md="4">
           <v-select
             v-model="filters.type"
-            label="Type de rapport"
+            :label="$t('reports.reportType')"
             :items="reportTypeOptions"
             variant="outlined"
             prepend-inner-icon="mdi-file-document"
@@ -65,7 +65,7 @@
         <v-col cols="12" md="4">
           <v-select
             v-model="filters.format"
-            label="Format"
+            :label="$t('dashboard.format')"
             :items="reportFormatOptions"
             variant="outlined"
             prepend-inner-icon="mdi-file-export"
@@ -82,21 +82,21 @@
       :items="reports"
       :loading="loading"
       :items-per-page="10"
-      :no-data-text="'Aucun rapport trouvé'"
-      :loading-text="'Chargement des rapports...'"
-      :items-per-page-text="'Lignes par page'"
-      :page-text="'{0}-{1} sur {2}'"
+      :no-data-:text="$t('dashboard.aucun_rapport_trouv')"
+      :loading-:text="$t('dashboard.chargement_des_rapports')"
+      :items-per-page-:text="$t('dashboard.lignes_par_page')"
+      :page-:text="$t('dashboard.01_sur_2')"
       :items-per-page-options="[
         { title: '5', value: 5 },
         { title: '10', value: 10 },
         { title: '15', value: 15 },
-        { title: 'Tout', value: -1 }
+        { title: $t('common.all'), value: -1 }
       ]"
       class="elevation-1"
     >
       <template #item.actions="{ item }">
         <v-btn
-          v-tooltip="'Télécharger'"
+          v-tooltip="$t('dashboard.tlcharger')"
           icon
           variant="text"
           size="small"
@@ -106,7 +106,7 @@
           <v-icon>mdi-download</v-icon>
         </v-btn>
         <v-btn
-          v-tooltip="'Supprimer'"
+          v-tooltip="$t('common.delete')"
           icon
           variant="text"
           size="small"
@@ -125,17 +125,17 @@
           <v-col cols="12" sm="6">
             <v-text-field
               v-model="reportForm.name"
-              label="Nom du rapport"
+              :label="$t('dashboard.nom_du_rapport')"
               density="comfortable"
               variant="outlined"
               :rules="[rules.required]"
             ></v-text-field>
           </v-col>
-          
+
           <v-col cols="12" sm="6">
             <v-select
               v-model="reportForm.type"
-              label="Type de rapport"
+              :label="$t('reports.reportType')"
               :items="reportTypeOptions"
               density="comfortable"
               variant="outlined"
@@ -146,19 +146,19 @@
           <v-col cols="12" sm="6">
             <v-select
               v-model="reportForm.format"
-              label="Format de rapport"
+              :label="$t('dashboard.format_de_rapport')"
               :items="reportFormatOptions"
               density="comfortable"
               variant="outlined"
               :rules="[rules.required]"
             ></v-select>
           </v-col>
-          
+
           <v-col cols="12" sm="6">
             <v-select
               v-if="!currentSiteId"
               v-model="reportForm.site"
-              label="Site"
+              :label="$t('timesheets.site')"
               :items="siteOptions"
               density="comfortable"
               variant="outlined"
@@ -168,23 +168,23 @@
         </v-row>
 
         <v-card variant="outlined" class="pa-4">
-          <v-card-title class="text-subtitle-1 mb-4">Période du rapport</v-card-title>
+          <v-card-title class="text-subtitle-1 mb-4">{{ $t('dashboard.priode_du_rapport') }}</v-card-title>
           <v-row>
             <v-col cols="12" sm="6">
               <v-text-field
                 v-model="reportForm.startDate"
-                label="Date de début"
+                :label="$t('reports.startDate')"
                 type="date"
                 density="comfortable"
                 variant="outlined"
                 :rules="[rules.required]"
               ></v-text-field>
             </v-col>
-            
+
             <v-col cols="12" sm="6">
               <v-text-field
                 v-model="reportForm.endDate"
-                label="Date de fin"
+                :label="$t('reports.endDate')"
                 type="date"
                 density="comfortable"
                 variant="outlined"
@@ -216,6 +216,7 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref, watch, onMounted, computed } from 'vue'
 import { reportsApi, sitesApi } from '@/services/api'
 import { useSitesStore } from '@/stores/sites'
@@ -247,35 +248,37 @@ export default {
     const dashboardView = ref(null)
     const formErrors = ref({})
     const { dialogState, handleConfirm } = useConfirmDialog()
-    
+
     // Computed pour le site courant - priorité au siteId passé en prop
     const currentSiteId = computed(() => props.siteId || sitesStore.getCurrentSiteId)
-    
+
+    const { t } = useI18n()
+
     const headers = ref([
-      { title: 'Site', align: 'start', key: 'site_name' },
-      { title: 'Type', align: 'start', key: 'report_type_display' },
-      { title: 'Format', align: 'center', key: 'report_format_display' },
-      { title: 'Période', align: 'start', key: 'period' },
-      { title: 'Créé par', align: 'start', key: 'created_by_name' },
-      { title: 'Actions', align: 'end', key: 'actions', sortable: false }
+      { title: t('common.site'), align: 'start', key: 'site_name' },
+      { title: t('common.type'), align: 'start', key: 'report_type_display' },
+      { title: t('dashboard.format'), align: 'center', key: 'report_format_display' },
+      { title: t('reports.period'), align: 'start', key: 'period' },
+      { title: t('reports.createdBy'), align: 'start', key: 'created_by_name' },
+      { title: t('common.actions'), align: 'end', key: 'actions', sortable: false }
     ])
-    
+
     const reportTypeOptions = ref([
-      { title: 'Journalier', value: 'DAILY' },
-      { title: 'Hebdomadaire', value: 'WEEKLY' },
-      { title: 'Mensuel', value: 'MONTHLY' },
+      { title: t('reports.types.DAILY'), value: 'DAILY' },
+      { title: t('reports.types.WEEKLY'), value: 'WEEKLY' },
+      { title: t('reports.types.MONTHLY'), value: 'MONTHLY' },
     ])
-    
+
     const reportFormatOptions = ref([
-      { title: 'PDF', value: 'PDF' },
-      { title: 'CSV', value: 'CSV' },
-      { title: 'Excel', value: 'EXCEL' }
+      { title: t('reports.formats.PDF'), value: 'PDF' },
+      { title: t('reports.formats.CSV'), value: 'CSV' },
+      { title: t('reports.formats.EXCEL'), value: 'EXCEL' }
     ])
-    
-    const siteOptions = ref(['Tous les sites', 'Centre Commercial', 'Hôpital Nord', 'Résidence Les Pins'])
+
+    const siteOptions = ref([t('reports.allSites')])
     const reports = ref([])
     const showDeleteConfirmDialog = ref(false)
-    
+
     const reportForm = ref({
       name: '',
       type: 'MONTHLY',
@@ -284,28 +287,28 @@ export default {
       startDate: '',
       endDate: ''
     })
-    
+
     const snackbar = ref({
       show: false,
       text: '',
       color: 'success'
     })
-    
+
     const filters = ref({
       search: '',
       type: '',
       format: ''
     })
-    
+
     const rules = {
-      required: v => !!v || 'Ce champ est requis'
+      required: v => !!v || t('common.fieldRequired')
     }
-    
+
     const dateRangeRule = v => {
       if (!v || !reportForm.value.startDate) return true
-      return new Date(v) >= new Date(reportForm.value.startDate) || 'La date de fin doit être postérieure à la date de début'
+      return new Date(v) >= new Date(reportForm.value.startDate) || t('reports.endDateAfterStartDate')
     }
-    
+
     const openDialog = () => {
       reportForm.value = {
         name: '',
@@ -319,48 +322,48 @@ export default {
         dashboardView.value.showForm = true
       }
     }
-    
+
     const formatReportData = (data) => {
       return data.map(report => ({
-        ...report, // On garde toutes les données originales
+        ...report, // Keep all original data
         created_at: new Date(report.created_at).toLocaleDateString()
       }))
     }
-    
+
     const loadReports = async () => {
       try {
         loading.value = true
-        console.log('[Reports][Load] Chargement des rapports...')
-        
+        console.log('[Reports][Load] Loading reports...')
+
         const params = {
           search: filters.value.search,
           type: filters.value.type,
           format: filters.value.format,
           site: currentSiteId.value
         }
-        
+
         const response = await reportsApi.getAllReports(params)
-        console.log('[Reports][API] Réponse:', response.data)
-        
+        console.log('[Reports][API] Response:', response.data)
+
         reports.value = formatReportData(response.data.results)
       } catch (error) {
-        console.error('[Reports][Error] Erreur lors du chargement:', error)
-        showError('Erreur lors du chargement des rapports')
+        console.error('[Reports][Error] Error loading reports:', error)
+        showError(t('profile.fetchError') + ' ' + t('reports.title'))
       } finally {
         loading.value = false
       }
     }
-    
+
     const generateReport = async () => {
       if (!form.value) return
-      
+
       const isValid = await form.value.validate()
       if (!isValid) return
-      
+
       try {
         generating.value = true
-        console.log('[Reports][Generate] Génération du rapport...')
-        
+        console.log('[Reports][Generate] Generating report...')
+
         const response = await reportsApi.generateReport({
           name: reportForm.value.name,
           type: reportForm.value.type,
@@ -369,35 +372,35 @@ export default {
           end_date: reportForm.value.endDate,
           site: reportForm.value.site || null
         })
-        
-        console.log('[Reports][Generate] Rapport généré:', response.data)
-        showSuccess('Rapport en cours de génération')
+
+        console.log('[Reports][Generate] Report generated:', response.data)
+        showSuccess(t('reports.reportGenerated'))
         await loadReports()
-        
+
         if (dashboardView.value) {
           dashboardView.value.showForm = false
         }
       } catch (error) {
-        console.error('[Reports][Error] Erreur lors de la génération:', error)
-        showError(error.response?.data?.error || 'Erreur lors de la génération du rapport')
+        console.error('[Reports][Error] Error generating report:', error)
+        showError(error.response?.data?.error || t('profile.generationError') + ' ' + t('reports.title'))
       } finally {
         generating.value = false
       }
     }
-    
+
     const downloadReport = (id) => {
-      // Simulation de téléchargement
-      console.log(`Téléchargement du rapport ${id}`)
-      showSuccess('Téléchargement démarré')
+      // Download simulation
+      console.log(`Downloading report ${id}`)
+      showSuccess(t('profile.downloadStarted'))
     }
-    
+
     const confirmDelete = (id) => {
       dialogState.value = {
         show: true,
-        title: 'Supprimer le rapport',
-        message: 'Êtes-vous sûr de vouloir supprimer ce rapport ? Cette action est irréversible.',
-        confirmText: 'Supprimer',
-        cancelText: 'Annuler',
+        title: t('common.delete') + ' ' + t('reports.title').toLowerCase(),
+        message: t('common.deleteConfirmation') + ' ' + t('reports.title').toLowerCase() + '? ' + t('common.cette_action_est_irrversible'),
+        confirmText: t('common.delete'),
+        cancelText: t('common.cancel'),
         confirmColor: 'error',
         loading: false,
         onConfirm: async () => {
@@ -405,10 +408,10 @@ export default {
             dialogState.value.loading = true
             await reportsApi.deleteReport(id)
             await loadReports()
-            showSuccess('Rapport supprimé avec succès')
+            showSuccess(t('reports.title') + ' ' + t('profile.reportDeleted'))
           } catch (error) {
-            console.error('Erreur lors de la suppression du rapport:', error)
-            showError(error.response?.data?.error || 'Erreur lors de la suppression du rapport')
+            console.error('Error deleting report:', error)
+            showError(error.response?.data?.error || t('profile.deleteError') + ' ' + t('reports.title'))
           } finally {
             dialogState.value.loading = false
             dialogState.value.show = false
@@ -420,7 +423,7 @@ export default {
     const deleteReport = async (id) => {
       confirmDelete(id)
     }
-    
+
     const showSuccess = (text) => {
       snackbar.value = {
         show: true,
@@ -428,7 +431,7 @@ export default {
         color: 'success'
       }
     }
-    
+
     const showError = (text) => {
       snackbar.value = {
         show: true,
@@ -436,14 +439,14 @@ export default {
         color: 'error'
       }
     }
-    
+
     // Charger les sites
     const loadSites = async () => {
       try {
         const response = await sitesApi.getAllSites()
         if (response.data?.results) {
           siteOptions.value = [
-            { title: 'Tous les sites', value: null },
+            { title: t('reports.allSites'), value: null },
             ...response.data.results.map(site => ({
               title: site.name,
               value: site.id
@@ -451,7 +454,7 @@ export default {
           ]
         }
       } catch (error) {
-        console.error('Erreur lors du chargement des sites:', error)
+        console.error('Error loading sites:', error)
         siteOptions.value = []
       }
     }
@@ -465,7 +468,7 @@ export default {
           reports.value = response.data?.results || []
         }
       } catch (error) {
-        console.error('Erreur lors du chargement des rapports:', error)
+        console.error('Error loading reports:', error)
         reports.value = []
       } finally {
         loading.value = false
@@ -497,12 +500,12 @@ export default {
       try {
         const response = await reportsApi.getAllReports()
         const reports = response.data?.results || []
-        
+
         totalReports.value = reports.length
         pendingReports.value = reports.filter(r => r.status === 'PENDING').length
         completedReports.value = reports.filter(r => r.status === 'COMPLETED').length
       } catch (error) {
-        console.error('Erreur lors du chargement des statistiques:', error)
+        console.error('Error loading statistics:', error)
       }
     }
 
@@ -519,7 +522,7 @@ export default {
       }
       await loadReports()
     })
-    
+
     return {
       form,
       loading,

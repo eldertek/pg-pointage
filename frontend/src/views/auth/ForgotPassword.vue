@@ -1,22 +1,22 @@
 <template>
   <v-card class="auth-card">
     <v-card-title class="text-center">
-      <Title level="2" class="mb-2">Mot de passe oublié</Title>
-      <Text>Réinitialiser votre mot de passe</Text>
+      <Title level="2" class="mb-2">{{ $t('auth.forgotPassword') }}</Title>
+      <Text>{{ $t('auth.resetPassword') }}</Text>
     </v-card-title>
-    
+
     <v-card-text>
       <v-form ref="form" @submit.prevent="requestReset">
         <v-text-field
           v-model="email"
-          label="Email"
+          :label="$t('auth.email')"
           type="email"
           :rules="[rules.required, rules.email]"
           prepend-inner-icon="mdi-email"
           variant="outlined"
           class="mb-4"
         ></v-text-field>
-        
+
         <v-alert
           v-if="error"
           type="error"
@@ -25,7 +25,7 @@
         >
           {{ error }}
         </v-alert>
-        
+
         <v-alert
           v-if="success"
           type="success"
@@ -34,7 +34,7 @@
         >
           {{ success }}
         </v-alert>
-        
+
         <v-btn
           type="submit"
           color="primary"
@@ -42,9 +42,9 @@
           size="large"
           :loading="loading"
         >
-          Envoyer le lien de réinitialisation
+          {{ $t('auth.envoyer_le_lien_de_rinitialisation') }}
         </v-btn>
-        
+
         <div class="text-center mt-4">
           <v-btn
             variant="text"
@@ -52,7 +52,7 @@
             to="/login"
             size="small"
           >
-            Retour à la connexion
+            {{ $t('auth.retour_la_connexion') }}
           </v-btn>
         </div>
       </v-form>
@@ -61,44 +61,46 @@
 </template>
 
 <script>
+import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 import { Title, Text } from '@/components/typography'
 
 export default {
   name: 'ForgotPasswordView',
   setup() {
+    const { t } = useI18n()
     const form = ref(null)
     const email = ref('')
     const loading = ref(false)
     const error = ref(null)
     const success = ref(null)
-    
+
     const rules = {
-      required: v => !!v || 'Ce champ est requis',
-      email: v => /.+@.+\..+/.test(v) || 'Veuillez entrer un email valide'
+      required: v => !!v || t('auth.fieldRequired'),
+      email: v => /.+@.+\..+/.test(v) || t('auth.invalidEmail')
     }
-    
+
     const requestReset = async () => {
       const isValid = await form.value.validate()
-      
+
       if (isValid.valid) {
         loading.value = true
         error.value = null
         success.value = null
-        
+
         try {
           // Simulation d'API call
           await new Promise(resolve => setTimeout(resolve, 1000))
-          success.value = 'Si votre adresse est correcte, vous recevrez un email avec les instructions pour réinitialiser votre mot de passe.'
+          success.value = t('auth.passwordResetLinkSent', 'Si votre adresse est correcte, vous recevrez un email avec les instructions pour réinitialiser votre mot de passe.')
           email.value = ''
         } catch (err) {
-          error.value = 'Une erreur est survenue lors de la demande de réinitialisation'
+          error.value = t('auth.passwordResetError', 'Une erreur est survenue lors de la demande de réinitialisation')
         } finally {
           loading.value = false
         }
       }
     }
-    
+
     return {
       form,
       email,

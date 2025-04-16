@@ -3,11 +3,11 @@
     <Title :level="1" class="mb-4">Historique des enregistrements</Title>
 
     <v-card class="mb-4">
-      <v-card-title>Filtres</v-card-title>
+      <v-card-title>{{ $t('reports.filters') }}</v-card-title>
       <v-card-text>
         <v-select
           v-model="filters.site"
-          label="Site"
+          :label="$t('timesheets.site')"
           :items="siteOptions"
           variant="outlined"
           clearable
@@ -16,7 +16,7 @@
 
         <v-select
           v-model="filters.type"
-          label="Type"
+          :label="$t('timesheets.entryType')"
           :items="typeOptions"
           variant="outlined"
           clearable
@@ -25,7 +25,7 @@
 
         <v-select
           v-model="filters.status"
-          label="Statut"
+          :label="$t('timesheets.status')"
           :items="statusOptions"
           variant="outlined"
           clearable
@@ -35,7 +35,7 @@
         <div class="d-flex">
           <v-text-field
             v-model="filters.startDate"
-            label="Du"
+            :label="$t('reports.fromDate')"
             type="date"
             variant="outlined"
             class="mr-2"
@@ -43,7 +43,7 @@
 
           <v-text-field
             v-model="filters.endDate"
-            label="Au"
+            :label="$t('reports.toDate')"
             type="date"
             variant="outlined"
           ></v-text-field>
@@ -54,7 +54,7 @@
             color="primary"
             @click="applyFilters"
           >
-            Appliquer
+            {{ $t('mobile.appliquer') }}
           </v-btn>
 
           <v-btn
@@ -62,7 +62,7 @@
             variant="text"
             @click="resetFilters"
           >
-            Réinitialiser
+            {{ $t('mobile.rinitialiser') }}
           </v-btn>
         </div>
       </v-card-text>
@@ -74,7 +74,7 @@
 
     <template v-else>
       <div v-if="timesheets.length === 0" class="text-center my-4">
-        <p class="text-subtitle-1">Aucun enregistrement trouvé</p>
+        <p class="text-subtitle-1">{{ $t('mobile.aucun_enregistrement_trouv') }}</p>
       </div>
 
       <template v-else>
@@ -120,6 +120,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted } from 'vue'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'

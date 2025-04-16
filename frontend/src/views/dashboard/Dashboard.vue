@@ -1,14 +1,14 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <Title level="1">Tableau de bord</Title>
+      <AppTitle :level="1">{{ $t('dashboard.title') }}</AppTitle>
       <v-btn
         color="primary"
         :loading="loading.stats || loading.anomalies"
         @click="refreshDashboard"
       >
         <v-icon class="me-2">mdi-refresh</v-icon>
-        Actualiser
+        {{ $t('dashboard.refresh') }}
       </v-btn>
     </div>
 
@@ -16,9 +16,9 @@
       <v-col cols="12" md="6" lg="3">
         <v-card class="mb-4" :loading="loading.stats">
           <v-card-text class="text-center">
-            <div class="text-overline mb-2">Sites</div>
+            <div class="text-overline mb-2">{{ $t('sites.title') }}</div>
             <div class="text-h3 mb-2">{{ stats.sitesCount }}</div>
-            <div class="text-caption">Total des sites actifs</div>
+            <div class="text-caption">{{ $t('dashboard.total_des_sites_actifs') }}</div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -26,9 +26,9 @@
       <v-col cols="12" md="6" lg="3">
         <v-card class="mb-4" :loading="loading.stats">
           <v-card-text class="text-center">
-            <div class="text-overline mb-2">Employés</div>
+            <div class="text-overline mb-2">{{ $t('reports.reportTypes.EMPLOYEE') }}</div>
             <div class="text-h3 mb-2">{{ stats.employeesCount }}</div>
-            <div class="text-caption">Total des employés actifs</div>
+            <div class="text-caption">{{ $t('dashboard.total_des_employs_actifs') }}</div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -36,9 +36,9 @@
       <v-col cols="12" md="6" lg="3">
         <v-card class="mb-4" :loading="loading.stats">
           <v-card-text class="text-center">
-            <div class="text-overline mb-2">Pointages</div>
+            <div class="text-overline mb-2">{{ $t('timesheets.title') }}</div>
             <div class="text-h3 mb-2">{{ stats.timesheetsCount }}</div>
-            <div class="text-caption">Pointages aujourd'hui</div>
+            <div class="text-caption">{{ $t('dashboard.pointages_aujourdhui') }}</div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -46,9 +46,9 @@
       <v-col cols="12" md="6" lg="3">
         <v-card class="mb-4" :loading="loading.stats">
           <v-card-text class="text-center">
-            <div class="text-overline mb-2">Anomalies</div>
+            <div class="text-overline mb-2">{{ $t('anomalies.title') }}</div>
             <div class="text-h3 mb-2">{{ stats.anomaliesCount }}</div>
-            <div class="text-caption">Anomalies à traiter</div>
+            <div class="text-caption">{{ $t('dashboard.anomalies_traiter') }}</div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -57,9 +57,9 @@
     <v-row>
       <v-col cols="12" lg="8">
         <v-card class="mb-4">
-          <v-card-title>Activité récente</v-card-title>
+          <v-card-title>{{ $t('dashboard.recentActivity') }}</v-card-title>
           <v-card-text>
-            <p class="text-center py-4">Graphique d'activité à venir</p>
+            <p class="text-center py-4">{{ $t('dashboard.graphique_dactivit_venir') }}</p>
           </v-card-text>
         </v-card>
       </v-col>
@@ -67,7 +67,7 @@
       <v-col cols="12" lg="4">
         <v-card class="mb-4" :loading="loading.anomalies">
           <v-card-title class="d-flex justify-space-between align-center">
-            Dernières anomalies
+            {{ $t('anomalies.title') }}
             <v-btn
               icon="mdi-refresh"
               size="small"
@@ -87,7 +87,7 @@
           </v-alert>
 
           <v-card-text v-else-if="recentAnomalies.length === 0" class="text-center py-4">
-            Aucune anomalie récente
+            {{ $t('dashboard.aucune_anomalie_rcente') }}
           </v-card-text>
 
           <v-list v-else>
@@ -100,7 +100,7 @@
                 <v-icon
                   :color="anomaly.status === 'PENDING' ? 'error' : 'success'"
                   class="me-2"
-                  :title="anomaly.status_display"
+                  ::title="$t('dashboard.anomalystatus_display')"
                 >
                   {{ anomaly.status === 'PENDING' ? 'mdi-alert-circle' : 'mdi-check-circle' }}
                 </v-icon>
@@ -137,7 +137,7 @@
 
               <v-list-item-subtitle v-if="anomaly.description" class="text-caption mt-1 text-grey">
                 <v-icon size="small" class="me-1">mdi-information</v-icon>
-                {{ anomaly.description }}
+                {{ anomaly.translated_description || anomaly.description }}
               </v-list-item-subtitle>
             </v-list-item>
 
@@ -162,7 +162,7 @@ import { ref, onMounted, computed } from 'vue'
 import type { ToastInterface } from 'vue-toastification'
 import { useToast } from 'vue-toastification'
 import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
-import { Title } from '@/components/typography'
+import { Title as AppTitle } from '@/components/typography'
 
 interface Stats {
   sitesCount: number
@@ -180,6 +180,7 @@ interface Anomaly {
   date: string
   anomaly_type: string
   description: string
+  translated_description: string
   status: string
   minutes: number
   correction_date: string | null
@@ -195,7 +196,7 @@ interface Anomaly {
 export default {
   name: 'DashboardView',
   components: {
-    Title
+    AppTitle
   },
   setup() {
     const toast = useToast() as ToastInterface

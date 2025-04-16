@@ -19,9 +19,9 @@
         :disabled="isOwnProfile"
         @click.stop="editItem"
       >
-        Modifier
+        {{ $t('common.edit') }}
         <v-tooltip v-if="isOwnProfile" activator="parent">
-          Vous ne pouvez pas modifier votre propre compte
+          {{ $t('common.cannotEditOwnAccount') }}
         </v-tooltip>
       </v-btn>
       <v-btn
@@ -30,7 +30,7 @@
         prepend-icon="mdi-delete"
         @click.stop="confirmDelete"
       >
-        Supprimer
+        {{ $t('common.delete') }}
       </v-btn>
     </div>
 
@@ -44,12 +44,12 @@
     <template v-else>
       <v-card>
         <v-tabs v-model="activeTab" color="#00346E">
-          <v-tab value="details">Informations</v-tab>
-          <v-tab value="sites">Sites</v-tab>
-          <v-tab value="plannings">Plannings</v-tab>
-          <v-tab value="pointages">Pointages</v-tab>
-          <v-tab value="anomalies">Anomalies</v-tab>
-          <v-tab value="reports">Rapports</v-tab>
+          <v-tab value="details">{{ $t('dashboard.informations') }}</v-tab>
+          <v-tab value="sites">{{ $t('sites.title') }}</v-tab>
+          <v-tab value="plannings">{{ $t('plannings.title') }}</v-tab>
+          <v-tab value="pointages">{{ $t('timesheets.title') }}</v-tab>
+          <v-tab value="anomalies">{{ $t('anomalies.title') }}</v-tab>
+          <v-tab value="reports">{{ $t('reports.title') }}</v-tab>
         </v-tabs>
 
         <v-card-text>
@@ -58,7 +58,7 @@
             <v-window-item value="details">
               <v-card class="elevation-1">
                 <v-toolbar flat>
-                  <v-toolbar-title>Informations</v-toolbar-title>
+                  <v-toolbar-title>{{ $t("dashboard.informations") }}</v-toolbar-title>
                   <v-spacer></v-spacer>
                 </v-toolbar>
                 <v-card-text>
@@ -84,7 +84,7 @@
                                   :color="item[field.key] === 'MANAGER' ? 'primary' : 'success'"
                                   size="small"
                                 >
-                                  {{ item[field.key] === 'MANAGER' ? 'Manager' : 'Employé' }}
+                                  {{ item[field.key] === 'MANAGER' ? $t('users.roles.MANAGER') : $t('users.roles.EMPLOYEE') }}
                                 </v-chip>
                               </template>
                               <template v-else>
@@ -97,7 +97,7 @@
                     </v-col>
                     <v-col cols="12" md="6">
                       <v-card class="mb-4">
-                        <v-card-title>Statistiques</v-card-title>
+                        <v-card-title>{{ $t('dashboard.statistics') }}</v-card-title>
                         <v-card-text>
                           <v-row>
                             <template v-for="(stat) in statistics" :key="stat.label">
@@ -125,10 +125,10 @@
               </v-row>
               <DataTable
                 v-else
-                title="Sites"
+                :title="$t('sites.title')"
                 :headers="sitesHeaders"
                 :items="sites"
-                :no-data-text="'Aucun site trouvé'"
+                :no-data-text="$t('dashboard.noSitesFound', 'Aucun site trouvé')"
                 :detail-route="'/dashboard/sites/:id'"
                 :edit-route="'/dashboard/sites/:id/edit'"
                 @toggle-status="handleToggleStatus"
@@ -160,7 +160,7 @@
                     @click.stop
                   >
                     <v-icon>mdi-eye</v-icon>
-                    <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                    <v-tooltip activator="parent">{{ $t('common.viewDetails') }}</v-tooltip>
                   </v-btn>
                   <v-btn
                     v-if="canCreateDelete && !isManager"
@@ -171,7 +171,7 @@
                     @click.stop="confirmDelete(rowItem)"
                   >
                     <v-icon>mdi-delete</v-icon>
-                    <v-tooltip activator="parent">Supprimer le site</v-tooltip>
+                    <v-tooltip activator="parent">{{ $t('sites.deleteSite') }}</v-tooltip>
                   </v-btn>
                 </template>
               </DataTable>
@@ -186,13 +186,13 @@
               </v-row>
               <v-card v-else>
                 <v-toolbar flat>
-                  <v-toolbar-title>Plannings</v-toolbar-title>
+                  <v-toolbar-title>{{ $t('plannings.title') }}</v-toolbar-title>
                   <v-spacer></v-spacer>
                 </v-toolbar>
                 <v-data-table
                   :headers="planningsHeaders"
                   :items="plannings"
-                  :no-data-text="'Aucun planning trouvé'"
+                  :no-data-text="$t('dashboard.noSchedulesFound', 'Aucun planning trouvé')"
                   :is-manager="isManager"
                   class="elevation-1"
                   @click:row="(item: Planning) => router.push(`/dashboard/plannings/${item.id}`)"
@@ -220,7 +220,7 @@
                         color="grey"
                         variant="outlined"
                       >
-                        Aucun employé
+                        {{ $t('plannings.noEmployees') }}
                       </v-chip>
                     </v-chip-group>
                   </template>
@@ -231,7 +231,7 @@
                       :color="rowItem.schedule_type === 'FIXED' ? 'primary' : 'secondary'"
                       size="small"
                     >
-                      {{ rowItem.schedule_type === 'FIXED' ? 'Fixe' : 'Fréquence' }}
+                      {{ rowItem.schedule_type === 'FIXED' ? $t('plannings.fixed') : $t('plannings.frequency') }}
                     </v-chip>
                   </template>
 
@@ -245,7 +245,7 @@
                       @click.stop="viewPlanningDetails(rowItem)"
                     >
                       <v-icon>mdi-eye</v-icon>
-                      <v-tooltip activator="parent">Voir les détails</v-tooltip>
+                      <v-tooltip activator="parent">{{ $t('common.viewDetails') }}</v-tooltip>
                     </v-btn>
                     <v-btn
                       icon
@@ -255,7 +255,7 @@
                       @click.stop="navigateToPlanning(rowItem)"
                     >
                       <v-icon>mdi-pencil</v-icon>
-                      <v-tooltip activator="parent">Modifier</v-tooltip>
+                      <v-tooltip activator="parent">{{ $t('common.edit') }}</v-tooltip>
                     </v-btn>
                     <v-btn
                       v-if="canManageStatus"
@@ -266,7 +266,7 @@
                       @click.stop="confirmTogglePlanningStatus(item)"
                     >
                       <v-icon>{{ rowItem.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
-                      <v-tooltip activator="parent">{{ rowItem.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+                      <v-tooltip activator="parent">{{ rowItem.is_active ? $t('common.deactivate') : $t('common.activate') }}</v-tooltip>
                     </v-btn>
                     <v-btn
                       v-if="canManageStatus"
@@ -277,7 +277,7 @@
                       @click.stop="confirmDeletePlanning(item)"
                     >
                       <v-icon>mdi-delete</v-icon>
-                      <v-tooltip activator="parent">Supprimer</v-tooltip>
+                      <v-tooltip activator="parent">{{ $t('common.delete') }}</v-tooltip>
                     </v-btn>
                   </template>
                 </v-data-table>
@@ -293,10 +293,10 @@
               </v-row>
               <DataTable
                 v-else
-                title="Pointages"
+                :title="$t('timesheets.title')"
                 :headers="pointagesHeaders"
                 :items="pointages"
-                :no-data-text="'Aucun pointage trouvé'"
+                :no-data-text="$t('dashboard.noTimesheetsFound', 'Aucun pointage trouvé')"
               >
                 <template #item.status="{ item: rowItem }">
                   <v-chip
@@ -322,10 +322,10 @@
               </v-row>
               <DataTable
                 v-else
-                title="Anomalies"
+                :title="$t('anomalies.title')"
                 :headers="anomaliesHeaders"
                 :items="anomalies"
-                :no-data-text="'Aucune anomalie trouvée'"
+                :no-data-text="$t('dashboard.noAnomaliesFound', 'Aucune anomalie trouvée')"
               >
                 <template #item.status="{ item: rowItem }">
                   <v-chip
@@ -351,10 +351,10 @@
               </v-row>
               <DataTable
                 v-else
-                title="Rapports"
+                :title="$t('reports.title')"
                 :headers="reportsHeaders"
                 :items="reports"
-                :no-data-text="'Aucun rapport trouvé'"
+                :no-data-text="$t('dashboard.noReportsFound', 'Aucun rapport trouvé')"
               >
                 <template #item.created_at="{ item: rowItem }">
                   {{ formatDate(rowItem.created_at) }}
@@ -369,7 +369,7 @@
                     @click.stop="downloadReport"
                   >
                     <v-icon>mdi-download</v-icon>
-                    <v-tooltip activator="parent">Télécharger le rapport</v-tooltip>
+                    <v-tooltip activator="parent">{{ $t('common.downloadReport') }}</v-tooltip>
                   </v-btn>
                 </template>
               </DataTable>
@@ -385,6 +385,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
@@ -486,40 +487,42 @@ const pointages = ref<any[]>([])
 const anomalies = ref<any[]>([])
 const reports = ref<any[]>([])
 
+const { t } = useI18n()
+
 // En-têtes des tableaux
 const sitesHeaders = [
-  { title: 'Nom', key: 'name' },
-  { title: 'Adresse', key: 'address' },
-  { title: 'Organisation', key: 'organization_name' },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.address'), key: 'address' },
+  { title: t('common.organization'), key: 'organization_name' },
+  { title: t('common.actions'), key: 'actions', sortable: false }
 ]
 
 const planningsHeaders = [
-  { title: 'Site', key: 'site_name', align: 'start' as const },
-  { title: 'Employés', key: 'employees', align: 'start' as const },
-  { title: 'Type', key: 'schedule_type', align: 'start' as const },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const }
+  { title: t('common.site'), key: 'site_name', align: 'start' as const },
+  { title: t('common.employee'), key: 'employees', align: 'start' as const },
+  { title: t('common.type'), key: 'schedule_type', align: 'start' as const },
+  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' as const }
 ]
 
 const pointagesHeaders = [
-  { title: 'Site', key: 'site_name' },
-  { title: 'Type', key: 'type' },
-  { title: 'Date/Heure', key: 'created_at' },
-  { title: 'Statut', key: 'status' }
+  { title: t('common.site'), key: 'site_name' },
+  { title: t('common.type'), key: 'type' },
+  { title: t('timesheets.dateTime', 'Date/Heure'), key: 'created_at' },
+  { title: t('common.status'), key: 'status' }
 ]
 
 const anomaliesHeaders = [
-  { title: 'Site', key: 'site_name' },
-  { title: 'Type', key: 'type' },
-  { title: 'Date/Heure', key: 'created_at' },
-  { title: 'Statut', key: 'status' }
+  { title: t('common.site'), key: 'site_name' },
+  { title: t('common.type'), key: 'type' },
+  { title: t('timesheets.dateTime', 'Date/Heure'), key: 'created_at' },
+  { title: t('common.status'), key: 'status' }
 ]
 
 const reportsHeaders = [
-  { title: 'Nom', key: 'name' },
-  { title: 'Type', key: 'type' },
-  { title: 'Date de création', key: 'created_at' },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.type'), key: 'type' },
+  { title: t('reports.creationDate', 'Date de création'), key: 'created_at' },
+  { title: t('common.actions'), key: 'actions', sortable: false }
 ]
 
 const tabOrder = ['details', 'sites', 'plannings', 'pointages', 'anomalies', 'reports']
@@ -536,22 +539,22 @@ watch(activeTab, (newTab, oldTab) => {
 
 // Configuration des rôles
 const roleLabels: Record<string, string> = {
-  'SUPER_ADMIN': 'Super Administrateur',
-  'ADMIN': 'Administrateur',
-  'MANAGER': 'Manager',
-  'EMPLOYEE': 'Employé'
+  'SUPER_ADMIN': t('users.roles.SUPER_ADMIN'),
+  'ADMIN': t('users.roles.ADMIN'),
+  'MANAGER': t('users.roles.MANAGER'),
+  'EMPLOYEE': t('users.roles.EMPLOYEE')
 }
 
 const scanPreferenceLabels: Record<string, string> = {
-  'BOTH': 'QR Code et NFC',
-  'QR_CODE': 'QR Code uniquement',
-  'NFC': 'NFC uniquement'
+  'BOTH': t('profile.scanPreferences.BOTH'),
+  'QR_ONLY': t('profile.scanPreferences.QR_ONLY'),
+  'NFC_ONLY': t('profile.scanPreferences.NFC_ONLY')
 }
 
 // Computed properties
 const itemId = computed(() => Number(route.params.id))
 
-const title = computed(() => "Détails de l'utilisateur")
+const title = computed(() => t("users.userDetails", "Détails de l'utilisateur"))
 
 const backRoute = computed(() => '/dashboard/admin/users')
 
@@ -580,30 +583,30 @@ const canCreateDelete = computed(() => {
 
 const displayFields = computed((): Field[] => {
   const fields: Field[] = [
-    { key: 'employee_id', label: 'ID', icon: 'mdi-card-account-details', type: 'default' },
-    { key: 'first_name', label: 'Prénom', icon: 'mdi-account', type: 'default' },
-    { key: 'last_name', label: 'Nom', icon: 'mdi-account-box', type: 'default' },
-    { key: 'email', label: 'Email', icon: 'mdi-email', type: 'default' },
-    { key: 'phone_number', label: 'Téléphone', icon: 'mdi-phone', type: 'default', format: 'phone' },
-    { key: 'role', label: 'Rôle', icon: 'mdi-badge-account', type: 'default', format: 'role' }
+    { key: 'employee_id', label: t('common.id'), icon: 'mdi-card-account-details', type: 'default' },
+    { key: 'first_name', label: t('common.firstName'), icon: 'mdi-account', type: 'default' },
+    { key: 'last_name', label: t('common.lastName'), icon: 'mdi-account-box', type: 'default' },
+    { key: 'email', label: t('common.email'), icon: 'mdi-email', type: 'default' },
+    { key: 'phone_number', label: t('common.phone'), icon: 'mdi-phone', type: 'default', format: 'phone' },
+    { key: 'role', label: t('common.role'), icon: 'mdi-badge-account', type: 'default', format: 'role' }
   ]
 
   return [
     ...fields,
-    { key: 'scan_preference', label: 'Préférence de scan', icon: 'mdi-qrcode-scan', type: 'default', format: 'scan_preference' },
-    { key: 'simplified_mobile_view', label: 'Vue mobile simplifiée', icon: 'mdi-cellphone',
+    { key: 'scan_preference', label: t('profile.scanPreference'), icon: 'mdi-qrcode-scan', type: 'default', format: 'scan_preference' },
+    { key: 'simplified_mobile_view', label: t('profile.simplifiedView'), icon: 'mdi-cellphone',
       type: 'status',
-      activeLabel: 'Activée',
-      inactiveLabel: 'Désactivée'
+      activeLabel: t('common.activate'),
+      inactiveLabel: t('common.deactivate')
     },
-    { key: 'date_joined', label: 'Date d\'inscription', icon: 'mdi-calendar', type: 'default', format: 'date', dateFormat: 'dd/MM/yyyy HH:mm' },
+    { key: 'date_joined', label: t('users.dateJoined'), icon: 'mdi-calendar', type: 'default', format: 'date', dateFormat: 'dd/MM/yyyy HH:mm' },
     {
       key: 'is_active',
-      label: 'Statut',
+      label: t('common.status'),
       icon: 'mdi-check-circle',
       type: 'status',
-      activeLabel: 'Actif',
-      inactiveLabel: 'Inactif'
+      activeLabel: t('users.active'),
+      inactiveLabel: t('users.inactive')
     }
   ]
 })
@@ -616,8 +619,8 @@ const loadData = async () => {
     item.value = response.data;
     const stats = await usersApi.getUserStatistics(itemId.value);
     statistics.value = [
-      { label: 'Heures totales', value: stats.data.total_hours || 0 },
-      { label: 'Anomalies', value: stats.data.anomalies || 0 }
+      { label: t('dashboard.totalHours', 'Heures totales'), value: stats.data.total_hours || 0 },
+      { label: t('anomalies.title'), value: stats.data.anomalies || 0 }
     ];
 
     // Charger les données de l'onglet actif
@@ -637,10 +640,20 @@ const loadSites = async () => {
       page: 1,
       page_size: 10
     });
-    sites.value = response.data.results;
+    console.log('[UserDetail][LoadSites] Réponse complète:', response);
+    // Vérifier si la réponse contient des résultats ou si c'est un tableau direct
+    if (response.data && Array.isArray(response.data)) {
+      sites.value = response.data;
+    } else if (response.data && response.data.results) {
+      sites.value = response.data.results;
+    } else {
+      console.error('[UserDetail][LoadSites] Format de réponse inattendu:', response.data);
+      sites.value = [];
+    }
   } catch (error) {
     console.error('[UserDetail][LoadSites] Erreur lors du chargement des sites:', error);
-    showError('Erreur lors du chargement des sites');
+    showError(t('profile.loadError') + ' ' + t('sites.title'));
+    sites.value = [];
   } finally {
     loadingTabs.value.sites = false;
   }
@@ -653,10 +666,20 @@ const loadPlannings = async () => {
       page: 1,
       page_size: 10
     });
-    plannings.value = response.data.results;
+    console.log('[UserDetail][LoadPlannings] Réponse complète:', response);
+    // Vérifier si la réponse contient des résultats ou si c'est un tableau direct
+    if (response.data && Array.isArray(response.data)) {
+      plannings.value = response.data;
+    } else if (response.data && response.data.results) {
+      plannings.value = response.data.results;
+    } else {
+      console.error('[UserDetail][LoadPlannings] Format de réponse inattendu:', response.data);
+      plannings.value = [];
+    }
   } catch (error) {
     console.error('[UserDetail][LoadPlannings] Erreur lors du chargement des plannings:', error);
-    showError('Erreur lors du chargement des plannings');
+    showError(t('profile.loadError') + ' ' + t('plannings.title'));
+    plannings.value = [];
   } finally {
     loadingTabs.value.plannings = false;
   }
@@ -670,10 +693,20 @@ const loadPointages = async () => {
       page: 1,
       page_size: 10
     });
-    pointages.value = response.data.results;
+    console.log('[UserDetail][LoadPointages] Réponse complète:', response);
+    // Vérifier si la réponse contient des résultats ou si c'est un tableau direct
+    if (response.data && Array.isArray(response.data)) {
+      pointages.value = response.data;
+    } else if (response.data && response.data.results) {
+      pointages.value = response.data.results;
+    } else {
+      console.error('[UserDetail][LoadPointages] Format de réponse inattendu:', response.data);
+      pointages.value = [];
+    }
   } catch (error) {
     console.error('[UserDetail][LoadPointages] Erreur lors du chargement des pointages:', error);
-    showError('Erreur lors du chargement des pointages');
+    showError(t('profile.loadError') + ' ' + t('timesheets.title'));
+    pointages.value = [];
   } finally {
     loadingTabs.value.pointages = false;
   }
@@ -687,10 +720,20 @@ const loadAnomalies = async () => {
       page: 1,
       page_size: 10
     });
-    anomalies.value = response.data.results;
+    console.log('[UserDetail][LoadAnomalies] Réponse complète:', response);
+    // Vérifier si la réponse contient des résultats ou si c'est un tableau direct
+    if (response.data && Array.isArray(response.data)) {
+      anomalies.value = response.data;
+    } else if (response.data && response.data.results) {
+      anomalies.value = response.data.results;
+    } else {
+      console.error('[UserDetail][LoadAnomalies] Format de réponse inattendu:', response.data);
+      anomalies.value = [];
+    }
   } catch (error) {
     console.error('[UserDetail][LoadAnomalies] Erreur lors du chargement des anomalies:', error);
-    showError('Erreur lors du chargement des anomalies');
+    showError(t('profile.loadError') + ' ' + t('anomalies.title'));
+    anomalies.value = [];
   } finally {
     loadingTabs.value.anomalies = false;
   }
@@ -703,10 +746,20 @@ const loadReports = async () => {
       page: 1,
       page_size: 10
     });
-    reports.value = response.data.results;
+    console.log('[UserDetail][LoadReports] Réponse complète:', response);
+    // Vérifier si la réponse contient des résultats ou si c'est un tableau direct
+    if (response.data && Array.isArray(response.data)) {
+      reports.value = response.data;
+    } else if (response.data && response.data.results) {
+      reports.value = response.data.results;
+    } else {
+      console.error('[UserDetail][LoadReports] Format de réponse inattendu:', response.data);
+      reports.value = [];
+    }
   } catch (error) {
     console.error('[UserDetail][LoadReports] Erreur lors du chargement des rapports:', error);
-    showError('Erreur lors du chargement des rapports');
+    showError(t('profile.loadError') + ' ' + t('reports.title'));
+    reports.value = [];
   } finally {
     loadingTabs.value.reports = false;
   }
@@ -774,9 +827,9 @@ const editItem = () => {
 // Méthodes de confirmation
 const confirmDelete = (site: any) => {
   showConfirmDialog({
-    title: 'Supprimer le site',
-    message: 'Êtes-vous sûr de vouloir supprimer ce site ? Cette action est irréversible.',
-    confirmText: 'Supprimer',
+    title: t('sites.deleteSite'),
+    message: t('sites.deleteConfirmation'),
+    confirmText: t('common.delete'),
     confirmColor: 'error',
     onConfirm: () => handleDelete(site)
   })
@@ -785,10 +838,10 @@ const confirmDelete = (site: any) => {
 const confirmTogglePlanningStatus = (planning: any) => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = planning.is_active ? 'Désactiver le planning' : 'Activer le planning'
-  state.message = `Êtes-vous sûr de vouloir ${planning.is_active ? 'désactiver' : 'activer'} ce planning ?`
-  state.confirmText = planning.is_active ? 'Désactiver' : 'Activer'
-  state.cancelText = 'Annuler'
+  state.title = planning.is_active ? t('common.deactivate') : t('common.activate')
+  state.message = planning.is_active ? t('sites.deactivateConfirmation') : t('sites.activateConfirmation')
+  state.confirmText = planning.is_active ? t('common.deactivate') : t('common.activate')
+  state.cancelText = t('common.cancel')
   state.confirmColor = planning.is_active ? 'warning' : 'success'
   state.loading = false
   state.onConfirm = async () => {
@@ -817,9 +870,9 @@ const getPointageStatusColor = (status: string) => {
 
 const getPointageStatusLabel = (status: string) => {
   const labels: Record<string, string> = {
-    'PENDING': 'En attente',
-    'VALIDATED': 'Validé',
-    'REJECTED': 'Rejeté'
+    'PENDING': t('timesheets.statuses.PENDING'),
+    'VALIDATED': t('timesheets.statuses.VALIDATED'),
+    'REJECTED': t('timesheets.statuses.REJECTED')
   }
   return labels[status] || status
 }
@@ -835,9 +888,9 @@ const getAnomalyStatusColor = (status: string) => {
 
 const getAnomalyStatusLabel = (status: string) => {
   const labels: Record<string, string> = {
-    'PENDING': 'En attente',
-    'RESOLVED': 'Résolu',
-    'REJECTED': 'Rejeté'
+    'PENDING': t('anomalies.anomalyStatuses.PENDING'),
+    'RESOLVED': t('anomalies.anomalyStatuses.RESOLVED'),
+    'REJECTED': t('anomalies.anomalyStatuses.IGNORED')
   }
   return labels[status] || status
 }
@@ -850,10 +903,10 @@ const handleToggleStatus = async (site: any) => {
     if (index !== -1) {
       sites.value[index].is_active = !site.is_active
     }
-    showSuccess(`Site ${site.is_active ? 'désactivé' : 'activé'} avec succès`)
+    showSuccess(site.is_active ? t('profile.statusUpdated') : t('profile.statusUpdated'))
   } catch (error) {
     console.error('[UserDetail][HandleToggleStatus] Erreur lors de la mise à jour du statut:', error)
-    showError(`Erreur lors de la ${site.is_active ? 'désactivation' : 'activation'} du site`)
+    showError(t('profile.statusUpdateError'))
   }
 }
 
@@ -862,20 +915,20 @@ const handleDelete = async (site: any) => {
     await sitesApi.deleteSite(site.id)
     // Retirer le site de la liste
     sites.value = sites.value.filter((s: any) => s.id !== site.id)
-    showSuccess('Site supprimé avec succès')
+    showSuccess(t('profile.siteDeleted'))
   } catch (error) {
     console.error('[UserDetail][HandleDelete] Erreur lors de la suppression:', error)
-    showError('Erreur lors de la suppression du site')
+    showError(t('profile.deleteError') + ' ' + t('sites.title'))
   }
 }
 
 const downloadReport = async () => {
   try {
     // Implémentation à faire
-    showSuccess(`Rapport téléchargé avec succès`)
+    showSuccess(t('profile.downloadStarted'))
   } catch (error) {
     console.error('[UserDetail][DownloadReport] Erreur lors du téléchargement du rapport:', error)
-    showError(`Erreur lors du téléchargement du rapport`)
+    showError(t('profile.downloadError'))
   }
 }
 
@@ -906,20 +959,20 @@ const togglePlanningStatus = async (planning: any) => {
       plannings.value[index].is_active = !planning.is_active
     }
 
-    showSuccess(`Planning ${planning.is_active ? 'désactivé' : 'activé'} avec succès`)
+    showSuccess(t('profile.statusUpdated'))
   } catch (error) {
     console.error('[UserDetail][TogglePlanningStatus] Erreur lors du changement de statut:', error)
-    showError(`Erreur lors du ${planning.is_active ? 'désactivation' : 'activation'} du planning`)
+    showError(t('profile.statusUpdateError'))
   }
 }
 
 const confirmDeletePlanning = (planning: any) => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Supprimer le planning'
-  state.message = 'Êtes-vous sûr de vouloir supprimer ce planning ? Cette action est irréversible.'
-  state.confirmText = 'Supprimer'
-  state.cancelText = 'Annuler'
+  state.title = t('plannings.deletePlanning')
+  state.message = t('plannings.deletePlanningConfirmation')
+  state.confirmText = t('common.delete')
+  state.cancelText = t('common.cancel')
   state.confirmColor = 'error'
   state.loading = false
   state.onConfirm = async () => {
@@ -940,10 +993,10 @@ const deletePlanning = async (planning: any) => {
     // Retirer le planning de la liste
     plannings.value = plannings.value.filter((p: any) => p.id !== planning.id)
 
-    showSuccess('Planning supprimé avec succès')
+    showSuccess(t('profile.planningDeleted'))
   } catch (error) {
     console.error('[UserDetail][DeletePlanning] Erreur lors de la suppression:', error)
-    showError('Erreur lors de la suppression du planning')
+    showError(t('profile.deleteError') + ' ' + t('plannings.title'))
   }
 }
 

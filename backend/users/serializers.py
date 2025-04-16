@@ -64,7 +64,7 @@ class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, R
             'id', 'username', 'email', 'first_name', 'last_name',
             'role', 'organizations', 'organizations_names', 'phone_number',
             'is_active', 'employee_id', 'date_joined', 'password',
-            'scan_preference', 'simplified_mobile_view', 'reset_password'
+            'scan_preference', 'simplified_mobile_view', 'language', 'reset_password'
         )
         read_only_fields = ['date_joined', 'employee_id']
 
@@ -219,7 +219,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
             'role', 'organizations', 'organizations_names', 'is_active',
-            'phone_number', 'employee_id', 'scan_preference', 'simplified_mobile_view'
+            'phone_number', 'employee_id', 'scan_preference', 'simplified_mobile_view',
+            'language'
         ]
         read_only_fields = ['id', 'username', 'email', 'role', 'organizations', 'employee_id']
 
@@ -246,7 +247,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'email', 'password', 'first_name', 'last_name',
                   'is_active', 'role', 'organizations', 'phone_number',
-                  'scan_preference', 'simplified_mobile_view', 'employee_id']
+                  'scan_preference', 'simplified_mobile_view', 'language', 'employee_id']
         read_only_fields = ['employee_id']
 
     def validate(self, data):

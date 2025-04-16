@@ -7,7 +7,7 @@
     >
       <div class="d-flex align-center mb-2">
         <v-icon icon="mdi-alert-circle" class="mr-2"></v-icon>
-        <span>Veuillez corriger les erreurs suivantes :</span>
+        <span>{{ $t('common.veuillez_corriger_les_erreurs_suivantes') }}</span>
       </div>
       <ul class="mb-0 pl-4">
         <li v-for="(error, field) in errors" :key="field">

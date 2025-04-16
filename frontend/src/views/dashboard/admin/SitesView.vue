@@ -1,8 +1,8 @@
 <template>
   <DashboardView
     ref="dashboardView"
-    title="Sites"
-    :form-title="editedItem?.id ? 'Modifier le site' : 'Nouveau site'"
+    :title="$t('sites.title')"
+    :form-:title="$t('dashboard.editeditemid_modifier_le_site_nouveau_site')"
     :saving="saving"
     @save="saveSite"
   >
@@ -14,7 +14,7 @@
         prepend-icon="mdi-plus"
         @click="openDialog()"
       >
-        Nouveau site
+        {{ $t('dashboard.nouveau_site') }}
       </v-btn>
     </template>
 
@@ -24,7 +24,7 @@
         <v-col cols="12" md="4">
           <v-text-field
             v-model="filters.search"
-            label="Rechercher"
+            :label="$t('common.search')"
             variant="outlined"
             prepend-inner-icon="mdi-magnify"
             clearable
@@ -40,8 +40,8 @@
       :headers="headers"
       :items="filteredSites"
       :loading="loading"
-      :no-data-text="'Aucun site trouvé'"
-      :loading-text="'Chargement des sites...'"
+      :no-data-text="$t('common.noData')"
+      :loading-text="$t('common.loading')"
       :sort-by="[{ key: 'name' }]"
       :items-per-page="itemsPerPage"
       :items-length="filteredSites.length"
@@ -50,10 +50,10 @@
         { title: '5', value: 5 },
         { title: '10', value: 10 },
         { title: '15', value: 15 },
-        { title: 'Tout', value: -1 }
+        { title: t('common.all'), value: -1 }
       ]"
-      :page-text="'{0}-{1} sur {2}'"
-      :items-per-page-text="'Lignes par page'"
+      :page-text="$t('common.pageInfo')"
+      :items-per-page-text="$t('common.rowsPerPage')"
       @click:row="handleRowClick"
     >
       <!-- Adresse -->
@@ -77,7 +77,7 @@
           @click.stop
         >
           <v-icon>mdi-eye</v-icon>
-          <v-tooltip activator="parent">Voir les détails</v-tooltip>
+          <v-tooltip activator="parent">{{ $t('common.viewDetails') }}</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canEdit"
@@ -88,7 +88,7 @@
           @click.stop="openDialog(item)"
         >
           <v-icon>mdi-pencil</v-icon>
-          <v-tooltip activator="parent">Modifier</v-tooltip>
+          <v-tooltip activator="parent">{{ $t('common.edit') }}</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canCreateDelete"
@@ -99,7 +99,7 @@
           @click.stop="toggleSiteStatus(item)"
         >
           <v-icon>{{ item.is_active ? 'mdi-domain-off' : 'mdi-domain' }}</v-icon>
-          <v-tooltip activator="parent">{{ item.is_active ? 'Désactiver' : 'Activer' }}</v-tooltip>
+          <v-tooltip activator="parent">{{ item.is_active ? $t('common.deactivate') : $t('common.activate') }}</v-tooltip>
         </v-btn>
         <v-btn
           v-if="canCreateDelete"
@@ -110,7 +110,7 @@
           @click.stop="confirmDelete(item)"
         >
           <v-icon>mdi-delete</v-icon>
-          <v-tooltip activator="parent">Supprimer</v-tooltip>
+          <v-tooltip activator="parent">{{ $t('common.delete') }}</v-tooltip>
         </v-btn>
       </template>
     </v-data-table>
@@ -122,8 +122,8 @@
           <v-col cols="12" sm="6">
             <v-text-field
               v-model="editedItem.name"
-              label="Nom"
-              :rules="[v => !!v || 'Le nom est requis']"
+              :label="$t('profile.lastName')"
+              :rules="[v => !!v || t('sites.nameRequired', 'Le nom est requis')]"
               required
             ></v-text-field>
           </v-col>
@@ -131,10 +131,10 @@
             <v-select
               v-model="editedItem.organization"
               :items="organizations"
-              label="Organisation"
-              item-title="name"
+              :label="$t('profile.organization')"
+              item-:title="$t('dashboard.name')"
               item-value="id"
-              :rules="[v => !!v || 'L\'organisation est requise']"
+              :rules="[v => !!v || t('sites.organizationRequired', 'L\'organisation est requise')]"
               required
               @update:model-value="loadManagers"
             ></v-select>
@@ -143,29 +143,29 @@
             <v-select
               v-model="editedItem.manager"
               :items="managers"
-              label="Manager"
-              item-title="name"
+              :label="$t('dashboard.manager')"
+              item-:title="$t('dashboard.name')"
               item-value="id"
               :disabled="!editedItem.organization"
-              :no-data-text="'Aucun manager disponible'"
-              :loading-text="'Chargement des managers...'"
+              :no-data-:text="$t('dashboard.aucun_manager_disponible')"
+              :loading-:text="$t('dashboard.chargement_des_managers')"
             ></v-select>
           </v-col>
           <v-col cols="12" sm="6">
             <v-text-field
               v-model="editedItem.address"
-              label="Adresse"
-              :rules="[v => !!v || 'L\'adresse est requise']"
+              :label="$t('sites.address')"
+              :rules="[v => !!v || t('sites.addressRequired', 'L\'adresse est requise')]"
               required
             ></v-text-field>
           </v-col>
           <v-col cols="12" sm="6">
             <v-text-field
               v-model="editedItem.postal_code"
-              label="Code postal"
+              :label="$t('sites.postalCode')"
               :rules="[
-                v => !!v || 'Le code postal est requis',
-                v => /^\d{5}$/.test(v) || 'Le code postal doit contenir 5 chiffres'
+                v => !!v || t('sites.postalCodeRequired', 'Le code postal est requis'),
+                v => /^\d{5}$/.test(v) || t('sites.postalCodeFormat', 'Le code postal doit contenir 5 chiffres')
               ]"
               required
             ></v-text-field>
@@ -173,56 +173,56 @@
           <v-col cols="12" sm="6">
             <v-text-field
               v-model="editedItem.city"
-              label="Ville"
-              :rules="[v => !!v || 'La ville est requise']"
+              :label="$t('sites.city')"
+              :rules="[v => !!v || t('sites.cityRequired', 'La ville est requise')]"
               required
             ></v-text-field>
           </v-col>
           <v-col cols="12" sm="6">
             <v-text-field
               v-model="editedItem.country"
-              label="Pays"
-              :rules="[v => !!v || 'Le pays est requis']"
+              :label="$t('sites.country')"
+              :rules="[v => !!v || t('sites.countryRequired', 'Le pays est requis')]"
               required
             ></v-text-field>
           </v-col>
           <v-col cols="12">
-            <v-divider class="mb-3">Paramètres de géolocalisation</v-divider>
+            <v-divider class="mb-3">{{ $t('sites.geolocationSettings', 'Paramètres de géolocalisation') }}</v-divider>
             <v-switch
               v-model="editedItem.require_geolocation"
-              label="Géolocalisation requise"
+              :label="$t('sites.requireGeolocation')"
               color="primary"
             ></v-switch>
             <v-text-field
               v-if="editedItem.require_geolocation"
               v-model="editedItem.geolocation_radius"
-              label="Rayon de géolocalisation (mètres)"
+              :label="$t('sites.geolocationRadius')"
               type="number"
-              :rules="[v => !!v || 'Le rayon de géolocalisation est requis']"
+              :rules="[v => !!v || t('sites.geolocationRadiusRequired', 'Le rayon de géolocalisation est requis')]"
               required
             ></v-text-field>
           </v-col>
           <v-col cols="12">
-            <v-divider class="mb-3">Paramètres de synchronisation</v-divider>
+            <v-divider class="mb-3">{{ $t('sites.syncSettings', 'Paramètres de synchronisation') }}</v-divider>
             <v-switch
               v-model="editedItem.allow_offline_mode"
-              label="Autoriser le mode hors ligne"
+              :label="$t('sites.allowOfflineMode')"
               color="primary"
             ></v-switch>
             <v-text-field
               v-if="editedItem.allow_offline_mode"
               v-model="editedItem.max_offline_duration"
-              label="Durée maximale hors ligne (heures)"
+              :label="$t('sites.maxOfflineDuration')"
               type="number"
-              :rules="[v => !!v || 'La durée maximale hors ligne est requise']"
+              :rules="[v => !!v || t('sites.maxOfflineDurationRequired', 'La durée maximale hors ligne est requise')]"
               required
             ></v-text-field>
           </v-col>
           <v-col cols="12">
-            <v-divider class="mb-3">Statut du site</v-divider>
+            <v-divider class="mb-3">{{ $t('sites.siteStatus', 'Statut du site') }}</v-divider>
             <v-switch
               v-model="editedItem.is_active"
-              label="Site actif"
+              :label="$t('dashboard.site_actif')"
               color="success"
             ></v-switch>
           </v-col>
@@ -234,6 +234,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { sitesApi, organizationsApi, usersApi } from '@/services/api'
@@ -329,13 +330,15 @@ const sites = ref<Site[]>([])
 const organizations = ref<Organization[]>([])
 const managers = ref<Manager[]>([])
 
+const { t } = useI18n()
+
 // En-têtes du tableau
 const headers = [
-  { title: 'Nom', key: 'name' },
-  { title: 'Adresse', key: 'address' },
-  { title: 'Organisation', key: 'organization_name' },
-  { title: 'Manager', key: 'manager_name' },
-  { title: 'Actions', key: 'actions', sortable: false }
+  { title: t('common.name'), key: 'name' },
+  { title: t('common.address'), key: 'address' },
+  { title: t('common.organization'), key: 'organization_name' },
+  { title: t('common.manager'), key: 'manager_name' },
+  { title: t('common.actions'), key: 'actions', sortable: false }
 ]
 
 // Méthodes
@@ -514,7 +517,7 @@ const { dialogState } = useConfirmDialog()
 const confirmDelete = (item: Site) => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Confirmation de suppression'
+  state.title = t('common.deleteConfirmation')
   state.message = `Êtes-vous sûr de vouloir supprimer le site "${item.name}" ?`
   state.confirmText = 'Supprimer'
   state.cancelText = 'Annuler'
@@ -540,7 +543,7 @@ const deleteSite = async (item: Site) => {
 const toggleSiteStatus = async (item: Site) => {
   const state = dialogState.value as DialogState
   state.show = true
-  state.title = 'Confirmation de changement de statut'
+  state.title = t('common.statusChangeConfirmation')
   state.message = `Êtes-vous sûr de vouloir ${item.is_active ? 'désactiver' : 'activer'} le site "${item.name}" ?`
   state.confirmText = item.is_active ? 'Désactiver' : 'Activer'
   state.cancelText = 'Annuler'
