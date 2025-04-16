@@ -1,0 +1,48 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Règle de détection d'anomalies quotidiennes
+
+Ce fichier décrit la logique de détection d'anomalies lors du job quotidien (00h10 pour J-1), telle que représentée dans le diagramme de décision fourni.
+
+## Arbre de décision
+
+1. **Job quotidien (00h10 pour J-1)**
+   - Pour chaque **site** :
+     - Si **statut = inactif** :
+       - → Ignorer le site (aucune anomalie générée)
+     - Si **statut = actif** :
+       - Pour chaque **planning rattaché** :
+         - Si **statut = inactif** :
+           - → Ignorer le planning (aucune anomalie générée)
+         - Si **statut = actif** :
+           - Si **jour planifié ≠ aujourd'hui** :
+             - → Ignorer le planning (aucune anomalie générée)
+           - Si **jour planifié = aujourd'hui** :
+             - Pour chaque **planning** (type fixe ou fréquence) :
+               - **Type = Fixe**
+                 - **Planning journalier**
+                   - Si **nombre de pointages = 4** :
+                     - → Pas d'anomalie
+                   - Si **nombre de pointages < 4** :
+                     - → Anomalie = "Pointage manquant"
+                   - Si **nombre de pointages > 4** :
+                     - → Déjà traité dans le scan
+                 - **Planning demi-journée (matin/après-midi)**
+                   - Si **nombre de pointages = 2** :
+                     - → Pas d'anomalie
+                   - Si **nombre de pointages < 2** :
+                     - → Anomalie = "Pointage manquant"
+                   - Si **nombre de pointages > 2** :
+                     - → Déjà traité dans le scan
+               - **Type = Fréquence**
+                 - Si **nombre de pointages = 0** :
+                   - → Anomalie créée pour passage manqué + traitement manager pour l'ajout des heures effectives
+                 - Si **nombre de pointages = 1** :
+                   - → Anomalie créée pour pointage manquant + traitement manager pour l'ajout des heures effectives
+                 - Si **nombre de pointages = 2** :
+                   - → Pas d'anomalie
+                 - Si **nombre de pointages > 2** :
+                   - → Déjà traité dans le scan 
