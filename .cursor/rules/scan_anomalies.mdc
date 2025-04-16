@@ -39,55 +39,55 @@ Ce fichier décrit la logique de détection d'anomalies lors d'un scan, telle qu
                    - Xème scan :
                      - Anomalie = "Scan multiple"
                  - **Fixe** :
-                   - 1er scan (arrivée) :
-                     - Planning journalier :
+                   - **1er scan (arrivée)** :
+                     - **Planning journalier** :
                        - Si Heure Pointage <= Heure arrivée matin :
                          - Pas d'anomalie
                        - Si Heure Pointage <= Heure arrivée matin + marge :
                          - Pas d'anomalie mais Mise à jour compteur du temps de retard
                        - Si Heure Pointage > Heure arrivée matin + marge :
-                         - Anomalie = "Retard" + mise à jour du compteur du temps de retard
-                     - Planning Demi-journée (matin/après-midi) :
+                         - Mise à jour de l'anomalie créée par le job récurrent "pointage manquant" en anomalie "Retard" ou création d'une anomalie "Retard" + mise à jour du compteur du temps de retard
+                     - **Planning Demi-journée (matin/après-midi)** :
                        - Si Heure Pointage <= Heure arrivée matin/après midi :
                          - Pas d'anomalie
                        - Si Heure Pointage <= Heure arrivée matin/après midi + marge :
                          - Pas d'anomalie mais Mise à jour compteur du temps de retard
                        - Si Heure Pointage > Heure arrivée matin/après midi + marge :
-                         - Anomalie = "Retard" + mise à jour du compteur du temps de retard
-                   - 2ème scan (départ) :
-                     - Planning journalier :
+                         - Mise à jour de l'anomalie créée par le job récurrent "pointage manquant" en anomalie "Retard" ou création d'une anomalie "Retard" + mise à jour du compteur du temps de retard
+                   - **2ème scan (départ)** :
+                     - **Planning journalier** :
                        - Si Heure Pointage >= Heure départ matin :
                          - Pas d'anomalie
                        - Si Heure Pointage >= Heure départ matin - marge :
                          - Pas d'anomalie mais Mise à jour compteur du temps de départ anticipé
                        - Si Heure Pointage < Heure départ matin - marge :
                          - Anomalie = "Départ anticipé" + mise à jour du compteur du temps de départ anticipé
-                     - Planning Demi-journée (matin/après-midi) :
+                     - **Planning Demi-journée (matin/après-midi)** :
                        - Si Heure Pointage >= Heure départ matin/après midi :
                          - Pas d'anomalie
                        - Si Heure Pointage >= Heure départ matin/après midi - marge :
                          - Pas d'anomalie mais Mise à jour compteur du temps de retard
                        - Si Heure Pointage < Heure départ matin/après midi - marge :
                          - Anomalie = "Départ anticipé" + mise à jour du compteur du temps de départ anticipé
-                   - 3ème scan (arrivée) :
-                     - Planning journalier :
+                   - **3ème scan (arrivée)** :
+                     - **Planning journalier** :
                        - Si Heure Pointage <= Heure arrivée après midi :
                          - Pas d'anomalie
                        - Si Heure Pointage <= Heure arrivée après midi + marge :
                          - Pas d'anomalie mais Mise à jour compteur du temps de retard
                        - Si Heure Pointage > Heure arrivée après midi + marge :
-                         - Anomalie = "Retard" + mise à jour du compteur du temps de retard
-                     - Planning Demi-journée (matin/après-midi) :
+                         - Mise à jour de l'anomalie créée par le job récurrent "pointage manquant" en anomalie "Retard" ou création d'une anomalie "Retard" + mise à jour du compteur du temps de retard
+                     - **Planning Demi-journée (matin/après-midi)** :
                        - Anomalie = "Scan multiple"
-                   - 4ème scan (départ) :
-                     - Planning journalier :
+                   - **4ème scan (départ)** :
+                     - **Planning journalier** :
                        - Si Heure Pointage >= Heure départ après midi :
                          - Pas d'anomalie
                        - Si Heure Pointage >= Heure départ après midi - marge :
                          - Pas d'anomalie mais Mise à jour compteur du temps de départ anticipé
                        - Si Heure Pointage < Heure départ après midi - marge :
                          - Anomalie = "Départ anticipé" + mise à jour du compteur du temps de départ anticipé
-                     - Planning Demi-journée (matin/après-midi) :
+                     - **Planning Demi-journée (matin/après-midi)** :
                        - Anomalie = "Scan multiple"
-                   - Xème scan :
+                   - **Xème scan** :
                      - Anomalie = "Scan multiple"

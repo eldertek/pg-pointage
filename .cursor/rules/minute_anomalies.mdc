@@ -1,0 +1,45 @@
+# Règle de détection d'anomalies minute (job toutes les minutes)
+
+Ce fichier décrit la logique de détection d'anomalies exécutée par le job planifié toutes les minutes, telle que représentée dans le diagramme de décision fourni.
+
+## Arbre de décision
+
+1. **Job toutes les minutes**
+   - Pour chaque **site** :
+     - Si **statut = inactif** :
+       - → Ignorer le site (aucune anomalie générée)
+     - Si **statut = actif** :
+       - Pour chaque **planning rattaché** :
+         - Si **statut = inactif** :
+           - → Ignorer le planning (aucune anomalie générée)
+         - Si **statut = actif** :
+           - Si **jour planifié ≠ aujourd'hui** :
+             - → Ignorer le planning (aucune anomalie générée)
+           - Si **jour planifié = aujourd'hui** :
+             - Pour chaque **planning** :
+               - **Type = Fixe** :
+                 - **Planning journalier** :
+                   - Si **pointage = 0** :
+                     - Si **heure job ≤ heure arrivée matin + marge** :
+                       - → Pas d'anomalie
+                     - Si **heure job > heure arrivée matin + marge** :
+                       - → Création anomalie "Pointage manquant"
+                   - Si **pointage = 1** :
+                     - → RAS
+                   - Si **pointage = 2** :
+                     - Si **heure job ≤ heure arrivée après midi + marge** :
+                       - → Pas d'anomalie
+                     - Si **heure job > heure arrivée après midi + marge** :
+                       - → Création anomalie "Pointage manquant"
+                   - Si **pointage ≥ 3** :
+                     - → RAS
+               - **Planning demi-journée (matin/après-midi)** :
+                 - Si **pointage = 0** :
+                   - Si **heure job ≤ heure arrivée matin/après midi + marge** :
+                     - → Pas d'anomalie
+                   - Si **heure job > heure arrivée matin/après midi + marge** :
+                     - → Création anomalie "Pointage manquant"
+                 - Si **pointage ≥ 1** :
+                   - → RAS
+               - **Type = Fréquence** :
+                 - → Traité lors du scan et du job du soir (aucune anomalie générée ici) 

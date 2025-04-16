@@ -102,6 +102,58 @@ class AnomalyProcessor:
             # Pour les plannings fréquence, tout pointage est valide
             elif schedule.schedule_type == 'FREQUENCY':
                 self.logger.debug(f"Planning fréquence - Durée attendue: {schedule_detail.frequency_duration} minutes")
+
+                # Si c'est un départ, vérifier la durée par rapport à l'arrivée
+                if entry_type == Timesheet.EntryType.DEPARTURE:
+                    # Récupérer le dernier pointage d'arrivée
+                    last_arrival = Timesheet.objects.filter(
+                        employee=timesheet.employee,
+                        site=timesheet.site,
+                        timestamp__date=current_date,
+                        entry_type=Timesheet.EntryType.ARRIVAL
+                    ).order_by('-timestamp').first()
+
+                    if last_arrival:
+                        # Calculer la durée entre l'arrivée et le départ
+                        duration_minutes = (timesheet.timestamp - last_arrival.timestamp).total_seconds() / 60
+
+                        # Calculer la durée minimale attendue en tenant compte de la tolérance
+                        tolerance_percentage = schedule.frequency_tolerance_percentage or site.frequency_tolerance or 10
+                        min_duration = schedule_detail.frequency_duration * (1 - tolerance_percentage / 100)
+
+                        self.logger.debug(f"Durée entre arrivée et départ: {duration_minutes} minutes (minimum attendu: {min_duration} minutes)")
+
+                        # Si la durée est insuffisante, créer une anomalie
+                        if duration_minutes < min_duration:
+                            early_minutes = int(min_duration - duration_minutes)
+                            description = f"Durée insuffisante pour un planning fréquence: {duration_minutes} minutes au lieu de {min_duration} minutes minimum ({schedule_detail.frequency_duration} minutes - {tolerance_percentage}% de tolérance)."
+
+                            # Vérifier si une anomalie similaire existe déjà
+                            existing_anomaly = Anomaly.objects.filter(
+                                employee=timesheet.employee,
+                                site=timesheet.site,
+                                date=current_date,
+                                anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE
+                            ).first()
+
+                            if not existing_anomaly:
+                                # Créer une anomalie pour durée insuffisante
+                                anomaly = Anomaly.objects.create(
+                                    employee=timesheet.employee,
+                                    site=timesheet.site,
+                                    timesheet=timesheet,
+                                    date=current_date,
+                                    anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                                    description=description,
+                                    minutes=early_minutes,
+                                    status=Anomaly.AnomalyStatus.PENDING,
+                                    schedule=schedule
+                                )
+                                anomaly.related_timesheets.add(timesheet)
+                                anomaly.related_timesheets.add(last_arrival)
+                                self._anomalies_detected = True
+                                self.logger.info(f"Anomalie créée: EARLY_DEPARTURE - {description} pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+
                 return True
 
         except ScheduleDetail.DoesNotExist:
@@ -174,9 +226,109 @@ class AnomalyProcessor:
         self.logger.debug(f"  Aucun planning correspondant trouvé")
         return None
 
+    def _check_for_multiple_scans(self, timesheet):
+        """Vérifie si ce pointage est un scan multiple selon l'arbre de décision
+        Suit la logique définie dans .cursor/rules/scan_anomalies.mdc
+        """
+        employee = timesheet.employee
+        site = timesheet.site
+        entry_type = timesheet.entry_type
+        timestamp = timesheet.timestamp
+        current_date = timezone.localtime(timestamp).date()
+
+        # Récupérer tous les pointages de l'employé pour ce jour et ce site
+        timesheets = Timesheet.objects.filter(
+            employee=employee,
+            site=site,
+            timestamp__date=current_date
+        ).order_by('timestamp')
+
+        # Compter les pointages par type
+        arrivals = timesheets.filter(entry_type=Timesheet.EntryType.ARRIVAL).count()
+        departures = timesheets.filter(entry_type=Timesheet.EntryType.DEPARTURE).count()
+        total_entries = arrivals + departures
+
+        # Récupérer le planning de l'employé pour ce site
+        schedule = self._find_employee_schedule(employee, site, current_date)
+        if not schedule:
+            self.logger.debug(f"Pas de planning trouvé pour {employee.get_full_name()} au site {site.name} le {current_date}")
+            return None
+
+        # Vérifier si le planning a des détails pour ce jour
+        try:
+            schedule_detail = ScheduleDetail.objects.get(
+                schedule=schedule,
+                day_of_week=current_date.weekday()
+            )
+        except ScheduleDetail.DoesNotExist:
+            self.logger.debug(f"Pas de détails de planning pour {employee.get_full_name()} au site {site.name} le {current_date}")
+            return None
+
+        # Déterminer le nombre maximum de pointages attendus selon le type de planning
+        max_expected_entries = 0
+        if schedule.schedule_type == Schedule.ScheduleType.FIXED:
+            day_type = schedule_detail.day_type
+            if day_type == ScheduleDetail.DayType.FULL:
+                max_expected_entries = 4  # 2 arrivées + 2 départs
+            elif day_type in [ScheduleDetail.DayType.AM, ScheduleDetail.DayType.PM]:
+                max_expected_entries = 2  # 1 arrivée + 1 départ
+        elif schedule.schedule_type == Schedule.ScheduleType.FREQUENCY:
+            max_expected_entries = 2  # 1 arrivée + 1 départ
+
+        # Vérifier si c'est un scan multiple
+        if total_entries > max_expected_entries:
+            # Vérifier si une anomalie similaire existe déjà
+            existing_anomaly = Anomaly.objects.filter(
+                employee=employee,
+                site=site,
+                date=current_date,
+                anomaly_type=Anomaly.AnomalyType.CONSECUTIVE_SAME_TYPE,
+                description__contains="Scan multiple"
+            ).first()
+
+            if not existing_anomaly:
+                # Créer une description détaillée
+                description = f"Scan multiple détecté: {arrivals} arrivée(s) et {departures} départ(s) pour "
+                if schedule.schedule_type == Schedule.ScheduleType.FIXED:
+                    if schedule_detail.day_type == ScheduleDetail.DayType.FULL:
+                        description += "un planning journée complète (max 4 pointages attendus)."
+                    elif schedule_detail.day_type == ScheduleDetail.DayType.AM:
+                        description += "un planning demi-journée matin (max 2 pointages attendus)."
+                    elif schedule_detail.day_type == ScheduleDetail.DayType.PM:
+                        description += "un planning demi-journée après-midi (max 2 pointages attendus)."
+                elif schedule.schedule_type == Schedule.ScheduleType.FREQUENCY:
+                    description += "un planning fréquence (max 2 pointages attendus)."
+
+                # Créer l'anomalie
+                anomaly = Anomaly.objects.create(
+                    employee=employee,
+                    site=site,
+                    timesheet=timesheet,
+                    date=current_date,
+                    anomaly_type=Anomaly.AnomalyType.CONSECUTIVE_SAME_TYPE,
+                    description=description,
+                    status=Anomaly.AnomalyStatus.PENDING,
+                    schedule=schedule
+                )
+
+                # Ajouter tous les pointages de la journée comme pointages associés
+                for ts in timesheets:
+                    anomaly.related_timesheets.add(ts)
+
+                self._anomalies_detected = True
+                self.logger.info(f"Anomalie créée: CONSECUTIVE_SAME_TYPE - Scan multiple pour {employee.get_full_name()} à {site.name} le {current_date}")
+                return anomaly
+            else:
+                # Mettre à jour l'anomalie existante pour inclure ce pointage
+                existing_anomaly.related_timesheets.add(timesheet)
+                self.logger.debug(f"Anomalie existante mise à jour pour scan multiple de {employee.get_full_name()} à {site.name} le {current_date}")
+                return existing_anomaly
+
+        return None
+
     def _match_schedule_and_check_anomalies(self, timesheet):
         """Vérifie la correspondance avec le planning et crée les anomalies nécessaires
-        Suit l'arbre de décision défini dans .cursor/rules/anomalies.mdc
+        Suit l'arbre de décision défini dans .cursor/rules/scan_anomalies.mdc
         """
         employee = timesheet.employee
         site = timesheet.site
@@ -190,6 +342,11 @@ class AnomalyProcessor:
                         f"{entry_type} - {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
 
         created_anomalies = []
+
+        # Vérifier si c'est un scan multiple
+        multiple_scan_anomaly = self._check_for_multiple_scans(timesheet)
+        if multiple_scan_anomaly:
+            created_anomalies.append(multiple_scan_anomaly)
 
         # 1. Vérifier le statut du site (actif/inactif)
         if not site.is_active:
@@ -555,38 +712,75 @@ class AnomalyProcessor:
                     day_of_week=timesheet.timestamp.date().weekday()
                 )
 
-                # Déterminer l'heure de début prévue
+                # Déterminer l'heure de début prévue et le type de journée
                 expected_time = None
                 local_time = timezone.localtime(timesheet.timestamp).time()
+                period_type = ""
 
                 if schedule.schedule_type == 'FIXED':
-                    # Déterminer si c'est un retard du matin ou de l'après-midi
-                    if schedule_detail.start_time_1 and schedule_detail.start_time_1 <= local_time <= schedule_detail.end_time_1:
-                        expected_time = schedule_detail.start_time_1
-                    elif schedule_detail.start_time_2 and schedule_detail.start_time_2 <= local_time <= schedule_detail.end_time_2:
-                        expected_time = schedule_detail.start_time_2
+                    day_type = schedule_detail.day_type
 
+                    # Déterminer si c'est un retard du matin ou de l'après-midi
+                    if day_type in ['FULL', 'AM'] and schedule_detail.start_time_1 and schedule_detail.start_time_1 <= local_time <= schedule_detail.end_time_1:
+                        expected_time = schedule_detail.start_time_1
+                        period_type = "matin"
+                    elif day_type in ['FULL', 'PM'] and schedule_detail.start_time_2 and schedule_detail.start_time_2 <= local_time <= schedule_detail.end_time_2:
+                        expected_time = schedule_detail.start_time_2
+                        period_type = "après-midi"
+
+                # Créer une description détaillée
                 description = f'Retard de {effective_late_minutes} minute(s) au-delà de la marge de tolérance ({late_margin} min).'
                 if expected_time:
-                    description += f' Heure prévue: {expected_time}, heure effective: {local_time}.'
+                    description += f' Heure prévue: {expected_time} ({period_type}), heure effective: {local_time}.'
+
+                # Ajouter des informations sur le type de planning
+                if schedule.schedule_type == 'FIXED':
+                    if schedule_detail.day_type == ScheduleDetail.DayType.FULL:
+                        description += " Planning journée complète."
+                    elif schedule_detail.day_type == ScheduleDetail.DayType.AM:
+                        description += " Planning demi-journée matin."
+                    elif schedule_detail.day_type == ScheduleDetail.DayType.PM:
+                        description += " Planning demi-journée après-midi."
             except ScheduleDetail.DoesNotExist:
                 description = f'Retard de {late_minutes} minutes.'
 
-            anomaly = Anomaly.objects.create(
+            # Mettre à jour une anomalie existante de type MISSING_ARRIVAL si elle existe
+            existing_missing_arrival = Anomaly.objects.filter(
                 employee=timesheet.employee,
                 site=timesheet.site,
-                timesheet=timesheet,
                 date=timesheet.timestamp.date(),
-                anomaly_type=Anomaly.AnomalyType.LATE,
-                description=description,
-                minutes=late_minutes,
-                status=Anomaly.AnomalyStatus.PENDING,
-                schedule=schedule
-            )
-            anomaly.related_timesheets.add(timesheet)
-            self._anomalies_detected = True
-            created_anomaly = anomaly
-            self.logger.info(f"Anomalie créée: LATE - {description} pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+                anomaly_type=Anomaly.AnomalyType.MISSING_ARRIVAL,
+                status=Anomaly.AnomalyStatus.PENDING
+            ).first()
+
+            if existing_missing_arrival:
+                # Mettre à jour l'anomalie existante en retard
+                existing_missing_arrival.anomaly_type = Anomaly.AnomalyType.LATE
+                existing_missing_arrival.description = description
+                existing_missing_arrival.minutes = late_minutes
+                existing_missing_arrival.timesheet = timesheet
+                existing_missing_arrival.save()
+                existing_missing_arrival.related_timesheets.add(timesheet)
+                self._anomalies_detected = True
+                created_anomaly = existing_missing_arrival
+                self.logger.info(f"Anomalie existante mise à jour: MISSING_ARRIVAL -> LATE - {description} pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+            else:
+                # Créer une nouvelle anomalie
+                anomaly = Anomaly.objects.create(
+                    employee=timesheet.employee,
+                    site=timesheet.site,
+                    timesheet=timesheet,
+                    date=timesheet.timestamp.date(),
+                    anomaly_type=Anomaly.AnomalyType.LATE,
+                    description=description,
+                    minutes=late_minutes,
+                    status=Anomaly.AnomalyStatus.PENDING,
+                    schedule=schedule
+                )
+                anomaly.related_timesheets.add(timesheet)
+                self._anomalies_detected = True
+                created_anomaly = anomaly
+                self.logger.info(f"Anomalie créée: LATE - {description} pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
 
         return created_anomaly
 
@@ -625,38 +819,75 @@ class AnomalyProcessor:
                     day_of_week=timesheet.timestamp.date().weekday()
                 )
 
-                # Déterminer l'heure de fin prévue
+                # Déterminer l'heure de fin prévue et le type de période
                 expected_time = None
                 local_time = timezone.localtime(timesheet.timestamp).time()
+                period_type = ""
 
                 if schedule.schedule_type == 'FIXED':
-                    # Déterminer si c'est un départ anticipé du matin ou de l'après-midi
-                    if schedule_detail.start_time_1 and schedule_detail.end_time_1 and schedule_detail.start_time_1 <= local_time <= schedule_detail.end_time_1:
-                        expected_time = schedule_detail.end_time_1
-                    elif schedule_detail.start_time_2 and schedule_detail.end_time_2 and schedule_detail.start_time_2 <= local_time <= schedule_detail.end_time_2:
-                        expected_time = schedule_detail.end_time_2
+                    day_type = schedule_detail.day_type
 
+                    # Déterminer si c'est un départ anticipé du matin ou de l'après-midi
+                    if day_type in ['FULL', 'AM'] and schedule_detail.start_time_1 and schedule_detail.end_time_1 and schedule_detail.start_time_1 <= local_time <= schedule_detail.end_time_1:
+                        expected_time = schedule_detail.end_time_1
+                        period_type = "matin"
+                    elif day_type in ['FULL', 'PM'] and schedule_detail.start_time_2 and schedule_detail.end_time_2 and schedule_detail.start_time_2 <= local_time <= schedule_detail.end_time_2:
+                        expected_time = schedule_detail.end_time_2
+                        period_type = "après-midi"
+
+                # Créer une description détaillée
                 description = f'Départ anticipé de {effective_early_minutes} minute(s) au-delà de la marge de tolérance ({early_departure_margin} min).'
                 if expected_time:
-                    description += f' Heure prévue: {expected_time}, heure effective: {local_time}.'
+                    description += f' Heure prévue: {expected_time} ({period_type}), heure effective: {local_time}.'
+
+                # Ajouter des informations sur le type de planning
+                if schedule.schedule_type == 'FIXED':
+                    if schedule_detail.day_type == ScheduleDetail.DayType.FULL:
+                        description += " Planning journée complète."
+                    elif schedule_detail.day_type == ScheduleDetail.DayType.AM:
+                        description += " Planning demi-journée matin."
+                    elif schedule_detail.day_type == ScheduleDetail.DayType.PM:
+                        description += " Planning demi-journée après-midi."
             except ScheduleDetail.DoesNotExist:
                 description = f'Départ anticipé de {early_minutes} minutes.'
 
-            anomaly = Anomaly.objects.create(
+            # Mettre à jour une anomalie existante de type MISSING_DEPARTURE si elle existe
+            existing_missing_departure = Anomaly.objects.filter(
                 employee=timesheet.employee,
                 site=timesheet.site,
-                timesheet=timesheet,
                 date=timesheet.timestamp.date(),
-                anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
-                description=description,
-                minutes=early_minutes,
-                status=Anomaly.AnomalyStatus.PENDING,
-                schedule=schedule
-            )
-            anomaly.related_timesheets.add(timesheet)
-            self._anomalies_detected = True
-            created_anomaly = anomaly
-            self.logger.info(f"Anomalie créée: EARLY_DEPARTURE - {description} pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+                anomaly_type=Anomaly.AnomalyType.MISSING_DEPARTURE,
+                status=Anomaly.AnomalyStatus.PENDING
+            ).first()
+
+            if existing_missing_departure:
+                # Mettre à jour l'anomalie existante en départ anticipé
+                existing_missing_departure.anomaly_type = Anomaly.AnomalyType.EARLY_DEPARTURE
+                existing_missing_departure.description = description
+                existing_missing_departure.minutes = early_minutes
+                existing_missing_departure.timesheet = timesheet
+                existing_missing_departure.save()
+                existing_missing_departure.related_timesheets.add(timesheet)
+                self._anomalies_detected = True
+                created_anomaly = existing_missing_departure
+                self.logger.info(f"Anomalie existante mise à jour: MISSING_DEPARTURE -> EARLY_DEPARTURE - {description} pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
+            else:
+                # Créer une nouvelle anomalie
+                anomaly = Anomaly.objects.create(
+                    employee=timesheet.employee,
+                    site=timesheet.site,
+                    timesheet=timesheet,
+                    date=timesheet.timestamp.date(),
+                    anomaly_type=Anomaly.AnomalyType.EARLY_DEPARTURE,
+                    description=description,
+                    minutes=early_minutes,
+                    status=Anomaly.AnomalyStatus.PENDING,
+                    schedule=schedule
+                )
+                anomaly.related_timesheets.add(timesheet)
+                self._anomalies_detected = True
+                created_anomaly = anomaly
+                self.logger.info(f"Anomalie créée: EARLY_DEPARTURE - {description} pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
         elif early_minutes == 0:
             self.logger.debug(f"Départ exactement à l'heure de fin, pas d'anomalie créée pour {timesheet.employee.get_full_name()} à {timesheet.site.name}")
         elif early_minutes <= early_departure_margin:
@@ -775,11 +1006,23 @@ class AnomalyProcessor:
             # Vérifier les anomalies
             is_ambiguous, created_anomalies = self._match_schedule_and_check_anomalies(timesheet)
 
+            # Vérifier si des anomalies ont été créées
+            # Si des anomalies ont été créées, mettre à jour le flag
+            if len(created_anomalies) > 0:
+                self._anomalies_detected = True
+
+            # Vérifier si des anomalies ont été créées pour ce pointage
+            # Nous ne vérifions que les anomalies créées lors de cet appel à process_timesheet
+            # et non les anomalies existantes qui pourraient être liées à d'autres pointages
+
+            # Utiliser le flag pour déterminer si des anomalies ont été détectées
+            has_anomalies = self._anomalies_detected
+
             return {
                 'success': True,
                 'message': 'Pointage traité avec succès',
                 'is_ambiguous': is_ambiguous,
-                'has_anomalies': self._anomalies_detected,
+                'has_anomalies': has_anomalies,
                 'anomalies': created_anomalies
             }
 
