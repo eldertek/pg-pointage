@@ -3,34 +3,17 @@
     <v-main>
       <router-view />
     </v-main>
-    <app-offline-banner v-if="!isOnline" />
+    <app-offline-banner />
   </v-app>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
 import AppOfflineBanner from '@/components/common/AppOfflineBanner.vue'
 
 export default {
   name: 'App',
   components: {
     AppOfflineBanner
-  },
-  setup() {
-    const isOnline = ref(navigator.onLine)
-
-    const updateOnlineStatus = () => {
-      isOnline.value = navigator.onLine
-    }
-
-    onMounted(() => {
-      window.addEventListener('online', updateOnlineStatus)
-      window.addEventListener('offline', updateOnlineStatus)
-    })
-
-    return {
-      isOnline
-    }
   }
 }
 </script>
