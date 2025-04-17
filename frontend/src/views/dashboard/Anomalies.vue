@@ -134,7 +134,7 @@
         @click:row="handleRowClick"
       >
         <template #item.formatted_date="{ item }">
-          {{ formatDate(item.date) }}
+          {{ formatDate(item.created_at) }}
         </template>
         <template #item.anomaly_type_display="{ item }">
           <v-chip
@@ -198,7 +198,7 @@
         <v-card-text>
           <v-row>
             <v-col cols="12" md="6">
-              <p><strong>{{ $t('common.date') }}:</strong> {{ formatDate(selectedAnomaly.created_at) }}</p>
+              <p><strong>{{ $t('common.date') }}:</strong> {{ selectedAnomaly.formatted_date || formatDate(selectedAnomaly.created_at) }}</p>
               <p><strong>{{ $t('common.employee') }}:</strong> {{ selectedAnomaly.employee_name }}</p>
               <p><strong>{{ $t('common.site') }}:</strong> {{ selectedAnomaly.site_name }}</p>
             </v-col>
@@ -535,12 +535,25 @@ export default {
             console.log(`Anomalie ID ${anomaly.id} - Site: ${anomaly.site} (${anomaly.site_name})`)
           })
 
-          anomalies.value = response.data.results.map(anomaly => ({
-            ...anomaly,
-            formatted_date: formatDate(anomaly.date),
-            // Utiliser la description traduite si disponible, sinon la description originale
-            description: anomaly.translated_description || anomaly.description
-          }))
+          // Note: Pour afficher les dates réelles des événements dans la liste, il faudrait modifier l'API
+          // pour inclure les détails des pointages associés dans la réponse initiale.
+          // Actuellement, ces détails ne sont disponibles que lors de l'appel à getAnomalyDetails.
+          anomalies.value = response.data.results.map(anomaly => {
+            // Utiliser la date de l'anomalie pour la liste
+            // Le champ 'date' contient la date de l'événement sans l'heure, donc on utilise created_at
+            // qui contient la date et l'heure complètes
+
+            // Ajouter des logs pour déboguer les dates
+            console.log(`Anomalie ID ${anomaly.id} - Date: ${anomaly.date}, Created At: ${anomaly.created_at}`);
+            console.log(`Anomalie ID ${anomaly.id} - Date formatée: ${formatDate(anomaly.created_at)}`);
+
+            return {
+              ...anomaly,
+              formatted_date: formatDate(anomaly.created_at),
+              // Utiliser la description traduite si disponible, sinon la description originale
+              description: anomaly.translated_description || anomaly.description
+            };
+          })
           console.log('Anomalies formatées:', anomalies.value)
         } else if (Array.isArray(response.data)) {
           anomalies.value = response.data
@@ -719,6 +732,34 @@ export default {
         const anomalyResponse = await timesheetsApi.getAnomalyDetails(item.id)
         selectedAnomaly.value = anomalyResponse.data
 
+        // Ajouter des logs pour déboguer les dates
+        console.log('Détails de l\'anomalie:', selectedAnomaly.value);
+        console.log(`Anomalie ID ${selectedAnomaly.value.id} - Date: ${selectedAnomaly.value.date}, Created At: ${selectedAnomaly.value.created_at}`);
+        console.log(`Anomalie ID ${selectedAnomaly.value.id} - Date formatée (created_at): ${formatDate(selectedAnomaly.value.created_at)}`);
+
+        // Vérifier si nous avons des pointages associés
+        if (selectedAnomaly.value.timesheet_details) {
+          console.log('Pointage associé:', selectedAnomaly.value.timesheet_details);
+        }
+        if (selectedAnomaly.value.related_timesheets_details && selectedAnomaly.value.related_timesheets_details.length > 0) {
+          console.log('Pointages associés:', selectedAnomaly.value.related_timesheets_details);
+        }
+
+        // Mettre à jour la date formatée avec la date réelle de l'événement si disponible
+        if (selectedAnomaly.value.timesheet_details?.timestamp) {
+          console.log('Utilisation de la date du pointage associé:', selectedAnomaly.value.timesheet_details.timestamp)
+          selectedAnomaly.value.formatted_date = formatDate(selectedAnomaly.value.timesheet_details.timestamp)
+          console.log('Nouvelle date formatée:', selectedAnomaly.value.formatted_date);
+        } else if (selectedAnomaly.value.related_timesheets_details && selectedAnomaly.value.related_timesheets_details.length > 0) {
+          console.log('Utilisation de la date du premier pointage associé:', selectedAnomaly.value.related_timesheets_details[0].timestamp)
+          selectedAnomaly.value.formatted_date = formatDate(selectedAnomaly.value.related_timesheets_details[0].timestamp)
+          console.log('Nouvelle date formatée:', selectedAnomaly.value.formatted_date);
+        } else {
+          // Si aucun pointage associé, utiliser la date de l'anomalie
+          console.log('Aucun pointage associé, utilisation de la date de l\'anomalie');
+          selectedAnomaly.value.formatted_date = formatDate(selectedAnomaly.value.created_at);
+        }
+
         // Si l'anomalie a des pointages associés dans related_timesheets_details
         if (selectedAnomaly.value.related_timesheets_details &&
             selectedAnomaly.value.related_timesheets_details.length > 0) {
@@ -793,24 +834,31 @@ export default {
     const showDeleteDialog = ref(false)
 
     const formatDate = (dateString) => {
-
       if (!dateString) {
         return ''
       }
 
       try {
+        // Analyser la date en respectant le fuseau horaire
+        // Le format ISO inclut le fuseau horaire (ex: 2025-04-16T10:15:40.628856+02:00)
         const date = new Date(dateString)
 
-        const options = {
+        // Vérifier si la date est valide
+        if (isNaN(date.getTime())) {
+          console.error('Date invalide dans formatDate:', dateString)
+          return dateString
+        }
+
+        // Utiliser les méthodes toLocaleString pour respecter le fuseau horaire
+        // et éviter les problèmes de conversion UTC
+        return date.toLocaleString('fr-FR', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
           hour: '2-digit',
-          minute: '2-digit'
-        }
-
-        const formattedDate = date.toLocaleDateString('fr-FR', options)
-        return formattedDate
+          minute: '2-digit',
+          hour12: false // Format 24h
+        })
       } catch (error) {
         console.error('Error formatting date:', error)
         return dateString
