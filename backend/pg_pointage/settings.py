@@ -212,49 +212,64 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Logging configuration
-# Seulement pour la production
+# Configuration pour tous les environnements
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '[{levelname}] {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'timesheets': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+
+# Configuration supplémentaire pour la production
 if not DEBUG:
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'verbose': {
-                'format': '[{levelname}] {asctime} {module} {process:d} {thread:d} {message}',
-                'style': '{',
-            },
-        },
-        'handlers': {
-            'file': {
-                'level': 'DEBUG',
-                'class': 'logging.FileHandler',
-                'filename': '/var/log/django/debug.log',
-                'formatter': 'verbose',
-            },
-            'console': {
-                'level': 'DEBUG',
-                'class': 'logging.StreamHandler',
-                'formatter': 'verbose',
-            },
-            'gunicorn': {
-                'level': 'DEBUG',
-                'class': 'logging.handlers.RotatingFileHandler',
-                'filename': '/var/log/gunicorn/error.log',
-                'maxBytes': 1024 * 1024 * 100,  # 100 MB
-                'backupCount': 5,
-                'formatter': 'verbose',
-            },
-        },
-        'loggers': {
-            'django': {
-                'handlers': ['file', 'console', 'gunicorn'],
-                'level': 'DEBUG',
-                'propagate': True,
-            },
-            'django.request': {
-                'handlers': ['file', 'console', 'gunicorn'],
-                'level': 'DEBUG',
-                'propagate': True,
-            },
-        },
+    # Ajouter des handlers pour les fichiers de log
+    LOGGING['handlers']['file'] = {
+        'level': 'DEBUG',
+        'class': 'logging.FileHandler',
+        'filename': '/var/log/django/debug.log',
+        'formatter': 'verbose',
+    }
+    LOGGING['handlers']['gunicorn'] = {
+        'level': 'DEBUG',
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': '/var/log/gunicorn/error.log',
+        'maxBytes': 1024 * 1024 * 100,  # 100 MB
+        'backupCount': 5,
+        'formatter': 'verbose',
+    }
+
+    # Mettre à jour les loggers pour utiliser les nouveaux handlers
+    LOGGING['loggers']['django']['handlers'] = ['file', 'console', 'gunicorn']
+    LOGGING['loggers']['django.request'] = {
+        'handlers': ['file', 'console', 'gunicorn'],
+        'level': 'DEBUG',
+        'propagate': True,
     }
 

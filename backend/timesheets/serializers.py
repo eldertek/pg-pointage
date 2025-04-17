@@ -408,22 +408,41 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
         """Récupère la description traduite de l'anomalie en fonction de la langue de l'utilisateur"""
         from django.utils.translation import gettext as _
         import re
+        import logging
+
+        logger = logging.getLogger(__name__)
 
         # Récupérer la langue de l'utilisateur depuis la requête
         request = self.context.get('request')
         if not request or not obj.description:
+            logger.debug(f"Pas de requête ou pas de description: {obj.id}")
             return obj.description
+
+        # Vérifier si l'utilisateur est authentifié et a une préférence de langue
+        if not (hasattr(request, 'user') and request.user.is_authenticated):
+            logger.debug(f"Utilisateur non authentifié: {obj.id}")
+            return obj.description
+
+        # Log pour déboguer
+        logger.debug(f"Langue de l'utilisateur: {request.user.language}, Anomalie ID: {obj.id}, Type: {obj.anomaly_type}")
 
         # Si l'utilisateur a choisi le français, retourner la description originale
-        if hasattr(request, 'user') and request.user.is_authenticated and request.user.language == 'fr':
+        if request.user.language == 'fr':
+            logger.debug(f"Utilisateur en français, retour de la description originale: {obj.id}")
             return obj.description
 
-        # Traduire les descriptions en fonction du type d'anomalie
-        if obj.anomaly_type == Anomaly.AnomalyType.LATE:
-            if 'Retard de' in obj.description:
-                # Extraire les informations numériques
-                minutes_match = re.search(r'Retard de (\d+) minute\(s\)', obj.description)
-                tolerance_match = re.search(r'marge de tolérance \((\d+) min\)', obj.description)
+        # Si l'utilisateur a choisi l'anglais, traduire la description
+        if request.user.language == 'en':
+            logger.debug(f"Utilisateur en anglais, traduction de la description: {obj.id}")
+
+            # Traduire les descriptions en fonction du type d'anomalie
+            if obj.anomaly_type == Anomaly.AnomalyType.LATE:
+                # Afficher la description complète pour le débogage
+                logger.debug(f"Description complète du retard: {obj.description}")
+
+                # Extraire les informations numériques avec des expressions régulières plus souples
+                minutes_match = re.search(r'Retard de (\d+)', obj.description)
+                tolerance_match = re.search(r'tolérance \((\d+)', obj.description)
                 expected_time_match = re.search(r'Heure prévue: ([\d:]+)', obj.description)
                 actual_time_match = re.search(r'heure effective: ([\d:.]+)', obj.description)
 
@@ -432,21 +451,40 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 expected_time = expected_time_match.group(1) if expected_time_match else ''
                 actual_time = actual_time_match.group(1) if actual_time_match else ''
 
-                if expected_time and actual_time:
-                    return _('Late arrival of %(minutes)s minute(s) beyond the tolerance margin (%(tolerance)s min). Expected time: %(expected_time)s, actual time: %(actual_time)s.') % {
-                        'minutes': minutes,
-                        'tolerance': tolerance,
-                        'expected_time': expected_time,
-                        'actual_time': actual_time
-                    }
+                logger.debug(f"Traduction d'un retard: minutes={minutes}, tolerance={tolerance}, expected_time={expected_time}, actual_time={actual_time}")
+
+                # Traduire en anglais
+                if minutes and tolerance:
+                    if expected_time and actual_time:
+                        return f"Late arrival of {minutes} minute(s) beyond the tolerance margin ({tolerance} min). Expected time: {expected_time}, actual time: {actual_time}."
+                    else:
+                        return f"Late arrival of {minutes} minute(s) beyond the tolerance margin ({tolerance} min)."
                 else:
-                    return _('Late arrival of %(minutes)s minute(s) beyond the tolerance margin (%(tolerance)s min).') % {
-                        'minutes': minutes,
-                        'tolerance': tolerance
-                    }
+                    return "Late arrival"
 
         elif obj.anomaly_type == Anomaly.AnomalyType.EARLY_DEPARTURE:
-            if 'Départ anticipé de' in obj.description:
+            # Afficher la description complète pour le débogage
+            logger.debug(f"Description complète du départ anticipé: {obj.description}")
+
+            # Traduire directement en fonction du type d'anomalie
+            if 'Durée insuffisante:' in obj.description:
+                # Extraire les informations numériques
+                actual_duration_match = re.search(r'Durée insuffisante:\s*([\d.]+)', obj.description)
+                expected_duration_match = re.search(r'au lieu de\s*([\d.]+)', obj.description)
+                tolerance_match = re.search(r'tolérance:\s*(\d+)', obj.description)
+
+                actual_duration = actual_duration_match.group(1) if actual_duration_match else ''
+                expected_duration = expected_duration_match.group(1) if expected_duration_match else ''
+                tolerance = tolerance_match.group(1) if tolerance_match else ''
+
+                logger.debug(f"Traduction d'une durée insuffisante (EARLY_DEPARTURE): actual={actual_duration}, expected={expected_duration}, tolerance={tolerance}%")
+
+                return _('Insufficient duration: %(actual_duration)s minutes instead of %(expected_duration)s minutes minimum (tolerance: %(tolerance)s%%).') % {
+                    'actual_duration': actual_duration,
+                    'expected_duration': expected_duration,
+                    'tolerance': tolerance
+                }
+            elif 'Départ anticipé de' in obj.description:
                 # Extraire les informations numériques
                 minutes_match = re.search(r'Départ anticipé de (\d+) minute\(s\)', obj.description)
                 tolerance_match = re.search(r'marge de tolérance \((\d+) min\)', obj.description)
@@ -457,6 +495,8 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 tolerance = tolerance_match.group(1) if tolerance_match else ''
                 expected_time = expected_time_match.group(1) if expected_time_match else ''
                 actual_time = actual_time_match.group(1) if actual_time_match else ''
+
+                logger.debug(f"Traduction d'un départ anticipé: minutes={minutes}, tolerance={tolerance}, expected_time={expected_time}, actual_time={actual_time}")
 
                 if expected_time and actual_time:
                     return _('Early departure of %(minutes)s minute(s) beyond the tolerance margin (%(tolerance)s min). Expected time: %(expected_time)s, actual time: %(actual_time)s.') % {
@@ -471,6 +511,9 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                         'tolerance': tolerance
                     }
             elif 'Durée insuffisante:' in obj.description:
+                # Afficher la description complète pour le débogage
+                logger.debug(f"Description complète de la durée insuffisante: {obj.description}")
+
                 # Extraire les informations numériques
                 actual_duration_match = re.search(r'Durée insuffisante: ([\d.]+) minutes', obj.description)
                 expected_duration_match = re.search(r'au lieu de ([\d.]+) minutes minimum', obj.description)
@@ -479,6 +522,22 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 actual_duration = actual_duration_match.group(1) if actual_duration_match else ''
                 expected_duration = expected_duration_match.group(1) if expected_duration_match else ''
                 tolerance = tolerance_match.group(1) if tolerance_match else ''
+
+                logger.debug(f"Traduction d'une durée insuffisante: actual={actual_duration}, expected={expected_duration}, tolerance={tolerance}%")
+
+                # Si les expressions régulières n'ont pas trouvé de correspondance, essayer d'autres formats
+                if not actual_duration or not expected_duration:
+                    logger.debug("Tentative avec d'autres expressions régulières pour la durée insuffisante")
+                    # Essayer un autre format
+                    actual_duration_match = re.search(r'Durée insuffisante:\s*([\d.]+)', obj.description)
+                    expected_duration_match = re.search(r'au lieu de\s*([\d.]+)', obj.description)
+                    tolerance_match = re.search(r'tolérance:\s*(\d+)', obj.description)
+
+                    actual_duration = actual_duration_match.group(1) if actual_duration_match else ''
+                    expected_duration = expected_duration_match.group(1) if expected_duration_match else ''
+                    tolerance = tolerance_match.group(1) if tolerance_match else ''
+
+                    logger.debug(f"Nouvelle tentative: actual={actual_duration}, expected={expected_duration}, tolerance={tolerance}%")
 
                 return _('Insufficient duration: %(actual_duration)s minutes instead of %(expected_duration)s minutes minimum (tolerance: %(tolerance)s%%).') % {
                     'actual_duration': actual_duration,
@@ -491,6 +550,8 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 expected_time_match = re.search(r'heure prévue: ([\d:]+)', obj.description)
                 expected_time = expected_time_match.group(1) if expected_time_match else ''
 
+                logger.debug(f"Traduction d'une arrivée manquante: expected_time={expected_time}")
+
                 if expected_time:
                     return _('Missing arrival according to schedule (expected time: %(expected_time)s)') % {
                         'expected_time': expected_time
@@ -501,6 +562,8 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 duration_match = re.search(r'durée prévue: (\d+) minutes', obj.description)
                 duration = duration_match.group(1) if duration_match else ''
 
+                logger.debug(f"Traduction d'un pointage manquant (fréquence): duration={duration}")
+
                 return _('Missing check-in according to frequency schedule (expected duration: %(duration)s minutes)') % {
                     'duration': duration
                 }
@@ -509,6 +572,8 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
             if 'Départ manquant selon le planning' in obj.description:
                 expected_time_match = re.search(r'heure prévue: ([\d:]+)', obj.description)
                 expected_time = expected_time_match.group(1) if expected_time_match else ''
+
+                logger.debug(f"Traduction d'un départ manquant: expected_time={expected_time}")
 
                 if expected_time:
                     return _('Missing departure according to schedule (expected time: %(expected_time)s)') % {
@@ -528,6 +593,8 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 expected_duration = expected_duration_match.group(2) if expected_duration_match else ''
                 tolerance = tolerance_match.group(2) if tolerance_match else ''
 
+                logger.debug(f"Traduction d'heures insuffisantes: actual={actual_duration}, expected={expected_duration}, tolerance={tolerance}%")
+
                 return _('Insufficient duration: %(actual_duration)s minutes instead of %(expected_duration)s minutes minimum (tolerance: %(tolerance)s%%).') % {
                     'actual_duration': actual_duration,
                     'expected_duration': expected_duration,
@@ -535,7 +602,11 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 }
 
         elif obj.anomaly_type == Anomaly.AnomalyType.UNLINKED_SCHEDULE:
-            return _('Check-in outside schedule: employee is not linked to this site.')
+            logger.debug(f"Traduction d'un planning non lié: {obj.description}")
+            if "l'employé n'est pas rattaché à ce site" in obj.description:
+                return _('Check-in outside schedule: employee is not linked to this site.')
+            else:
+                return _('Unlinked schedule')
 
         elif obj.anomaly_type == Anomaly.AnomalyType.OTHER:
             if 'Pointage hors planning:' in obj.description:
@@ -547,6 +618,8 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                     day = day_match.group(1) if day_match else ''
                     entry_type = entry_type_match.group(1) if entry_type_match else ''
                     time = time_match.group(1) if time_match else ''
+
+                    logger.debug(f"Traduction d'un pointage hors planning (jour): day={day}, entry_type={entry_type}, time={time}")
 
                     return _('Check-in outside schedule: no schedule is defined for day %(day)s. (%(entry_type)s at %(time)s)') % {
                         'day': day,
@@ -562,6 +635,8 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                     entry_type = entry_type_match.group(1) if entry_type_match else ''
                     ranges = ranges_match.group(1) if ranges_match else ''
 
+                    logger.debug(f"Traduction d'un pointage hors planning (heure): time={time}, entry_type={entry_type}, ranges={ranges}")
+
                     return _('Check-in outside schedule: time %(time)s (%(entry_type)s) does not match any time range defined in employee schedules. Available ranges: %(ranges)s.') % {
                         'time': time,
                         'entry_type': entry_type,
@@ -576,12 +651,163 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 entry_type = entry_type_match.group(1) if entry_type_match else ''
                 last_time = last_time_match.group(1) if last_time_match else ''
 
+                logger.debug(f"Traduction d'un pointage consécutif: entry_type={entry_type}, last_time={last_time}")
+
                 return _('Consecutive %(entry_type)s check-in detected. Last check-in: %(last_time)s') % {
                     'entry_type': entry_type,
                     'last_time': last_time
                 }
 
-        # Si aucun cas spécifique n'est trouvé, retourner la description originale
+        # Si aucun cas spécifique n'est trouvé, essayer de traduire la description complète
+        logger.debug(f"Aucune traduction spécifique trouvée pour l'anomalie {obj.id}, type {obj.anomaly_type}, description: '{obj.description}', tentative de traduction complète")
+
+        # Pour les utilisateurs en anglais, traduire en fonction du type d'anomalie et du contenu de la description
+        if request.user.language == 'en':
+            # Traduire en fonction du type d'anomalie et du contenu de la description
+            if obj.anomaly_type == Anomaly.AnomalyType.LATE:
+                return "Late arrival"
+
+            elif obj.anomaly_type == Anomaly.AnomalyType.EARLY_DEPARTURE:
+                if 'Durée insuffisante:' in obj.description:
+                    # Extraire les informations numériques
+                    actual_duration_match = re.search(r'Durée insuffisante:\s*([\d.]+)', obj.description)
+                    expected_duration_match = re.search(r'au lieu de\s*([\d.]+)', obj.description)
+                    tolerance_match = re.search(r'tolérance:\s*(\d+)', obj.description)
+
+                    actual_duration = actual_duration_match.group(1) if actual_duration_match else ''
+                    expected_duration = expected_duration_match.group(1) if expected_duration_match else ''
+                    tolerance = tolerance_match.group(1) if tolerance_match else ''
+
+                    if actual_duration and expected_duration and tolerance:
+                        return f"Insufficient duration: {actual_duration} minutes instead of {expected_duration} minutes minimum (tolerance: {tolerance}%)."
+                    else:
+                        return "Insufficient duration"
+                elif 'Départ anticipé de' in obj.description:
+                    # Extraire les informations numériques
+                    minutes_match = re.search(r'Départ anticipé de (\d+)', obj.description)
+                    tolerance_match = re.search(r'tolérance \((\d+)', obj.description)
+                    expected_time_match = re.search(r'Heure prévue: ([\d:]+)', obj.description)
+                    actual_time_match = re.search(r'heure effective: ([\d:.]+)', obj.description)
+
+                    minutes = minutes_match.group(1) if minutes_match else ''
+                    tolerance = tolerance_match.group(1) if tolerance_match else ''
+                    expected_time = expected_time_match.group(1) if expected_time_match else ''
+                    actual_time = actual_time_match.group(1) if actual_time_match else ''
+
+                    if minutes and tolerance:
+                        if expected_time and actual_time:
+                            return f"Early departure of {minutes} minute(s) beyond the tolerance margin ({tolerance} min). Expected time: {expected_time}, actual time: {actual_time}."
+                        else:
+                            return f"Early departure of {minutes} minute(s) beyond the tolerance margin ({tolerance} min)."
+                    else:
+                        return "Early departure"
+                else:
+                    return "Early departure"
+
+            elif obj.anomaly_type == Anomaly.AnomalyType.MISSING_ARRIVAL:
+                if 'Arrivée manquante selon le planning' in obj.description:
+                    expected_time_match = re.search(r'heure prévue: ([\d:]+)', obj.description)
+                    expected_time = expected_time_match.group(1) if expected_time_match else ''
+
+                    if expected_time:
+                        return f"Missing arrival according to schedule (expected time: {expected_time})"
+                    else:
+                        return "Missing arrival according to schedule"
+                elif 'Pointage manquant selon le planning fréquence' in obj.description:
+                    duration_match = re.search(r'durée prévue: (\d+)', obj.description)
+                    duration = duration_match.group(1) if duration_match else ''
+
+                    if duration:
+                        return f"Missing check-in according to frequency schedule (expected duration: {duration} minutes)"
+                    else:
+                        return "Missing check-in according to frequency schedule"
+                else:
+                    return "Missing arrival"
+
+            elif obj.anomaly_type == Anomaly.AnomalyType.MISSING_DEPARTURE:
+                if 'Départ manquant selon le planning' in obj.description:
+                    expected_time_match = re.search(r'heure prévue: ([\d:]+)', obj.description)
+                    expected_time = expected_time_match.group(1) if expected_time_match else ''
+
+                    if expected_time:
+                        return f"Missing departure according to schedule (expected time: {expected_time})"
+                    else:
+                        return "Missing departure according to schedule"
+                else:
+                    return "Missing departure"
+
+            elif obj.anomaly_type == Anomaly.AnomalyType.INSUFFICIENT_HOURS:
+                if 'Durée insuffisante:' in obj.description or 'Insufficient duration:' in obj.description:
+                    # Extraire les informations numériques
+                    actual_duration_match = re.search(r'(Durée insuffisante|Insufficient duration):\s*([\d.]+)', obj.description)
+                    expected_duration_match = re.search(r'(au lieu de|instead of)\s*([\d.]+)', obj.description)
+                    tolerance_match = re.search(r'(tolérance|tolerance):\s*(\d+)', obj.description)
+
+                    actual_duration = actual_duration_match.group(2) if actual_duration_match else ''
+                    expected_duration = expected_duration_match.group(2) if expected_duration_match else ''
+                    tolerance = tolerance_match.group(2) if tolerance_match else ''
+
+                    if actual_duration and expected_duration and tolerance:
+                        return f"Insufficient duration: {actual_duration} minutes instead of {expected_duration} minutes minimum (tolerance: {tolerance}%)."
+                    else:
+                        return "Insufficient hours"
+                else:
+                    return "Insufficient hours"
+
+            elif obj.anomaly_type == Anomaly.AnomalyType.CONSECUTIVE_SAME_TYPE:
+                if 'Pointage' in obj.description and 'consécutif détecté' in obj.description:
+                    entry_type_match = re.search(r'Pointage ([^\s]+)', obj.description)
+                    last_time_match = re.search(r'Dernier pointage : ([\d:]+)', obj.description)
+
+                    entry_type = entry_type_match.group(1) if entry_type_match else ''
+                    last_time = last_time_match.group(1) if last_time_match else ''
+
+                    if entry_type and last_time:
+                        return f"Consecutive {entry_type} check-in detected. Last check-in: {last_time}"
+                    else:
+                        return "Consecutive check-in of the same type"
+                else:
+                    return "Consecutive check-in of the same type"
+
+            elif obj.anomaly_type == Anomaly.AnomalyType.UNLINKED_SCHEDULE:
+                if "l'employé n'est pas rattaché à ce site" in obj.description:
+                    return "Check-in outside schedule: employee is not linked to this site."
+                else:
+                    return "Unlinked schedule"
+
+            elif obj.anomaly_type == Anomaly.AnomalyType.OTHER:
+                if 'Pointage hors planning:' in obj.description:
+                    if 'aucun planning n\'est défini pour le jour' in obj.description:
+                        day_match = re.search(r'jour ([^.]+)', obj.description)
+                        entry_type_match = re.search(r'\(([^)]+) à', obj.description)
+                        time_match = re.search(r'à ([\d:]+)', obj.description)
+
+                        day = day_match.group(1) if day_match else ''
+                        entry_type = entry_type_match.group(1) if entry_type_match else ''
+                        time = time_match.group(1) if time_match else ''
+
+                        if day and entry_type and time:
+                            return f"Check-in outside schedule: no schedule is defined for day {day}. ({entry_type} at {time})"
+                        else:
+                            return "Check-in outside schedule: no schedule is defined for this day"
+                    elif 'l\'heure' in obj.description:
+                        time_match = re.search(r'l\'heure ([\d:]+\.?\d*)', obj.description)
+                        entry_type_match = re.search(r'\(([^)]+)\)', obj.description)
+                        ranges_match = re.search(r'Plages disponibles: ([^.]+)', obj.description)
+
+                        time = time_match.group(1) if time_match else ''
+                        entry_type = entry_type_match.group(1) if entry_type_match else ''
+                        ranges = ranges_match.group(1) if ranges_match else ''
+
+                        if time and entry_type and ranges:
+                            return f"Check-in outside schedule: time {time} ({entry_type}) does not match any time range defined in employee schedules. Available ranges: {ranges}."
+                        else:
+                            return "Check-in outside schedule: time does not match any defined range"
+                    else:
+                        return "Check-in outside schedule"
+                else:
+                    return "Other anomaly"
+
         return obj.description
 
 class EmployeeReportSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, SitePermissionMixin):
