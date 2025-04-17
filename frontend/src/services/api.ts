@@ -17,11 +17,8 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
 
-      // Ajouter l'en-tête de langue si disponible
-      const language = localStorage.getItem("language")
-      if (language) {
-        config.headers["Accept-Language"] = language
-      }
+      // Nous n'utilisons plus l'en-tête Accept-Language
+      // La langue est déterminée par la préférence de l'utilisateur dans le backend
 
       // Ajouter des logs pour les données envoyées
       if (config.data) {

@@ -414,6 +414,10 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
         if not request or not obj.description:
             return obj.description
 
+        # Si l'utilisateur a choisi le français, retourner la description originale
+        if hasattr(request, 'user') and request.user.is_authenticated and request.user.language == 'fr':
+            return obj.description
+
         # Traduire les descriptions en fonction du type d'anomalie
         if obj.anomaly_type == Anomaly.AnomalyType.LATE:
             if 'Retard de' in obj.description:
