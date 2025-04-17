@@ -886,3 +886,11 @@ msgstr "Check-in outside schedule: time %(time)s (%(entry_type)s) does not match
 #: timesheets/serializers.py
 msgid "Consecutive %(entry_type)s check-in detected. Last check-in: %(last_time)s"
 msgstr "Consecutive %(entry_type)s check-in detected. Last check-in: %(last_time)s"
+
+#: timesheets/serializers.py
+msgid "Missing departure according to schedule (expected time: %(expected_time)s)"
+msgstr "Missing departure according to schedule (expected time: %(expected_time)s)"
+
+#: timesheets/serializers.py
+msgid "Missing departure according to schedule"
+msgstr "Missing departure according to schedule"

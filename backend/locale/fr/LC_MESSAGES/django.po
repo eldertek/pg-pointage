@@ -719,6 +719,62 @@ msgstr ""
 msgid "rapports d'employés"
 msgstr ""
 
+#: timesheets/serializers.py
+msgid "Late arrival of %(minutes)s minute(s) beyond the tolerance margin (%(tolerance)s min). Expected time: %(expected_time)s, actual time: %(actual_time)s."
+msgstr "Retard de %(minutes)s minute(s) au-delà de la marge de tolérance (%(tolerance)s min). Heure prévue: %(expected_time)s, heure effective: %(actual_time)s."
+
+#: timesheets/serializers.py
+msgid "Late arrival of %(minutes)s minute(s) beyond the tolerance margin (%(tolerance)s min)."
+msgstr "Retard de %(minutes)s minute(s) au-delà de la marge de tolérance (%(tolerance)s min)."
+
+#: timesheets/serializers.py
+msgid "Early departure of %(minutes)s minute(s) beyond the tolerance margin (%(tolerance)s min). Expected time: %(expected_time)s, actual time: %(actual_time)s."
+msgstr "Départ anticipé de %(minutes)s minute(s) au-delà de la marge de tolérance (%(tolerance)s min). Heure prévue: %(expected_time)s, heure effective: %(actual_time)s."
+
+#: timesheets/serializers.py
+msgid "Early departure of %(minutes)s minute(s) beyond the tolerance margin (%(tolerance)s min)."
+msgstr "Départ anticipé de %(minutes)s minute(s) au-delà de la marge de tolérance (%(tolerance)s min)."
+
+#: timesheets/serializers.py
+msgid "Insufficient duration: %(actual_duration)s minutes instead of %(expected_duration)s minutes minimum (tolerance: %(tolerance)s%%)."
+msgstr "Durée insuffisante: %(actual_duration)s minutes au lieu de %(expected_duration)s minutes minimum (tolérance: %(tolerance)s%%)."
+
+#: timesheets/serializers.py
+msgid "Missing arrival according to schedule (expected time: %(expected_time)s)"
+msgstr "Arrivée manquante selon le planning (heure prévue: %(expected_time)s)"
+
+#: timesheets/serializers.py
+msgid "Missing arrival according to schedule"
+msgstr "Arrivée manquante selon le planning"
+
+#: timesheets/serializers.py
+msgid "Missing check-in according to frequency schedule (expected duration: %(duration)s minutes)"
+msgstr "Pointage manquant selon le planning fréquence (durée prévue: %(duration)s minutes)"
+
+#: timesheets/serializers.py
+msgid "Missing departure according to schedule (expected time: %(expected_time)s)"
+msgstr "Départ manquant selon le planning (heure prévue: %(expected_time)s)"
+
+#: timesheets/serializers.py
+msgid "Missing departure according to schedule"
+msgstr "Départ manquant selon le planning"
+
+#: timesheets/serializers.py
+msgid "Check-in outside schedule: employee is not linked to this site."
+msgstr "Pointage hors planning: l'employé n'est pas lié à ce site."
+
+#: timesheets/serializers.py
+msgid "Check-in outside schedule: no schedule is defined for day %(day)s. (%(entry_type)s at %(time)s)"
+msgstr "Pointage hors planning: aucun planning n'est défini pour le jour %(day)s. (%(entry_type)s à %(time)s)"
+
+#: timesheets/serializers.py
+msgid "Check-in outside schedule: time %(time)s (%(entry_type)s) does not match any time range defined in employee schedules. Available ranges: %(ranges)s."
+msgstr "Pointage hors planning: l'heure %(time)s (%(entry_type)s) ne correspond à aucune plage horaire définie dans les plannings de l'employé. Plages disponibles: %(ranges)s."
+
+#: timesheets/serializers.py
+msgid "Consecutive %(entry_type)s check-in detected. Last check-in: %(last_time)s"
+msgstr "Pointage %(entry_type)s consécutif détecté. Dernier pointage : %(last_time)s"
+
 #: timesheets/signals.py:22
 msgid "Anomalie détectée : Pointages consécutifs du même type\n"
 msgstr ""

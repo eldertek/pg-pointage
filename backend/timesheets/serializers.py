@@ -505,6 +505,35 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                     'duration': duration
                 }
 
+        elif obj.anomaly_type == Anomaly.AnomalyType.MISSING_DEPARTURE:
+            if 'Départ manquant selon le planning' in obj.description:
+                expected_time_match = re.search(r'heure prévue: ([\d:]+)', obj.description)
+                expected_time = expected_time_match.group(1) if expected_time_match else ''
+
+                if expected_time:
+                    return _('Missing departure according to schedule (expected time: %(expected_time)s)') % {
+                        'expected_time': expected_time
+                    }
+                else:
+                    return _('Missing departure according to schedule')
+
+        elif obj.anomaly_type == Anomaly.AnomalyType.INSUFFICIENT_HOURS:
+            if 'Durée insuffisante:' in obj.description or 'Insufficient duration:' in obj.description:
+                # Extraire les informations numériques
+                actual_duration_match = re.search(r'(Durée insuffisante|Insufficient duration): ([\d.]+) minutes', obj.description)
+                expected_duration_match = re.search(r'(au lieu de|instead of) ([\d.]+) minutes', obj.description)
+                tolerance_match = re.search(r'\((tolérance|tolerance): (\d+)%\)', obj.description)
+
+                actual_duration = actual_duration_match.group(2) if actual_duration_match else ''
+                expected_duration = expected_duration_match.group(2) if expected_duration_match else ''
+                tolerance = tolerance_match.group(2) if tolerance_match else ''
+
+                return _('Insufficient duration: %(actual_duration)s minutes instead of %(expected_duration)s minutes minimum (tolerance: %(tolerance)s%%).') % {
+                    'actual_duration': actual_duration,
+                    'expected_duration': expected_duration,
+                    'tolerance': tolerance
+                }
+
         elif obj.anomaly_type == Anomaly.AnomalyType.UNLINKED_SCHEDULE:
             return _('Check-in outside schedule: employee is not linked to this site.')
 
