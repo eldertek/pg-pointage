@@ -499,17 +499,9 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 logger.debug(f"Traduction d'un départ anticipé: minutes={minutes}, tolerance={tolerance}, expected_time={expected_time}, actual_time={actual_time}")
 
                 if expected_time and actual_time:
-                    return _('Early departure of %(minutes)s minute(s) beyond the tolerance margin (%(tolerance)s min). Expected time: %(expected_time)s, actual time: %(actual_time)s.') % {
-                        'minutes': minutes,
-                        'tolerance': tolerance,
-                        'expected_time': expected_time,
-                        'actual_time': actual_time
-                    }
+                    return f"Early departure of {minutes} minute(s) beyond the tolerance margin ({tolerance} min). Expected time: {expected_time}, actual time: {actual_time}"
                 else:
-                    return _('Early departure of %(minutes)s minute(s) beyond the tolerance margin (%(tolerance)s min).') % {
-                        'minutes': minutes,
-                        'tolerance': tolerance
-                    }
+                    return f"Early departure of {minutes} minute(s) beyond the tolerance margin ({tolerance} min)"
             elif 'Durée insuffisante:' in obj.description:
                 # Afficher la description complète pour le débogage
                 logger.debug(f"Description complète de la durée insuffisante: {obj.description}")
@@ -553,22 +545,24 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 logger.debug(f"Traduction d'une arrivée manquante: expected_time={expected_time}")
 
                 if expected_time:
-                    return _('Missing arrival according to schedule (expected time: %(expected_time)s)') % {
-                        'expected_time': expected_time
-                    }
+                    return f"Missing arrival according to schedule (expected time: {expected_time})"
                 else:
-                    return _('Missing arrival according to schedule')
+                    return "Missing arrival according to schedule"
             elif 'Pointage manquant selon le planning fréquence' in obj.description:
                 duration_match = re.search(r'durée prévue: (\d+) minutes', obj.description)
                 duration = duration_match.group(1) if duration_match else ''
 
                 logger.debug(f"Traduction d'un pointage manquant (fréquence): duration={duration}")
 
-                return _('Missing check-in according to frequency schedule (expected duration: %(duration)s minutes)') % {
-                    'duration': duration
-                }
+                if duration:
+                    return f"Missing check-in according to frequency schedule (expected duration: {duration} minutes)"
+                else:
+                    return "Missing check-in according to frequency schedule"
 
         elif obj.anomaly_type == Anomaly.AnomalyType.MISSING_DEPARTURE:
+            # Afficher la description complète pour le débogage
+            logger.debug(f"Description complète du départ manquant: {obj.description}")
+
             if 'Départ manquant selon le planning' in obj.description:
                 expected_time_match = re.search(r'heure prévue: ([\d:]+)', obj.description)
                 expected_time = expected_time_match.group(1) if expected_time_match else ''
@@ -576,11 +570,19 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
                 logger.debug(f"Traduction d'un départ manquant: expected_time={expected_time}")
 
                 if expected_time:
-                    return _('Missing departure according to schedule (expected time: %(expected_time)s)') % {
-                        'expected_time': expected_time
-                    }
+                    return f"Missing departure according to schedule (expected time: {expected_time})"
                 else:
-                    return _('Missing departure according to schedule')
+                    return "Missing departure according to schedule"
+            elif 'Pointage manquant selon le planning fréquence' in obj.description:
+                duration_match = re.search(r'durée prévue: (\d+)', obj.description)
+                duration = duration_match.group(1) if duration_match else ''
+
+                logger.debug(f"Traduction d'un pointage manquant (fréquence): duration={duration}")
+
+                if duration:
+                    return f"Missing check-in according to frequency schedule (expected duration: {duration} minutes)"
+                else:
+                    return "Missing check-in according to frequency schedule"
 
         elif obj.anomaly_type == Anomaly.AnomalyType.INSUFFICIENT_HOURS:
             if 'Durée insuffisante:' in obj.description or 'Insufficient duration:' in obj.description:
@@ -595,18 +597,14 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
 
                 logger.debug(f"Traduction d'heures insuffisantes: actual={actual_duration}, expected={expected_duration}, tolerance={tolerance}%")
 
-                return _('Insufficient duration: %(actual_duration)s minutes instead of %(expected_duration)s minutes minimum (tolerance: %(tolerance)s%%).') % {
-                    'actual_duration': actual_duration,
-                    'expected_duration': expected_duration,
-                    'tolerance': tolerance
-                }
+                return f"Insufficient duration: {actual_duration} minutes instead of {expected_duration} minutes minimum (tolerance: {tolerance}%)"
 
         elif obj.anomaly_type == Anomaly.AnomalyType.UNLINKED_SCHEDULE:
             logger.debug(f"Traduction d'un planning non lié: {obj.description}")
             if "l'employé n'est pas rattaché à ce site" in obj.description:
-                return _('Check-in outside schedule: employee is not linked to this site.')
+                return "Check-in outside schedule: employee is not linked to this site."
             else:
-                return _('Unlinked schedule')
+                return "Unlinked schedule"
 
         elif obj.anomaly_type == Anomaly.AnomalyType.OTHER:
             if 'Pointage hors planning:' in obj.description:
@@ -621,11 +619,7 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
 
                     logger.debug(f"Traduction d'un pointage hors planning (jour): day={day}, entry_type={entry_type}, time={time}")
 
-                    return _('Check-in outside schedule: no schedule is defined for day %(day)s. (%(entry_type)s at %(time)s)') % {
-                        'day': day,
-                        'entry_type': entry_type,
-                        'time': time
-                    }
+                    return f"Check-in outside schedule: no schedule is defined for day {day}. ({entry_type} at {time})"
                 elif 'l\'heure' in obj.description:
                     time_match = re.search(r'l\'heure ([\d:]+\.?\d*)', obj.description)
                     entry_type_match = re.search(r'\(([^)]+)\) ne correspond', obj.description)
@@ -637,11 +631,7 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
 
                     logger.debug(f"Traduction d'un pointage hors planning (heure): time={time}, entry_type={entry_type}, ranges={ranges}")
 
-                    return _('Check-in outside schedule: time %(time)s (%(entry_type)s) does not match any time range defined in employee schedules. Available ranges: %(ranges)s.') % {
-                        'time': time,
-                        'entry_type': entry_type,
-                        'ranges': ranges
-                    }
+                    return f"Check-in outside schedule: time {time} ({entry_type}) does not match any time range defined in employee schedules. Available ranges: {ranges}."
 
         elif obj.anomaly_type == Anomaly.AnomalyType.CONSECUTIVE_SAME_TYPE:
             if 'Pointage' in obj.description and 'consécutif détecté' in obj.description:
@@ -653,10 +643,7 @@ class AnomalySerializer(serializers.ModelSerializer, OrganizationPermissionMixin
 
                 logger.debug(f"Traduction d'un pointage consécutif: entry_type={entry_type}, last_time={last_time}")
 
-                return _('Consecutive %(entry_type)s check-in detected. Last check-in: %(last_time)s') % {
-                    'entry_type': entry_type,
-                    'last_time': last_time
-                }
+                return f"Consecutive {entry_type} check-in detected. Last check-in: {last_time}"
 
         # Si aucun cas spécifique n'est trouvé, essayer de traduire la description complète
         logger.debug(f"Aucune traduction spécifique trouvée pour l'anomalie {obj.id}, type {obj.anomaly_type}, description: '{obj.description}', tentative de traduction complète")
