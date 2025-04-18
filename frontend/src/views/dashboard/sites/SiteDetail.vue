@@ -54,7 +54,7 @@
             <v-window-item value="details">
               <v-card class="elevation-1">
                 <v-toolbar flat>
-                  <v-toolbar-title>Informations</v-toolbar-title>
+                  <v-toolbar-title>{{ $t('dashboard.informations') }}</v-toolbar-title>
                   <v-spacer></v-spacer>
                 </v-toolbar>
                 <v-card-text>
@@ -82,8 +82,8 @@
                               <template v-else-if="field.type === 'status'">
                                 <StatusChip
                                   :status="item[field.key]"
-                                  :active-:label="$t('dashboard.fieldactivelabel')"
-                                  :inactive-:label="$t('dashboard.fieldinactivelabel')"
+                                  :active-label="$t('dashboard.fieldactivelabel')"
+                                  :inactive-label="$t('dashboard.fieldinactivelabel')"
                                 />
                               </template>
 
@@ -154,7 +154,7 @@
                 :title="$t('reports.reportTypes.EMPLOYEE')"
                 :headers="employeesHeaders"
                 :items="employees"
-                :no-data-:text="$t('dashboard.aucun_employ_trouv')"
+                :no-data-text="$t('dashboard.aucun_employ_trouv')"
                 :detail-route="'/dashboard/admin/users/:id'"
                 :edit-route="'/dashboard/admin/users/:id/edit'"
                 @toggle-status="(item: TableItem) => handleToggleStatus('employees', item)"
@@ -198,13 +198,13 @@
               </v-row>
               <v-card v-else>
                 <v-toolbar flat>
-                  <v-toolbar-title>Plannings</v-toolbar-title>
+                  <v-toolbar-title>{{ $t('plannings.title') }}</v-toolbar-title>
                   <v-spacer></v-spacer>
                 </v-toolbar>
                 <v-data-table
                   :headers="planningsHeaders"
                   :items="item.schedules || []"
-                  :no-data-:text="$t('dashboard.aucun_planning_trouv')"
+                  :no-data-text="$t('dashboard.aucun_planning_trouv')"
                   class="elevation-1"
                   @click:row="(item) => router.push(`/dashboard/plannings/${item.id}`)"
                 >
@@ -305,7 +305,7 @@
                 :title="$t('timesheets.title')"
                 :headers="pointagesHeaders"
                 :items="pointages"
-                :no-data-:text="$t('dashboard.aucun_pointage_trouv')"
+                :no-data-text="$t('dashboard.aucun_pointage_trouv')"
               >
                 <template #item.status="{ item: rowItem }">
                   <v-chip
@@ -334,7 +334,7 @@
                 :title="$t('anomalies.title')"
                 :headers="anomaliesHeaders"
                 :items="anomalies"
-                :no-data-:text="$t('dashboard.aucune_anomalie_trouve')"
+                :no-data-text="$t('dashboard.aucune_anomalie_trouve')"
               >
                 <template #item.status="{ item: rowItem }">
                   <v-chip
@@ -363,7 +363,7 @@
                 :title="$t('reports.title')"
                 :headers="reportsHeaders"
                 :items="reports"
-                :no-data-:text="$t('dashboard.aucun_rapport_trouv')"
+                :no-data-text="$t('dashboard.aucun_rapport_trouv')"
               >
                 <template #item.created_at="{ item: rowItem }">
                   {{ formatDate(rowItem.created_at) }}
@@ -407,6 +407,7 @@ import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
 import { useConfirmDialog } from '@/utils/dialogs'
 import type { DialogState } from '@/utils/dialogs'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import { useAuthStore } from '@/stores/auth'
 
 // Types
 interface Field {
@@ -476,6 +477,7 @@ const anomalies = ref<any[]>([])
 const reports = ref<any[]>([])
 
 const { t } = useI18n()
+const authStore = useAuthStore()
 
 // En-têtes des tableaux
 const employeesHeaders = [
@@ -554,12 +556,23 @@ const title = computed(() => t('sites.siteDetails'))
 
 const backRoute = computed(() => '/dashboard/sites')
 
+// Computed properties for permissions
+const canEdit = computed(() => {
+  const role = authStore.user?.role
+  return role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'MANAGER'
+})
+
+const canCreateDelete = computed(() => {
+  const role = authStore.user?.role
+  return role === 'SUPER_ADMIN' || role === 'ADMIN'
+})
+
 const displayFields = computed((): DisplayField[] => {
   return [
-    { key: 'name', label: 'Nom', icon: 'mdi-domain' },
+    { key: 'name', label: t('common.name'), icon: 'mdi-domain' },
     {
       type: 'address',
-      label: 'Adresse',
+      label: t('common.address'),
       icon: 'mdi-map-marker',
       address: 'address',
       postalCode: 'postal_code',
@@ -567,17 +580,17 @@ const displayFields = computed((): DisplayField[] => {
       country: 'country',
       key: 'address'
     },
-    { key: 'nfc_id', label: 'ID', icon: 'mdi-nfc' },
-    { key: 'organization_name', label: 'Organisation', icon: 'mdi-domain' },
-    { key: 'manager_name', label: 'Manager', icon: 'mdi-account-tie' },
-    { key: 'late_margin', label: 'Marge de retard', icon: 'mdi-clock-alert', suffix: ' minutes' },
+    { key: 'nfc_id', label: t('common.id'), icon: 'mdi-nfc' },
+    { key: 'organization_name', label: t('common.organization'), icon: 'mdi-domain' },
+    { key: 'manager_name', label: t('common.manager'), icon: 'mdi-account-tie' },
+    { key: 'late_margin', label: t('sites.lateMarginMinutes'), icon: 'mdi-clock-alert', suffix: ' minutes' },
     {
       key: 'is_active',
-      label: 'Statut',
+      label: t('common.status'),
       icon: 'mdi-check-circle',
       type: 'status',
-      activeLabel: 'Actif',
-      inactiveLabel: 'Inactif'
+      activeLabel: t('sites.statusActive'),
+      inactiveLabel: t('sites.statusInactive')
     }
   ]
 })
@@ -624,7 +637,7 @@ const loadData = async () => {
 
 const generateQRCode = async () => {
   if (!item.value) {
-    showError('Impossible de générer le QR code : site non défini')
+    showError(t('profile.cannotGenerateQr'))
     return
   }
 
@@ -654,7 +667,7 @@ const generateQRCode = async () => {
 
 const downloadQRCode = async () => {
   if (!item.value?.qr_code) {
-    showError('QR code non disponible pour le téléchargement')
+    showError(t('profile.qrNotAvailable'))
     return
   }
 
@@ -667,10 +680,10 @@ const downloadQRCode = async () => {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    showSuccess('Téléchargement du QR code initié')
+    showSuccess(t('profile.qrDownloadStarted'))
   } catch (error) {
     console.error('[SiteDetail][DownloadQRCode] Erreur lors du téléchargement du QR code:', error)
-    showError('Erreur lors du téléchargement du QR code')
+    showError(t('profile.downloadError'))
   }
 }
 
@@ -695,7 +708,15 @@ const formatDate = (date: string) => {
 }
 
 const getDayName = (dayNumber: number) => {
-  const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
+  const days = [
+    t('plannings.days.sunday'),
+    t('plannings.days.monday'),
+    t('plannings.days.tuesday'),
+    t('plannings.days.wednesday'),
+    t('plannings.days.thursday'),
+    t('plannings.days.friday'),
+    t('plannings.days.saturday')
+  ]
   return days[dayNumber]
 }
 
@@ -710,9 +731,9 @@ const getPointageStatusColor = (status: string) => {
 
 const getPointageStatusLabel = (status: string) => {
   const labels: Record<string, string> = {
-    'PENDING': 'En attente',
-    'VALIDATED': 'Validé',
-    'REJECTED': 'Rejeté'
+    'PENDING': t('timesheets.statuses.PENDING'),
+    'VALIDATED': t('timesheets.statuses.VALIDATED'),
+    'REJECTED': t('timesheets.statuses.REJECTED')
   }
   return labels[status] || status
 }
@@ -728,9 +749,9 @@ const getAnomalyStatusColor = (status: string) => {
 
 const getAnomalyStatusLabel = (status: string) => {
   const labels: Record<string, string> = {
-    'PENDING': 'En attente',
-    'RESOLVED': 'Résolu',
-    'REJECTED': 'Rejeté'
+    'PENDING': t('anomalies.anomalyStatuses.PENDING'),
+    'RESOLVED': t('anomalies.anomalyStatuses.RESOLVED'),
+    'REJECTED': t('anomalies.anomalyStatuses.IGNORED')
   }
   return labels[status] || status
 }
@@ -749,10 +770,10 @@ const handleToggleStatus = async (type: string, item: TableItem) => {
       })
     }
     await loadTabData(activeTab.value)
-    showSuccess(`Statut mis à jour avec succès`)
+    showSuccess(t('profile.statusUpdated'))
   } catch (error) {
     console.error('[SiteDetail][HandleToggleStatus] Erreur lors de la mise à jour du statut:', error)
-    showError(`Erreur lors de la mise à jour du statut`)
+    showError(t('profile.statusUpdateError'))
   }
 }
 
@@ -764,10 +785,10 @@ const handleDelete = async (type: string, item: TableItem) => {
       await sitesApi.deleteSchedule(itemId.value, item.id)
     }
     await loadTabData(activeTab.value)
-    showSuccess(`Élément supprimé avec succès`)
+    showSuccess(t('profile.planningDeleted'))
   } catch (error) {
     console.error('[SiteDetail][HandleDelete] Erreur lors de la suppression:', error)
-    showError(`Erreur lors de la suppression`)
+    showError(t('profile.deleteError'))
   }
 }
 
@@ -775,10 +796,10 @@ const unassignEmployeeFromSite = async (employeeId: number) => {
   try {
     await sitesApi.unassignEmployee(itemId.value, employeeId)
     await loadEmployees()
-    showSuccess(`Employé retiré du site avec succès`)
+    showSuccess(t('plannings.employeeRemoved'))
   } catch (error) {
     console.error('[SiteDetail][UnassignEmployeeFromSite] Erreur lors du retrait de l\'employé:', error)
-    showError(`Erreur lors du retrait de l'employé`)
+    showError(t('profile.deleteError'))
   }
 }
 
@@ -792,9 +813,9 @@ const downloadReport = async (reportId: number) => {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    showSuccess(`Rapport téléchargé avec succès`)
+    showSuccess(t('profile.downloadStarted'))
   } catch (error) {
-    showError(`Erreur lors du téléchargement du rapport`)
+    showError(t('profile.downloadError'))
     console.error('[SiteDetail][DownloadReport] Erreur lors du téléchargement du rapport:', error)
   }
 }
@@ -958,10 +979,10 @@ const viewPlanningDetails = (planning: any) => {
 
 const confirmTogglePlanningStatus = (planning: any) => {
   showConfirmDialog({
-    title: planning.is_active ? 'Désactiver le planning' : 'Activer le planning',
-    message: `Êtes-vous sûr de vouloir ${planning.is_active ? 'désactiver' : 'activer'} ce planning ?`,
-    confirmText: planning.is_active ? 'Désactiver' : 'Activer',
-    cancelText: 'Annuler',
+    title: planning.is_active ? t('common.deactivate') + ' ' + t('plannings.title').toLowerCase() : t('common.activate') + ' ' + t('plannings.title').toLowerCase(),
+    message: t('plannings.deletePlanningConfirmation'),
+    confirmText: planning.is_active ? t('common.deactivate') : t('common.activate'),
+    cancelText: t('common.cancel'),
     confirmColor: planning.is_active ? 'warning' : 'success',
     onConfirm: async () => {
       await togglePlanningStatus(planning)
@@ -983,19 +1004,19 @@ const togglePlanningStatus = async (planning: any) => {
       item.value.schedules[index].is_active = !planning.is_active
     }
 
-    showSuccess(`Planning ${planning.is_active ? 'désactivé' : 'activé'} avec succès`)
+    showSuccess(t('profile.statusUpdated'))
   } catch (error) {
     console.error('[SiteDetail][TogglePlanningStatus] Erreur lors du changement de statut:', error)
-    showError(`Erreur lors du ${planning.is_active ? 'désactivation' : 'activation'} du planning`)
+    showError(t('profile.statusUpdateError'))
   }
 }
 
 const confirmDeletePlanning = (planning: any) => {
   showConfirmDialog({
-    title: 'Supprimer le planning',
-    message: 'Êtes-vous sûr de vouloir supprimer ce planning ? Cette action est irréversible.',
-    confirmText: 'Supprimer',
-    cancelText: 'Annuler',
+    title: t('plannings.deletePlanning'),
+    message: t('plannings.deletePlanningConfirmation'),
+    confirmText: t('common.delete'),
+    cancelText: t('common.cancel'),
     confirmColor: 'error',
     onConfirm: async () => {
       await deletePlanning(planning)
@@ -1010,10 +1031,10 @@ const deletePlanning = async (planning: any) => {
     // Retirer le planning de la liste
     item.value.schedules = item.value.schedules.filter((p: any) => p.id !== planning.id)
 
-    showSuccess('Planning supprimé avec succès')
+    showSuccess(t('profile.planningDeleted'))
   } catch (error) {
     console.error('[SiteDetail][DeletePlanning] Erreur lors de la suppression:', error)
-    showError('Erreur lors de la suppression du planning')
+    showError(t('profile.deleteError'))
   }
 }
 </script>
