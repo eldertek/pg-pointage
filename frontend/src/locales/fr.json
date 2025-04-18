@@ -1,4 +1,5 @@
 {
+  "Users": "Utilisateurs",
   "common": {
     "save": "Enregistrer",
     "cancel": "Annuler",
@@ -495,6 +496,7 @@
     "newUser": "Nouvel utilisateur",
     "Users": "Utilisateurs",
     "Rapports": "Rapports",
+    "Gestion des accès": "Gestion des accès",
     "Paramètres": "Paramètres",
     "welcome": "Bienvenue",
     "quickActions": "Actions rapides",
@@ -630,6 +632,7 @@
     "scan": "Scanner",
     "history": "Historique",
     "profile": "Profil",
+    "mthode_de_scan": "Méthode de scan",
     "profileInfo": "Informations du profil",
     "welcome": "Bienvenue",
     "lastCheckIn": "Dernier pointage",
@@ -651,7 +654,6 @@
     "voir_lhistorique": "Voir l'historique",
     "joindre_des_photos_optionnel": "Joindre des photos (optionnel)",
     "id_employ": "ID Employé",
-    "mthode_de_scan": "Méthode de scan",
     "aucun_site_assign": "Aucun site assigné",
     "se_dconnecter": "Se déconnecter",
     "changer": "Changer",

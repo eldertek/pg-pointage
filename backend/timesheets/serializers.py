@@ -6,6 +6,7 @@ from drf_spectacular.types import OpenApiTypes
 from django.utils import timezone
 from core.mixins import OrganizationPermissionMixin, RolePermissionMixin, SitePermissionMixin
 from users.models import User
+from datetime import timedelta
 
 class TimesheetSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, SitePermissionMixin):
     """Serializer pour les pointages"""
@@ -181,6 +182,11 @@ class TimesheetCreateSerializer(serializers.ModelSerializer, SitePermissionMixin
             today = timestamp.date()
         else:
             attrs['timestamp'] = timezone.now()
+
+        # Nouvelle règle : empêcher un scan si un pointage a déjà été effectué il y a moins de 10 minutes
+        ten_minutes_ago = attrs['timestamp'] - timedelta(minutes=10)
+        if Timesheet.objects.filter(employee=employee, site=site, timestamp__gte=ten_minutes_ago).exists():
+            raise serializers.ValidationError("Vous avez déjà pointé il y a moins de 10 minutes. Veuillez attendre avant de scanner à nouveau.")
 
         # Vérifier que l'employé est actif
         if not employee.is_active:

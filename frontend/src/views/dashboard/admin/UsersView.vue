@@ -540,9 +540,9 @@ const roles = computed(() => {
 
 // Préférences de scan disponibles
 const scanPreferences = [
-  { label: 'NFC et QR Code', value: ScanPreferenceEnum.BOTH },
-  { label: 'NFC uniquement', value: ScanPreferenceEnum.NFC_ONLY },
-  { label: 'QR Code uniquement', value: ScanPreferenceEnum.QR_ONLY }
+  { label: t('profile.scanPreferences.BOTH'), value: ScanPreferenceEnum.BOTH },
+  { label: t('profile.scanPreferences.NFC_ONLY'), value: ScanPreferenceEnum.NFC_ONLY },
+  { label: t('profile.scanPreferences.QR_ONLY'), value: ScanPreferenceEnum.QR_ONLY }
 ]
 
 // Méthodes

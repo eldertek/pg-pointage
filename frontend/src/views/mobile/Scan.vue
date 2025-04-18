@@ -188,6 +188,10 @@ export default {
     const isQrScanning = ref(false)
     const scanMode = ref('QR')
 
+    // Timestamp du dernier scan réussi et cooldown de 10 minutes
+    const lastScanTimestamp = ref(null)
+    const scanCooldown = 10 * 60 * 1000 // 10 minutes en millisecondes
+
     // Récupérer la préférence de scan de l'utilisateur
     const fetchUserScanPreference = async () => {
       try {
@@ -231,6 +235,11 @@ export default {
 
     // Fonction pour démarrer le scan NFC
     const startNfcScan = async () => {
+      const now = Date.now()
+      if (lastScanTimestamp.value && now - lastScanTimestamp.value < scanCooldown) {
+        snackbar.value = { show: true, text: 'Veuillez attendre 10 minutes avant de scanner à nouveau.', color: 'error' }
+        return
+      }
       loading.value = true
       scanMode.value = 'NFC'
 
@@ -310,6 +319,11 @@ export default {
 
     // Fonction pour démarrer le scan QR
     const startQrScan = async () => {
+      const now = Date.now()
+      if (lastScanTimestamp.value && now - lastScanTimestamp.value < scanCooldown) {
+        snackbar.value = { show: true, text: 'Veuillez attendre 10 minutes avant de scanner à nouveau.', color: 'error' }
+        return
+      }
       loading.value = true
       scanMode.value = 'QR'
 
@@ -489,6 +503,9 @@ export default {
           // Enregistrement réussi
           let message = result.message || 'Enregistrement effectué avec succès'
 
+          // Mettre à jour le timestamp du dernier scan réussi
+          lastScanTimestamp.value = Date.now()
+
           // Afficher des informations supplémentaires si des anomalies ont été détectées
           if (result.has_anomalies && result.anomalies && result.anomalies.length > 0) {
             const anomaly = result.anomalies[0] // Prendre la première anomalie pour simplifier
@@ -533,6 +550,9 @@ export default {
         })
 
         let message = result.message || 'Enregistrement effectué avec succès'
+
+        // Mettre à jour le timestamp du dernier scan confirmé
+        lastScanTimestamp.value = Date.now()
 
         // Afficher des informations supplémentaires si des anomalies ont été détectées
         if (result.has_anomalies && result.anomalies && result.anomalies.length > 0) {
