@@ -136,16 +136,16 @@ class TimesheetCreateView(generics.CreateAPIView):
             processor = AnomalyProcessor()
             result = processor.process_timesheet(timesheet)
 
-            # Ajouter des logs pour déboguer
-            logger = logging.getLogger(__name__)
-            logger.info(f"Pointage créé: ID={timesheet.id}, Employee={timesheet.employee.id}, Site={timesheet.site.id}, "
-                       f"Type={timesheet.entry_type}, Timestamp={timesheet.timestamp}, "
-                       f"Est ambigu: {result.get('is_ambiguous', False)}")
+            # Si le pointage est ambigu, supprimer l'enregistrement et notifier le client
+            if result.get('is_ambiguous', False):
+                timesheet.delete()
+                return Response({'is_ambiguous': True}, status=status.HTTP_200_OK)
 
+            # Sinon, réponse classique
             return Response({
                 'message': 'Pointage enregistré avec succès',
                 'data': TimesheetSerializer(timesheet).data,
-                'is_ambiguous': result.get('is_ambiguous', False)
+                'is_ambiguous': False
             }, status=status.HTTP_201_CREATED)
 
         except serializers.ValidationError as e:

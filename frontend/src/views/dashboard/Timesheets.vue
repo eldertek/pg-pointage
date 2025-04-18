@@ -80,7 +80,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
             size="small"
             color="primary"
             variant="text"
-            @click.stop="showDetails(item)"
+            @click.stop="handleRowClick($event, { item })"
           >
             <v-icon>mdi-eye</v-icon>
             <v-tooltip activator="parent">{{ $t('common.view') }}</v-tooltip>
