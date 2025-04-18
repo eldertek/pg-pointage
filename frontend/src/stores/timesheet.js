@@ -35,8 +35,13 @@ export const useTimesheetStore = defineStore("timesheet", () => {
           ordering: "-timestamp",
         },
       })
-      timesheets.value = response.data.results
-      return timesheets.value
+      // Récupérer les pointages depuis la réponse, en gérant différents schémas (tableau direct ou objet)
+      const body = response.data
+      const fetched = Array.isArray(body)
+        ? body
+        : body.results ?? body.data ?? []
+      timesheets.value = fetched
+      return fetched
     } catch (err) {
       error.value = "Erreur lors de la récupération des pointages"
       return []
