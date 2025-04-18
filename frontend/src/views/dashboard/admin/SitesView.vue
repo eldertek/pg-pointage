@@ -2,7 +2,7 @@
   <DashboardView
     ref="dashboardView"
     :title="$t('sites.title')"
-    :form-:title="$t('dashboard.editeditemid_modifier_le_site_nouveau_site')"
+    :form-title="editedItem?.id ? $t('sites.editSite') : $t('sites.addSite')"
     :saving="saving"
     @save="saveSite"
   >
@@ -132,7 +132,7 @@
               v-model="editedItem.organization"
               :items="organizations"
               :label="$t('profile.organization')"
-              item-:title="$t('dashboard.name')"
+              item-title="name"
               item-value="id"
               :rules="[v => !!v || t('sites.organizationRequired', 'L\'organisation est requise')]"
               required
@@ -144,11 +144,11 @@
               v-model="editedItem.manager"
               :items="managers"
               :label="$t('dashboard.manager')"
-              item-:title="$t('dashboard.name')"
+              item-title="name"
               item-value="id"
               :disabled="!editedItem.organization"
-              :no-data-:text="$t('dashboard.aucun_manager_disponible')"
-              :loading-:text="$t('dashboard.chargement_des_managers')"
+              :no-data-text="$t('dashboard.aucun_manager_disponible')"
+              :loading-text="$t('dashboard.chargement_des_managers')"
             ></v-select>
           </v-col>
           <v-col cols="12" sm="6">

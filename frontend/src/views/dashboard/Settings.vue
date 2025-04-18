@@ -1,5 +1,5 @@
 <template>
-  <DashboardView :title="$t('settings.title')">
+  <DashboardView title="settings.title">
     <v-tabs v-model="activeTab" grow>
       <v-tab value="profile">{{ $t('settings.profile') }}</v-tab>
       <v-tab value="security">{{ $t('settings.security') }}</v-tab>
@@ -72,6 +72,12 @@
           <v-card-title>{{ $t('settings.security') }}</v-card-title>
           <v-card-text>
             <v-form ref="passwordForm" @submit.prevent="changePassword">
+              <input type="text"
+                :value="profile.username"
+                autocomplete="username"
+                style="display: none;"
+                aria-hidden="true"
+              />
               <v-text-field
                 v-model="security.currentPassword"
                 :label="$t('auth.currentPassword')"

@@ -2,7 +2,7 @@
   <DashboardView
     ref="dashboardView"
     :title="$t('users.title')"
-    :form-:title="$t('dashboard.editeditemid_modifier_un_utilisateur_nouvel_utilisateur')"
+    :form-title="editedItem?.id ? $t('users.editUser') : $t('users.addUser')"
     :saving="saving"
     @save="saveUser"
     @cancel="resetFormState"
@@ -24,7 +24,7 @@
           <v-select
             v-model="filters.role"
             :items="roles"
-            item-:title="$t('dashboard.label')"
+            item-title="label"
             item-value="value"
             :label="$t('profile.role')"
             variant="outlined"
@@ -57,8 +57,8 @@
       :items-per-page="itemsPerPage"
       :items-length="filteredUsers.length"
       :loading="loading"
-      :no-data-:text="$t('dashboard.aucun_utilisateur_trouv')"
-      :loading-:text="$t('dashboard.chargement_des_utilisateurs')"
+      :no-data-text="$t('dashboard.aucun_utilisateur_trouv')"
+      :loading-text="$t('dashboard.chargement_des_utilisateurs')"
       :sort-by="[{ key: 'last_name' }, { key: 'first_name' }, { key: 'role' }]"
       class="elevation-1"
       :items-per-page-options="[
@@ -67,8 +67,8 @@
         { title: '15', value: 15 },
         { title: t('common.all'), value: -1 }
       ]"
-      :page-:text="$t('dashboard.01_sur_2')"
-      :items-per-page-:text="$t('dashboard.lignes_par_page')"
+      :page-text="$t('dashboard.01_sur_2')"
+      :items-per-page-text="$t('dashboard.lignes_par_page')"
       @click:row="handleRowClick"
     >
       <!-- Rôle -->
@@ -217,7 +217,7 @@
           <v-select
             v-model="(editedItem as UserFormData).role"
             :items="roles"
-            item-:title="$t('dashboard.label')"
+            item-title="label"
             item-value="value"
             :label="$t('profile.role')"
             required
@@ -229,7 +229,7 @@
           <v-select
             v-model="selectedOrganizations"
             :items="organizationItems"
-            item-:title="$t('dashboard.name')"
+            item-title="name"
             item-value="id"
             :label="$t('users.organizations')"
             multiple
@@ -237,7 +237,7 @@
             required
             :error-messages="formErrors.organizations"
             :rules="[v => (v && v.length > 0) || t('users.organizationRequired', 'Au moins une organisation est requise')]"
-            no-data-:text="$t('dashboard.aucune_organisation_disponible')"
+            :no-data-text="$t('dashboard.aucune_organisation_disponible')"
             :return-object="false"
             @update:model-value="(val: number[]) => {
               if (editedItem && Array.isArray(val)) {
@@ -250,7 +250,7 @@
             <template #chip="{ props: slotProps, item }">
               <v-chip
                 v-bind="slotProps"
-                ::text="$t('dashboard.organizationsmapgetitemvalue_itemtitle')"
+                :text="organizationsMap.get(item.value) || item.title"
                 color="primary"
                 size="small"
               ></v-chip>
@@ -315,7 +315,7 @@
           <v-select
             v-model="(editedItem as UserFormData).scan_preference"
             :items="scanPreferences"
-            item-:title="$t('dashboard.label')"
+            item-title="label"
             item-value="value"
             :label="$t('mobile.mthode_de_scan')"
             required

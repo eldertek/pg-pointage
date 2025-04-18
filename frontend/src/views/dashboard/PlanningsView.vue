@@ -2,7 +2,7 @@
   <DashboardView
     ref="dashboardView"
     :title="$t('plannings.title')"
-    :form-:title="$t('dashboard.editeditemid_modifier_nouveau_planning')"
+    :form-title="editedItem?.id ? $t('plannings.editSchedule') : $t('plannings.addSchedule')"
     :saving="saving"
     @save="saveSchedule"
   >
@@ -25,7 +25,7 @@
           <v-select
             v-model="filters.site"
             :items="sites"
-            item-:title="$t('dashboard.name')"
+            item-title="name"
             item-value="id"
             :label="$t('timesheets.site')"
             variant="outlined"
@@ -56,10 +56,10 @@
       :loading="loading"
       :items-per-page="itemsPerPage"
       :items-length="totalItems"
-      :no-data-:text="$t('dashboard.aucun_planning_trouv')"
-      :loading-:text="$t('dashboard.chargement_des_plannings')"
-      :items-per-page-:text="$t('dashboard.lignes_par_page')"
-      :page-:text="$t('dashboard.01_sur_2')"
+      :no-data-text="$t('dashboard.aucun_planning_trouv')"
+      :loading-text="$t('dashboard.chargement_des_plannings')"
+      :items-per-page-text="$t('dashboard.lignes_par_page')"
+      :page-text="$t('dashboard.01_sur_2')"
       :items-per-page-options="[
         { title: '5', value: 5 },
         { title: '10', value: 10 },
@@ -165,7 +165,7 @@
                 { title: t('plannings.planningTypes.FIXED'), value: 'FIXED' },
                 { title: t('plannings.planningTypes.FREQUENCY'), value: 'FREQUENCY' }
               ]"
-              item-:title="$t('dashboard.title')"
+              item-title="title"
               item-value="value"
               :label="$t('plannings.type')"
               required
@@ -178,7 +178,7 @@
               v-if="editedItem"
               v-model="editedItem.site"
               :items="sites"
-              item-:title="$t('dashboard.name')"
+              item-title="name"
               item-value="id"
               :label="$t('timesheets.site')"
               :rules="[v => !!v || 'Le site est requis']"
@@ -193,7 +193,7 @@
               v-if="editedItem && employees.length >= 0"
               v-model="editedItem.employees"
               :items="employees"
-              item-:title="$t('dashboard.employee_name')"
+              item-title="employee_name"
               item-value="id"
               :label="$t('reports.reportTypes.EMPLOYEE')"
               multiple
@@ -208,7 +208,7 @@
               <template #chip="{ props: chipProps, item }">
                 <v-chip
                   v-bind="chipProps"
-                  ::text="$t('dashboard.itemrawemployee_name')"
+                  :text="item.raw.employee_name"
                   color="primary"
                   variant="outlined"
                 ></v-chip>
@@ -308,7 +308,7 @@
                 <div v-for="(detail, index) in editedItem.details" :key="index" class="day-container mb-4">
                   <v-checkbox
                     v-model="detail.enabled"
-                    ::label="$t('dashboard.daysofweekfindd_dvalue_detailday_of_weeklabel')"
+                    :label="daysOfWeek.find(d => d.value === detail.day_of_week)?.label"
                     class="mb-2 day-checkbox"
                     color="primary"
                     hide-details
@@ -358,7 +358,7 @@
                 <div v-for="(detail, index) in editedItem.details" :key="index" class="day-container mb-4">
                   <v-checkbox
                     v-model="detail.enabled"
-                    ::label="$t('dashboard.daysofweekfindd_dvalue_detailday_of_weeklabel')"
+                    :label="daysOfWeek.find(d => d.value === detail.day_of_week)?.label"
                     class="mb-2 day-checkbox"
                     color="primary"
                     hide-details
@@ -372,7 +372,7 @@
                         { text: t('plannings.dayTypes.AM'), value: DayTypeEnum.AM },
                         { text: t('plannings.dayTypes.PM'), value: DayTypeEnum.PM }
                       ]"
-                      item-:title="$t('mobile.text')"
+                      item-title="text"
                       item-value="value"
                       :label="$t('dashboard.type_de_journe')"
                       class="mb-4"
@@ -410,7 +410,7 @@
                                 v-model="detail.start_time_1"
                                 format="24hr"
                                 ok-text="OK"
-                                cancel-:text="$t('common.cancel')"
+                                :cancel-text="$t('common.cancel')"
                                 hide-header
                                 @click:save="detail.showStartTime1Menu = false"
                                 @click:cancel="detail.showStartTime1Menu = false"
@@ -440,7 +440,7 @@
                                 v-model="detail.end_time_1"
                                 format="24hr"
                                 ok-text="OK"
-                                cancel-:text="$t('common.cancel')"
+                                :cancel-text="$t('common.cancel')"
                                 hide-header
                                 @click:save="detail.showEndTime1Menu = false"
                                 @click:cancel="detail.showEndTime1Menu = false"
@@ -478,7 +478,7 @@
                                 v-model="detail.start_time_2"
                                 format="24hr"
                                 ok-text="OK"
-                                cancel-:text="$t('common.cancel')"
+                                :cancel-text="$t('common.cancel')"
                                 hide-header
                                 @click:save="detail.showStartTime2Menu = false"
                                 @click:cancel="detail.showStartTime2Menu = false"
@@ -508,7 +508,7 @@
                                 v-model="detail.end_time_2"
                                 format="24hr"
                                 ok-text="OK"
-                                cancel-:text="$t('common.cancel')"
+                                :cancel-text="$t('common.cancel')"
                                 hide-header
                                 @click:save="detail.showEndTime2Menu = false"
                                 @click:cancel="detail.showEndTime2Menu = false"

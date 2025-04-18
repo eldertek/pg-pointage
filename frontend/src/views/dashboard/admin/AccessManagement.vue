@@ -2,7 +2,7 @@
   <DashboardView
     ref="dashboardView"
     :title="$t('dashboard.gestion_des_accs')"
-    :form-:title="$t('dashboard.editeditem_as_organizationformdataid_modifier_lorganisation_nouvelle_organisation')"
+    :form-title="(editedItem as OrganizationFormData)?.id ? $t('organizations.editOrganization') : $t('organizations.addOrganization')"
     :saving="saving"
     @save="saveOrganization"
   >
@@ -41,10 +41,10 @@
       :loading="loading"
       :items-per-page="itemsPerPage"
       :items-length="totalItems"
-      :no-data-:text="$t('dashboard.aucune_organisation_trouve')"
-      :loading-:text="$t('dashboard.chargement_des_organisations')"
-      :items-per-page-:text="$t('dashboard.lignes_par_page')"
-      :page-:text="$t('dashboard.01_sur_2')"
+      :no-data-text="$t('dashboard.aucune_organisation_trouve')"
+      :loading-text="$t('dashboard.chargement_des_organisations')"
+      :items-per-page-text="$t('dashboard.lignes_par_page')"
+      :page-text="$t('dashboard.01_sur_2')"
       :items-per-page-options="[
         { title: '5', value: 5 },
         { title: '10', value: 10 },
@@ -152,14 +152,14 @@
             v-model="(editedItem as OrganizationFormData).country"
             v-model:search-input="searchCountry"
             :items="countries"
-            item-:title="$t('dashboard.title')"
+            item-title="title"
             item-value="value"
             :label="$t('sites.country')"
             variant="outlined"
             prepend-inner-icon="mdi-earth"
             :filter="customFilter"
             :error-messages="formErrors.country"
-            no-data-:text="$t('dashboard.aucun_pays_trouv')"
+            :no-data-text="$t('dashboard.aucun_pays_trouv')"
           ></v-autocomplete>
         </v-col>
         <v-col cols="12" sm="6">
