@@ -62,6 +62,7 @@ v-model:page="page" :headers="headers" :items="timesheets" :loading="loading"
         ]"
         :page-text="$t('common.pageInfo')"
         :items-per-page-text="$t('common.rowsPerPage')"
+        item-value="id"
         @click:row="handleRowClick">
         <template #item.entry_type="{ item }">
           <v-chip :color="item.entry_type === EntryTypeEnum.ARRIVAL ? 'success' : 'info'" size="small">
@@ -889,8 +890,13 @@ const confirmDelete = (item: any): void => {
   deleteDialog.value = true
 }
 
-const handleRowClick = (item: any): void => {
-  showDetails(item)
+const handleRowClick = (event: any, { item }: { item: any }): void => {
+  console.log('handleRowClick appelé avec:', { event, item })
+  if (item) {
+    showDetails(item)
+  } else {
+    console.error('Aucun item trouvé dans handleRowClick')
+  }
 }
 
 const deleteTimesheet = async () => {
