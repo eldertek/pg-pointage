@@ -543,49 +543,60 @@ const formatTime = (timeString: string): string => {
 const formatTimesheet = (timesheet: any): any => {
   try {
     console.log('Formatage du pointage:', timesheet)
-    if (!timesheet.timestamp) {
-      console.warn('Timestamp manquant dans le pointage:', timesheet)
+    // Créer une copie pour éviter les modifications directes
+    const timesheetCopy = { ...timesheet }
+
+    // Conserver l'original pour le débogage
+    timesheetCopy.original_timestamp = timesheetCopy.timestamp
+
+    // Vérifier si le timestamp est présent et valide
+    if (!timesheetCopy.timestamp) {
+      console.warn('Timestamp manquant dans le pointage:', timesheetCopy)
       return {
-        ...timesheet,
-        date: 'Date invalide',
-        time: '--:--',
-        // Conserver l'original pour le débogage
-        original_timestamp: timesheet.timestamp
+        ...timesheetCopy,
+        date: 'Date non disponible',
+        time: '--:--'
       }
     }
 
-    const timestamp = new Date(timesheet.timestamp)
-    if (isNaN(timestamp.getTime())) {
-      console.error('Date invalide dans formatTimesheet:', timesheet.timestamp)
+    try {
+      const timestamp = new Date(timesheetCopy.timestamp)
+      if (isNaN(timestamp.getTime())) {
+        console.error('Date invalide dans formatTimesheet:', timesheetCopy.timestamp)
+        return {
+          ...timesheetCopy,
+          date: 'Date non disponible',
+          time: '--:--'
+        }
+      }
+
+      const formatted = {
+        ...timesheetCopy,
+        date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
+        time: format(timestamp, 'HH:mm', { locale: fr }),
+        employee: timesheetCopy.employee_name || 'Employé inconnu',
+        site: timesheetCopy.site_name || 'Site inconnu'
+      }
+      console.log('Pointage formaté:', formatted)
+      return formatted
+    } catch (parseError) {
+      console.error('Erreur lors du parsing de la date:', parseError)
       return {
-        ...timesheet,
-        date: 'Date invalide',
+        ...timesheetCopy,
+        date: 'Date non disponible',
         time: '--:--',
-        // Conserver l'original pour le débogage
-        original_timestamp: timesheet.timestamp
+        employee: timesheetCopy.employee_name || 'Employé inconnu',
+        site: timesheetCopy.site_name || 'Site inconnu'
       }
     }
-
-    const formatted = {
-      ...timesheet,
-      date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
-      time: format(timestamp, 'HH:mm', { locale: fr }),
-      employee: timesheet.employee_name || 'Employé inconnu',
-      site: timesheet.site_name || 'Site inconnu',
-      // Conserver l'original pour le débogage
-      original_timestamp: timesheet.timestamp
-    }
-    console.log('Pointage formaté:', formatted)
-    return formatted
   } catch (error) {
     console.error('Erreur lors du formatage du pointage:', error)
     return {
       ...timesheet,
       date: 'Erreur',
       time: '--:--',
-      employee: 'Erreur',
-      site: 'Erreur',
-      original_timestamp: timesheet?.timestamp
+      employee: timesheet?.employee_name || 'Employé inconnu',
+      site: timesheet?.site_name || 'Site inconnu'
     }
   }
 }
@@ -649,35 +660,65 @@ const showDetails = (item: any): void => {
       return
     }
 
-    // Si l'item n'a pas de timestamp mais a déjà date et time (formaté précédemment)
-    if (!item.timestamp && item.date && item.time) {
+    // Créer une copie de l'item pour éviter les modifications directes
+    const itemCopy = { ...item }
+
+    // Cas 1: Si l'item a déjà date et time (formaté précédemment)
+    if (itemCopy.date && itemCopy.time) {
       console.log('Utilisation des champs date et time déjà formatés')
-      selectedTimesheet.value = { ...item }
+      selectedTimesheet.value = itemCopy
       detailDialog.value = true
       return
     }
 
-    // Vérification du timestamp
-    if (!item.timestamp) {
-      console.error('Timestamp manquant')
-      return
+    // Cas 2: Essayer d'utiliser timestamp
+    if (itemCopy.timestamp) {
+      try {
+        const timestamp = new Date(itemCopy.timestamp)
+        console.log('Timestamp original:', itemCopy.timestamp)
+        console.log('Timestamp parsé:', timestamp)
+
+        if (!isNaN(timestamp.getTime())) {
+          itemCopy.date = format(timestamp, 'dd/MM/yyyy', { locale: fr })
+          itemCopy.time = format(timestamp, 'HH:mm', { locale: fr })
+          selectedTimesheet.value = itemCopy
+          detailDialog.value = true
+          return
+        } else {
+          console.error('Date invalide:', itemCopy.timestamp)
+        }
+      } catch (err) {
+        console.error('Erreur lors du parsing du timestamp:', err)
+      }
     }
 
-    const timestamp = new Date(item.timestamp)
-    console.log('Timestamp original:', item.timestamp)
-    console.log('Timestamp parsé:', timestamp)
+    // Cas 3: Essayer d'utiliser original_timestamp comme fallback
+    if (itemCopy.original_timestamp) {
+      try {
+        const timestamp = new Date(itemCopy.original_timestamp)
+        console.log('Original timestamp utilisé:', itemCopy.original_timestamp)
 
-    if (isNaN(timestamp.getTime())) {
-      console.error('Date invalide:', item.timestamp)
-      return
+        if (!isNaN(timestamp.getTime())) {
+          itemCopy.date = format(timestamp, 'dd/MM/yyyy', { locale: fr })
+          itemCopy.time = format(timestamp, 'HH:mm', { locale: fr })
+          itemCopy.timestamp = itemCopy.original_timestamp // Mettre à jour le timestamp principal
+          selectedTimesheet.value = itemCopy
+          detailDialog.value = true
+          return
+        } else {
+          console.error('Date originale invalide:', itemCopy.original_timestamp)
+        }
+      } catch (err) {
+        console.error('Erreur lors du parsing du timestamp original:', err)
+      }
     }
 
-    selectedTimesheet.value = {
-      ...item,
-      date: format(timestamp, 'dd/MM/yyyy', { locale: fr }),
-      time: format(timestamp, 'HH:mm', { locale: fr })
-    }
-
+    // Si on arrive ici, aucun timestamp valide n'a été trouvé
+    console.error('Aucun timestamp valide trouvé')
+    // Afficher quand même le dialogue avec les informations disponibles
+    itemCopy.date = itemCopy.date || 'Date non disponible'
+    itemCopy.time = itemCopy.time || '--:--'
+    selectedTimesheet.value = itemCopy
     detailDialog.value = true
 
     if (selectedTimesheet.value?.latitude && selectedTimesheet.value?.longitude) {
@@ -721,20 +762,49 @@ const showDetails = (item: any): void => {
 
 const editTimesheet = (item: any): void => {
   try {
-    if (!item.timestamp) {
-      console.error('Timestamp manquant pour l\'édition')
+    // Vérifier si l'item est valide
+    if (!item || !item.id) {
+      console.error('Item invalide pour l\'édition')
       return
     }
 
-    const timestamp = new Date(item.timestamp)
-    if (isNaN(timestamp.getTime())) {
-      console.error('Date invalide pour l\'édition:', item.timestamp)
-      return
+    // Essayer d'utiliser le timestamp principal
+    let validTimestamp = null
+    if (item.timestamp) {
+      try {
+        const timestamp = new Date(item.timestamp)
+        if (!isNaN(timestamp.getTime())) {
+          validTimestamp = timestamp
+        } else {
+          console.warn('Timestamp principal invalide, recherche d\'alternatives')
+        }
+      } catch (err) {
+        console.warn('Erreur lors du parsing du timestamp principal:', err)
+      }
+    }
+
+    // Si le timestamp principal n'est pas valide, essayer l'original_timestamp
+    if (!validTimestamp && item.original_timestamp) {
+      try {
+        const timestamp = new Date(item.original_timestamp)
+        if (!isNaN(timestamp.getTime())) {
+          validTimestamp = timestamp
+          console.log('Utilisation du timestamp original pour l\'édition')
+        }
+      } catch (err) {
+        console.warn('Erreur lors du parsing du timestamp original:', err)
+      }
+    }
+
+    // Si aucun timestamp valide n'a été trouvé, utiliser la date et l'heure actuelles
+    if (!validTimestamp) {
+      console.warn('Aucun timestamp valide trouvé, utilisation de la date actuelle')
+      validTimestamp = new Date()
     }
 
     editingTimesheet.value = {
       id: item.id,
-      timestamp: format(timestamp, "yyyy-MM-dd'T'HH:mm", { locale: fr }),
+      timestamp: format(validTimestamp, "yyyy-MM-dd'T'HH:mm", { locale: fr }),
       entry_type: item.entry_type,
       correction_note: item.correction_note || ''
     }
