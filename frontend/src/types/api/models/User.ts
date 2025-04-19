@@ -26,6 +26,8 @@ export interface User {
     organizations_names: string[];
     phone_number?: string;
     is_active: boolean;
+    activation_start_date?: string;
+    activation_end_date?: string;
     employee_id?: string;
     scan_preference?: 'BOTH' | 'NFC_ONLY' | 'QR_ONLY';
     simplified_mobile_view?: boolean;

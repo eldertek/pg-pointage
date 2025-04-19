@@ -170,7 +170,7 @@ const getNFCImplementation = () => {
 export default {
   name: 'ScanView',
   setup() {
-    const { t } = useI18n()
+    useI18n()
     const timesheetStore = useTimesheetStore()
     const { getCurrentPosition, position } = useGeolocation()
 
@@ -528,7 +528,9 @@ export default {
         scanning.value = false
       } catch (error) {
         console.error('Erreur lors de l\'enregistrement:', error)
-        showError(error.response?.data?.detail || 'Erreur lors de l\'enregistrement')
+        const detail = error.response?.data?.detail
+        const errMsg = Array.isArray(detail) ? detail.join('\n') : detail || error.message || 'Erreur lors de l\'enregistrement'
+        showError(errMsg)
         scanning.value = false
       }
     }
@@ -573,25 +575,20 @@ export default {
         showSuccess(message)
       } catch (err) {
         console.error('Erreur lors de l\'enregistrement ambigu:', err)
-
         // Gestion des erreurs de validation du backend
         if (err.response?.data?.detail) {
           const detail = err.response.data.detail
-
-          // Si c'est un objet avec des champs d'erreur
           if (typeof detail === 'object') {
-            // Extraire les messages d'erreur
             const messages = Object.values(detail)
               .flat()
               .filter(msg => msg)
               .join('\n')
             showError(messages)
           } else {
-            // Si c'est une chaîne simple
             showError(detail)
           }
         } else {
-          showError('Erreur lors de l\'enregistrement')
+          showError(err.message || 'Erreur lors de l\'enregistrement')
         }
       } finally {
         showAmbiguousDialog.value = false

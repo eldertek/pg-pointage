@@ -3,7 +3,9 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 from .utils import validate_site_id
+from core.utils import is_entity_active
 
 
 class Site(models.Model):
@@ -84,6 +86,18 @@ class Site(models.Model):
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
     updated_at = models.DateTimeField(_('mis à jour le'), auto_now=True)
     is_active = models.BooleanField(_('actif'), default=True)
+    activation_start_date = models.DateField(
+        _('date de début d\'activation'),
+        null=True,
+        blank=True,
+        help_text=_('Date à partir de laquelle le site sera actif')
+    )
+    activation_end_date = models.DateField(
+        _('date de fin d\'activation'),
+        null=True,
+        blank=True,
+        help_text=_('Date à partir de laquelle le site sera inactif')
+    )
 
     class Meta:
         verbose_name = _('site')
@@ -122,6 +136,11 @@ class Site(models.Model):
             emails.extend([email.strip()
                           for email in str(self.alert_emails).split(',')])
         return list(set(emails))
+
+    @property
+    def is_currently_active(self):
+        """Détermine si le site est actuellement actif en fonction de son statut et de ses dates d'activation"""
+        return is_entity_active(self)
 
 
 class Schedule(models.Model):
@@ -184,6 +203,18 @@ class Schedule(models.Model):
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
     updated_at = models.DateTimeField(_('mis à jour le'), auto_now=True)
     is_active = models.BooleanField(_('actif'), default=True)
+    activation_start_date = models.DateField(
+        _('date de début d\'activation'),
+        null=True,
+        blank=True,
+        help_text=_('Date à partir de laquelle le planning sera actif')
+    )
+    activation_end_date = models.DateField(
+        _('date de fin d\'activation'),
+        null=True,
+        blank=True,
+        help_text=_('Date à partir de laquelle le planning sera inactif')
+    )
 
     class Meta:
         verbose_name = _('planning')

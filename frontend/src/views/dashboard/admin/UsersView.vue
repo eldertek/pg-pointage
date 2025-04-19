@@ -310,6 +310,38 @@
           </v-text-field>
         </v-col>
 
+        <!-- Statut et dates d'activation -->
+        <v-col v-if="editedItem" cols="12" sm="6">
+          <v-switch
+            v-model="(editedItem as UserFormData).is_active"
+            :label="$t('profile.active')"
+            color="success"
+            :error-messages="formErrors.is_active"
+          ></v-switch>
+        </v-col>
+
+        <v-col v-if="editedItem" cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as UserFormData).activation_start_date"
+            :label="$t('profile.activationStartDate', 'Date de début d\'activation')"
+            type="date"
+            :error-messages="formErrors.activation_start_date"
+            :hint="$t('profile.activationStartDateHint', 'Date à partir de laquelle l\'utilisateur sera actif')"
+            persistent-hint
+          ></v-text-field>
+        </v-col>
+
+        <v-col v-if="editedItem" cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as UserFormData).activation_end_date"
+            :label="$t('profile.activationEndDate', 'Date de fin d\'activation')"
+            type="date"
+            :error-messages="formErrors.activation_end_date"
+            :hint="$t('profile.activationEndDateHint', 'Date à partir de laquelle l\'utilisateur sera inactif')"
+            persistent-hint
+          ></v-text-field>
+        </v-col>
+
         <!-- Préférence de scan (pour les employés) -->
         <v-col v-if="editedItem && (editedItem as UserFormData).role === RoleEnum.EMPLOYEE" cols="12" sm="6">
           <v-select
@@ -433,6 +465,8 @@ interface ExtendedUser {
   last_name: string;
   role: string;
   is_active: boolean;
+  activation_start_date?: string;
+  activation_end_date?: string;
   organizations: number[];
   organizations_names: string[];
   phone_number: string;
@@ -455,6 +489,8 @@ interface UserFormData {
   organizations_names?: string[];
   phone_number: string;
   is_active: boolean;
+  activation_start_date?: string;
+  activation_end_date?: string;
   scan_preference: string;
   simplified_mobile_view: boolean;
   password?: string;
@@ -794,6 +830,8 @@ const openDialog = (item?: ExtendedUser) => {
       organizations_names: item.organizations_names ? [...item.organizations_names] : [],
       phone_number: item.phone_number,
       is_active: item.is_active,
+      activation_start_date: item.activation_start_date || '',
+      activation_end_date: item.activation_end_date || '',
       scan_preference: item.scan_preference,
       simplified_mobile_view: item.simplified_mobile_view,
       employee_id: item.employee_id
@@ -833,6 +871,8 @@ const openDialog = (item?: ExtendedUser) => {
       organizations_names: [],
       phone_number: '',
       is_active: true,
+      activation_start_date: '',
+      activation_end_date: '',
       scan_preference: ScanPreferenceEnum.BOTH,
       simplified_mobile_view: false,
       password: ''

@@ -23,7 +23,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 f"[Auth][Login] Utilisateur trouvé: {user.username} (actif: {user.is_active})")
 
             # Vérifier si l'utilisateur est actif
-            if not user.is_active:
+            if not user.is_currently_active:
                 print("[Auth][Login] Échec: utilisateur inactif")
                 raise serializers.ValidationError({
                     "error": "Ce compte est inactif. Veuillez contacter votre administrateur."
@@ -31,8 +31,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
             # Vérifier si les organisations sont actives
             if user.organizations.exists():
-                inactive_orgs = user.organizations.filter(is_active=False)
-                if inactive_orgs.exists():
+                from core.utils import is_entity_active
+                inactive_orgs = [org for org in user.organizations.all() if not is_entity_active(org)]
+                if inactive_orgs:
                     print("[Auth][Login] Échec: organisations inactives")
                     raise serializers.ValidationError({
                         "error": "Une ou plusieurs organisations auxquelles vous êtes rattaché sont inactives. Veuillez contacter votre administrateur."
@@ -63,7 +64,7 @@ class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, R
         fields = (
             'id', 'username', 'email', 'first_name', 'last_name',
             'role', 'organizations', 'organizations_names', 'phone_number',
-            'is_active', 'employee_id', 'date_joined', 'password',
+            'is_active', 'activation_start_date', 'activation_end_date', 'employee_id', 'date_joined', 'password',
             'scan_preference', 'simplified_mobile_view', 'language', 'reset_password'
         )
         read_only_fields = ['date_joined', 'employee_id']
@@ -219,8 +220,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
             'role', 'organizations', 'organizations_names', 'is_active',
-            'phone_number', 'employee_id', 'scan_preference', 'simplified_mobile_view',
-            'language'
+            'activation_start_date', 'activation_end_date', 'phone_number', 'employee_id',
+            'scan_preference', 'simplified_mobile_view', 'language'
         ]
         read_only_fields = ['id', 'username', 'email', 'role', 'organizations', 'employee_id']
 
@@ -246,7 +247,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'email', 'password', 'first_name', 'last_name',
-                  'is_active', 'role', 'organizations', 'phone_number',
+                  'is_active', 'activation_start_date', 'activation_end_date', 'role', 'organizations', 'phone_number',
                   'scan_preference', 'simplified_mobile_view', 'language', 'employee_id']
         read_only_fields = ['employee_id']
 

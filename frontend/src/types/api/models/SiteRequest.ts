@@ -25,6 +25,8 @@ export type SiteRequest = {
     allow_offline_mode?: boolean;
     max_offline_duration?: number;
     is_active?: boolean;
+    activation_start_date?: string;
+    activation_end_date?: string;
     manager?: number | null;
 };
 

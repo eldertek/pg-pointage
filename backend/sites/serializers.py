@@ -151,6 +151,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'site', 'site_name', 'schedule_type',
             'details', 'employees', 'created_at', 'updated_at', 'is_active',
+            'activation_start_date', 'activation_end_date',
             'assigned_employees', 'assigned_employee_ids',
             'frequency_tolerance_percentage',
             'late_arrival_margin', 'early_departure_margin'
@@ -350,7 +351,7 @@ class SiteSerializer(serializers.ModelSerializer):
                   'early_departure_margin', 'ambiguous_margin', 'alert_emails',
                   'require_geolocation', 'geolocation_radius', 'allow_offline_mode',
                   'max_offline_duration', 'created_at', 'updated_at', 'is_active',
-                  'schedules']
+                  'activation_start_date', 'activation_end_date', 'schedules']
         read_only_fields = ['created_at', 'updated_at',
                             'organization_name', 'nfc_id']
         extra_kwargs = {

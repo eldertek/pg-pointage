@@ -6,6 +6,7 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 from timesheets.models import Timesheet, Anomaly
 from sites.models import Site, Schedule, ScheduleDetail, SiteEmployee
+from core.utils import is_entity_active
 
 User = get_user_model()
 
@@ -105,9 +106,9 @@ class Command(BaseCommand):
             else:
                 with transaction.atomic():
                     anomalies_created = self._check_minute_anomalies(current_time, site, employee, dry_run)
-            
+
             self.stdout.write(self.style.SUCCESS(f"Vérification terminée: {anomalies_created} anomalies créées"))
-            
+
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Erreur lors de la vérification des pointages manquants: {str(e)}"))
             raise
@@ -139,14 +140,20 @@ class Command(BaseCommand):
         # Parcourir toutes les relations site-employé
         for site_employee in site_employees:
             # Vérifier si le site est actif
-            if not site_employee.site.is_active:
+            if not is_entity_active(site_employee.site):
                 if self.verbose:
-                    self.stdout.write(f"Site {site_employee.site.name} inactif, ignoré")
+                    self.stdout.write(f"Site {site_employee.site.name} inactif ou hors période d'activation, ignoré")
+                continue
+
+            # Vérifier si l'employé est actif
+            if not is_entity_active(site_employee.employee):
+                if self.verbose:
+                    self.stdout.write(f"Employé {site_employee.employee.get_full_name()} inactif ou hors période d'activation, ignoré")
                 continue
 
             # Récupérer le planning
             schedule = site_employee.schedule
-            if not schedule or not schedule.is_active:
+            if not schedule or not is_entity_active(schedule):
                 if self.verbose:
                     self.stdout.write(f"Planning inactif ou non défini pour {site_employee.employee.get_full_name()} au site {site_employee.site.name}, ignoré")
                 continue
@@ -196,7 +203,7 @@ class Command(BaseCommand):
                                     f"au site {site_employee.site.name} le {current_date} (heure actuelle: {current_time_obj}, "
                                     f"heure d'arrivée prévue: {schedule_detail.start_time_1})"
                                 ))
-                    
+
                     # Cas 1.2: Deux pointages (après-midi)
                     elif timesheet_count == 2:
                         # Vérifier si l'heure actuelle dépasse l'heure d'arrivée de l'après-midi + marge
@@ -261,7 +268,7 @@ class Command(BaseCommand):
         if not existing_anomaly:
             # Créer une anomalie pour pointage manquant
             description = f"Pointage d'arrivée manquant détecté en temps réel"
-            
+
             anomaly = Anomaly.objects.create(
                 employee=site_employee.employee,
                 site=site_employee.site,
@@ -271,7 +278,7 @@ class Command(BaseCommand):
                 status=Anomaly.AnomalyStatus.PENDING,
                 schedule=schedule
             )
-            
+
             self.stdout.write(self.style.SUCCESS(
                 f"Anomalie créée: Pointage d'arrivée manquant - {site_employee.employee.get_full_name()} au site {site_employee.site.name} le {date}"
             ))

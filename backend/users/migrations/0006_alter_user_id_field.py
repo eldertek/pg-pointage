@@ -1,19 +1,19 @@
 from django.db import migrations, models
 import django.db.models.deletion
-from django.contrib.auth import get_user_model
 from users.utils import generate_user_id
 
 def update_user_ids_and_references(apps, schema_editor):
     """
     Mise à jour des IDs utilisateurs et des références
     """
-    User = get_user_model()
+    User = apps.get_model('users', 'User')
     
     # Mettre à jour tous les utilisateurs pour s'assurer qu'ils ont un employee_id valide
     for user in User.objects.all():
         if not user.employee_id:
-            user.employee_id = generate_user_id()
-            user.save()
+            # Générer un nouvel ID et mettre à jour uniquement ce champ
+            new_id = generate_user_id()
+            User.objects.filter(pk=user.pk).update(employee_id=new_id)
 
 class Migration(migrations.Migration):
 

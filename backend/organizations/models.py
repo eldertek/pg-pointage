@@ -1,10 +1,12 @@
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+from core.utils import is_entity_active
 
 class Organization(models.Model):
     """Modèle pour les organisations - Entité centrale qui relie utilisateurs, sites et plannings"""
-    
+
     name = models.CharField(_('nom'), max_length=100)
     org_id = models.CharField(
         _('ID Organisation'),
@@ -25,19 +27,31 @@ class Organization(models.Model):
     created_at = models.DateTimeField(_('créé le'), auto_now_add=True)
     updated_at = models.DateTimeField(_('mis à jour le'), auto_now=True)
     is_active = models.BooleanField(_('actif'), default=True)
-    
+    activation_start_date = models.DateField(
+        _('date de début d\'activation'),
+        null=True,
+        blank=True,
+        help_text=_('Date à partir de laquelle l\'organisation sera active')
+    )
+    activation_end_date = models.DateField(
+        _('date de fin d\'activation'),
+        null=True,
+        blank=True,
+        help_text=_('Date à partir de laquelle l\'organisation sera inactive')
+    )
+
     class Meta:
         verbose_name = _('organisation')
         verbose_name_plural = _('organisations')
         ordering = ['name']
-    
+
     def __str__(self):
         return f"{self.name} ({self.org_id})"
-    
+
     def clean(self):
         """Validation personnalisée du modèle"""
         super().clean()
-        
+
         # Valider le format de l'ID de l'organisation
         if self.org_id:
             if not self.org_id.startswith('O'):
@@ -54,7 +68,7 @@ class Organization(models.Model):
                 raise ValidationError({
                     'org_id': _('L\'ID de l\'organisation doit être au format O + 3 chiffres')
                 })
-    
+
     def save(self, *args, **kwargs):
         # Si pas d'org_id, en générer un
         if not self.org_id and not Organization.objects.filter(id=self.id).exists():
@@ -71,7 +85,7 @@ class Organization(models.Model):
                 else:
                     next_number = 1
                 self.org_id = f"O{next_number:03d}"
-        
+
         super().save(*args, **kwargs)
 
     def get_total_anomalies(self):
@@ -80,7 +94,7 @@ class Organization(models.Model):
         return TimesheetAnomaly.objects.filter(
             timesheet__user__organizations=self
         ).count()
-        
+
     def get_pending_anomalies(self):
         """Retourne le nombre d'anomalies en attente pour l'organisation"""
         from timesheets.models import TimesheetAnomaly
@@ -88,4 +102,9 @@ class Organization(models.Model):
             timesheet__user__organizations=self,
             status='PENDING'
         ).count()
+
+    @property
+    def is_currently_active(self):
+        """Détermine si l'organisation est actuellement active en fonction de son statut et de ses dates d'activation"""
+        return is_entity_active(self)
 

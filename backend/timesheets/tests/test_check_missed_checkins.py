@@ -12,6 +12,7 @@ from timesheets.models import Timesheet, Anomaly
 from sites.models import Site, Schedule, ScheduleDetail, SiteEmployee
 from organizations.models import Organization
 from timesheets.management.commands.check_missed_checkins import Command
+from datetime import date
 
 User = get_user_model()
 
@@ -208,6 +209,70 @@ class CheckMissedCheckinsTestCase(TestCase):
         anomalies = Anomaly.objects.filter(
             employee=self.employee,
             site=self.inactive_site
+        )
+        self.assertEqual(anomalies.count(), 0)
+
+    def test_site_with_future_activation_date(self):
+        """Test: Vérifier qu'aucune anomalie n'est générée pour un site avec date d'activation future"""
+        # Créer un site avec date d'activation future
+        future_site = Site.objects.create(
+            name="Site Activation Future",
+            address="123 Future Street",
+            postal_code="12345",
+            city="Future City",
+            organization=self.organization,
+            is_active=True,
+            activation_start_date=date.today().replace(year=date.today().year + 1),  # Année prochaine
+            nfc_id="FUTURE123"  # Valeur unique pour le champ nfc_id
+        )
+
+        # Associer l'employé au site avec activation future
+        SiteEmployee.objects.create(
+            site=future_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_full,
+            is_active=True
+        )
+
+        # Exécuter la commande
+        output = self.call_command(dry_run=True, verbose=True)
+
+        # Vérifier qu'aucune anomalie n'a été créée
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=future_site
+        )
+        self.assertEqual(anomalies.count(), 0)
+
+    def test_site_with_past_activation_end_date(self):
+        """Test: Vérifier qu'aucune anomalie n'est générée pour un site avec date de fin d'activation passée"""
+        # Créer un site avec date de fin d'activation passée
+        past_site = Site.objects.create(
+            name="Site Activation Passée",
+            address="123 Past Street",
+            postal_code="12345",
+            city="Past City",
+            organization=self.organization,
+            is_active=True,
+            activation_end_date=date.today().replace(year=date.today().year - 1),  # Année dernière
+            nfc_id="PAST12345"  # Valeur unique pour le champ nfc_id
+        )
+
+        # Associer l'employé au site avec activation passée
+        SiteEmployee.objects.create(
+            site=past_site,
+            employee=self.employee,
+            schedule=self.active_fixed_schedule_full,
+            is_active=True
+        )
+
+        # Exécuter la commande
+        output = self.call_command(dry_run=True, verbose=True)
+
+        # Vérifier qu'aucune anomalie n'a été créée
+        anomalies = Anomaly.objects.filter(
+            employee=self.employee,
+            site=past_site
         )
         self.assertEqual(anomalies.count(), 0)
 

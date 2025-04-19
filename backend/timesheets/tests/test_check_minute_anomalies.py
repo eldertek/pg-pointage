@@ -12,6 +12,7 @@ from timesheets.models import Timesheet, Anomaly
 from sites.models import Site, Schedule, ScheduleDetail, SiteEmployee
 from organizations.models import Organization
 from timesheets.management.commands.check_minute_anomalies import Command
+from datetime import date
 
 User = get_user_model()
 
@@ -308,6 +309,56 @@ class CheckMinuteAnomaliesTestCase(TestCase):
         """Test qu'aucune anomalie n'est créée pour un site inactif"""
         # Désactiver le site
         self.site.is_active = False
+        self.site.save()
+
+        # Définir l'heure actuelle à 8h16 (après l'heure de début + marge)
+        current_time = datetime.combine(timezone.now().date(), time(8, 16))
+
+        # Simuler l'heure actuelle
+        original_now = timezone.now
+        timezone.now = lambda: current_time.replace(tzinfo=timezone.get_current_timezone())
+
+        try:
+            # Appeler la commande
+            out = StringIO()
+            call_command('check_minute_anomalies', stdout=out)
+
+            # Vérifier qu'aucune anomalie n'a été créée
+            self.assertEqual(Anomaly.objects.count(), 0)
+        finally:
+            # Restaurer la fonction timezone.now
+            timezone.now = original_now
+
+    def test_site_with_future_activation_date(self):
+        """Test qu'aucune anomalie n'est créée pour un site avec date d'activation future"""
+        # Configurer le site avec une date d'activation future
+        self.site.is_active = True
+        self.site.activation_start_date = date.today().replace(year=date.today().year + 1)  # Année prochaine
+        self.site.save()
+
+        # Définir l'heure actuelle à 8h16 (après l'heure de début + marge)
+        current_time = datetime.combine(timezone.now().date(), time(8, 16))
+
+        # Simuler l'heure actuelle
+        original_now = timezone.now
+        timezone.now = lambda: current_time.replace(tzinfo=timezone.get_current_timezone())
+
+        try:
+            # Appeler la commande
+            out = StringIO()
+            call_command('check_minute_anomalies', stdout=out)
+
+            # Vérifier qu'aucune anomalie n'a été créée
+            self.assertEqual(Anomaly.objects.count(), 0)
+        finally:
+            # Restaurer la fonction timezone.now
+            timezone.now = original_now
+
+    def test_site_with_past_activation_end_date(self):
+        """Test qu'aucune anomalie n'est créée pour un site avec date de fin d'activation passée"""
+        # Configurer le site avec une date de fin d'activation passée
+        self.site.is_active = True
+        self.site.activation_end_date = date.today().replace(year=date.today().year - 1)  # Année dernière
         self.site.save()
 
         # Définir l'heure actuelle à 8h16 (après l'heure de début + marge)

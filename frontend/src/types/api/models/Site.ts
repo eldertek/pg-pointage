@@ -34,6 +34,8 @@ export type Site = {
     readonly created_at: string;
     readonly updated_at: string;
     is_active?: boolean;
+    activation_start_date?: string;
+    activation_end_date?: string;
     readonly schedules: Array<Schedule>;
     manager?: number | null;
     readonly manager_name: string;

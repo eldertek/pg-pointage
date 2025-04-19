@@ -184,6 +184,26 @@
             :label="$t('dashboard.organisation_active')"
           ></v-switch>
         </v-col>
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as OrganizationFormData).activation_start_date"
+            :label="$t('organizations.activationStartDate', 'Date de début d\'activation')"
+            type="date"
+            :error-messages="formErrors.activation_start_date"
+            :hint="$t('organizations.activationStartDateHint', 'Date à partir de laquelle l\'organisation sera active')"
+            persistent-hint
+          ></v-text-field>
+        </v-col>
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="(editedItem as OrganizationFormData).activation_end_date"
+            :label="$t('organizations.activationEndDate', 'Date de fin d\'activation')"
+            type="date"
+            :error-messages="formErrors.activation_end_date"
+            :hint="$t('organizations.activationEndDateHint', 'Date à partir de laquelle l\'organisation sera inactive')"
+            persistent-hint
+          ></v-text-field>
+        </v-col>
       </DashboardForm>
     </template>
   </DashboardView>
@@ -252,6 +272,8 @@ interface OrganizationFormData {
   siret?: string;
   notes?: string;
   is_active?: boolean;
+  activation_start_date?: string;
+  activation_end_date?: string;
   users?: number[];
 }
 

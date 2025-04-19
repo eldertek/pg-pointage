@@ -1,10 +1,9 @@
 from django.db import migrations
-from django.contrib.auth import get_user_model
 from users.utils import generate_user_id, validate_user_id
 
 def update_user_ids(apps, schema_editor):
     """Met à jour les IDs des utilisateurs qui ne correspondent pas au format attendu"""
-    User = get_user_model()
+    User = apps.get_model('users', 'User')
     
     # Récupérer tous les utilisateurs
     users = User.objects.all()

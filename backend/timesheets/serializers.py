@@ -186,7 +186,7 @@ class TimesheetCreateSerializer(serializers.ModelSerializer, SitePermissionMixin
         # Nouvelle règle : empêcher un scan si un pointage a déjà été effectué il y a moins de 10 minutes
         ten_minutes_ago = attrs['timestamp'] - timedelta(minutes=10)
         if Timesheet.objects.filter(employee=employee, site=site, timestamp__gte=ten_minutes_ago).exists():
-            raise serializers.ValidationError("Vous avez déjà pointé il y a moins de 10 minutes. Veuillez attendre avant de scanner à nouveau.")
+            raise serializers.ValidationError("Pointage refusé : badge déjà scanné il y a moins de 10 min. Réessayez plus tard.")
 
         # Vérifier que l'employé est actif
         if not employee.is_active:

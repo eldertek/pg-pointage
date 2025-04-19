@@ -8,6 +8,7 @@ from django.utils import timezone
 from timesheets.models import Timesheet, Anomaly
 from sites.models import Site, SiteEmployee, Schedule, ScheduleDetail
 from users.models import User
+from core.utils import is_entity_active
 
 
 class Command(BaseCommand):
@@ -131,9 +132,21 @@ class Command(BaseCommand):
 
         # Pour chaque relation site-employé
         for site_employee in site_employees:
+            # Vérifier si le site est actif
+            if not is_entity_active(site_employee.site):
+                if self.verbose:
+                    self.stdout.write(f"Site {site_employee.site.name} inactif ou hors période d'activation pour {site_employee.employee.get_full_name()}")
+                continue
+
+            # Vérifier si l'employé est actif
+            if not is_entity_active(site_employee.employee):
+                if self.verbose:
+                    self.stdout.write(f"Employé {site_employee.employee.get_full_name()} inactif ou hors période d'activation au site {site_employee.site.name}")
+                continue
+
             # Vérifier si l'employé a un planning actif
             schedule = site_employee.schedule
-            if not schedule or not schedule.is_active:
+            if not schedule or not is_entity_active(schedule):
                 if self.verbose:
                     self.stdout.write(f"Pas de planning actif pour {site_employee.employee.get_full_name()} au site {site_employee.site.name}")
                 continue

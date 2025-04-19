@@ -18,5 +18,7 @@ export type OrganizationRequest = {
     logo?: Blob | null;
     notes?: string;
     is_active?: boolean;
+    activation_start_date?: string;
+    activation_end_date?: string;
 };
 

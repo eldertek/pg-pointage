@@ -8,6 +8,7 @@ from sites.models import Site, SiteEmployee, Schedule, ScheduleDetail
 from users.models import User
 from rest_framework.response import Response
 from rest_framework import status
+from core.utils import is_entity_active
 
 class AnomalyProcessor:
     """
@@ -21,7 +22,7 @@ class AnomalyProcessor:
     def _is_timesheet_matching_schedule(self, timesheet, schedule):
         """Vérifie si un pointage correspond à un planning"""
         # Vérifier si le planning est valide
-        if not schedule or not schedule.is_active:
+        if not schedule or not is_entity_active(schedule):
             self.logger.debug(f"Planning {schedule.id if schedule else 'None'} non valide ou inactif")
             return False
 
@@ -179,7 +180,7 @@ class AnomalyProcessor:
         # Parcourir les relations pour trouver un planning actif pour cette date
         for site_employee in site_employee_relations:
             schedule = site_employee.schedule
-            if not schedule or not schedule.is_active:
+            if not schedule or not is_entity_active(schedule):
                 self.logger.debug(f"  Relation {site_employee.id}: Pas de planning actif")
                 continue
 
@@ -349,7 +350,7 @@ class AnomalyProcessor:
             created_anomalies.append(multiple_scan_anomaly)
 
         # 1. Vérifier le statut du site (actif/inactif)
-        if not site.is_active:
+        if not is_entity_active(site):
             timesheet.is_out_of_schedule = True
             timesheet.save()
 
@@ -369,7 +370,7 @@ class AnomalyProcessor:
                     timesheet=timesheet,
                     date=current_date,
                     anomaly_type=Anomaly.AnomalyType.OTHER,
-                    description=f"Site inactif: Le site {site.name} est actuellement désactivé.",
+                    description=f"Site inactif: Le site {site.name} est actuellement désactivé ou hors période d'activation.",
                     status=Anomaly.AnomalyStatus.PENDING
                 )
                 self._anomalies_detected = True
@@ -431,7 +432,7 @@ class AnomalyProcessor:
             schedule = site_employee.schedule
 
             # 5. Vérifier si le planning est actif
-            if not schedule or not schedule.is_active:
+            if not schedule or not is_entity_active(schedule):
                 self.logger.debug(f"Planning inactif ou non défini pour {employee.get_full_name()} au site {site.name}")
                 continue
 

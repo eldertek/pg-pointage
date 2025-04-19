@@ -226,6 +226,26 @@
               color="success"
             ></v-switch>
           </v-col>
+
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="editedItem.activation_start_date"
+              :label="$t('sites.activationStartDate', 'Date de début d\'activation')"
+              type="date"
+              :hint="$t('sites.activationStartDateHint', 'Date à partir de laquelle le site sera actif')"
+              persistent-hint
+            ></v-text-field>
+          </v-col>
+
+          <v-col cols="12" sm="6">
+            <v-text-field
+              v-model="editedItem.activation_end_date"
+              :label="$t('sites.activationEndDate', 'Date de fin d\'activation')"
+              type="date"
+              :hint="$t('sites.activationEndDateHint', 'Date à partir de laquelle le site sera inactif')"
+              persistent-hint
+            ></v-text-field>
+          </v-col>
         </v-row>
       </DashboardForm>
     </template>
@@ -284,6 +304,8 @@ interface EditedSite {
   early_departure_margin: number
   ambiguous_margin: number
   is_active: boolean
+  activation_start_date?: string
+  activation_end_date?: string
   alert_emails: string
 }
 
@@ -314,6 +336,8 @@ const defaultSiteValues = {
   early_departure_margin: 15,
   ambiguous_margin: 20,
   is_active: true,
+  activation_start_date: '',
+  activation_end_date: '',
   alert_emails: ''
 } as EditedSite
 
@@ -478,6 +502,8 @@ const saveSite = async () => {
       early_departure_margin: editedItem.value.early_departure_margin ?? 15,
       ambiguous_margin: editedItem.value.ambiguous_margin ?? 20,
       is_active: editedItem.value.is_active ?? true,
+      activation_start_date: editedItem.value.activation_start_date || null,
+      activation_end_date: editedItem.value.activation_end_date || null,
       alert_emails: editedItem.value.alert_emails ?? ''
     }
 
