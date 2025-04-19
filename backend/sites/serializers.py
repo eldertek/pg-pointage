@@ -334,6 +334,10 @@ class ScheduleSerializer(serializers.ModelSerializer):
         # Si le site est envoyé comme un dictionnaire avec un id, extraire l'id
         if isinstance(data.get('site'), dict) and 'id' in data['site']:
             data['site'] = data['site']['id']
+        # Convertir les chaînes vides des dates d'activation en None pour éviter les erreurs de format
+        for date_field in ['activation_start_date', 'activation_end_date']:
+            if date_field in data and data.get(date_field) == '':
+                data.pop(date_field)
         return super().to_internal_value(data)
 
 
@@ -429,6 +433,16 @@ class SiteSerializer(serializers.ModelSerializer):
             validated_data['nfc_id'] = generate_site_id(
                 validated_data['organization'])
         return super().update(instance, validated_data)
+
+    def to_internal_value(self, data):
+        # Si le site est envoyé comme un dictionnaire avec un id, extraire l'id
+        if isinstance(data.get('site'), dict) and 'id' in data['site']:
+            data['site'] = data['site']['id']
+        # Convertir les chaînes vides des dates d'activation en None pour éviter les erreurs de format
+        for date_field in ['activation_start_date', 'activation_end_date']:
+            if date_field in data and data.get(date_field) == '':
+                data.pop(date_field)
+        return super().to_internal_value(data)
 
 
 class SiteStatisticsSerializer(serializers.Serializer):

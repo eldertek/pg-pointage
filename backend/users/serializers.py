@@ -92,6 +92,13 @@ class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, R
 
         return data
 
+    def to_internal_value(self, data):
+        # Convertir les chaînes vides des dates d'activation en None pour éviter les erreurs de format
+        for date_field in ['activation_start_date', 'activation_end_date']:
+            if date_field in data and data.get(date_field) == '':
+                data.pop(date_field)
+        return super().to_internal_value(data)
+
     def validate(self, data):
         user = self.context['request'].user
 
@@ -215,6 +222,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """Serializer pour le profil utilisateur"""
     organizations_names = serializers.SerializerMethodField()
 
+    def to_internal_value(self, data):
+        # Convertir les chaînes vides des dates d'activation en None
+        for date_field in ['activation_start_date', 'activation_end_date']:
+            if date_field in data and data.get(date_field) == '':
+                data.pop(date_field)
+        return super().to_internal_value(data)
+
     class Meta:
         model = User
         fields = [
@@ -243,6 +257,13 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         required=False,
         allow_empty=True
     )
+
+    def to_internal_value(self, data):
+        # Convertir les chaînes vides des dates d'activation en None
+        for date_field in ['activation_start_date', 'activation_end_date']:
+            if date_field in data and data.get(date_field) == '':
+                data.pop(date_field)
+        return super().to_internal_value(data)
 
     class Meta:
         model = User
