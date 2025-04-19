@@ -157,6 +157,7 @@ export const useAuthStore = defineStore("auth", {
           console.error("Rôle non défini après connexion")
           throw new Error("Rôle non défini après connexion")
         }
+        return true;
       } catch (error: unknown) {
         const apiError = error as ApiError;
         console.error("Erreur de connexion:", apiError);
@@ -166,8 +167,17 @@ export const useAuthStore = defineStore("auth", {
           data: apiError.response?.data,
           headers: apiError.response?.headers
         });
-        this.error = apiError.response?.data?.detail || "Erreur lors de la connexion";
-        throw error;
+        // Extraire le message détaillé de l'erreur provenant du backend
+        const data = apiError.response?.data;
+        if (data?.detail) {
+          this.error = data.detail;
+        } else if (data?.error) {
+          const err = data.error;
+          this.error = Array.isArray(err) ? err.join(' ') : err;
+        } else {
+          this.error = "Erreur lors de la connexion";
+        }
+        return false;
       } finally {
         this.loading = false
       }
