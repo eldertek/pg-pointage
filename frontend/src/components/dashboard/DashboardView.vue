@@ -3,7 +3,7 @@
     <!-- En-tête avec titre et actions -->
     <div class="d-flex justify-space-between align-center mb-4">
       <div>
-        <Title :level="1">{{ $t(title) }}</Title>
+        <Title :level="1">{{ te(title) ? t(title) : title }}</Title>
         <slot name="subtitle"></slot>
       </div>
       <div class="d-flex gap-2">
@@ -83,6 +83,7 @@ import { ref } from 'vue'
 import { Title } from '@/components/typography'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { typography } from '@/styles/typography'
+import { useI18n } from 'vue-i18n'
 
 defineProps({
   title: {
@@ -99,6 +100,7 @@ defineProps({
   }
 })
 
+const { t, te } = useI18n()
 const showForm = ref(false)
 
 const closeForm = () => {
