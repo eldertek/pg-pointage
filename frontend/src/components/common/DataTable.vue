@@ -25,6 +25,13 @@
       <component :is="slot.component" v-bind="slot.props(rowItem)" />
     </template>
 
+    <!-- Forward parent-defined cell slots for each header -->
+    <template v-for="header in headers" :key="header.key" #[`item.${header.key}`]="{ item: rowItem }">
+      <slot :name="'item.' + header.key" :item="rowItem">
+        {{ rowItem[header.key] }}
+      </slot>
+    </template>
+
     <!-- Slot par défaut pour les actions -->
     <template #item.actions="{ item: rowItem }">
       <slot name="actions" :item="rowItem">
@@ -78,7 +85,6 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 
 interface TableHeader {
@@ -110,10 +116,6 @@ const props = defineProps<{
   headers: TableHeader[];
   items: TableItem[];
   itemsPerPage?: number;
-  noDataText?: string;
-  loadingText?: string;
-  itemsPerPageText?: string;
-  pageText?: string;
   itemsPerPageOptions?: ItemsPerPageOption[];
   customSlots?: TableSlot[];
   detailRoute?: string;
@@ -121,13 +123,7 @@ const props = defineProps<{
   isManager?: boolean;
 }>()
 
-const { t } = useI18n()
-
 // Valeurs par défaut pour les textes
-const defaultItemsPerPageText = t('common.rowsPerPage')
-const defaultLoadingText = t('common.loading')
-const defaultPageText = t('common.pageInfo')
-const defaultNoDataText = t('common.noData')
 const defaultItemsPerPageOptions = [
   { title: '5', value: 5 },
   { title: '10', value: 10 },
