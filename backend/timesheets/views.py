@@ -149,10 +149,20 @@ class TimesheetCreateView(generics.CreateAPIView):
             }, status=status.HTTP_201_CREATED)
 
         except serializers.ValidationError as e:
-            return Response(
-                {'detail': e.detail},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            # Aplatir les erreurs de sérialisation en un message unique
+            detail = e.detail
+            if isinstance(detail, dict):
+                # Extraire la première erreur du dict
+                errors = list(detail.values())
+                if errors and isinstance(errors[0], (list, tuple)):
+                    message = errors[0][0]
+                else:
+                    message = str(detail)
+            elif isinstance(detail, (list, tuple)):
+                message = detail[0]
+            else:
+                message = str(detail)
+            return Response({'detail': message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger = logging.getLogger(__name__)
             logger.error(f"Erreur lors de la création du pointage: {str(e)}", exc_info=True)
