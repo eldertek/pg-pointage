@@ -2,6 +2,7 @@ import { defineStore } from "pinia"
 import api from "@/services/api"
 import router from "@/router"
 import { nextTick } from "vue"
+import i18n from '@/plugins/i18n'
 
 interface Credentials {
   email: string;
@@ -271,6 +272,10 @@ export const useAuthStore = defineStore("auth", {
         const response = await api.get("/users/profile/")
         console.log("Profil utilisateur reçu:", response.data)
         this.user = response.data
+        if (response.data.language) {
+          i18n.global.locale.value = response.data.language
+          localStorage.setItem('language', response.data.language)
+        }
       } catch (error) {
         console.error("Erreur lors de la récupération du profil:", error)
         throw error
