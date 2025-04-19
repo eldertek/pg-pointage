@@ -1040,7 +1040,7 @@ const saveSchedule = async () => {
         .filter(detail => detail.enabled)
         .map(detail => {
           // Créer un objet de base pour tous les types de planning
-          const detailData = {
+          const detailData: any = {
             id: detail.id || undefined,
             day_of_week: detail.day_of_week,
             day_type: currentItem.schedule_type === ScheduleTypeEnum.FIXED ? detail.day_type : undefined,

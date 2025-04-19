@@ -285,7 +285,7 @@ id="mapContainer"
         <v-divider></v-divider>
         <v-card-text>
           <v-container>
-            <DashboardForm id="editForm" ref="editForm" :errors="formErrors" @submit="saveTimesheet">
+            <DashboardForm id="editForm" :errors="formErrors" @submit="saveTimesheet">
               <v-row>
                 <v-col cols="12" sm="6">
                   <v-text-field

@@ -19,7 +19,7 @@ import OrganizationDetail from "@/views/dashboard/organizations/OrganizationDeta
 import UserDetail from "@/views/dashboard/admin/UserDetail.vue"
 import Plannings from "@/views/dashboard/PlanningsView.vue"
 import PlanningDetail from "@/views/dashboard/plannings/PlanningDetail.vue"
-import Timesheets from "@/views/dashboard/Timesheets.vue"
+import Timesheets from "@/views/dashboard/TimesheetsView.vue"
 import Anomalies from "@/views/dashboard/Anomalies.vue"
 import Reports from "@/views/dashboard/Reports.vue"
 import Settings from "@/views/dashboard/Settings.vue"
