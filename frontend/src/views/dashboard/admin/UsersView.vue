@@ -67,8 +67,8 @@
         { title: '15', value: 15 },
         { title: t('common.all'), value: -1 }
       ]"
-      :page-text="$t('dashboard.01_sur_2')"
-      :items-per-page-text="$t('dashboard.lignes_par_page')"
+      :page-text="$t('common.pageInfo')"
+      :items-per-page-text="$t('common.rowsPerPage')"
       @click:row="handleRowClick"
     >
       <!-- Rôle -->

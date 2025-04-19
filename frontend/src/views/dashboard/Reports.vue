@@ -84,8 +84,8 @@
       :items-per-page="10"
       :no-data-text="$t('dashboard.aucun_rapport_trouv')"
       :loading-text="$t('dashboard.chargement_des_rapports')"
-      :items-per-page-text="$t('dashboard.lignes_par_page')"
-      :page-text="$t('dashboard.01_sur_2')"
+      :items-per-page-text="$t('common.rowsPerPage')"
+      :page-text="$t('common.pageInfo')"
       :items-per-page-options="[
         { title: '5', value: 5 },
         { title: '10', value: 10 },
