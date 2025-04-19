@@ -337,7 +337,7 @@ class ScheduleSerializer(serializers.ModelSerializer):
         # Convertir les chaînes vides des dates d'activation en None pour éviter les erreurs de format
         for date_field in ['activation_start_date', 'activation_end_date']:
             if date_field in data and data.get(date_field) == '':
-                data.pop(date_field)
+                data[date_field] = None
         return super().to_internal_value(data)
 
 
@@ -441,7 +441,7 @@ class SiteSerializer(serializers.ModelSerializer):
         # Convertir les chaînes vides des dates d'activation en None pour éviter les erreurs de format
         for date_field in ['activation_start_date', 'activation_end_date']:
             if date_field in data and data.get(date_field) == '':
-                data.pop(date_field)
+                data[date_field] = None
         return super().to_internal_value(data)
 
 

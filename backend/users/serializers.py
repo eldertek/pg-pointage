@@ -93,10 +93,10 @@ class UserSerializer(serializers.ModelSerializer, OrganizationPermissionMixin, R
         return data
 
     def to_internal_value(self, data):
-        # Convertir les chaînes vides des dates d'activation en None pour éviter les erreurs de format
+        # Convertir les chaînes vides des dates d'activation en None pour permettre de réinitialiser la date
         for date_field in ['activation_start_date', 'activation_end_date']:
             if date_field in data and data.get(date_field) == '':
-                data.pop(date_field)
+                data[date_field] = None
         return super().to_internal_value(data)
 
     def validate(self, data):
@@ -223,10 +223,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
     organizations_names = serializers.SerializerMethodField()
 
     def to_internal_value(self, data):
-        # Convertir les chaînes vides des dates d'activation en None
+        # Convertir les chaînes vides des dates d'activation en None pour permettre de réinitialiser la date
         for date_field in ['activation_start_date', 'activation_end_date']:
             if date_field in data and data.get(date_field) == '':
-                data.pop(date_field)
+                data[date_field] = None
         return super().to_internal_value(data)
 
     class Meta:
@@ -259,10 +259,10 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     )
 
     def to_internal_value(self, data):
-        # Convertir les chaînes vides des dates d'activation en None
+        # Convertir les chaînes vides des dates d'activation en None pour permettre de réinitialiser la date
         for date_field in ['activation_start_date', 'activation_end_date']:
             if date_field in data and data.get(date_field) == '':
-                data.pop(date_field)
+                data[date_field] = None
         return super().to_internal_value(data)
 
     class Meta:
