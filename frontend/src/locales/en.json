@@ -41,7 +41,7 @@
     "type": "Type",
     "status": "Status",
     "rowsPerPage": "Rows per page",
-    "pageInfo": "{0}-{1} of {2}",
+    "pageInfo": "of",
     "noData": "No data available",
     "resetFilters": "Reset filters",
     "all": "All",

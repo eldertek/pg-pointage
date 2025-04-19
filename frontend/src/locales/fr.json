@@ -40,7 +40,7 @@
     "type": "Type",
     "status": "Statut",
     "rowsPerPage": "Lignes par page",
-    "pageInfo": "{0}-{1} sur {2}",
+    "pageInfo": "sur",
     "noData": "Aucune donnée disponible",
     "loading": "Chargement...",
     "resetFilters": "Réinitialiser les filtres",

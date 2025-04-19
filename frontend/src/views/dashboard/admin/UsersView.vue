@@ -67,7 +67,7 @@
         { title: '15', value: 15 },
         { title: t('common.all'), value: -1 }
       ]"
-      :page-text="$t('common.pageInfo')"
+      :page-text="`{0}-{1} ${$t('common.pageInfo')} {2}`"
       :items-per-page-text="$t('common.rowsPerPage')"
       @click:row="handleRowClick"
     >

@@ -7,7 +7,7 @@
     :no-data-text="$t('common.noData')"
     :loading-text="$t('common.loading')"
     :items-per-page-text="$t('common.rowsPerPage')"
-    :page-text="$t('common.pageInfo')"
+    :page-text="`{0}-{1} ${$t('common.pageInfo')} {2}`"
     :items-per-page-options="itemsPerPageOptions || defaultItemsPerPageOptions"
     class="elevation-1"
     @click:row="handleRowClick"
