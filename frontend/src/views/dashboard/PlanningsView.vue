@@ -859,7 +859,8 @@ const loadSchedules = async () => {
 
 const loadSites = async () => {
   try {
-    const response = await sitesApi.getAllSites()
+    // Récupérer tous les sites avec une grande taille de page pour inclure tous les sites dans le dropdown
+    const response = await sitesApi.getAllSites(1, 1000)
     sites.value = response.data.results || []
   } catch (error) {
     console.error('Erreur lors du chargement des sites:', error)
