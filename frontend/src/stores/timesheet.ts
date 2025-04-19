@@ -2,6 +2,7 @@ import { defineStore } from "pinia"
 import { ref } from "vue"
 import type { Ref } from "vue"
 import api from "@/services/api"
+import { useI18n } from 'vue-i18n'
 
 export interface Timesheet {
   id: number
@@ -140,4 +141,24 @@ export const useTimesheetStore = defineStore("timesheet", () => {
     fetchUserStats,
     reportAnomaly
   }
-}) 
+})
+
+// Utilitaires d'internationalisation pour les types/statuts de pointage
+export function useTimesheetLabels() {
+  const { t } = useI18n()
+  const getEntryTypeLabel = (type: string) => {
+    if (type === 'ARRIVAL') return t('timesheets.entryTypes.ARRIVAL')
+    if (type === 'DEPARTURE') return t('timesheets.entryTypes.DEPARTURE')
+    return type
+  }
+  const getStatusLabel = (status: string) => {
+    if (status === 'NORMAL' || status === 'VALIDATED') return t('timesheets.statuses.VALIDATED')
+    if (status === 'LATE') return t('anomalies.anomalyTypes.LATE')
+    if (status === 'EARLY_DEPARTURE') return t('anomalies.anomalyTypes.EARLY_DEPARTURE')
+    if (status === 'PENDING') return t('timesheets.statuses.PENDING')
+    if (status === 'REJECTED') return t('timesheets.statuses.REJECTED')
+    if (status === 'ANOMALY') return t('timesheets.statuses.ANOMALY')
+    return status
+  }
+  return { getEntryTypeLabel, getStatusLabel }
+} 

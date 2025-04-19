@@ -338,7 +338,6 @@
     "noDescription": "No description available",
     "anomalyTypes": {
       "LATE_ARRIVAL": "Late arrival",
-      "EARLY_DEPARTURE": "Early departure",
       "MISSED_CHECK_IN": "Missed check-in",
       "MISSED_CHECK_OUT": "Missed check-out",
       "UNPLANNED_DAY": "Unplanned day",
@@ -346,7 +345,14 @@
       "SCHEDULE_INACTIVE": "Schedule inactive",
       "CONSECUTIVE_SCANS": "Consecutive scans",
       "FREQUENCY_INSUFFICIENT": "Insufficient duration",
-      "OTHER": "Other"
+      "OTHER": "Other",
+      "LATE": "Late",
+      "EARLY_DEPARTURE": "Early departure",
+      "MISSING_ARRIVAL": "Missing arrival",
+      "MISSING_DEPARTURE": "Missing departure",
+      "INSUFFICIENT_HOURS": "Insufficient hours",
+      "CONSECUTIVE_SAME_TYPE": "Consecutive same type",
+      "UNLINKED_SCHEDULE": "Unlinked schedule"
     },
     "anomalyStatuses": {
       "PENDING": "Pending",

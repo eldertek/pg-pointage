@@ -344,7 +344,14 @@
       "SCHEDULE_INACTIVE": "Planning inactif",
       "CONSECUTIVE_SCANS": "Scans consécutifs",
       "FREQUENCY_INSUFFICIENT": "Durée insuffisante",
-      "OTHER": "Autre"
+      "OTHER": "Autre",
+      "LATE": "Retard",
+      "EARLY_DEPARTURE": "Départ anticipé",
+      "MISSING_ARRIVAL": "Arrivée manquante",
+      "MISSING_DEPARTURE": "Départ manquant",
+      "INSUFFICIENT_HOURS": "Heures insuffisantes",
+      "CONSECUTIVE_SAME_TYPE": "Pointages consécutifs",
+      "UNLINKED_SCHEDULE": "Planning non lié"
     },
     "anomalyStatuses": {
       "PENDING": "En attente",

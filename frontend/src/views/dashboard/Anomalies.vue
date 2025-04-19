@@ -138,10 +138,10 @@
         </template>
         <template #item.anomaly_type_display="{ item }">
           <v-chip
-            :color="getTypeColor(item.anomaly_type_display)"
+            :color="getTypeColor(item.anomaly_type)"
             size="small"
           >
-            {{ item.anomaly_type_display }}
+            {{ t(`anomalies.anomalyTypes.${item.anomaly_type}`) }}
           </v-chip>
         </template>
 
@@ -174,10 +174,10 @@
           <div class="form-dialog-title">
             <span class="text-h4">
               <v-chip
-                :color="getTypeColor(selectedAnomaly.anomaly_type_display)"
+                :color="getTypeColor(selectedAnomaly.anomaly_type)"
                 class="mr-2"
               >
-                {{ selectedAnomaly.anomaly_type_display }}
+                {{ t(`anomalies.anomalyTypes.${selectedAnomaly.anomaly_type}`) }}
               </v-chip>
               {{ $t('anomalies.details', 'Détails de l\'anomalie') }}
             </span>
@@ -378,20 +378,22 @@ export default {
     })
 
     const siteOptions = ref([])
-    const anomalyTypeOptions = ref([
-      { text: 'Retard', value: 'LATE' },
-      { text: 'Départ anticipé', value: 'EARLY_DEPARTURE' },
-      { text: 'Arrivée manquante', value: 'MISSING_ARRIVAL' },
-      { text: 'Départ manquant', value: 'MISSING_DEPARTURE' },
-      { text: 'Heures insuffisantes', value: 'INSUFFICIENT_HOURS' },
-      { text: 'Pointages consécutifs', value: 'CONSECUTIVE_SAME_TYPE' },
-      { text: 'Planning non lié', value: 'UNLINKED_SCHEDULE' },
-      { text: 'Autre', value: 'OTHER' }
+    const anomalyTypeOptions = computed(() => [
+      { text: t('anomalies.anomalyTypes.LATE_ARRIVAL'), value: 'LATE_ARRIVAL' },
+      { text: t('anomalies.anomalyTypes.EARLY_DEPARTURE'), value: 'EARLY_DEPARTURE' },
+      { text: t('anomalies.anomalyTypes.MISSED_CHECK_IN'), value: 'MISSED_CHECK_IN' },
+      { text: t('anomalies.anomalyTypes.MISSED_CHECK_OUT'), value: 'MISSED_CHECK_OUT' },
+      { text: t('anomalies.anomalyTypes.UNPLANNED_DAY'), value: 'UNPLANNED_DAY' },
+      { text: t('anomalies.anomalyTypes.SITE_INACTIVE'), value: 'SITE_INACTIVE' },
+      { text: t('anomalies.anomalyTypes.SCHEDULE_INACTIVE'), value: 'SCHEDULE_INACTIVE' },
+      { text: t('anomalies.anomalyTypes.CONSECUTIVE_SCANS'), value: 'CONSECUTIVE_SCANS' },
+      { text: t('anomalies.anomalyTypes.FREQUENCY_INSUFFICIENT'), value: 'FREQUENCY_INSUFFICIENT' },
+      { text: t('anomalies.anomalyTypes.OTHER'), value: 'OTHER' }
     ])
-    const statusOptions = ref([
-      { text: 'En attente', value: 'PENDING' },
-      { text: 'Résolu', value: 'RESOLVED' },
-      { text: 'Ignoré', value: 'IGNORED' }
+    const statusOptions = computed(() => [
+      { text: t('anomalies.anomalyStatuses.PENDING'), value: 'PENDING' },
+      { text: t('anomalies.anomalyStatuses.RESOLVED'), value: 'RESOLVED' },
+      { text: t('anomalies.anomalyStatuses.IGNORED'), value: 'IGNORED' }
     ])
 
     const anomalies = ref([])
@@ -419,14 +421,18 @@ export default {
     }
 
     const getTypeColor = (type) => {
-      if (type === 'Retard') return 'warning'
-      if (type === 'Départ anticipé') return 'error'
-      if (type === 'Arrivée manquante') return 'red'
-      if (type === 'Départ manquant') return 'purple'
-      if (type === 'Heures insuffisantes') return 'deep-orange'
-      if (type === 'Pointages consécutifs') return 'orange'
-      if (type === 'Planning non lié') return 'blue'
-      return 'grey'
+      switch (type) {
+        case 'LATE_ARRIVAL': return 'warning'
+        case 'EARLY_DEPARTURE': return 'error'
+        case 'MISSED_CHECK_IN': return 'red'
+        case 'MISSED_CHECK_OUT': return 'purple'
+        case 'FREQUENCY_INSUFFICIENT': return 'deep-orange'
+        case 'CONSECUTIVE_SCANS': return 'orange'
+        case 'UNPLANNED_DAY': return 'blue'
+        case 'SITE_INACTIVE': return 'grey'
+        case 'SCHEDULE_INACTIVE': return 'blue'
+        default: return 'grey'
+      }
     }
 
     const getStatusColor = (status) => {
@@ -602,7 +608,7 @@ export default {
           if (response.data.anomalies_created !== undefined) {
             const count = response.data.anomalies_created
             message = count > 0
-              ? `${count} anomalie${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''} et créée${count > 1 ? 's' : ''}.`
+              ? `${count} anomalie${count > 1 ? 's' : ''} détectée${count > 1 ? 's' : ''}.`
               : 'Aucune nouvelle anomalie détectée.'
           }
 

@@ -515,13 +515,15 @@ const getStatusColor = (timesheet: any): string => {
 }
 
 const getStatusLabel = (timesheet: any): string => {
-  if (timesheet.is_late) return `Retard (${timesheet.late_minutes} min)`
-  if (timesheet.is_early_departure) return `Départ anticipé (${timesheet.early_departure_minutes} min)`
-  return 'Normal'
+  if (timesheet.is_late) return `${t('anomalies.anomalyTypes.LATE')}${timesheet.late_minutes ? ` (${timesheet.late_minutes} min)` : ''}`
+  if (timesheet.is_early_departure) return `${t('anomalies.anomalyTypes.EARLY_DEPARTURE')}${timesheet.early_departure_minutes ? ` (${timesheet.early_departure_minutes} min)` : ''}`
+  return t('timesheets.statuses.VALIDATED')
 }
 
 const getEntryTypeLabel = (type: EntryTypeEnum): string => {
-  return type === EntryTypeEnum.ARRIVAL ? 'Arrivée' : 'Départ'
+  if (type === EntryTypeEnum.ARRIVAL) return t('timesheets.entryTypes.ARRIVAL')
+  if (type === EntryTypeEnum.DEPARTURE) return t('timesheets.entryTypes.DEPARTURE')
+  return type
 }
 
 // Fonction pour récupérer les messages d'erreur d'un champ spécifique

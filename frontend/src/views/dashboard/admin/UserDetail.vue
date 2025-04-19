@@ -298,17 +298,11 @@
                 :items="pointages"
                 :no-data-text="$t('dashboard.noTimesheetsFound', 'Aucun pointage trouvé')"
               >
-                <template #item.status="{ item: rowItem }">
-                  <v-chip
-                    :color="getPointageStatusColor(rowItem.status)"
-                    size="small"
-                  >
-                    {{ getPointageStatusLabel(rowItem.status) }}
-                  </v-chip>
+                <template #item.entry_type="{ item: rowItem }">
+                  {{ $t(`timesheets.entryTypes.${rowItem.entry_type}`) }}
                 </template>
-
-                <template #item.created_at="{ item: rowItem }">
-                  {{ formatDate(rowItem.created_at) }}
+                <template #item.timestamp="{ item: rowItem }">
+                  {{ format(new Date(rowItem.timestamp), 'dd/MM/yyyy HH:mm:ss', { locale: fr }) }}
                 </template>
               </DataTable>
             </v-window-item>
@@ -506,9 +500,8 @@ const planningsHeaders = [
 
 const pointagesHeaders = [
   { title: t('common.site'), key: 'site_name' },
-  { title: t('common.type'), key: 'type' },
-  { title: t('timesheets.dateTime', 'Date/Heure'), key: 'created_at' },
-  { title: t('common.status'), key: 'status' }
+  { title: t('timesheets.entryType'), key: 'entry_type' },
+  { title: t('timesheets.dateTime', 'Date/Heure'), key: 'timestamp' }
 ]
 
 const anomaliesHeaders = [

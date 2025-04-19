@@ -90,59 +90,72 @@
             {{ $t('dashboard.aucune_anomalie_rcente') }}
           </v-card-text>
 
-          <v-list v-else>
-            <v-list-item
-              v-for="anomaly in recentAnomalies"
-              :key="anomaly.id"
-              class="py-2"
-            >
-              <template #prepend>
-                <v-icon
-                  :color="anomaly.status === 'PENDING' ? 'error' : 'success'"
-                  class="me-2"
-                  ::title="$t('dashboard.anomalystatus_display')"
+          <v-card-text v-else class="pb-0">
+            <v-row dense>
+              <v-col v-for="anomaly in recentAnomalies" :key="anomaly.id" cols="12">
+                <v-card 
+                  :color="anomaly.status === 'PENDING' ? 'error' : 'success'" 
+                  class="anomaly-card mb-4" 
+                  variant="outlined"
+                  :ripple="false"
                 >
-                  {{ anomaly.status === 'PENDING' ? 'mdi-alert-circle' : 'mdi-check-circle' }}
-                </v-icon>
-              </template>
-
-              <v-list-item-title class="font-weight-medium">
-                {{ anomaly.anomaly_type_display }}
-                <v-chip
-                  size="x-small"
-                  :color="anomaly.status === 'PENDING' ? 'error' : 'success'"
-                  class="ml-2"
-                >
-                  {{ anomaly.status_display }}
-                </v-chip>
-              </v-list-item-title>
-
-              <v-list-item-subtitle class="mt-1">
-                <v-icon size="small" class="me-1">mdi-account</v-icon>
-                {{ anomaly.employee_name }}
-              </v-list-item-subtitle>
-
-              <v-list-item-subtitle>
-                <v-icon size="small" class="me-1">mdi-map-marker</v-icon>
-                {{ anomaly.site_name }}
-              </v-list-item-subtitle>
-
-              <v-list-item-subtitle class="text-caption mt-1">
-                <v-icon size="small" class="me-1">mdi-clock-outline</v-icon>
-                {{ new Date(anomaly.created_at).toLocaleString('fr-FR', {
-                  dateStyle: 'medium',
-                  timeStyle: 'medium'
-                }) }}
-              </v-list-item-subtitle>
-
-              <v-list-item-subtitle v-if="anomaly.description" class="text-caption mt-1 text-grey">
-                <v-icon size="small" class="me-1">mdi-information</v-icon>
-                {{ anomaly.translated_description || anomaly.description }}
-              </v-list-item-subtitle>
-            </v-list-item>
-
-            <v-divider v-if="recentAnomalies.length > 1" class="my-2"></v-divider>
-          </v-list>
+                  <div class="d-flex align-center py-2 pl-4 pr-2 anomaly-header">
+                    <v-avatar 
+                      size="36" 
+                      :color="anomaly.status === 'PENDING' ? 'error' : 'success'" 
+                      class="mr-3 elevation-1"
+                    >
+                      <v-icon 
+                        color="white" 
+                        :title="t(`anomalies.anomalyTypes.${anomaly.anomaly_type}`)"
+                      >
+                        {{ getAnomalyIcon(anomaly.anomaly_type) }}
+                      </v-icon>
+                    </v-avatar>
+                    
+                    <div class="flex-grow-1">
+                      <div class="text-subtitle-1 font-weight-medium text-truncate">
+                        {{ t(`anomalies.anomalyTypes.${anomaly.anomaly_type}`) }}
+                      </div>
+                    </div>
+                    
+                    <v-chip
+                      size="small"
+                      :color="anomaly.status === 'PENDING' ? 'error' : 'success'"
+                      label
+                      class="px-2 ml-2 white--text"
+                    >
+                      {{ t(`anomalies.anomalyStatuses.${anomaly.status}`) }}
+                    </v-chip>
+                  </div>
+                  
+                  <v-card-text class="py-2 px-4 bg-surface">
+                    <div class="d-flex flex-column">
+                      <div class="d-flex align-center mb-1">
+                        <v-icon size="small" color="black" class="me-2">mdi-account</v-icon>
+                        <span class="text-body-2">{{ anomaly.employee_name }}</span>
+                      </div>
+                      
+                      <div class="d-flex align-center mb-1">
+                        <v-icon size="small" color="black" class="me-2">mdi-map-marker</v-icon>
+                        <span class="text-body-2">{{ anomaly.site_name }}</span>
+                      </div>
+                      
+                      <div class="d-flex align-center mb-1">
+                        <v-icon size="small" color="black" class="me-2">mdi-clock-outline</v-icon>
+                        <span class="text-caption">{{ formatDate(anomaly.created_at) }}</span>
+                      </div>
+                      
+                      <div v-if="anomaly.description" class="d-flex align-center">
+                        <v-icon size="small" color="black" class="me-2">mdi-information</v-icon>
+                        <span class="text-caption text-grey-darken-1">{{ anomaly.translated_description || anomaly.description }}</span>
+                      </div>
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-card-text>
         </v-card>
       </v-col>
     </v-row>
@@ -163,6 +176,7 @@ import type { ToastInterface } from 'vue-toastification'
 import { useToast } from 'vue-toastification'
 import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
 import { Title as AppTitle } from '@/components/typography'
+import { useI18n } from 'vue-i18n'
 
 interface Stats {
   sitesCount: number
@@ -200,6 +214,7 @@ export default {
   },
   setup() {
     const toast = useToast() as ToastInterface
+    const { t, locale } = useI18n()
     const stats = ref<Stats>({
       sitesCount: 0,
       employeesCount: 0,
@@ -225,6 +240,16 @@ export default {
         }
       }
     })
+
+    const formatDate = (dateString: string) => {
+      if (!dateString) return ''
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return dateString
+      return date.toLocaleString(locale.value, {
+        dateStyle: 'medium',
+        timeStyle: 'medium'
+      })
+    }
 
     const fetchDashboardStats = async () => {
       try {
@@ -324,6 +349,22 @@ export default {
       fetchRecentAnomalies()
     }
 
+    // Function to retrieve the correct icon based on anomaly type
+    const getAnomalyIcon = (type: string): string => {
+      switch (type) {
+        case 'LATE_ARRIVAL': return 'mdi-clock-alert'
+        case 'EARLY_DEPARTURE': return 'mdi-exit-to-app'
+        case 'MISSED_CHECK_IN': return 'mdi-login-variant'
+        case 'MISSED_CHECK_OUT': return 'mdi-logout-variant'
+        case 'UNPLANNED_DAY': return 'mdi-calendar-question'
+        case 'SITE_INACTIVE': return 'mdi-domain-off'
+        case 'SCHEDULE_INACTIVE': return 'mdi-calendar-remove'
+        case 'CONSECUTIVE_SCANS': return 'mdi-scan-helper'
+        case 'FREQUENCY_INSUFFICIENT': return 'mdi-timer-alert'
+        default: return 'mdi-alert-circle'
+      }
+    }
+
     onMounted(() => {
       console.log('Dashboard component mounted')
       fetchDashboardStats()
@@ -338,7 +379,10 @@ export default {
       error,
       showStatsError,
       fetchRecentAnomalies,
-      refreshDashboard
+      refreshDashboard,
+      t,
+      formatDate,
+      getAnomalyIcon
     }
   }
 }
@@ -389,6 +433,46 @@ export default {
 :deep(.v-btn__overlay),
 :deep(.v-btn__underlay) {
   opacity: 0 !important;
+}
+
+/* Ensure all v-icon elements are visible inside this component */
+:deep(.v-icon) {
+  opacity: 1 !important;
+}
+
+/* Styles pour les cartes d'anomalies */
+.anomaly-card {
+  border-width: 1px;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.anomaly-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.anomaly-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+:deep(.v-avatar) {
+  border: 2px solid white;
+}
+
+:deep(.v-chip.white--text) {
+  color: white !important;
+}
+
+:deep(.bg-surface) {
+  background-color: #fafafa !important;
+}
+
+/* Force les icônes de la liste à être noires */
+:deep(.anomaly-card .v-card-text .v-icon) {
+  color: #000000 !important;
+  opacity: 1 !important;
 }
 </style>
 

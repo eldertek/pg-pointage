@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions, status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.utils import timezone
+from django.utils import timezone, translation
 from django.db.models import Q
 from django.core.exceptions import ValidationError
 from datetime import time
@@ -36,6 +36,10 @@ class TimesheetListView(generics.ListCreateAPIView):
     pagination_class = None  # Désactiver la pagination pour cette vue
 
     def get_queryset(self):
+        # Optionnel : forcer la langue de la réponse selon le header Accept-Language
+        lang = self.request.headers.get('Accept-Language')
+        if lang:
+            translation.activate(lang.split(',')[0])
         user = self.request.user
         queryset = Timesheet.objects.select_related('employee', 'site')
 
@@ -82,6 +86,10 @@ class TimesheetDetailView(generics.RetrieveUpdateDestroyAPIView):
         return [IsAdminOrManager()]
 
     def get_queryset(self):
+        # Optionnel : forcer la langue de la réponse selon le header Accept-Language
+        lang = self.request.headers.get('Accept-Language')
+        if lang:
+            translation.activate(lang.split(',')[0])
         user = self.request.user
         if user.is_super_admin:
             return Timesheet.objects.all()

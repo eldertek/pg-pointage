@@ -13,15 +13,18 @@ class TimesheetSerializer(serializers.ModelSerializer, OrganizationPermissionMix
     employee_name = serializers.SerializerMethodField()
     site_name = serializers.SerializerMethodField()
     schedule_details = serializers.SerializerMethodField()
+    entry_type_display = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Timesheet
         fields = [
             'id', 'employee', 'employee_name', 'site', 'site_name',
-            'timestamp', 'entry_type', 'latitude', 'longitude',
+            'timestamp', 'entry_type', 'entry_type_display', 'latitude', 'longitude',
             'is_late', 'late_minutes', 'is_early_departure',
             'early_departure_minutes', 'correction_note',
-            'created_at', 'updated_at', 'schedule_details'
+            'created_at', 'updated_at', 'schedule_details',
+            'status_display'
         ]
         read_only_fields = ['created_at', 'updated_at', 'schedule_details']
         extra_kwargs = {
@@ -141,6 +144,19 @@ class TimesheetSerializer(serializers.ModelSerializer, OrganizationPermissionMix
             })
 
         return result
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_entry_type_display(self, obj) -> str:
+        return obj.get_entry_type_display() if hasattr(obj, 'get_entry_type_display') else obj.entry_type
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_status_display(self, obj) -> str:
+        # Statut logique : validé, retard, départ anticipé, etc.
+        if obj.is_late:
+            return 'Retard'
+        if obj.is_early_departure:
+            return 'Départ anticipé'
+        return 'Validé'
 
 class TimesheetCreateSerializer(serializers.ModelSerializer, SitePermissionMixin):
     """Serializer pour la création de pointages"""
