@@ -135,7 +135,7 @@
               >
                 
                 <template #item.is_active="{ item: rowItem }">
-                  <StatusChip :status="rowItem.is_active" />
+                  <StatusChip :status="rowItem.is_active ?? false" />
                 </template>
                 
                 <template #item.created_at="{ item: rowItem }">
@@ -215,7 +215,6 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Title } from '@/components/typography'
@@ -228,6 +227,7 @@ import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
 import { sitesApi } from '@/services/api'
 import { employeesService } from '@/services/employees'
+import { useAuthStore } from '@/stores/auth'
 
 // Types
 interface Field {
@@ -253,7 +253,6 @@ type DisplayField = Field | AddressField;
 
 // Props
 const showBackButton = ref(true)
-const allowDelete = ref(true)
 
 // State variables
 const router = useRouter()
@@ -321,6 +320,16 @@ const title = computed(() => "Détails de l'organisation")
 
 const backRoute = computed(() => '/dashboard/admin/access')
 
+const authStore = useAuthStore()
+const canEdit = computed(() => {
+  const role = authStore.user?.role
+  return role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'MANAGER'
+})
+const canCreateDelete = computed(() => {
+  const role = authStore.user?.role
+  return role === 'SUPER_ADMIN' || role === 'ADMIN'
+})
+
 const displayFields = computed((): DisplayField[] => {
   return [
     { key: 'name', label: 'Nom', icon: 'mdi-domain' },
@@ -376,26 +385,26 @@ const employeesHeaders = [
   { 
     title: 'Email', 
     key: 'email',
-    align: 'start',
+    align: 'start' as const,
     sortable: true
   },
   { 
     title: 'Téléphone', 
     key: 'phone_number',
-    align: 'start',
+    align: 'start' as const,
     sortable: true
   },
   { 
     title: 'Rôle', 
     key: 'role',
-    align: 'start',
+    align: 'start' as const,
     sortable: true
   },
   { 
     title: 'Actions', 
     key: 'actions', 
     sortable: false,
-    align: 'end'
+    align: 'end' as const
   }
 ]
 
