@@ -72,7 +72,8 @@
           <v-card-title>{{ $t('settings.security') }}</v-card-title>
           <v-card-text>
             <v-form ref="passwordForm" @submit.prevent="changePassword">
-              <input type="text"
+              <input
+type="text"
                 :value="profile.username"
                 autocomplete="username"
                 style="display: none;"

@@ -184,104 +184,31 @@
                   <v-progress-circular indeterminate color="primary"></v-progress-circular>
                 </v-col>
               </v-row>
-              <v-card v-else>
-                <v-toolbar flat>
-                  <v-toolbar-title>{{ $t('plannings.title') }}</v-toolbar-title>
-                  <v-spacer></v-spacer>
-                </v-toolbar>
-                <v-data-table
-                  :headers="planningsHeaders"
-                  :items="plannings"
-                  :no-data-text="$t('dashboard.noSchedulesFound', 'Aucun planning trouvé')"
-                  :is-manager="isManager"
-                  class="elevation-1"
-                  @click:row="(item: Planning) => router.push(`/dashboard/plannings/${item.id}`)"
-                >
-                  <!-- Site -->
-                  <template #item.site_name="{ item: rowItem }">
-                    {{ rowItem.site_name }}
-                  </template>
-
-                  <!-- Employés -->
-                  <template #item.employees="{ item: rowItem }">
-                    <v-chip-group>
-                      <v-chip
-                        v-for="employee in rowItem.assigned_employees"
-                        :key="employee.id"
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      >
-                        {{ employee.employee_name }}
-                      </v-chip>
-                      <v-chip
-                        v-if="!rowItem.assigned_employees?.length"
-                        size="small"
-                        color="grey"
-                        variant="outlined"
-                      >
-                        {{ $t('plannings.noEmployees') }}
-                      </v-chip>
-                    </v-chip-group>
-                  </template>
-
-                  <!-- Type de planning -->
-                  <template #item.schedule_type="{ item: rowItem }">
-                    <v-chip
-                      :color="rowItem.schedule_type === 'FIXED' ? 'primary' : 'secondary'"
-                      size="small"
-                    >
-                      {{ rowItem.schedule_type === 'FIXED' ? $t('plannings.fixed') : $t('plannings.frequency') }}
-                    </v-chip>
-                  </template>
-
-                  <!-- Actions -->
-                  <template #item.actions="{ item: rowItem }">
-                    <v-btn
-                      icon
-                      variant="text"
-                      size="small"
-                      color="primary"
-                      @click.stop="viewPlanningDetails(rowItem)"
-                    >
-                      <v-icon>mdi-eye</v-icon>
-                      <v-tooltip activator="parent">{{ $t('common.viewDetails') }}</v-tooltip>
-                    </v-btn>
-                    <v-btn
-                      icon
-                      variant="text"
-                      size="small"
-                      color="primary"
-                      @click.stop="navigateToPlanning(rowItem)"
-                    >
-                      <v-icon>mdi-pencil</v-icon>
-                      <v-tooltip activator="parent">{{ $t('common.edit') }}</v-tooltip>
-                    </v-btn>
-                    <v-btn
-                      v-if="canManageStatus"
-                      icon
-                      variant="text"
-                      size="small"
-                      color="warning"
-                      @click.stop="confirmTogglePlanningStatus(item)"
-                    >
-                      <v-icon>{{ rowItem.is_active ? 'mdi-domain' : 'mdi-domain-off' }}</v-icon>
-                      <v-tooltip activator="parent">{{ rowItem.is_active ? $t('common.deactivate') : $t('common.activate') }}</v-tooltip>
-                    </v-btn>
-                    <v-btn
-                      v-if="canManageStatus"
-                      icon
-                      variant="text"
-                      size="small"
-                      color="error"
-                      @click.stop="confirmDeletePlanning(item)"
-                    >
-                      <v-icon>mdi-delete</v-icon>
-                      <v-tooltip activator="parent">{{ $t('common.delete') }}</v-tooltip>
-                    </v-btn>
-                  </template>
-                </v-data-table>
-              </v-card>
+              <DataTable
+                v-else
+                :title="$t('plannings.title')"
+                :headers="planningsHeaders"
+                :items="plannings"
+                :no-data-text="$t('dashboard.noSchedulesFound', 'Aucun planning trouvé')"
+                :detail-route="'/dashboard/plannings/:id'"
+                :edit-route="'/dashboard/plannings/:id/edit'"
+                :is-manager="isManager"
+                @toggle-status="confirmTogglePlanningStatus"
+                @delete="confirmDeletePlanning"
+                @row-click="(item: TableItem) => router.push(`/dashboard/plannings/${item.id}`)"
+              >
+                <template #item.site_name="{ item: rowItem }">
+                  {{ rowItem.site_name }}
+                </template>
+                <template #item.employees="{ item: rowItem }">
+                  <span v-for="(e, i) in rowItem.assigned_employees" :key="e.id">
+                    {{ e.employee_name }}<span v-if="i < rowItem.assigned_employees.length - 1">, </span>
+                  </span>
+                </template>
+                <template #item.schedule_type="{ item: rowItem }">
+                  {{ rowItem.schedule_type }}
+                </template>
+              </DataTable>
             </v-window-item>
 
             <!-- Onglet Pointages -->
@@ -398,6 +325,7 @@ import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useConfirmDialog } from '@/utils/dialogs'
 import type { DialogState } from '@/utils/dialogs'
+import { useDetailTableHeaders } from '@/composables/useDetailTableHeaders'
 
 // Type definitions
 interface Field {
@@ -483,40 +411,8 @@ const reports = ref<any[]>([])
 
 const { t } = useI18n()
 
-// En-têtes des tableaux
-const sitesHeaders = [
-  { title: t('common.name'), key: 'name' },
-  { title: t('common.address'), key: 'address' },
-  { title: t('common.organization'), key: 'organization_name' },
-  { title: t('common.actions'), key: 'actions', sortable: false }
-]
-
-const planningsHeaders = [
-  { title: t('common.site'), key: 'site_name', align: 'start' as const },
-  { title: t('common.employee'), key: 'employees', align: 'start' as const },
-  { title: t('common.type'), key: 'schedule_type', align: 'start' as const },
-  { title: t('common.actions'), key: 'actions', sortable: false, align: 'end' as const }
-]
-
-const pointagesHeaders = [
-  { title: t('common.site'), key: 'site_name' },
-  { title: t('timesheets.entryType'), key: 'entry_type' },
-  { title: t('timesheets.dateTime', 'Date/Heure'), key: 'timestamp' }
-]
-
-const anomaliesHeaders = [
-  { title: t('common.site'), key: 'site_name' },
-  { title: t('common.type'), key: 'type' },
-  { title: t('timesheets.dateTime', 'Date/Heure'), key: 'created_at' },
-  { title: t('common.status'), key: 'status' }
-]
-
-const reportsHeaders = [
-  { title: t('common.name'), key: 'name' },
-  { title: t('common.type'), key: 'type' },
-  { title: t('reports.creationDate', 'Date de création'), key: 'created_at' },
-  { title: t('common.actions'), key: 'actions', sortable: false }
-]
+// Insert shared headers hook
+const { sitesHeaders, planningsHeaders, pointagesHeaders, anomaliesHeaders, reportsHeaders } = useDetailTableHeaders()
 
 const tabOrder = ['details', 'sites', 'plannings', 'pointages', 'anomalies', 'reports']
 

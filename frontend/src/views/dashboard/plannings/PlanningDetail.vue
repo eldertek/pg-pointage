@@ -177,7 +177,7 @@
       location="top"
     >
       {{ snackbar.text }}
-      <template v-slot:actions>
+      <template #actions>
         <v-btn variant="text" icon="mdi-close" @click="snackbar.show = false"></v-btn>
       </template>
     </v-snackbar>

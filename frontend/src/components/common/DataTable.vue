@@ -87,7 +87,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-interface TableHeader {
+export interface TableHeader {
   title: string
   key: string
   align?: 'start' | 'center' | 'end'
