@@ -728,7 +728,7 @@ const filteredSchedules = computed(() => {
       const userOrgIds = user.organizations?.map(org => Number(org)) ?? []
 
       // Trouver le site associé au planning
-      const site = sites.value.find(s => s.id === schedule.site)
+      const site = sites.value.find((s: { id: number }) => s.id === schedule.site)
       if (!site) return false
 
       const siteOrgId = Number(site.organization)
@@ -885,7 +885,7 @@ const loadEmployees = async (siteId: number | string | undefined) => {
     const organizationId = siteResponse.data.organization
 
     // Récupérer les employés de l'organisation
-    const response = await organizationsApi.getOrganizationEmployees(organizationId, { role: 'EMPLOYEE' })
+    const response = await organizationsApi.getOrganizationReports(organizationId, { role: 'EMPLOYEE' })
     employees.value = response.data.results.map((employee: any) => ({
       id: employee.id,
       first_name: employee.first_name,

@@ -1,8 +1,8 @@
 <template>
   <v-card class="auth-card">
     <v-card-title class="text-center">
-      <Title level="2" class="mb-2">{{ $t('auth.resetPassword') }}</Title>
-      <Text>{{ $t('auth.setNewPassword', 'Définir un nouveau mot de passe') }}</Text>
+      <AppTitle level="2" class="mb-2">{{ $t('auth.resetPassword') }}</AppTitle>
+      <AppText>{{ $t('auth.setNewPassword', 'Définir un nouveau mot de passe') }}</AppText>
     </v-card-title>
 
     <v-card-text>
@@ -78,13 +78,13 @@
 import { useI18n } from 'vue-i18n'
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Title, Text } from '@/components/typography'
+import { AppTitle, AppText } from '@/components/typography'
 
 export default {
   name: 'ResetPasswordView',
   components: {
-    Title,
-    Text
+    AppTitle,
+    AppText
   },
   setup() {
     const { t } = useI18n()

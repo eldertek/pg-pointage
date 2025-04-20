@@ -1,6 +1,6 @@
 <template>
   <div class="report-anomaly-container">
-    <Title level="1" class="text-h5 mb-4">Signaler une anomalie</Title>
+    <AppTitle level="1" class="text-h5 mb-4">Signaler une anomalie</AppTitle>
     
     <v-card>
       <v-card-title>{{ $t('mobile.dtails_de_lanomalie') }}</v-card-title>
@@ -99,12 +99,12 @@
 import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Title } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 
 export default {
   name: 'ReportAnomalyView',
   components: {
-    Title
+    AppTitle
   },
   setup() {
     const { t } = useI18n()

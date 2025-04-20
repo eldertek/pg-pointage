@@ -9,7 +9,7 @@
         :to="backRoute"
         class="mr-4"
       ></v-btn>
-      <Title :level="1" class="font-weight-bold">{{ title }}</Title>
+      <AppTitle :level="1" class="font-weight-bold">{{ title }}</AppTitle>
       <v-spacer></v-spacer>
       <v-btn
         v-if="canEdit"
@@ -168,7 +168,7 @@
                     variant="text"
                     size="small"
                     color="error"
-                    @click.stop="confirmDelete(rowItem)"
+                    @click.stop="handleDelete(rowItem)"
                   >
                     <v-icon>mdi-delete</v-icon>
                     <v-tooltip activator="parent">{{ $t('sites.deleteSite') }}</v-tooltip>
@@ -309,7 +309,7 @@
 import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Title } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 import { formatPhoneNumber } from '@/utils/formatters'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -323,8 +323,6 @@ import StatusChip from '@/components/common/StatusChip.vue'
 import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
 import AddressWithMap from '@/components/common/AddressWithMap.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import { useConfirmDialog } from '@/utils/dialogs'
-import type { DialogState } from '@/utils/dialogs'
 import { useDetailTableHeaders } from '@/composables/useDetailTableHeaders'
 
 // Type definitions
@@ -349,13 +347,6 @@ interface User {
   [key: string]: any;
 }
 
-interface Planning {
-  id: number;
-  site_name: string;
-  assigned_employees: Array<{ id: number; employee_name: string }>;
-  schedule_type: string;
-  is_active: boolean;
-}
 
 // Props
 const showBackButton = ref(true)
@@ -377,7 +368,6 @@ const auth = useAuthStore()
 const activeTab = ref('details')
 const previousTab = ref('details')
 const reverse = ref(false)
-const { dialogState, showConfirmDialog } = useConfirmDialog()
 
 // Snackbar pour les notifications
 const snackbar = ref({
@@ -456,9 +446,6 @@ const isManager = computed(() => {
   return auth.user?.role === 'MANAGER'
 })
 
-const canManageStatus = computed(() => {
-  return !isManager.value && (auth.user?.role === 'SUPER_ADMIN' || auth.user?.role === 'ADMIN')
-})
 
 const canEdit = computed(() => {
   const role = auth.user?.role
@@ -525,20 +512,8 @@ const loadData = async () => {
 const loadSites = async () => {
   loadingTabs.value.sites = true;
   try {
-    const response = await usersApi.getUserSites(itemId.value, {
-      page: 1,
-      page_size: 10
-    });
-    console.log('[UserDetail][LoadSites] Réponse complète:', response);
-    // Vérifier si la réponse contient des résultats ou si c'est un tableau direct
-    if (response.data && Array.isArray(response.data)) {
-      sites.value = response.data;
-    } else if (response.data && response.data.results) {
-      sites.value = response.data.results;
-    } else {
-      console.error('[UserDetail][LoadSites] Format de réponse inattendu:', response.data);
-      sites.value = [];
-    }
+    const response = await usersApi.getUserSites(itemId.value);
+    sites.value = response.data;
   } catch (error) {
     console.error('[UserDetail][LoadSites] Erreur lors du chargement des sites:', error);
     showError(t('profile.loadError') + ' ' + t('sites.title'));
@@ -551,20 +526,8 @@ const loadSites = async () => {
 const loadPlannings = async () => {
   loadingTabs.value.plannings = true;
   try {
-    const response = await usersApi.getUserSchedules(itemId.value, {
-      page: 1,
-      page_size: 10
-    });
-    console.log('[UserDetail][LoadPlannings] Réponse complète:', response);
-    // Vérifier si la réponse contient des résultats ou si c'est un tableau direct
-    if (response.data && Array.isArray(response.data)) {
-      plannings.value = response.data;
-    } else if (response.data && response.data.results) {
-      plannings.value = response.data.results;
-    } else {
-      console.error('[UserDetail][LoadPlannings] Format de réponse inattendu:', response.data);
-      plannings.value = [];
-    }
+    const response = await usersApi.getUserSchedules(itemId.value);
+    plannings.value = response.data;
   } catch (error) {
     console.error('[UserDetail][LoadPlannings] Erreur lors du chargement des plannings:', error);
     showError(t('profile.loadError') + ' ' + t('plannings.title'));
@@ -631,20 +594,8 @@ const loadAnomalies = async () => {
 const loadReports = async () => {
   loadingTabs.value.reports = true;
   try {
-    const response = await usersApi.getUserReports(itemId.value, {
-      page: 1,
-      page_size: 10
-    });
-    console.log('[UserDetail][LoadReports] Réponse complète:', response);
-    // Vérifier si la réponse contient des résultats ou si c'est un tableau direct
-    if (response.data && Array.isArray(response.data)) {
-      reports.value = response.data;
-    } else if (response.data && response.data.results) {
-      reports.value = response.data.results;
-    } else {
-      console.error('[UserDetail][LoadReports] Format de réponse inattendu:', response.data);
-      reports.value = [];
-    }
+    const response = await usersApi.getUserReports(itemId.value);
+    reports.value = response.data;
   } catch (error) {
     console.error('[UserDetail][LoadReports] Erreur lors du chargement des rapports:', error);
     showError(t('profile.loadError') + ' ' + t('reports.title'));
@@ -713,34 +664,29 @@ const editItem = () => {
   })
 }
 
-// Méthodes de confirmation
-const confirmDelete = (site: any) => {
-  showConfirmDialog({
-    title: t('sites.deleteSite'),
-    message: t('sites.deleteConfirmation'),
-    confirmText: t('common.delete'),
-    confirmColor: 'error',
-    onConfirm: () => handleDelete(site)
-  })
+// Nouvelle version simplifiée de confirmDelete
+const confirmDelete = async (user: User) => {
+  if (window.confirm(t('users.deleteUserConfirmation'))) {
+    try {
+      await usersApi.deleteUser(user.id)
+      router.push('/dashboard/admin/users')
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error)
+    }
+  }
 }
 
-const confirmTogglePlanningStatus = (planning: any) => {
-  const state = dialogState.value as DialogState
-  state.show = true
-  state.title = planning.is_active ? t('common.deactivate') : t('common.activate')
-  state.message = planning.is_active ? t('sites.deactivateConfirmation') : t('sites.activateConfirmation')
-  state.confirmText = planning.is_active ? t('common.deactivate') : t('common.activate')
-  state.cancelText = t('common.cancel')
-  state.confirmColor = planning.is_active ? 'warning' : 'success'
-  state.loading = false
-  state.onConfirm = async () => {
-    state.loading = true
-    try {
-      await togglePlanningStatus(planning)
-    } finally {
-      state.show = false
-      state.loading = false
-    }
+// Nouvelle version simplifiée de confirmTogglePlanningStatus
+const confirmTogglePlanningStatus = async (planning: any) => {
+  if (window.confirm(planning.is_active ? t('sites.deactivateConfirmation') : t('sites.activateConfirmation'))) {
+    await togglePlanningStatus(planning)
+  }
+}
+
+// Nouvelle version simplifiée de confirmDeletePlanning
+const confirmDeletePlanning = async (planning: any) => {
+  if (window.confirm(t('plannings.deletePlanningConfirmation'))) {
+    await deletePlanning(planning)
   }
 }
 
@@ -748,23 +694,7 @@ const formatDate = (date: string) => {
   return format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: fr })
 }
 
-const getPointageStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    'PENDING': 'warning',
-    'VALIDATED': 'success',
-    'REJECTED': 'error'
-  }
-  return colors[status] || 'grey'
-}
 
-const getPointageStatusLabel = (status: string) => {
-  const labels: Record<string, string> = {
-    'PENDING': t('timesheets.statuses.PENDING'),
-    'VALIDATED': t('timesheets.statuses.VALIDATED'),
-    'REJECTED': t('timesheets.statuses.REJECTED')
-  }
-  return labels[status] || status
-}
 
 const getAnomalyStatusColor = (status: string) => {
   const colors: Record<string, string> = {
@@ -822,19 +752,7 @@ const downloadReport = async () => {
 }
 
 // Méthodes pour l'onglet plannings
-const navigateToPlanning = (planning: any) => {
-  router.push({
-    name: 'PlanningEdit',
-    params: { id: planning.id }
-  })
-}
 
-const viewPlanningDetails = (planning: any) => {
-  router.push({
-    name: 'Plannings',
-    query: { view: planning.id }
-  })
-}
 
 const togglePlanningStatus = async (planning: any) => {
   try {
@@ -852,26 +770,6 @@ const togglePlanningStatus = async (planning: any) => {
   } catch (error) {
     console.error('[UserDetail][TogglePlanningStatus] Erreur lors du changement de statut:', error)
     showError(t('profile.statusUpdateError'))
-  }
-}
-
-const confirmDeletePlanning = (planning: any) => {
-  const state = dialogState.value as DialogState
-  state.show = true
-  state.title = t('plannings.deletePlanning')
-  state.message = t('plannings.deletePlanningConfirmation')
-  state.confirmText = t('common.delete')
-  state.cancelText = t('common.cancel')
-  state.confirmColor = 'error'
-  state.loading = false
-  state.onConfirm = async () => {
-    state.loading = true
-    try {
-      await deletePlanning(planning)
-    } finally {
-      state.show = false
-      state.loading = false
-    }
   }
 }
 
@@ -903,6 +801,7 @@ watch(
     }
   }
 )
+
 </script>
 
 <style scoped>

@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <Title :level="1">{{ $t('timesheets.title') }}</Title>
+      <AppTitle :level="1">{{ $t('timesheets.title') }}</AppTitle>
     </div>
 
     <v-card v-if="!isDetailView" class="mb-4">
@@ -442,7 +442,7 @@ import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import type { Filters, SiteOption, EditingTimesheet } from '@/types/sites'
 import { EntryTypeEnum } from '@/types/api'
-import { Title } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -925,7 +925,7 @@ watch(() => currentSiteId.value, (newSiteId: number | null) => {
 const loadSites = async () => {
   try {
     const response = await sitesApi.getAllSites()
-    siteOptions.value = response.data.results.map(site => ({
+    siteOptions.value = response.data.results.map((site: { name: any; id: any }) => ({
       title: site.name,
       value: site.id
     }))

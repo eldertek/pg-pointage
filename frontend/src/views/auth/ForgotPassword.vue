@@ -1,7 +1,7 @@
 <template>
   <v-card class="auth-card">
     <v-card-title class="text-center">
-      <Title level="2" class="mb-2">{{ $t('auth.forgotPassword') }}</Title>
+      <AppTitle level="2" class="mb-2">{{ $t('auth.forgotPassword') }}</AppTitle>
       <Text>{{ $t('auth.resetPassword') }}</Text>
     </v-card-title>
 
@@ -63,7 +63,7 @@
 <script>
 import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
-import { Title, Text } from '@/components/typography'
+import { Text } from '@/components/typography'
 
 export default {
   name: 'ForgotPasswordView',

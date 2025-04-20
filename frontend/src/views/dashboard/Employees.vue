@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex justify-space-between align-center mb-4">
-      <Title level="1">{{ $t('users.employees', 'Employés') }}</Title>
+      <AppTitle level="1">{{ $t('users.employees', 'Employés') }}</AppTitle>
     </div>
 
     <!-- Message d'erreur -->
@@ -201,12 +201,12 @@ import { useI18n } from 'vue-i18n'
 import { ref, onMounted } from 'vue'
 import { useEmployeesStore } from '@/stores/employees'
 import { formatPhoneNumber } from '@/utils/formatters'
-import { Title } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 
 export default {
   name: 'EmployeesView',
   components: {
-    Title
+    AppTitle
   },
   setup() {
     const { t } = useI18n()

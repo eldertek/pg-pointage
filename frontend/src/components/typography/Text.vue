@@ -27,6 +27,10 @@ withDefaults(defineProps<TextProps>(), {
   button: false,
   className: '',
 });
+
+defineOptions({
+  name: 'AppText',
+})
 </script>
 
 <style scoped>

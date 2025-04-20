@@ -9,7 +9,7 @@
         :to="backRoute"
         class="mr-4"
       ></v-btn>
-      <Title :level="1" class="font-weight-bold">{{ title }}</Title>
+      <AppTitle :level="1" class="font-weight-bold">{{ title }}</AppTitle>
       <v-spacer></v-spacer>
       <v-btn
         v-if="canEdit"
@@ -141,6 +141,18 @@
                 <template #item.created_at="{ item: rowItem }">
                   {{ formatDate(rowItem.created_at) }}
                 </template>
+
+                <template #item.actions="{ item }">
+                  <DetailActions
+                    :item="item"
+                    :config="{
+                      type: 'site',
+                      baseRoute: '/dashboard/sites',
+                      toggleStatus: (item) => handleToggleStatus('sites', item),
+                      deleteItem: (item) => handleDelete('sites', item)
+                    }"
+                  />
+                </template>
               </DataTable>
             </v-window-item>
 
@@ -178,6 +190,18 @@
                 
                 <template #item.role="{ item: rowItem }">
                   {{ getRoleTranslation(rowItem.role) }}
+                </template>
+
+                <template #item.actions="{ item }">
+                  <DetailActions
+                    :item="item"
+                    :config="{
+                      type: 'user',
+                      baseRoute: '/dashboard/admin/users',
+                      toggleStatus: (item) => handleToggleStatus('employees', item),
+                      deleteItem: (item) => handleDelete('employees', item)
+                    }"
+                  />
                 </template>
               </DataTable>
             </v-window-item>
@@ -217,7 +241,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Title } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 import { formatPhoneNumber } from '@/utils/formatters'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -228,6 +252,7 @@ import DataTable, { type TableItem } from '@/components/common/DataTable.vue'
 import { sitesApi } from '@/services/api'
 import { employeesService } from '@/services/employees'
 import { useAuthStore } from '@/stores/auth'
+import DetailActions from '@/components/common/DetailActions.vue'
 
 // Types
 interface Field {
@@ -459,8 +484,27 @@ const editItem = () => {
   })
 }
 
-const confirmDelete = () => {
-  showDeleteDialog.value = true
+const toggleStatus = async (organization: any) => {
+  try {
+    await organizationsApi.toggleOrganizationStatus(organization.id, !organization.is_active)
+    // Recharger les données après modification
+    await loadData()
+    showSuccess('Statut modifié avec succès')
+  } catch (error) {
+    showError('Erreur lors du changement de statut')
+  }
+}
+
+const confirmDelete = async (organization: any) => {
+  // Afficher une boîte de dialogue de confirmation, puis supprimer si confirmé
+  // (À adapter selon la logique de confirmation de l'app)
+  try {
+    await organizationsApi.deleteOrganization(organization.id)
+    router.push('/dashboard/admin/access')
+    showSuccess('Organisation supprimée avec succès')
+  } catch (error) {
+    showError('Erreur lors de la suppression de l\'organisation')
+  }
 }
 
 const formatDate = (date: string) => {

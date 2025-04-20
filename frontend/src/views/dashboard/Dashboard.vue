@@ -175,7 +175,7 @@ import { ref, onMounted, computed } from 'vue'
 import type { ToastInterface } from 'vue-toastification'
 import { useToast } from 'vue-toastification'
 import { timesheetsApi, sitesApi, usersApi } from '@/services/api'
-import { Title as AppTitle } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 import { useI18n } from 'vue-i18n'
 
 interface Stats {
@@ -262,7 +262,7 @@ export default {
         stats.value.sitesCount = sitesResponse.data?.count || sitesResponse.data?.results?.length || 0
 
         // Récupérer le nombre d'employés
-        const employeesResponse = await usersApi.searchUsers('')  // Recherche vide pour obtenir tous les utilisateurs
+        const employeesResponse = await usersApi.getAllUsers()  // Utilise la bonne méthode pour obtenir tous les utilisateurs
         console.log('Employees response:', employeesResponse.data)
         stats.value.employeesCount = employeesResponse.data?.count || employeesResponse.data?.results?.length || 0
 

@@ -1,13 +1,35 @@
-import { api } from './api'
-import type { Organization } from '@/types'
+import { api } from '../api'
+import type { Organization } from '@/types/api'
+
+interface OrganizationResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Organization[];
+}
 
 export const organizationsApi = {
   // Organisations
-  getAllOrganizations: () => api.get('/organizations/'),
-  getOrganization: (id: number) => api.get(`/organizations/${id}/`),
-  createOrganization: (data: Partial<Organization>) => api.post('/organizations/', data),
-  updateOrganization: (id: number, data: Partial<Organization>) => api.patch(`/organizations/${id}/`, data),
-  deleteOrganization: (id: number) => api.delete(`/organizations/${id}/`),
+  getAllOrganizations: (params?: any) => {
+    return api.get<OrganizationResponse>('/organizations/', { params })
+  },
+
+  getOrganization: (id: number) => {
+    return api.get<Organization>(`/organizations/${id}/`)
+  },
+
+  createOrganization: (data: Partial<Organization>) => {
+    return api.post<Organization>('/organizations/', data)
+  },
+
+  updateOrganization: (id: number, data: Partial<Organization>) => {
+    return api.patch<Organization>(`/organizations/${id}/`, data)
+  },
+
+  deleteOrganization: (id: number) => {
+    return api.delete(`/organizations/${id}/`)
+  },
+
   toggleOrganizationStatus: (id: number, status: boolean) => api.patch(`/organizations/${id}/`, { is_active: status }),
 
   // Utilisateurs de l'organisation

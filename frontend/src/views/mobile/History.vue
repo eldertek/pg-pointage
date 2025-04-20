@@ -1,6 +1,6 @@
 <template>
   <div class="history-container">
-    <Title :level="1" class="mb-4">Historique des enregistrements</Title>
+    <AppTitle :level="1" class="mb-4">Historique des enregistrements</AppTitle>
 
     <v-card class="mb-4">
       <v-card-title>{{ $t('reports.filters') }}</v-card-title>
@@ -125,7 +125,7 @@ import { ref, onMounted } from 'vue'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { timesheetsApi, sitesApi } from '@/services/api'
-import { Title } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 
 interface Timesheet {
   id: number;

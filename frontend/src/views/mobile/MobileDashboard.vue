@@ -4,7 +4,7 @@
     <template v-if="user?.simplified_mobile_view">
       <v-card class="simplified-view">
         <v-card-text class="text-center">
-          <Title :level="2" class="mb-4">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</Title>
+          <AppTitle :level="2" class="mb-4">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</AppTitle>
           <v-btn
             color="primary"
             size="x-large"
@@ -34,8 +34,8 @@
       
       <v-card-text>
         <div class="text-center mb-6">
-          <Title :level="2" class="mb-2">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</Title>
-          <Text>{{ currentDate }}</Text>
+          <AppTitle :level="2" class="mb-2">Bonjour{{ user?.first_name ? ' ' + user.first_name : '' }}</AppTitle>
+          <AppText>{{ currentDate }}</AppText>
         </div>
         
         <v-row>
@@ -61,7 +61,7 @@
         </v-row>
         
         <div class="mt-6">
-          <Title :level="3" class="mb-3">Derniers enregistrements</Title>
+          <AppTitle :level="3" class="mb-3">Derniers enregistrements</AppTitle>
           <v-timeline density="compact" align="start">
             <v-timeline-item
               v-for="(timesheet, index) in recentTimesheets"
@@ -96,7 +96,7 @@
           </v-timeline>
           
           <div v-if="recentTimesheets.length === 0" class="text-center pa-4">
-            <Text class="text-medium-emphasis">Aucun enregistrement récent</Text>
+            <AppText class="text-medium-emphasis">Aucun enregistrement récent</AppText>
           </div>
           
           <div class="text-center mt-4">
@@ -112,19 +112,19 @@
         </div>
         
         <div class="mt-6">
-          <Title :level="3" class="mb-3">Message</Title>
+          <AppTitle :level="3" class="mb-3">Message</AppTitle>
           <v-card
             :color="stats.lateCount > 0 || stats.earlyDepartureCount > 0 ? 'warning' : 'success'"
             variant="outlined"
             class="message-card"
           >
             <v-card-text>
-              <Text v-if="!stats.lateCount && !stats.earlyDepartureCount">
+              <AppText v-if="!stats.lateCount && !stats.earlyDepartureCount">
                 Félicitations ! Vous n'avez aucun retard ni départ anticipé ce mois-ci.
-              </Text>
-              <Text v-else>
+              </AppText>
+              <AppText v-else>
                 Vous avez {{ stats.lateCount || 0 }} retard(s) et {{ stats.earlyDepartureCount || 0 }} départ(s) anticipé(s) ce mois-ci.
-              </Text>
+              </AppText>
             </v-card-text>
           </v-card>
         </div>
@@ -151,13 +151,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useTimesheetStore } from '@/stores/timesheet'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Title, Text } from '@/components/typography'
+import { AppTitle, AppText } from '@/components/typography'
 
 export default {
   name: 'MobileDashboard',
   components: {
-    Title,
-    Text
+    AppTitle,
+    AppText
   },
   setup() {
     const { t } = useI18n()

@@ -258,7 +258,7 @@ import { useI18n } from 'vue-i18n'
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { sitesApi, organizationsApi, usersApi } from '@/services/api'
-import type { Site, Organization } from '@/services/api'
+import type { Site, Organization } from '@/types/api'
 import DashboardView from '@/components/dashboard/DashboardView.vue'
 import DashboardFilters from '@/components/dashboard/DashboardFilters.vue'
 import DashboardForm from '@/components/dashboard/DashboardForm.vue'
@@ -369,17 +369,27 @@ const headers = [
 const loadSites = async () => {
   loading.value = true
   try {
-    // Récupérer tous les sites en une seule fois avec le filtre de recherche
-    const params = {
-      search: filters.value.search || ''
+    // Fetch sites with high page_size
+    const params: any = { page: 1, page_size: 1000 }
+    if (filters.value.search?.trim()) {
+      params.search = filters.value.search.trim()
     }
-    console.log('[Sites][LoadSites] Paramètres de recherche:', params)
-
-    const response = await sitesApi.getAllSites(1, 1000, params) // Valeur arbitrairement grande
-    sites.value = response.data.results || []
-    console.log('[Sites] Nombre de sites chargés:', sites.value.length)
+    const response = await sitesApi.getAllSites(params.page, params.page_size, { search: params.search })
+    // Determine if data is raw array (superadmin bypass) or paginated object
+    const body = response.data
+    let sitesList: Site[] = []
+    if (Array.isArray(body)) {
+      sitesList = body
+    } else if (body.results && Array.isArray(body.results)) {
+      sitesList = body.results
+    } else {
+      console.error('[Sites][LoadSites] format de réponse inattendu pour les sites:', body)
+    }
+    console.log('[Sites][LoadSites] nombre de sites chargés:', sitesList.length)
+    sites.value = sitesList
   } catch (error) {
     console.error('Erreur lors du chargement des sites:', error)
+    sites.value = []
   } finally {
     loading.value = false
   }
@@ -662,7 +672,7 @@ const filteredSites = computed(() => {
   console.log('[Sites][Filter] Sites avant filtrage:', sites.value)
   console.log('[Sites][Filter] Nombre de sites avant filtrage:', sites.value.length)
 
-  const filtered = sites.value.filter(site => {
+  const filtered = sites.value.filter((site: Site) => {
     // Super Admin voit tout
     if (user.role === RoleEnum.SUPER_ADMIN) return true
 

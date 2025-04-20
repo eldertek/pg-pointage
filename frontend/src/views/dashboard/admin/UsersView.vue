@@ -444,6 +444,7 @@ import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usersApi, organizationsApi } from '@/services/api'
 import type { Organization } from '@/types/api'
+import type { UserRequest } from '@/types/api'
 import { RoleEnum, ScanPreferenceEnum } from '@/types/api'
 import { useAuthStore } from '@/stores/auth'
 import DashboardView from '@/components/dashboard/DashboardView.vue'
@@ -478,23 +479,10 @@ interface ExtendedUser {
 }
 
 // Interface pour le formulaire utilisateur
-interface UserFormData {
+interface UserFormData extends UserRequest {
   id?: number;
-  username: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-  organizations: number[];
   organizations_names?: string[];
-  phone_number: string;
-  is_active: boolean;
-  activation_start_date?: string;
-  activation_end_date?: string;
-  scan_preference: string;
-  simplified_mobile_view: boolean;
-  password?: string;
-  employee_id?: string;
+  date_joined?: string;
 }
 
 interface AuthUser {
@@ -679,7 +667,10 @@ const loadUsers = async () => {
 
     const response = await usersApi.getAllUsers(params)
     console.log('[Users][LoadUsers] Réponse du backend:', response.data)
-    users.value = response.data.results || []
+    users.value = (response.data.results || []).map(user => ({
+      ...user,
+      organizations_names: user.organizations_names ?? []
+    }))
 
     // Afficher le nombre total d'utilisateurs
     if (response.data.count !== undefined) {
@@ -754,15 +745,15 @@ const showConfirmPassword = ref(false)
 const confirmPassword = ref('')
 
 // Modifier le v-select pour utiliser une valeur intermédiaire
-const selectedOrganizations = ref<number[]>([]);
+const selectedOrganizations = ref<number[]>([])
 
 // Watcher pour synchroniser les changements
-watch(() => editedItem.value?.organizations, (newVal) => {
+watch(() => editedItem.value?.organizations, (newVal: number[] | undefined) => {
   if (Array.isArray(newVal)) {
-    selectedOrganizations.value = [...newVal];
-    console.log('[Debug][Orgs] Mise à jour selectedOrganizations:', JSON.stringify(selectedOrganizations.value));
+    selectedOrganizations.value = newVal
+    console.log('[Debug][Orgs] Mise à jour selectedOrganizations:', JSON.stringify(selectedOrganizations.value))
   }
-}, { immediate: true });
+})
 
 // La pagination est désactivée, nous n'avons plus besoin de gestionnaire de pagination
 
@@ -782,14 +773,16 @@ onMounted(async () => {
 
       if (response.data) {
         // Initialiser selectedOrganizations avant d'ouvrir le dialogue
-        selectedOrganizations.value = Array.isArray(response.data.organizations)
-          ? [...response.data.organizations]
-          : [];
-
+        selectedOrganizations.value = response.data.organizations.map((orgId: number) => orgId)
         console.log('[Debug][Orgs] selectedOrganizations initialisé avec:', JSON.stringify(selectedOrganizations.value));
 
+        // Correction : garantir organizations_names toujours défini
+        const safeUser = {
+          ...response.data,
+          organizations_names: response.data.organizations_names ?? []
+        }
         // Ensuite ouvrir le dialogue
-        openDialog(response.data);
+        openDialog(safeUser);
       }
     } catch (error) {
       console.error('[Users][Error] Erreur lors du chargement des données:', error);
@@ -819,29 +812,30 @@ const openDialog = (item?: ExtendedUser) => {
     console.log('[Users][OpenDialog] Organisations formatées:', JSON.stringify(orgs));
 
     // Créer une copie profonde de l'objet pour éviter les problèmes de réactivité
-    const formData = {
+    const formData: UserFormData = {
       id: item.id,
       username: item.username,
       email: item.email,
       first_name: item.first_name,
       last_name: item.last_name,
-      role: item.role,
+      role: (typeof item.role === 'string' && ['SUPER_ADMIN','ADMIN','MANAGER','EMPLOYEE'].includes(item.role)) ? item.role as UserRequest['role'] : 'EMPLOYEE',
       organizations: orgs,
       organizations_names: item.organizations_names ? [...item.organizations_names] : [],
       phone_number: item.phone_number,
       is_active: item.is_active,
       activation_start_date: item.activation_start_date || '',
       activation_end_date: item.activation_end_date || '',
-      scan_preference: item.scan_preference,
+      scan_preference: item.scan_preference as UserRequest['scan_preference'],
       simplified_mobile_view: item.simplified_mobile_view,
-      employee_id: item.employee_id
+      employee_id: item.employee_id,
+      password: ''
     };
 
     console.log('[Debug][Orgs] FormData avant affectation:', JSON.stringify(formData.organizations));
 
     // Mettre à jour selectedOrganizations si ce n'est pas déjà fait
     if (!props.editId) {
-      selectedOrganizations.value = [...orgs];
+      selectedOrganizations.value = orgs.map(org => org);
       console.log('[Debug][Orgs] selectedOrganizations mis à jour dans openDialog:', JSON.stringify(selectedOrganizations.value));
     }
 
@@ -866,14 +860,13 @@ const openDialog = (item?: ExtendedUser) => {
       email: '',
       first_name: '',
       last_name: '',
-      role: RoleEnum.EMPLOYEE,
+      role: 'EMPLOYEE',
       organizations: [],
-      organizations_names: [],
       phone_number: '',
       is_active: true,
       activation_start_date: '',
       activation_end_date: '',
-      scan_preference: ScanPreferenceEnum.BOTH,
+      scan_preference: 'BOTH',
       simplified_mobile_view: false,
       password: ''
     };
@@ -890,102 +883,50 @@ const openDialog = (item?: ExtendedUser) => {
 };
 
 const saveUser = async () => {
-  if (!form.value?.validate()) return
+  if (!form.value?.validate() || !editedItem.value) {
+    return
+  }
 
   saving.value = true
-  formErrors.value = {}
-
   try {
-    if (editedItem.value) {
-      const userData = editedItem.value as UserFormData
-      console.log('[Users][Save] Données utilisateur:', JSON.stringify(userData))
+    const userData = { ...editedItem.value }
+    const organizations = selectedOrganizations.value
 
-      // Vérification renforcée de la correspondance des mots de passe
-      if (!userData.id) { // Mode création
-        // Vérifier que le mot de passe est bien renseigné
-        if (!userData.password || userData.password.trim() === '') {
-          formErrors.value.password = ['Le mot de passe est obligatoire']
-          saving.value = false
-          return
-        }
-
-        // Vérifier que la confirmation est bien renseignée
-        if (!confirmPassword.value || confirmPassword.value.trim() === '') {
-          formErrors.value.confirm_password = ['La confirmation du mot de passe est obligatoire']
-          saving.value = false
-          return
-        }
-
-        // Vérifier que les deux valeurs correspondent exactement (comparaison stricte)
-        if (userData.password !== confirmPassword.value) {
-          console.log('[Users][Save] Erreur de correspondance des mots de passe:', {
-            password: userData.password,
-            confirmPassword: confirmPassword.value
-          })
-          formErrors.value.confirm_password = ['Les mots de passe ne correspondent pas exactement']
-          saving.value = false
-          return
-        }
-      } else { // Mode modification
-        // Vérifier si un nouveau mot de passe a été fourni
-        if (userData.password && userData.password.trim() !== '') {
-          // Si on a un mot de passe, on doit vérifier la confirmation
-          if (!confirmPassword.value || confirmPassword.value.trim() === '') {
-            formErrors.value.confirm_password = ['La confirmation du mot de passe est obligatoire']
-            saving.value = false
-            return
-          }
-
-          // Vérifier que les deux valeurs correspondent exactement
-          if (userData.password !== confirmPassword.value) {
-            console.log('[Users][Save] Erreur de correspondance des mots de passe en mode édition:', {
-              password: userData.password,
-              confirmPassword: confirmPassword.value
-            })
-            formErrors.value.confirm_password = ['Les mots de passe ne correspondent pas exactement']
-            saving.value = false
-            return
-          }
-        }
-      }
-
-      // Utiliser les organisations sélectionnées dans le v-select
-      const organizations = Array.isArray(selectedOrganizations.value) ? [...selectedOrganizations.value] : [];
-      console.log('[Users][Save] Organisations à envoyer:', JSON.stringify(organizations))
-
-      // S'assurer que editedItem.organizations est à jour avec selectedOrganizations
-      if (editedItem.value) {
-        editedItem.value.organizations = organizations;
-      }
-
-      // Générer les noms d'organisations basés sur les IDs sélectionnés
-      userData.organizations_names = organizations.map(orgId =>
-        organizationsMap.value.get(orgId) || '?'
-      )
-
-      if (userData.id) {
-        // Ne pas envoyer le champ password s'il est vide
-        const updatePayload = {
-          ...userData,
-          organizations: organizations
-        };
-        if (!userData.password) {
-          delete updatePayload.password;
-        }
-        await usersApi.updateUser(userData.id, updatePayload);
-      } else {
-        await usersApi.createUser({
-          ...userData,
-          organizations: organizations
-        });
-      }
-      await loadUsers()
-      dashboardView.value.showForm = false
-      // Attendre que le dialogue soit fermé avant de réinitialiser l'état du formulaire
-      setTimeout(() => {
-        resetFormState()
-      }, 300)
+    // Nettoyer le payload pour l'API
+    const payload: UserRequest = {
+      username: userData.username,
+      email: userData.email,
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      role: userData.role,
+      organizations: organizations,
+      phone_number: userData.phone_number,
+      is_active: userData.is_active,
+      activation_start_date: userData.activation_start_date || undefined,
+      activation_end_date: userData.activation_end_date || undefined,
+      scan_preference: userData.scan_preference,
+      simplified_mobile_view: userData.simplified_mobile_view,
+      password: userData.password,
+      employee_id: userData.employee_id,
+      sites: userData.sites
     }
+
+    if (userData.id) {
+      // Ne pas envoyer le champ password s'il est vide
+      if (!payload.password) {
+        delete payload.password
+      }
+      await usersApi.updateUser(userData.id, payload)
+    } else {
+      payload.password = userData.password || ''
+      await usersApi.createUser(payload)
+    }
+    await loadUsers()
+    dashboardView.value.showForm = false
+    // Attendre que le dialogue soit fermé avant de réinitialiser l'état du formulaire
+    setTimeout(() => {
+      resetFormState()
+    }, 300)
   } catch (error: any) {
     console.error('[Users][Error] Erreur lors de la sauvegarde:', error)
     if (error.response?.data) {

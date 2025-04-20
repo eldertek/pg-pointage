@@ -9,7 +9,7 @@
         :to="backRoute"
         class="mr-4"
       ></v-btn>
-      <Title :level="1" class="font-weight-bold">{{ title }}</Title>
+      <AppTitle :level="1" class="font-weight-bold">{{ title }}</AppTitle>
       <v-spacer></v-spacer>
       <v-btn
         v-if="canEdit"
@@ -125,41 +125,18 @@
                 @delete="(item: TableItem) => handleDelete(item)"
                 @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.employee}`)"
               >
-                <template #item.actions="{ item: rowItem }">
-                  <v-btn
-                    v-if="canEdit"
-                    icon
-                    variant="text"
-                    size="small"
-                    color="primary"
-                    :to="`/dashboard/admin/users/${rowItem.employee}`"
-                    @click.stop
-                  >
-                    <v-icon>mdi-eye</v-icon>
-                    <v-tooltip activator="parent">{{ $t("common.viewDetails") }}</v-tooltip>
-                  </v-btn>
-                  <v-btn
-                    v-if="canCreateDelete"
-                    icon
-                    variant="text"
-                    size="small"
-                    color="warning"
-                    @click.stop="toggleUserStatus(rowItem)"
-                  >
-                    <v-icon>{{ rowItem.is_active ? 'mdi-account-off' : 'mdi-account-check' }}</v-icon>
-                    <v-tooltip activator="parent">{{ rowItem.is_active ? 'Désactiver' : 'Activer' }} l'utilisateur</v-tooltip>
-                  </v-btn>
-                  <v-btn
-                    v-if="canCreateDelete"
-                    icon
-                    variant="text"
-                    size="small"
-                    color="error"
-                    @click.stop="confirmDeleteUser(rowItem)"
-                  >
-                    <v-icon>mdi-delete</v-icon>
-                    <v-tooltip activator="parent">{{ $t("users.deleteUser") }}</v-tooltip>
-                  </v-btn>
+                <template #item.actions="{ item }">
+                  <DetailActions
+                    :item="{
+                      ...item
+                    }"
+                    :config="{
+                      type: 'user',
+                      baseRoute: '/dashboard/admin/users',
+                      toggleStatus: toggleUserStatus,
+                      deleteItem: confirmDeleteUser
+                    }"
+                  />
                 </template>
               </DataTable>
             </v-window-item>
@@ -188,7 +165,7 @@
 import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Title } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { schedulesApi, timesheetsApi, sitesApi, usersApi } from '@/services/api'
@@ -198,6 +175,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useConfirmDialog } from '@/utils/dialogs'
 import type { DialogState } from '@/utils/dialogs'
 import { useAuthStore } from '@/stores/auth'
+import DetailActions from '@/components/common/DetailActions.vue'
 
 // Initialize i18n
 const { t } = useI18n()
@@ -507,7 +485,7 @@ const toggleUserStatus = async (user: any) => {
   }
 }
 
-const confirmDeleteUser = (user: any) => {
+const confirmDeleteUser = async (user: any) => {
   const state = dialogState.value as DialogState
   state.show = true
   state.title = t('common.deleteConfirmation')

@@ -24,6 +24,10 @@ const props = withDefaults(defineProps<TitleProps>(), {
 });
 
 const tag = computed(() => `h${props.level}`);
+
+defineOptions({
+  name: 'AppTitle',
+})
 </script>
 
 <style scoped>

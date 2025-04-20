@@ -9,7 +9,7 @@
         :to="backRoute"
         class="mr-4"
       ></v-btn>
-      <Title :level="1" class="font-weight-bold">{{ title }}</Title>
+      <AppTitle :level="1" class="font-weight-bold">{{ title }}</AppTitle>
       <v-spacer></v-spacer>
       <v-btn
         v-if="canEdit"
@@ -161,30 +161,16 @@
                 @delete="(item: TableItem) => handleDelete('employees', item)"
                 @row-click="(item: TableItem) => router.push(`/dashboard/admin/users/${item.employee}`)"
               >
-                <template #item.actions="{ item: rowItem }">
-                  <v-btn
-                    v-if="canEdit"
-                    icon
-                    variant="text"
-                    size="small"
-                    color="primary"
-                    :to="`/dashboard/admin/users/${rowItem.employee}`"
-                    @click.stop
-                  >
-                    <v-icon>mdi-eye</v-icon>
-                    <v-tooltip activator="parent">{{ $t('common.viewDetails') }}</v-tooltip>
-                  </v-btn>
-                  <v-btn
-                    v-if="canCreateDelete"
-                    icon
-                    variant="text"
-                    size="small"
-                    color="error"
-                    @click.stop="unassignEmployeeFromSite(rowItem.id)"
-                  >
-                    <v-icon>mdi-account-remove</v-icon>
-                    <v-tooltip activator="parent">{{ $t('common.removeFromSite') }}</v-tooltip>
-                  </v-btn>
+                <template #item.actions="{ item }">
+                  <DetailActions
+                    :item="item"
+                    :config="{
+                      type: 'user',
+                      baseRoute: '/dashboard/admin/users',
+                      toggleStatus: toggleUserStatus,
+                      deleteItem: confirmDeleteUser
+                    }"
+                  />
                 </template>
               </DataTable>
             </v-window-item>
@@ -313,6 +299,17 @@
     </template>
     <!-- Boîte de dialogue de confirmation -->
     <ConfirmDialog />
+    <template #actions>
+      <DetailActions
+        :item="item"
+        :config="{
+          type: 'site',
+          baseRoute: '/dashboard/sites',
+          toggleStatus: toggleSiteStatus,
+          deleteItem: confirmDelete
+        }"
+      />
+    </template>
   </v-container>
 </template>
 
@@ -321,7 +318,7 @@
 import { useI18n } from 'vue-i18n'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Title } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 import { generateStyledQRCode } from '@/utils/qrcode'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -333,6 +330,7 @@ import { useConfirmDialog } from '@/utils/dialogs'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDetailTableHeaders } from '@/composables/useDetailTableHeaders'
+import DetailActions from '@/components/common/DetailActions.vue'
 
 // Types
 interface Field {

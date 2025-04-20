@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Title level="1" class="text-h4">{{ $t('dashboard.nouvelle_organisation') }}</Title>
+    <AppTitle level="1" class="text-h4">{{ $t('dashboard.nouvelle_organisation') }}</AppTitle>
 
     <div class="d-flex align-center mb-4">
       <v-btn icon class="mr-4" to="/dashboard/organizations">
@@ -178,12 +178,12 @@ import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
-import { Title } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 
 export default {
   name: 'NewOrganizationView',
   components: {
-    Title
+    AppTitle
   },
   setup() {
     const { t } = useI18n()

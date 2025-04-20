@@ -2,7 +2,7 @@
   <div class="login-container">
     <v-card class="login-card">
       <v-card-title class="text-center">
-        <Title :level="1" class="text-h4 mb-2">{{ $t('auth.appName') }}</Title>
+        <AppTitle :level="1" class="text-h4 mb-2">{{ $t('auth.appName') }}</AppTitle>
         <p class="text-subtitle-1">{{ $t('auth.login') }}</p>
       </v-card-title>
 
@@ -71,12 +71,12 @@
 import { useI18n } from 'vue-i18n'
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { Title } from '@/components/typography'
+import { AppTitle } from '@/components/typography'
 
 export default {
   name: 'LoginView',
   components: {
-    Title
+    AppTitle
   },
   setup() {
     const { t } = useI18n()
